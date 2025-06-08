@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Definisci le rotte pubbliche
+type AppRole = "admin" | "manager";
+
 const isPublicRoute = createRouteMatcher([
   "/",
   "/about",
@@ -15,32 +16,31 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-// Definisci le rotte admin
-const isAdminApiRoute = createRouteMatcher(["/api/admin/(.*)"]);
-const isAdminPageRoute = createRouteMatcher(["/admin(.*)", "/dashboard(.*)"]);
-
-// Definisci le rotte autenticate generiche
+const isAdminRoute = createRouteMatcher([
+  "/admin(.*)",
+  "/dashboard(.*)",
+  "/api/admin/(.*)",
+]);
 const isAuthenticatedRoute = createRouteMatcher(["/features(.*)"]);
 
-export default clerkMiddleware(async (clerkAuth, req) => {
-  const { userId, sessionClaims } = await clerkAuth();
+export default clerkMiddleware(async (auth, req) => {
+  const { userId, sessionClaims } = await auth();
 
-  console.log("\n--- CLERK MIDDLEWARE (V4.1 CLEANUP TS EXPECT) ---");
-  console.log("Request URL:", req.url);
-  console.log("User ID from auth():", userId);
-  console.log(
-    "Raw SessionClaims from auth():",
-    JSON.stringify(sessionClaims, null, 2)
-  );
+  // Per debug, puoi decommentare le seguenti righe per vedere i log
+  //console.log("\n--- CLERK MIDDLEWARE V5.2 ---");
+  //console.log(`[REQ] ${req.method} ${req.url}`);
+  //console.log(`[AUTH] User ID: ${userId}`);
+
 
   if (isPublicRoute(req)) {
-    console.log(`Middleware: Public route ${req.url}, allowing.`);
+    console.log(`[DECISION] Public route. Allowing for ${req.url}.`);
     return NextResponse.next();
   }
 
   if (!userId) {
-    console.log(`Middleware: User not authenticated for ${req.url}.`);
+    console.log("[DECISION] User not authenticated.");
     if (req.url.startsWith("/api")) {
+      console.log("[ACTION] Returning 401 for API request.");
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -51,81 +51,50 @@ export default clerkMiddleware(async (clerkAuth, req) => {
       "redirect_url",
       req.nextUrl.pathname + req.nextUrl.search
     );
-    console.log(
-      `Middleware: Redirecting unauthenticated user to ${signInUrl.toString()}`
-    );
+    console.log(`[ACTION] Redirecting to sign-in: ${signInUrl.toString()}`);
     return NextResponse.redirect(signInUrl);
   }
 
-  if (isAdminApiRoute(req) || isAdminPageRoute(req)) {
+  console.log(`[AUTH] User ${userId} is authenticated.`);
+
+  if (isAdminRoute(req)) {
     console.log(
-      `Middleware: Admin route ${req.url} matched. Checking role for user ${userId}.`
+      `[ROUTE] Admin route matched for ${req.url}. Checking admin role for user ${userId}.`
     );
 
-    let roleFromSessionMetadata: string | undefined = undefined;
-    let roleFromTokenPublicMetadataCamel: string | undefined = undefined;
-    let roleFromTokenPublicMetadataSnake: string | undefined = undefined;
+    let userIsAdmin = false;
+    let roleSource = "none";
 
     if (sessionClaims) {
-      // Tentiamo l'accesso diretto. Se globals.d.ts è corretto, questo potrebbe non dare errore.
-      if (
-        sessionClaims.metadata &&
-        typeof sessionClaims.metadata === "object" &&
-        "role" in sessionClaims.metadata
-      ) {
-        roleFromSessionMetadata = (sessionClaims.metadata as { role?: string })
-          .role; // Cast per sicurezza
-      }
-
-      if (
-        sessionClaims.publicMetadata &&
-        typeof sessionClaims.publicMetadata === "object" &&
-        "role" in sessionClaims.publicMetadata
-      ) {
-        roleFromTokenPublicMetadataCamel = (
-          sessionClaims.publicMetadata as { role?: string }
-        ).role; // Cast per sicurezza
-      }
-
-      const snakeCasePublicMeta = sessionClaims["public_metadata"]; // Accesso con stringa
-      if (
-        snakeCasePublicMeta &&
-        typeof snakeCasePublicMeta === "object" &&
-        "role" in snakeCasePublicMeta
-      ) {
-        roleFromTokenPublicMetadataSnake = (
-          snakeCasePublicMeta as { role?: string }
-        ).role; // Cast per sicurezza
+      if (sessionClaims.metadata?.role === "admin") {
+        userIsAdmin = true;
+        roleSource = "sessionClaims.metadata.role";
+      } else if (sessionClaims.publicMetadata?.role === "admin") {
+        userIsAdmin = true;
+        roleSource = "sessionClaims.publicMetadata.role (camelCase)";
+      } else {
+        const snakeCasePublicMeta = sessionClaims["public_metadata"] as
+          | { role?: AppRole }
+          | undefined;
+        if (snakeCasePublicMeta?.role === "admin") {
+          userIsAdmin = true;
+          roleSource = "sessionClaims['public_metadata'].role (snake_case)";
+        }
       }
     }
 
     console.log(
-      `Value of sessionClaims.metadata.role: [${roleFromSessionMetadata}]`
+      `[AUTH] Role source for admin check: ${roleSource}. Role found: ${userIsAdmin ? "admin" : "not admin or not found"}`
     );
-    console.log(
-      `Value of sessionClaims.publicMetadata.role (camelCase): [${roleFromTokenPublicMetadataCamel}]`
-    );
-    console.log(
-      `Value of sessionClaims['public_metadata']?.role (snake_case): [${roleFromTokenPublicMetadataSnake}]`
-    );
-
-    const userIsAdmin =
-      roleFromSessionMetadata === "admin" ||
-      roleFromTokenPublicMetadataCamel === "admin" ||
-      roleFromTokenPublicMetadataSnake === "admin";
-
-    console.log(`Result of userIsAdmin check: ${userIsAdmin}`);
+    console.log(`[AUTH] Result of userIsAdmin check: ${userIsAdmin}`);
 
     if (userIsAdmin) {
-      console.log(
-        `Middleware: Admin access GRANTED for user ${userId} to ${req.url}.`
-      );
+      console.log("[DECISION] Admin access GRANTED.");
       return NextResponse.next();
     } else {
-      console.log(
-        `Middleware: Admin access DENIED for user ${userId} to ${req.url}. Role is not admin.`
-      );
+      console.log("[DECISION] Admin access DENIED. User is not admin.");
       if (req.url.startsWith("/api")) {
+        console.log("[ACTION] Returning 403 for API admin request.");
         return new NextResponse(
           JSON.stringify({ error: "Forbidden: Admin role required" }),
           {
@@ -135,19 +104,20 @@ export default clerkMiddleware(async (clerkAuth, req) => {
         );
       }
       const noAccessUrl = new URL("/no-access", req.url);
+      console.log("[ACTION] Redirecting to /no-access.");
       return NextResponse.redirect(noAccessUrl);
     }
   }
 
   if (isAuthenticatedRoute(req)) {
     console.log(
-      `Middleware: Authenticated (non-admin) access GRANTED for user ${userId} to ${req.url}`
+      `[ROUTE] Authenticated (non-admin) route matched for ${req.url}. Access GRANTED for user ${userId}.`
     );
     return NextResponse.next();
   }
 
   console.log(
-    `Middleware: Authenticated user ${userId} accessing unspecified/unmatched protected route ${req.url}. Allowing by default.`
+    `[ROUTE] Unspecified protected route for ${req.url}. Allowing access for authenticated user ${userId}.`
   );
   return NextResponse.next();
 });
