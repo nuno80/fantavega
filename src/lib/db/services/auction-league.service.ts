@@ -186,62 +186,245 @@ export const createAuctionLeague = async (
 };
 
 /**
- * Ottiene tutte le leghe create da un specifico admin.
+ * Funzione GET leagues: Ottiene tutte le leghe create da un specifico admin.
  */
 export const getAuctionLeaguesByAdmin = async (
   adminUserId: string
 ): Promise<AuctionLeague[]> => {
-  // TODO: Implementazione
-  console.log(`getAuctionLeaguesByAdmin called for: ${adminUserId}`);
-  // Esempio di implementazione:
-  // try {
-  //   const stmt = db.prepare("SELECT * FROM auction_leagues WHERE admin_creator_id = ? ORDER BY created_at DESC");
-  //   const leagues = stmt.all(adminUserId) as AuctionLeague[];
-  //   return leagues;
-  // } catch (error) {
-  //   console.error(`Error in getAuctionLeaguesByAdmin: ${error}`);
-  //   throw new Error("Failed to retrieve leagues for admin.");
-  // }
-  throw new Error("Not implemented");
+  console.log(
+    `[SERVICE] getAuctionLeaguesByAdmin called for admin ID: ${adminUserId}`
+  );
+  try {
+    const stmt = db.prepare(
+      "SELECT * FROM auction_leagues WHERE admin_creator_id = ? ORDER BY created_at DESC"
+    );
+    const leagues = stmt.all(adminUserId) as AuctionLeague[];
+
+    console.log(
+      `[SERVICE] Found ${leagues.length} leagues for admin ID: ${adminUserId}`
+    );
+    return leagues;
+  } catch (error) {
+    console.error(
+      `[SERVICE] Error in getAuctionLeaguesByAdmin for admin ${adminUserId}:`,
+      error
+    );
+    throw new Error("Failed to retrieve leagues for admin.");
+  }
 };
 
 /**
  * Ottiene una singola lega d'asta tramite il suo ID.
- * Accessibile dall'admin creatore o da partecipanti.
+ * Verifica anche che l'admin che fa la richiesta sia il creatore.
  */
-export const getAuctionLeagueById = async (
-  leagueId: number
-  // userId?: string // Potremmo passare l'ID utente per controlli di permesso futuri
+export const getAuctionLeagueByIdForAdmin = async (
+  leagueId: number,
+  adminUserId: string
 ): Promise<AuctionLeague | null> => {
-  // TODO: Implementazione
-  console.log(`getAuctionLeagueById called for: ${leagueId}`);
-  // Esempio di implementazione:
-  // try {
-  //   const stmt = db.prepare("SELECT * FROM auction_leagues WHERE id = ?");
-  //   const league = stmt.get(leagueId) as AuctionLeague | undefined;
-  //   return league || null;
-  // } catch (error) {
-  //   console.error(`Error in getAuctionLeagueById: ${error}`);
-  //   throw new Error("Failed to retrieve league by ID.");
-  // }
-  throw new Error("Not implemented");
+  console.log(
+    `[SERVICE] getAuctionLeagueByIdForAdmin called for league ID: ${leagueId}, by admin ID: ${adminUserId}`
+  );
+  try {
+    const stmt = db.prepare(
+      "SELECT * FROM auction_leagues WHERE id = ? AND admin_creator_id = ?"
+    );
+    // stmt.get() restituisce la riga o undefined se non trovata
+    const league = stmt.get(leagueId, adminUserId) as AuctionLeague | undefined;
+
+    if (!league) {
+      console.log(
+        `[SERVICE] League with ID: ${leagueId} not found or not owned by admin ID: ${adminUserId}`
+      );
+      return null;
+    }
+
+    console.log("[SERVICE] League found:", league);
+    return league;
+  } catch (error) {
+    console.error(
+      `[SERVICE] Error in getAuctionLeagueByIdForAdmin for league ${leagueId}:`,
+      error
+    );
+    throw new Error("Failed to retrieve league by ID.");
+  }
 };
 
 /**
  * Aggiorna una lega d'asta esistente.
  * Solo l'admin creatore può farlo.
- * Applicare logica per campi modificabili in base allo status della lega.
+ * Applica logica per campi modificabili in base allo status della lega.
  */
 export const updateAuctionLeague = async (
   leagueId: number,
-  data: UpdateAuctionLeagueData,
+  data: UpdateAuctionLeagueData, // Assicurati che UpdateAuctionLeagueData sia definita/importata
   adminUserId: string
 ): Promise<AuctionLeague> => {
-  // TODO: Implementazione
   console.log(
-    `updateAuctionLeague called for: ${leagueId} with data: ${JSON.stringify(data)} by admin: ${adminUserId}`
+    `[SERVICE] updateAuctionLeague called for league ID: ${leagueId}, by admin ID: ${adminUserId}, with data:`,
+    data
   );
-  throw new Error("Not implemented");
+
+  const league = await getAuctionLeagueByIdForAdmin(leagueId, adminUserId);
+  if (!league) {
+    throw new Error("League not found or user is not authorized to update it.");
+  }
+
+  // Logica di validazione: quali campi possono essere aggiornati e quando?
+  // Esempio: initial_budget e slots modificabili solo se lo status è 'setup'
+  if (league.status !== "setup") {
+    if (
+      data.initial_budget_per_manager !== undefined &&
+      data.initial_budget_per_manager !== league.initial_budget_per_manager
+    ) {
+      throw new Error(
+        "Initial budget can only be changed when league status is 'setup'."
+      );
+    }
+    if (
+      (data.slots_P !== undefined && data.slots_P !== league.slots_P) ||
+      (data.slots_D !== undefined && data.slots_D !== league.slots_D) ||
+      (data.slots_C !== undefined && data.slots_C !== league.slots_C) ||
+      (data.slots_A !== undefined && data.slots_A !== league.slots_A)
+    ) {
+      throw new Error(
+        "Player slots can only be changed when league status is 'setup'."
+      );
+    }
+  }
+  // Altre validazioni qui (es. name non vuoto se fornito)
+  if (data.name !== undefined && data.name.trim() === "") {
+    throw new Error("League name cannot be empty.");
+  }
+
+  // Costruisci la parte SET della query dinamicamente
+  const fieldsToUpdate: string[] = [];
+  const values: (string | number | null)[] = [];
+  const now = Math.floor(Date.now() / 1000);
+
+  // Aggiungi i campi da aggiornare solo se sono presenti nei dati e diversi dal valore attuale
+  // (o se vuoi permettere di impostare a null)
+  if (data.name !== undefined && data.name !== league.name) {
+    fieldsToUpdate.push("name = ?");
+    values.push(data.name.trim());
+  }
+  if (
+    data.league_type !== undefined &&
+    data.league_type !== league.league_type
+  ) {
+    fieldsToUpdate.push("league_type = ?");
+    values.push(data.league_type);
+  }
+  if (
+    data.initial_budget_per_manager !== undefined &&
+    data.initial_budget_per_manager !== league.initial_budget_per_manager
+  ) {
+    fieldsToUpdate.push("initial_budget_per_manager = ?");
+    values.push(data.initial_budget_per_manager);
+  }
+  if (data.status !== undefined && data.status !== league.status) {
+    fieldsToUpdate.push("status = ?");
+    values.push(data.status);
+  }
+  if (
+    data.active_auction_roles !== undefined &&
+    data.active_auction_roles !== league.active_auction_roles
+  ) {
+    fieldsToUpdate.push("active_auction_roles = ?");
+    values.push(data.active_auction_roles);
+  }
+  // Aggiungi qui gli altri campi aggiornabili: draft_window_start/end, repair_1_window_start/end, slots_P/D/C/A, config_json
+  if (
+    data.draft_window_start !== undefined &&
+    data.draft_window_start !== league.draft_window_start
+  ) {
+    fieldsToUpdate.push("draft_window_start = ?");
+    values.push(data.draft_window_start);
+  }
+  if (
+    data.draft_window_end !== undefined &&
+    data.draft_window_end !== league.draft_window_end
+  ) {
+    fieldsToUpdate.push("draft_window_end = ?");
+    values.push(data.draft_window_end);
+  }
+  if (
+    data.repair_1_window_start !== undefined &&
+    data.repair_1_window_start !== league.repair_1_window_start
+  ) {
+    fieldsToUpdate.push("repair_1_window_start = ?");
+    values.push(data.repair_1_window_start);
+  }
+  if (
+    data.repair_1_window_end !== undefined &&
+    data.repair_1_window_end !== league.repair_1_window_end
+  ) {
+    fieldsToUpdate.push("repair_1_window_end = ?");
+    values.push(data.repair_1_window_end);
+  }
+  if (data.slots_P !== undefined && data.slots_P !== league.slots_P) {
+    fieldsToUpdate.push("slots_P = ?");
+    values.push(data.slots_P);
+  }
+  if (data.slots_D !== undefined && data.slots_D !== league.slots_D) {
+    fieldsToUpdate.push("slots_D = ?");
+    values.push(data.slots_D);
+  }
+  if (data.slots_C !== undefined && data.slots_C !== league.slots_C) {
+    fieldsToUpdate.push("slots_C = ?");
+    values.push(data.slots_C);
+  }
+  if (data.slots_A !== undefined && data.slots_A !== league.slots_A) {
+    fieldsToUpdate.push("slots_A = ?");
+    values.push(data.slots_A);
+  }
+  if (
+    data.config_json !== undefined &&
+    data.config_json !== league.config_json
+  ) {
+    fieldsToUpdate.push("config_json = ?");
+    values.push(data.config_json);
+  }
+
+  if (fieldsToUpdate.length === 0) {
+    console.log("[SERVICE] No fields to update for league ID:", leagueId);
+    return league; // Nessun cambiamento, restituisci la lega esistente
+  }
+
+  fieldsToUpdate.push("updated_at = ?");
+  values.push(now);
+
+  const setClause = fieldsToUpdate.join(", ");
+  values.push(leagueId); // Per la clausola WHERE id = ?
+  values.push(adminUserId); // Per la clausola WHERE admin_creator_id = ?
+
+  try {
+    const updateStmt = db.prepare(
+      `UPDATE auction_leagues SET ${setClause} WHERE id = ? AND admin_creator_id = ? RETURNING *`
+    );
+    const updatedLeague = updateStmt.get(...values) as
+      | AuctionLeague
+      | undefined;
+
+    if (!updatedLeague) {
+      // Questo potrebbe accadere se l'ID è corretto ma l'adminUserId non matcha più (improbabile se il check sopra è passato)
+      // o se c'è un problema con RETURNING *.
+      throw new Error(
+        "Failed to update league or retrieve updated data. Ensure you are the league admin."
+      );
+    }
+
+    console.log("[SERVICE] League updated successfully:", updatedLeague);
+    return updatedLeague;
+  } catch (error) {
+    console.error(`[SERVICE] Error updating league ID ${leagueId}:`, error);
+    if (
+      error instanceof Error &&
+      error.message.includes("UNIQUE constraint failed: auction_leagues.name")
+    ) {
+      throw new Error(`League name "${data.name}" already exists.`);
+    }
+    throw new Error("Failed to update auction league.");
+  }
 };
 
 // --- Gestione Partecipanti Lega ---

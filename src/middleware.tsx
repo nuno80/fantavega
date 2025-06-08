@@ -31,7 +31,6 @@ export default clerkMiddleware(async (auth, req) => {
   //console.log(`[REQ] ${req.method} ${req.url}`);
   //console.log(`[AUTH] User ID: ${userId}`);
 
-
   if (isPublicRoute(req)) {
     console.log(`[DECISION] Public route. Allowing for ${req.url}.`);
     return NextResponse.next();

@@ -1,24 +1,21 @@
 // src/app/api/admin/leagues/route.ts
 import { NextResponse } from "next/server";
 
+// Assicurati che il percorso sia corretto
 import { currentUser } from "@clerk/nextjs/server";
 
-// CORREZIONE DEL PERCORSO E DEL NOME DEL FILE DEL SERVIZIO:
 import {
-  CreateAuctionLeagueData,
+  type CreateAuctionLeagueData,
   createAuctionLeague,
+  getAuctionLeaguesByAdmin,
 } from "@/lib/db/services/auction-league.service";
-
-// Nota: .service e non .services
 
 export const POST = async (request: Request): Promise<NextResponse> => {
   try {
     const user = await currentUser();
-
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const isAdmin = user.publicMetadata?.role === "admin";
     if (!isAdmin) {
       return NextResponse.json(
@@ -26,9 +23,9 @@ export const POST = async (request: Request): Promise<NextResponse> => {
         { status: 403 }
       );
     }
-
     const body = (await request.json()) as CreateAuctionLeagueData;
 
+    // Validazioni del body (come le avevi definite)
     if (
       !body.name ||
       !body.league_type ||
@@ -43,7 +40,6 @@ export const POST = async (request: Request): Promise<NextResponse> => {
         { status: 400 }
       );
     }
-
     if (!["classic", "mantra"].includes(body.league_type)) {
       return NextResponse.json(
         { error: "Invalid league_type" },
@@ -76,7 +72,6 @@ export const POST = async (request: Request): Promise<NextResponse> => {
     }
 
     const newLeague = await createAuctionLeague(body, user.id);
-
     return NextResponse.json(newLeague, { status: 201 });
   } catch (error) {
     console.error("/api/admin/leagues POST error:", error);
@@ -97,9 +92,30 @@ export const POST = async (request: Request): Promise<NextResponse> => {
   }
 };
 
-export const GET = async (): Promise<NextResponse> => {
-  return NextResponse.json(
-    { message: "GET /api/admin/leagues not implemented yet" },
-    { status: 501 }
-  );
+export const GET = async (_request: Request): Promise<NextResponse> => {
+  // _request per indicare non usato
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = user.publicMetadata?.role === "admin";
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Forbidden: User is not an admin" },
+        { status: 403 }
+      );
+    }
+
+    console.log(`[API] GET /api/admin/leagues request by admin: ${user.id}`);
+    const leagues = await getAuctionLeaguesByAdmin(user.id);
+
+    return NextResponse.json(leagues, { status: 200 });
+  } catch (error) {
+    console.error("[API] GET /api/admin/leagues error:", error);
+    return NextResponse.json(
+      { error: "Failed to retrieve leagues" },
+      { status: 500 }
+    );
+  }
 };

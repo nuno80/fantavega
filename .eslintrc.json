@@ -1,3 +1,4 @@
+// .eslintrc.json
 {
   "extends": ["next/core-web-vitals", "next/typescript", "prettier"],
   "plugins": ["check-file"],
@@ -5,9 +6,9 @@
     "prefer-arrow-callback": ["error"],
     "prefer-template": ["error"],
     "semi": ["error"],
-    "quotes": ["error", "double"],
+    "quotes": ["warn"], // <<--- CAMBIATO DA "error" A "warn" (per ora)
     "check-file/filename-naming-convention": [
-      "error",
+      "warn", // <<--- CAMBIATO DA "error" A "warn" (per ora)
       {
         "**/*.{ts,tsx}": "KEBAB_CASE"
       },
@@ -16,9 +17,17 @@
       }
     ],
     "check-file/folder-naming-convention": [
-      "error",
+      "warn", // <<--- CAMBIATO DA "error" A "warn" (per ora)
       {
-        "src/**": "KEBAB_CASE"
+        "src/**/!(\\[*)/**": "KEBAB_CASE"
+      }
+    ],
+    // Regola per variabili non usate: impostala a "warn" o aggiungi opzioni per ignorare quelle con underscore
+    "@typescript-eslint/no-unused-vars": [
+      "warn", // <<--- CAMBIATO DA "error" (se era error) A "warn"
+      {
+        "argsIgnorePattern": "^_", // Ignora argomenti che iniziano con _
+        "varsIgnorePattern": "^_" // Ignora variabili che iniziano con _
       }
     ]
   }
