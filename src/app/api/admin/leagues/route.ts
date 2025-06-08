@@ -1,13 +1,14 @@
 // src/app/api/admin/leagues/route.ts
 import { NextResponse } from "next/server";
 
-// Assicurati che il percorso sia corretto
+// Adatta il percorso se necessario
 import { currentUser } from "@clerk/nextjs/server";
 
 import {
   type CreateAuctionLeagueData,
   createAuctionLeague,
-  getAuctionLeaguesByAdmin,
+  // Assicurati che questo tipo sia definito/importato
+  getAuctionLeaguesByAdmin, // Questa è la funzione che ci serve per GET
 } from "@/lib/db/services/auction-league.service";
 
 export const POST = async (request: Request): Promise<NextResponse> => {
@@ -25,7 +26,6 @@ export const POST = async (request: Request): Promise<NextResponse> => {
     }
     const body = (await request.json()) as CreateAuctionLeagueData;
 
-    // Validazioni del body (come le avevi definite)
     if (
       !body.name ||
       !body.league_type ||
@@ -74,7 +74,9 @@ export const POST = async (request: Request): Promise<NextResponse> => {
     const newLeague = await createAuctionLeague(body, user.id);
     return NextResponse.json(newLeague, { status: 201 });
   } catch (error) {
-    console.error("/api/admin/leagues POST error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error(`/api/admin/leagues POST error: ${errorMessage}`);
     if (error instanceof Error) {
       if (
         error.message.includes("already exists") ||
@@ -93,7 +95,9 @@ export const POST = async (request: Request): Promise<NextResponse> => {
 };
 
 export const GET = async (_request: Request): Promise<NextResponse> => {
-  // _request per indicare non usato
+  console.log(
+    "!!!!!!!!!! HANDLER REACHED: GET /api/admin/leagues (BASE ROUTE) !!!!!!!!!!"
+  );
   try {
     const user = await currentUser();
     if (!user) {
@@ -108,11 +112,13 @@ export const GET = async (_request: Request): Promise<NextResponse> => {
     }
 
     console.log(`[API] GET /api/admin/leagues request by admin: ${user.id}`);
-    const leagues = await getAuctionLeaguesByAdmin(user.id);
+    const leagues = await getAuctionLeaguesByAdmin(user.id); // Chiama la funzione corretta
 
     return NextResponse.json(leagues, { status: 200 });
   } catch (error) {
-    console.error("[API] GET /api/admin/leagues error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.error(`[API] GET /api/admin/leagues error: ${errorMessage}`);
     return NextResponse.json(
       { error: "Failed to retrieve leagues" },
       { status: 500 }
