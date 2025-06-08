@@ -1,0 +1,174 @@
+{
+  "projectName": "Fantavega - Fantacalcio Auction System",
+  "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori, budget per manager, e funzionalità di riparazione.",
+  "currentDevelopmentPhase": "Inizio Task 4: Core Auction System, dopo aver completato Task 1 (Infrastruttura), Task 2 (Autenticazione Clerk base), e Task 3 (Schema DB, Migrazione base, Seed).",
+  "technologyStack": {
+    "frontend": "Next.js 15 (App Router), React, TypeScript, Tailwind CSS",
+    "backend": "Next.js API Routes (TypeScript)",
+    "database": "BetterSQLite3 (accesso diretto)",
+    "authentication": "Clerk",
+    "packageManager": "pnpm",
+    "developmentEnvironment": "Docker & Docker Compose (Node 20 Slim/Debian base)",
+    "uiComponents": "shadcn/ui (base per theming), lucide-react (icone)",
+    "theming": "next-themes"
+  },
+  "databaseManagement": {
+    "schemaDefinition": "SQL DDL in `database/schema.sql`",
+    "dbConnection": "`src/lib/db/index.ts` (singleton pattern, crea DB file se non esiste)",
+    "scripts": [
+      {
+        "name": "db:migrate",
+        "purpose": "Applica l'intero `database/schema.sql`. Usato per l'inizializzazione e per aggiungere nuove tabelle/indici (con `IF NOT EXISTS`). Non gestisce ALTER/DROP su tabelle esistenti.",
+        "file": "`src/db/migrate.ts`"
+      },
+      {
+        "name": "db:reset",
+        "purpose": "Cancella il file DB locale e poi riapplica `database/schema.sql` (tramite la logica di `db:migrate` o una sua duplicazione). Fa un backup prima di cancellare.",
+        "file": "`src/db/reset.ts`"
+      },
+      {
+        "name": "db:apply-changes",
+        "purpose": "Esegue query SQL ad-hoc definite in `database/adhoc_changes.sql`. Utile per `ALTER TABLE` o modifiche dati specifiche. Fa un backup prima di eseguire.",
+        "file": "`src/db/apply_changes.ts`"
+      },
+      {
+        "name": "db:backup",
+        "purpose": "Crea manualmente un backup timestampato del database.",
+        "file": "`src/db/backup.ts` (usa `src/db/backup_utils.ts`)"
+      },
+      {
+        "name": "db:seed",
+        "purpose": "Popola il database con dati di esempio.",
+        "file": "`src/db/seed.ts`"
+      }
+    ]
+  },
+  "coreEntitiesSchema": [
+    {
+      "tableName": "users",
+      "description": "Estende utenti Clerk con ruolo app e status. ID è Clerk userID."
+    },
+    {
+      "tableName": "players",
+      "description": "Catalogo giocatori da file Excel (quotazioni, FVM, ruolo, squadra). ID è quello da Excel."
+    },
+    {
+      "tableName": "auction_leagues",
+      "description": "Entità centrale per una 'Stagione' o 'Campionato d'Asta'. Contiene nome, tipo (classic/mantra), budget iniziale per manager, status della fase d'asta, e finestre temporali per le aste dei ruoli."
+    },
+    {
+      "tableName": "league_participants",
+      "description": "Tabella di giunzione utenti-leghe. Traccia il budget corrente e i crediti bloccati (`locked_credits`) per utente per lega."
+    },
+    {
+      "tableName": "auctions",
+      "description": "Asta per un singolo giocatore all'interno di una `auction_league`. Inizia con la prima offerta dell'utente. Contiene timer di 24h che si resetta."
+    },
+    {
+      "tableName": "bids",
+      "description": "Registra ogni offerta (manuale, quick, auto) per un'asta."
+    },
+    {
+      "tableName": "auto_bids",
+      "description": "Impostazioni di auto-offerta per utente per asta (`max_amount`, `is_active`). `is_active` diventa `false` se abbandonata."
+    },
+    {
+      "tableName": "player_assignments",
+      "description": "Traccia quale giocatore è assegnato a quale utente, per quale prezzo, in quale lega."
+    },
+    {
+      "tableName": "player_discard_requests",
+      "description": "Richieste di svincolo giocatori da parte dei manager, con approvazione admin e rimborso crediti."
+    },
+    {
+      "tableName": "budget_transactions",
+      "description": "Log di tutte le modifiche al budget di un utente in una lega (acquisti, svincoli, penalità, aggiustamenti admin)."
+    },
+    {
+      "tableName": "user_auction_cooldowns",
+      "description": "Traccia quando un utente abbandona un'asta per un giocatore e il periodo di cooldown (es. 48h) prima che possa rientrare in quell'asta."
+    },
+    {
+      "tableName": "user_auction_response_timers",
+      "description": "Traccia il timer di risposta di 1 ora per un utente la cui offerta è stata superata, attivato al suo login."
+    }
+  ],
+  "auctionLogic": {
+    "leagueSetup": {
+      "adminCreatesLeague": "Admin definisce `auction_leagues` (nome, tipo classic/mantra, budget iniziale).",
+      "adminAddsParticipants": "Admin aggiunge utenti a `league_participants` con il budget iniziale.",
+      "adminSetsAuctionWindows": "Admin definisce finestre temporali (es. `draft_window_start/end`) in `auction_leagues` per le macro-fasi d'asta (es. draft, riparazione).",
+      "adminSetsActiveRoles": "Admin imposta `auction_leagues.active_auction_roles` (es. 'P,D,C' o 'A') per specificare quali ruoli sono attualmente astabili. Questo avviene DENTRO una finestra temporale attiva e quando `auction_leagues.status` è una fase d'asta (es. `draft_active`)."
+    },
+    "auctionStart": {
+      "userInitiated": "Un'asta per un giocatore (`auctions` table entry) inizia quando un utente fa la prima offerta su un giocatore disponibile (ruolo attivo nella lega, entro la finestra temporale, non ancora assegnato in quella lega).",
+      "timer": "Un timer principale di 24 ore per l'asta del giocatore (`auctions.scheduled_end_time`) parte con la prima offerta e si resetta ad ogni nuova offerta valida."
+    },
+    "bidding": {
+      "types": ["manual", "quick", "auto"],
+      "autoBidLogic": "Funziona anche se l'utente non è loggato. Il sistema piazza offerte per l'utente fino al `auto_bids.max_amount`, rilanciando di 1 credito sull'offerta corrente, se il budget (calcolato come `current_budget - locked_credits`) lo permette.",
+      "lockedCredits": "In `league_participants.locked_credits`. Rappresenta la somma degli impegni massimi correnti dell'utente su tutte le aste attive (offerta manuale più alta o `auto_bids.max_amount`). Va aggiornato meticolosamente ad ogni azione di offerta/abbandono/vincita/perdita.",
+      "budgetCheck": "Prima di accettare un'offerta, verificare che `offerta <= (league_participants.current_budget - league_participants.locked_credits + crediti_gia_bloccati_per_questa_specifica_asta_dall_utente)`."
+    },
+    "outbidNotificationAndResponse": {
+      "trigger": "Quando un utente (`user1`) fa login, il sistema verifica se le sue offerte sono state superate.",
+      "responseTimer": "Se superato su un'asta (`A`), viene creato/attivato un record in `user_auction_response_timers` per `user1` e `A`, con una deadline di 1 ora dal `notified_at` (login).",
+      "userActions": ["Rilanciare", "Abbandonare Asta"],
+      "penalty": "Se l'utente non agisce entro 1 ora, riceve 5 crediti di penalità (registrata in `budget_transactions`, `current_budget` aggiornato).",
+      "autoAbandonAfterPenalty": "Dopo la penalità, l'utente viene automaticamente considerato come se avesse abbandonato quell'asta (crea record in `user_auction_cooldowns`, disattiva `auto_bids` per quell'asta, ricalcola `locked_credits`)."
+    },
+    "abandonAuction": {
+      "userAction": "Utente clicca 'Abbandona' per un'asta specifica.",
+      "consequences": [
+        "Le `auto_bids` dell'utente per quell'asta diventano `is_active = false`.",
+        "I `locked_credits` dell'utente vengono ricalcolati (diminuiscono).",
+        "Viene creato un record in `user_auction_cooldowns` (es. 48 ore) per quell'utente e quell'asta.",
+        "L'utente non può fare offerte su quell'asta fino alla fine del cooldown."
+      ],
+      "newOfferAfterCooldown": "Se l'asta è ancora attiva dopo il cooldown, l'utente deve fare un'offerta completamente nuova (manuale, quick, o nuova auto-bid)."
+    },
+    "auctionEnd": {
+      "conditions": [
+        "Timer scade senza nuovi rilanci.",
+        "Admin chiude manualmente (funzionalità futura?)"
+      ],
+      "winnerProcessing": [
+        "Il `current_highest_bidder_id` vince.",
+        "Creazione record in `player_assignments` (league_id, player_id, user_id, purchase_price).",
+        "Aggiornamento `league_participants`: `current_budget` diminuisce del `purchase_price`, `spent_in_league` aumenta, `locked_credits` ricalcolati.",
+        "Creazione record in `budget_transactions` (tipo `win_auction_debit`).",
+        "Aggiornamento `auctions.status` a `sold`."
+      ],
+      "noWinner": "Se l'asta scade senza offerte valide o se l'ultima offerta viene ritirata e non ci sono altre, `auctions.status` diventa `not_sold`."
+    }
+  },
+  "repairPhases": {
+    "adminControlsMarket": "L'admin imposta `auction_leagues.status` (es. `market_closed_repair_pending`) per permettere operazioni di mercato chiuso.",
+    "playerDiscard": {
+      "userRequest": "Manager crea record in `player_discard_requests`.",
+      "adminApproval": "Admin approva/rifiuta. Se approvato:",
+      "refund": "Manager recupera `players.current_quotation` del giocatore.",
+      "dbUpdates": [
+        "Record `player_assignments` cancellato.",
+        "`budget_transactions` per il credito.",
+        "`league_participants.current_budget` aggiornato."
+      ],
+      "playerAvailability": "Il giocatore diventa disponibile per essere rimesso all'asta dall'admin."
+    },
+    "budgetAdjustment": "Admin può aggiungere budget ai partecipanti (`budget_transactions` e `league_participants.current_budget`).",
+    "newRepairAuctions": "Admin imposta `auction_leagues.status` (es. `repair_active`) e `active_auction_roles`, poi crea nuove `auctions` per giocatori (svincolati o nuovi)."
+  },
+  "adminFunctionalities": [
+    "Creare e configurare `auction_leagues` (nome, tipo, budget iniziale, finestre temporali per fasi d'asta).",
+    "Aggiungere/rimuovere partecipanti da `league_participants`.",
+    "Gestire lo `status` e `active_auction_roles` di `auction_leagues` per controllare le fasi d'asta.",
+    "Avviare aste per singoli giocatori (`auctions`) quando la lega è nella fase e finestra temporale corretta per i ruoli ammessi.",
+    "Approvare/rifiutare `player_discard_requests`.",
+    "Aggiungere budget ai manager durante le fasi di riparazione.",
+    "Aggiornare il database dei `players` da file Excel."
+  ],
+  "authenticationRoles": {
+    "admin": "Definito da `users.role = 'admin'` (sincronizzato da Clerk `publicMetadata.role`). Ha accesso a funzionalità admin.",
+    "manager": "Utente autenticato standard (`users.role = 'manager'`). Partecipa alle aste."
+  }
+}

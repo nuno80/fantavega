@@ -9,27 +9,27 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     role TEXT NOT NULL DEFAULT 'manager' CHECK(role IN ('admin', 'manager')),
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('pending_approval', 'active', 'suspended')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME DEFAULT (strftime('%s', 'now'))
 );
 
 -- Tabella Giocatori (dal file Excel e dati applicativi)
 CREATE TABLE IF NOT EXISTS players (
     id INTEGER PRIMARY KEY, -- ID dal file Excel
     role TEXT NOT NULL CHECK(role IN ('P', 'D', 'C', 'A')), -- Portiere, Difensore, Centrocampista, Attaccante
-    role_mantra TEXT, 
-    name TEXT NOT NULL, 
-    team TEXT NOT NULL, 
-    current_quotation INTEGER NOT NULL, 
-    initial_quotation INTEGER NOT NULL, 
-    current_quotation_mantra INTEGER, 
+    role_mantra TEXT,
+    name TEXT NOT NULL,
+    team TEXT NOT NULL,
+    current_quotation INTEGER NOT NULL,
+    initial_quotation INTEGER NOT NULL,
+    current_quotation_mantra INTEGER,
     initial_quotation_mantra INTEGER,
     fvm INTEGER, -- Fantavoto Medio Classico
     fvm_mantra INTEGER, -- Fantavoto Medio Mantra
-    photo_url TEXT, 
+    photo_url TEXT,
     last_updated_from_source DATETIME, -- Quando i dati (quotazioni, fvm) sono stati aggiornati l'ultima volta dalla fonte esterna
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME DEFAULT (strftime('%s', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_players_name ON players(name);
 CREATE INDEX IF NOT EXISTS idx_players_team ON players(team);
@@ -47,12 +47,16 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     draft_window_end DATETIME,
     repair_1_window_start DATETIME,
     repair_1_window_end DATETIME,
-    -- Aggiungere altre finestre di riparazione se necessario (repair_2_window_start, ecc.)
     admin_creator_id TEXT NOT NULL,
-    config_json TEXT, -- Per regole aggiuntive della lega (es. max giocatori per ruolo)
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (admin_creator_id) REFERENCES users(id)
+    slots_P INTEGER NOT NULL DEFAULT 3,
+    slots_D INTEGER NOT NULL DEFAULT 8,
+    slots_C INTEGER NOT NULL DEFAULT 8,
+    slots_A INTEGER NOT NULL DEFAULT 6,
+    max_players_per_team INTEGER GENERATED ALWAYS AS (slots_P + slots_D + slots_C + slots_A) STORED,
+    config_json TEXT, -- Per regole aggiuntive della lega
+    created_at DATETIME DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (admin_creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_auction_leagues_status ON auction_leagues(status);
 
@@ -62,8 +66,12 @@ CREATE TABLE IF NOT EXISTS league_participants (
     user_id TEXT NOT NULL,
     current_budget INTEGER NOT NULL,
     locked_credits INTEGER NOT NULL DEFAULT 0, -- Crediti impegnati in offerte attive
-    roster_slots_json TEXT, -- Es. {"P": 1, "D": 3, "C": 3, "A": 1, "max_P": 3, "max_D": 8, ...}
-    joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    players_P_acquired INTEGER NOT NULL DEFAULT 0,
+    players_D_acquired INTEGER NOT NULL DEFAULT 0,
+    players_C_acquired INTEGER NOT NULL DEFAULT 0,
+    players_A_acquired INTEGER NOT NULL DEFAULT 0,
+    total_players_acquired INTEGER GENERATED ALWAYS AS (players_P_acquired + players_D_acquired + players_C_acquired + players_A_acquired) STORED,
+    joined_at DATETIME DEFAULT (strftime('%s', 'now')),
     PRIMARY KEY (league_id, user_id),
     FOREIGN KEY (league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -79,14 +87,12 @@ CREATE TABLE IF NOT EXISTS auctions (
     current_highest_bid_amount INTEGER DEFAULT 0,
     current_highest_bidder_id TEXT,
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'closing', 'sold', 'not_sold', 'cancelled')),
-    -- 'pending' potrebbe non servire se l'asta inizia con la prima offerta. 'active' è quando ha almeno un'offerta.
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
-    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE, -- Se un giocatore è rimosso, le sue aste vengono rimosse
-    FOREIGN KEY (current_highest_bidder_id) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE(auction_league_id, player_id, status) -- Per prevenire più aste 'active' per lo stesso giocatore/lega. Da valutare bene.
-                                                 -- Forse solo UNIQUE(auction_league_id, player_id) se un giocatore può essere in un'asta attiva una sola volta per lega.
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+    FOREIGN KEY (current_highest_bidder_id) REFERENCES users(id) ON DELETE SET NULL
+    -- Rimossa UNIQUE constraint: UNIQUE(auction_league_id, player_id, status)
 );
 CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status);
 CREATE INDEX IF NOT EXISTS idx_auctions_league_player ON auctions(auction_league_id, player_id);
@@ -95,12 +101,12 @@ CREATE INDEX IF NOT EXISTS idx_auctions_league_player ON auctions(auction_league
 CREATE TABLE IF NOT EXISTS bids (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL, 
+    user_id TEXT NOT NULL,
     amount INTEGER NOT NULL,
-    bid_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    bid_time DATETIME DEFAULT (strftime('%s', 'now')),
     bid_type TEXT DEFAULT 'manual' CHECK(bid_type IN ('manual', 'auto', 'quick')),
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE 
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_bids_auction_time ON bids(auction_id, bid_time DESC);
 CREATE INDEX IF NOT EXISTS idx_bids_user ON bids(user_id);
@@ -111,21 +117,21 @@ CREATE TABLE IF NOT EXISTS auto_bids (
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     max_amount INTEGER NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE, -- Diventa FALSE se l'utente abbandona l'asta o l'asta termina
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(auction_id, user_id) -- Un utente ha una sola impostazione di auto_bid attiva per asta
+    UNIQUE(auction_id, user_id)
 );
 
 -- Tabella Assegnazioni Giocatori (Rosa dei giocatori per manager per lega)
 CREATE TABLE IF NOT EXISTS player_assignments (
     auction_league_id INTEGER NOT NULL,
     player_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL, 
+    user_id TEXT NOT NULL,
     purchase_price INTEGER NOT NULL,
-    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    assigned_at DATETIME DEFAULT (strftime('%s', 'now')),
     PRIMARY KEY (auction_league_id, player_id), -- Un giocatore è assegnato a un solo manager in una lega
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
@@ -140,11 +146,11 @@ CREATE TABLE IF NOT EXISTS player_discard_requests (
     user_id TEXT NOT NULL,
     player_id INTEGER NOT NULL,
     reason TEXT,
-    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    requested_at DATETIME DEFAULT (strftime('%s', 'now')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
     admin_resolver_id TEXT,
     resolved_at DATETIME,
-    credit_refund_amount INTEGER, -- Importo effettivamente rimborsato
+    credit_refund_amount INTEGER,
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
@@ -157,20 +163,20 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
     auction_league_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     transaction_type TEXT NOT NULL CHECK(transaction_type IN (
-        'initial_allocation', 
-        'win_auction_debit', 
-        'discard_player_credit', 
-        'admin_budget_increase', 
-        'admin_budget_decrease', -- Es. per penalità generiche
+        'initial_allocation',
+        'win_auction_debit',
+        'discard_player_credit',
+        'admin_budget_increase',
+        'admin_budget_decrease',
         'penalty_response_timeout'
     )),
-    amount INTEGER NOT NULL, -- Positivo per crediti (es. discard, increase), negativo per debiti (es. win_auction, penalty)
+    amount INTEGER NOT NULL,
     related_auction_id INTEGER,
     related_player_id INTEGER,
     related_discard_request_id INTEGER,
     description TEXT,
-    balance_after_in_league INTEGER NOT NULL, -- Budget del manager in quella lega DOPO questa transazione
-    transaction_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    balance_after_in_league INTEGER NOT NULL,
+    transaction_time DATETIME DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (related_auction_id) REFERENCES auctions(id) ON DELETE SET NULL,
@@ -184,11 +190,11 @@ CREATE TABLE IF NOT EXISTS user_auction_cooldowns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
-    abandoned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    abandoned_at DATETIME DEFAULT (strftime('%s', 'now')),
     cooldown_ends_at DATETIME NOT NULL,
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(auction_id, user_id) -- Un utente può avere un solo cooldown attivo per un'asta
+    UNIQUE(auction_id, user_id)
 );
 
 -- Tabella per Timer di Risposta Utente (quando l'offerta viene superata)
@@ -196,51 +202,56 @@ CREATE TABLE IF NOT EXISTS user_auction_response_timers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
-    notified_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Quando il timer inizia (es. al login dell'utente e vede che è stato superato)
-    response_deadline DATETIME NOT NULL, -- notified_at + 1 ora
+    notified_at DATETIME DEFAULT (strftime('%s', 'now')),
+    response_deadline DATETIME NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'action_taken', 'deadline_missed')),
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(auction_id, user_id, status) -- Per avere un solo timer 'pending' per utente/asta. Potrebbe essere solo UNIQUE(auction_id, user_id) se un record viene cancellato/aggiornato.
+    UNIQUE(auction_id, user_id, status)
 );
 
--- Trigger per aggiornare updated_at (Esempio per la tabella users, da replicare per le altre se necessario)
--- SQLite non ha un ON UPDATE CURRENT_TIMESTAMP nativo per le colonne come MySQL.
--- I trigger sono il modo per farlo.
+-- Trigger per aggiornare updated_at
 CREATE TRIGGER IF NOT EXISTS update_users_updated_at
 AFTER UPDATE ON users
 FOR EACH ROW
+WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL -- Evita loop e sovrascritture se updated_at è già stato impostato esplicitamente
 BEGIN
-    UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+    UPDATE users SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS update_players_updated_at
 AFTER UPDATE ON players
 FOR EACH ROW
+WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL
 BEGIN
-    UPDATE players SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+    UPDATE players SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS update_auction_leagues_updated_at
 AFTER UPDATE ON auction_leagues
 FOR EACH ROW
+WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL
 BEGIN
-    UPDATE auction_leagues SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+    UPDATE auction_leagues SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS update_auctions_updated_at
 AFTER UPDATE ON auctions
 FOR EACH ROW
+WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL
 BEGIN
-    UPDATE auctions SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+    UPDATE auctions SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS update_auto_bids_updated_at
 AFTER UPDATE ON auto_bids
 FOR EACH ROW
+WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL
 BEGIN
-    UPDATE auto_bids SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+    UPDATE auto_bids SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
 END;
 
--- Aggiungere trigger simili per player_assignments, player_discard_requests se hanno campi updated_at
--- e se l'aggiornamento automatico è desiderato.
+-- Aggiungere trigger simili per tabelle che hanno un campo updated_at e per cui si desidera l'aggiornamento automatico:
+-- player_discard_requests (se avesse updated_at)
+-- Considera che se una tabella non ha una colonna updated_at, il trigger non è necessario.
+-- Per semplicità, ho aggiunto la clausola WHEN per prevenire loop di trigger e permettere l'override manuale di updated_at se necessario.

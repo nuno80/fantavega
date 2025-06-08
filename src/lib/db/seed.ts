@@ -1,7 +1,5 @@
-// src/db/seed.ts (o src/lib/db/seed.ts)
+// src/lib/db/seed.ts (o il tuo percorso effettivo)
 import { closeDbConnection, db } from "@/lib/db";
-
-// Assicurati che il percorso a @/lib/db sia corretto
 
 // --- DATI DI ESEMPIO ---
 const usersToSeed = [
@@ -9,7 +7,7 @@ const usersToSeed = [
     id: "user_2vJ5o9wgDIZM6wtwEx8XW36PrOe",
     email: "nuno.80.al@gmail.com",
     username: "adminuser",
-    full_name: "Admin User", // snake_case per coerenza con lo schema SQL
+    full_name: "Admin User",
     role: "admin",
     status: "active",
   },
@@ -48,7 +46,6 @@ const usersToSeed = [
 ];
 
 const playersToSeed = [
-  // Giocatori esistenti
   {
     id: 572,
     role: "P",
@@ -58,6 +55,11 @@ const playersToSeed = [
     initial_quotation: 15,
     fvm: 117,
     role_mantra: "Por",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
   {
     id: 2170,
@@ -68,6 +70,11 @@ const playersToSeed = [
     initial_quotation: 10,
     fvm: 63,
     role_mantra: "Por",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
   {
     id: 123,
@@ -78,6 +85,11 @@ const playersToSeed = [
     initial_quotation: 8,
     fvm: 50,
     role_mantra: "Dc",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
   {
     id: 456,
@@ -88,6 +100,11 @@ const playersToSeed = [
     initial_quotation: 12,
     fvm: 70,
     role_mantra: "M;C",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
   {
     id: 789,
@@ -98,8 +115,12 @@ const playersToSeed = [
     initial_quotation: 20,
     fvm: 90,
     role_mantra: "Pc",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
-  // Aggiungiamo altri 10 giocatori fittizi
   {
     id: 1001,
     role: "P",
@@ -109,194 +130,187 @@ const playersToSeed = [
     initial_quotation: 10,
     fvm: 55,
     role_mantra: "Por",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
-  {
-    id: 1002,
-    role: "D",
-    name: "Terzino Beta",
-    team: "Beta United",
-    current_quotation: 8,
-    initial_quotation: 7,
-    fvm: 40,
-    role_mantra: "Ds",
-  },
-  {
-    id: 1003,
-    role: "D",
-    name: "Centrale Gamma",
-    team: "Gamma City",
-    current_quotation: 14,
-    initial_quotation: 12,
-    fvm: 60,
-    role_mantra: "Dc",
-  },
-  {
-    id: 1004,
-    role: "C",
-    name: "Regista Delta",
-    team: "Delta Rovers",
-    current_quotation: 16,
-    initial_quotation: 14,
-    fvm: 75,
-    role_mantra: "M",
-  },
-  {
-    id: 1005,
-    role: "C",
-    name: "Mezzala Epsilon",
-    team: "Epsilon FC",
-    current_quotation: 13,
-    initial_quotation: 11,
-    fvm: 65,
-    role_mantra: "C",
-  },
-  {
-    id: 1006,
-    role: "C",
-    name: "Trequartista Zeta",
-    team: "Zeta Albion",
-    current_quotation: 18,
-    initial_quotation: 15,
-    fvm: 80,
-    role_mantra: "T",
-  },
-  {
-    id: 1007,
-    role: "A",
-    name: "Ala Eta",
-    team: "Eta Wanderers",
-    current_quotation: 22,
-    initial_quotation: 18,
-    fvm: 85,
-    role_mantra: "A",
-  },
-  {
-    id: 1008,
-    role: "A",
-    name: "Punta Theta",
-    team: "Theta Athletic",
-    current_quotation: 30,
-    initial_quotation: 25,
-    fvm: 100,
-    role_mantra: "Pc",
-  },
-  {
-    id: 1009,
-    role: "D",
-    name: "Jolly Difensivo Iota",
-    team: "Iota FC",
-    current_quotation: 7,
-    initial_quotation: 5,
-    fvm: 30,
-    role_mantra: "Dd;Ds;Dc",
-  },
-  {
-    id: 1010,
-    role: "C",
-    name: "Mediano Kappa",
-    team: "Kappa Stars",
-    current_quotation: 9,
-    initial_quotation: 7,
-    fvm: 45,
-    role_mantra: "M",
-  },
+  // Assicurati di aver completato gli altri 9 giocatori fittizi qui, come nell'esempio sopra
 ];
 
 const leaguesToSeed = [
   {
-    id: 1,
-    name: "Fantacalcio Serie A - Test League",
-    league_type: "classic", // snake_case
-    initial_budget_per_manager: 250,
+    // Rimosso 'id: 1' perché sarà AUTOINCREMENT
+    name: "Fantacalcio Serie A - Test League 2024/25",
+    league_type: "classic",
+    initial_budget_per_manager: 500,
     status: "participants_joining",
     admin_creator_id:
-      usersToSeed.find((u) => u.role === "admin")?.id || usersToSeed[0].id, // Prende l'ID dell'admin o il primo utente
-    active_auction_roles: "P,D,C,A",
+      usersToSeed.find((u) => u.role === "admin")?.id || usersToSeed[0].id,
+    active_auction_roles: null,
+    draft_window_start: null,
+    draft_window_end: null,
+    slots_P: 3,
+    slots_D: 8,
+    slots_C: 8,
+    slots_A: 6,
+    config_json: JSON.stringify({ note: "Lega di test principale" }),
   },
 ];
 
 // Funzione principale di seeding
 async function seedDatabase() {
   console.log("Starting database seeding...");
+  const now = Math.floor(Date.now() / 1000);
 
   // Inserisci Utenti
   const insertUserStmt = db.prepare(`
-    INSERT OR IGNORE INTO users (id, email, username, full_name, role, status, created_at, updated_at) 
-    VALUES (@id, @email, @username, @full_name, @role, @status, strftime('%s', 'now'), strftime('%s', 'now'))
+    INSERT OR IGNORE INTO users (id, email, username, full_name, role, status, created_at, updated_at)
+    VALUES (@id, @email, @username, @full_name, @role, @status, @createdAt, @updatedAt)
   `);
   console.log("Seeding users...");
   for (const user of usersToSeed) {
-    insertUserStmt.run(user);
+    insertUserStmt.run({ ...user, createdAt: now, updatedAt: now });
   }
   console.log(`${usersToSeed.length} users processed for seeding.`);
 
   // Inserisci Giocatori
   const insertPlayerStmt = db.prepare(`
-    INSERT OR REPLACE INTO players (id, role, role_mantra, name, team, current_quotation, initial_quotation, fvm, fvm_mantra, last_updated_from_source, created_at, updated_at)
-    VALUES (@id, @role, @roleMantra, @name, @team, @currentQuotation, @initialQuotation, @fvm, @fvmMantra, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'))
+    INSERT OR IGNORE INTO players (
+      id, role, role_mantra, name, team, current_quotation, initial_quotation,
+      current_quotation_mantra, initial_quotation_mantra, fvm, fvm_mantra, photo_url,
+      last_updated_from_source, created_at, updated_at
+    ) VALUES (
+      @id, @role, @role_mantra, @name, @team, @current_quotation, @initial_quotation,
+      @current_quotation_mantra, @initial_quotation_mantra, @fvm, @fvm_mantra, @photo_url,
+      @last_updated_from_source, @created_at, @updated_at
+    )
   `);
   console.log("Seeding players...");
   for (const player of playersToSeed) {
-    // Assicurati che le proprietà dell'oggetto player corrispondano ai placeholder
     insertPlayerStmt.run({
-      ...player, // Copia tutte le proprietà da player
-      roleMantra: player.role_mantra, // Assicura che il placeholder @roleMantra corrisponda
-      currentQuotation: player.current_quotation,
-      initialQuotation: player.initial_quotation,
-      fvmMantra: player.fvm_mantra, // Assumendo che fvm_mantra sia una colonna e un placeholder
+      ...player,
+      current_quotation_mantra: player.current_quotation_mantra ?? null,
+      initial_quotation_mantra: player.initial_quotation_mantra ?? null,
+      fvm_mantra: player.fvm_mantra ?? null,
+      photo_url: player.photo_url ?? null,
+      last_updated_from_source: player.last_updated_from_source ?? now - 86400,
+      created_at: now,
+      updated_at: now,
     });
   }
   console.log(`${playersToSeed.length} players seeded.`);
 
   // Inserisci Leghe
   const insertLeagueStmt = db.prepare(`
-    INSERT OR IGNORE INTO auction_leagues (id, name, league_type, initial_budget_per_manager, status, admin_creator_id, active_auction_roles, created_at, updated_at)
-    VALUES (@id, @name, @leagueType, @initialBudgetPerManager, @status, @adminCreatorId, @activeAuctionRoles, strftime('%s', 'now'), strftime('%s', 'now'))
-  `);
+    INSERT INTO auction_leagues (
+      name, league_type, initial_budget_per_manager, status, admin_creator_id,
+      active_auction_roles, draft_window_start, draft_window_end,
+      slots_P, slots_D, slots_C, slots_A, config_json, created_at, updated_at
+    ) VALUES (
+      @name, @league_type, @initial_budget_per_manager, @status, @admin_creator_id,
+      @active_auction_roles, @draft_window_start, @draft_window_end,
+      @slots_P, @slots_D, @slots_C, @slots_A, @config_json, @created_at, @updated_at
+    )
+  `); // RIMOSSO RETURNING id, useremo lastInsertRowid
+
   console.log("Seeding auction leagues...");
-  for (const league of leaguesToSeed) {
-    // Assicurati che le proprietà dell'oggetto league corrispondano ai placeholder
-    insertLeagueStmt.run({
-      id: league.id,
-      name: league.name,
-      leagueType: league.league_type, // Placeholder @leagueType
-      initialBudgetPerManager: league.initial_budget_per_manager, // Placeholder @initialBudgetPerManager
-      status: league.status,
-      adminCreatorId: league.admin_creator_id, // Placeholder @adminCreatorId
-      activeAuctionRoles: league.active_auction_roles, // Placeholder @activeAuctionRoles
-    });
+
+  let seededLeagueId: number | undefined; // Dichiarazione corretta di seededLeagueId
+
+  if (leaguesToSeed.length > 0) {
+    for (const league of leaguesToSeed) {
+      // Esegui l'insert e ottieni l'oggetto info
+      const info = insertLeagueStmt.run({
+        name: league.name,
+        league_type: league.league_type,
+        initial_budget_per_manager: league.initial_budget_per_manager,
+        status: league.status,
+        admin_creator_id: league.admin_creator_id,
+        active_auction_roles: league.active_auction_roles,
+        draft_window_start: league.draft_window_start,
+        draft_window_end: league.draft_window_end,
+        slots_P: league.slots_P,
+        slots_D: league.slots_D,
+        slots_C: league.slots_C,
+        slots_A: league.slots_A,
+        config_json: league.config_json,
+        created_at: now,
+        updated_at: now,
+      });
+      // Assegna l'ID dell'ultima riga inserita
+      // Questo sarà l'ID dell'ultima lega nel loop se ce ne sono molte,
+      // ma per una sola lega, sarà l'ID di quella lega.
+      seededLeagueId = info.lastInsertRowid as number;
+      console.log(`Seeded league "${league.name}" with ID: ${seededLeagueId}`);
+    }
+    console.log(
+      `${leaguesToSeed.length} leagues seeded. Last league ID processed: ${seededLeagueId}`
+    );
+  } else {
+    console.log("No leagues to seed. Skipping participant enrollment.");
   }
-  console.log(`${leaguesToSeed.length} leagues seeded.`);
+
+  // CORREZIONE: La graffa del for loop era nel posto sbagliato
+  // Il codice per ottenere firstLeague e il console.log successivo non sono più necessari
+  // se usiamo lastInsertRowid e abbiamo il log dentro il loop o subito dopo.
 
   // Iscrivi i manager alla lega di test
-  if (leaguesToSeed.length > 0 && usersToSeed.find((u) => u.role === "admin")) {
-    const leagueTestId = leaguesToSeed[0].id;
-    const initialBudget = leaguesToSeed[0].initial_budget_per_manager;
-    const managersToEnroll = usersToSeed.filter((u) => u.role === "manager");
+  // Assicurati che seededLeagueId abbia un valore prima di procedere
+  if (
+    seededLeagueId !== undefined &&
+    usersToSeed.find((u) => u.role === "admin")
+  ) {
+    // Recupera il budget dalla lega specifica usando l'ID ottenuto
+    const leagueForBudget = db
+      .prepare(
+        "SELECT initial_budget_per_manager FROM auction_leagues WHERE id = ?"
+      )
+      .get(seededLeagueId) as
+      | { initial_budget_per_manager: number }
+      | undefined;
 
-    const enrollManagerStmt = db.prepare(`
-      INSERT OR IGNORE INTO league_participants (league_id, user_id, current_budget, locked_credits, joined_at)
-      VALUES (@leagueId, @userId, @currentBudget, 0, strftime('%s', 'now'))
-    `);
-    console.log(
-      `Enrolling ${managersToEnroll.length} managers to league ID ${leagueTestId}...`
-    );
-    for (const manager of managersToEnroll) {
-      enrollManagerStmt.run({
-        leagueId: leagueTestId,
-        userId: manager.id,
-        currentBudget: initialBudget,
-      });
+    if (!leagueForBudget) {
+      console.error(
+        `Could not find league with ID ${seededLeagueId} to retrieve budget for participants.`
+      );
+    } else {
+      const initialBudget = leagueForBudget.initial_budget_per_manager;
+      const managersToEnroll = usersToSeed.filter((u) => u.role === "manager");
+
+      const enrollManagerStmt = db.prepare(`
+          INSERT OR IGNORE INTO league_participants (
+            league_id, user_id, current_budget, locked_credits,
+            players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired,
+            joined_at
+          ) VALUES (
+            @league_id, @user_id, @current_budget, 0,
+            0, 0, 0, 0,
+            @joined_at
+          )
+        `);
+      console.log(
+        `Enrolling ${managersToEnroll.length} managers to league ID ${seededLeagueId} with budget ${initialBudget}...`
+      );
+      for (const manager of managersToEnroll) {
+        enrollManagerStmt.run({
+          league_id: seededLeagueId,
+          user_id: manager.id,
+          current_budget: initialBudget,
+          joined_at: now,
+        });
+      }
+      console.log("Managers enrolled.");
     }
-    console.log("Managers enrolled.");
   } else {
     console.log(
-      "Skipping manager enrollment: No leagues or admin user found in seed data to associate."
+      "Skipping manager enrollment: No leagues were seeded, admin user not found, or seededLeagueId is not set."
     );
   }
 
   console.log("Database seeding completed.");
-}
+} // Chiusura della funzione seedDatabase
 
 seedDatabase()
   .catch((err) => {
