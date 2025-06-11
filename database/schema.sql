@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     league_type TEXT NOT NULL DEFAULT 'classic' CHECK(league_type IN ('classic', 'mantra')),
     initial_budget_per_manager INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'setup' CHECK(status IN ('setup', 'participants_joining', 'draft_active', 'repair_active', 'market_closed', 'season_active', 'completed', 'archived')),
-    active_auction_roles TEXT, -- Es. "P,D,C", "A", "ALL", o NULL/vuoto. Gestito da UI admin.
+    active_auction_roles TEXT, 
     draft_window_start DATETIME,
     draft_window_end DATETIME,
     repair_1_window_start DATETIME,
@@ -53,12 +53,13 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     slots_C INTEGER NOT NULL DEFAULT 8,
     slots_A INTEGER NOT NULL DEFAULT 6,
     max_players_per_team INTEGER GENERATED ALWAYS AS (slots_P + slots_D + slots_C + slots_A) STORED,
-    config_json TEXT, -- Per regole aggiuntive della lega
+    min_bid INTEGER NOT NULL DEFAULT 1,                 
+    timer_duration_hours INTEGER NOT NULL DEFAULT 24,  
+    config_json TEXT, 
     created_at DATETIME DEFAULT (strftime('%s', 'now')),
     updated_at DATETIME DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (admin_creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_auction_leagues_status ON auction_leagues(status);
 
 -- Tabella Partecipanti Lega (Manager iscritti a una lega/stagione)
 CREATE TABLE IF NOT EXISTS league_participants (

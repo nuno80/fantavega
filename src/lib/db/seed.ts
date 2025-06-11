@@ -121,6 +121,36 @@ const playersToSeed = [
     fvm_mantra: null,
     last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
+  { 
+    id: 3001, // ID univoco
+    role: "P", 
+    name: "Portiere Nuovo Uno", 
+    team: "Squadra Inventata A", 
+    current_quotation: 12, 
+    initial_quotation: 10, 
+    fvm: 50, // Fantavoto medio (puoi inventarlo)
+    role_mantra: "Por", 
+    photo_url: null, 
+    current_quotation_mantra: null, 
+    initial_quotation_mantra: null, 
+    fvm_mantra: null, 
+    last_updated_from_source: Math.floor(Date.now() / 1000) 
+  },
+  { 
+    id: 3002, // ID univoco
+    role: "P", 
+    name: "Portiere Nuovo Due", 
+    team: "Squadra Inventata B", 
+    current_quotation: 14, 
+    initial_quotation: 12, 
+    fvm: 60, 
+    role_mantra: "Por", 
+    photo_url: null, 
+    current_quotation_mantra: null, 
+    initial_quotation_mantra: null, 
+    fvm_mantra: null, 
+    last_updated_from_source: Math.floor(Date.now() / 1000) 
+  },
   {
     id: 1001,
     role: "P",
@@ -141,21 +171,24 @@ const playersToSeed = [
 
 const leaguesToSeed = [
   {
-    // Rimosso 'id: 1' perché sarà AUTOINCREMENT
     name: "Fantacalcio Serie A - Test League 2024/25",
     league_type: "classic",
     initial_budget_per_manager: 500,
-    status: "participants_joining",
+    status: "draft_active", // Mettiamola subito in draft_active per i test
     admin_creator_id:
       usersToSeed.find((u) => u.role === "admin")?.id || usersToSeed[0].id,
-    active_auction_roles: null,
-    draft_window_start: null,
-    draft_window_end: null,
+    active_auction_roles: "P,D,C", // Apriamo tutti i ruoli per testare
+    draft_window_start: Math.floor(Date.now() / 1000) - 3600 * 24, // Ieri
+    draft_window_end: Math.floor(Date.now() / 1000) + 3600 * 24 * 7, // Tra una settimana
     slots_P: 3,
     slots_D: 8,
     slots_C: 8,
     slots_A: 6,
-    config_json: JSON.stringify({ note: "Lega di test principale" }),
+    min_bid: 1, // <<--- NUOVO CAMPO
+    timer_duration_hours: 24, // <<--- NUOVO CAMPO
+    config_json: JSON.stringify({
+      note: "Lega di test principale con nuove colonne",
+    }),
   },
 ];
 
@@ -207,13 +240,17 @@ async function seedDatabase() {
     INSERT INTO auction_leagues (
       name, league_type, initial_budget_per_manager, status, admin_creator_id,
       active_auction_roles, draft_window_start, draft_window_end,
-      slots_P, slots_D, slots_C, slots_A, config_json, created_at, updated_at
+      slots_P, slots_D, slots_C, slots_A, 
+      min_bid, timer_duration_hours,  -- <<--- NUOVE COLONNE
+      config_json, created_at, updated_at
     ) VALUES (
       @name, @league_type, @initial_budget_per_manager, @status, @admin_creator_id,
       @active_auction_roles, @draft_window_start, @draft_window_end,
-      @slots_P, @slots_D, @slots_C, @slots_A, @config_json, @created_at, @updated_at
+      @slots_P, @slots_D, @slots_C, @slots_A,
+      @min_bid, @timer_duration_hours, -- <<--- NUOVI PLACEHOLDER
+      @config_json, @created_at, @updated_at
     )
-  `); // RIMOSSO RETURNING id, useremo lastInsertRowid
+  `);
 
   console.log("Seeding auction leagues...");
 
@@ -223,6 +260,7 @@ async function seedDatabase() {
     for (const league of leaguesToSeed) {
       // Esegui l'insert e ottieni l'oggetto info
       const info = insertLeagueStmt.run({
+        // ... altri campi ...
         name: league.name,
         league_type: league.league_type,
         initial_budget_per_manager: league.initial_budget_per_manager,
@@ -235,10 +273,13 @@ async function seedDatabase() {
         slots_D: league.slots_D,
         slots_C: league.slots_C,
         slots_A: league.slots_A,
+        min_bid: league.min_bid, // <<--- NUOVO VALORE
+        timer_duration_hours: league.timer_duration_hours, // <<--- NUOVO VALORE
         config_json: league.config_json,
         created_at: now,
         updated_at: now,
       });
+      
       // Assegna l'ID dell'ultima riga inserita
       // Questo sarà l'ID dell'ultima lega nel loop se ce ne sono molte,
       // ma per una sola lega, sarà l'ID di quella lega.
