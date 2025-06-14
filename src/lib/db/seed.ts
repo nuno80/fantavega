@@ -121,35 +121,35 @@ const playersToSeed = [
     fvm_mantra: null,
     last_updated_from_source: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
   },
-  { 
+  {
     id: 3001, // ID univoco
-    role: "P", 
-    name: "Portiere Nuovo Uno", 
-    team: "Squadra Inventata A", 
-    current_quotation: 12, 
-    initial_quotation: 10, 
+    role: "P",
+    name: "Portiere Nuovo Uno",
+    team: "Squadra Inventata A",
+    current_quotation: 12,
+    initial_quotation: 10,
     fvm: 50, // Fantavoto medio (puoi inventarlo)
-    role_mantra: "Por", 
-    photo_url: null, 
-    current_quotation_mantra: null, 
-    initial_quotation_mantra: null, 
-    fvm_mantra: null, 
-    last_updated_from_source: Math.floor(Date.now() / 1000) 
+    role_mantra: "Por",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000),
   },
-  { 
+  {
     id: 3002, // ID univoco
-    role: "P", 
-    name: "Portiere Nuovo Due", 
-    team: "Squadra Inventata B", 
-    current_quotation: 14, 
-    initial_quotation: 12, 
-    fvm: 60, 
-    role_mantra: "Por", 
-    photo_url: null, 
-    current_quotation_mantra: null, 
-    initial_quotation_mantra: null, 
-    fvm_mantra: null, 
-    last_updated_from_source: Math.floor(Date.now() / 1000) 
+    role: "P",
+    name: "Portiere Nuovo Due",
+    team: "Squadra Inventata B",
+    current_quotation: 14,
+    initial_quotation: 12,
+    fvm: 60,
+    role_mantra: "Por",
+    photo_url: null,
+    current_quotation_mantra: null,
+    initial_quotation_mantra: null,
+    fvm_mantra: null,
+    last_updated_from_source: Math.floor(Date.now() / 1000),
   },
   {
     id: 1001,
@@ -180,7 +180,7 @@ const leaguesToSeed = [
     active_auction_roles: "P,D,C", // Apriamo tutti i ruoli per testare
     draft_window_start: Math.floor(Date.now() / 1000) - 3600 * 24, // Ieri
     draft_window_end: Math.floor(Date.now() / 1000) + 3600 * 24 * 7, // Tra una settimana
-    slots_P: 3,
+    slots_P: 2,
     slots_D: 8,
     slots_C: 8,
     slots_A: 6,
@@ -279,7 +279,7 @@ async function seedDatabase() {
         created_at: now,
         updated_at: now,
       });
-      
+
       // Assegna l'ID dell'ultima riga inserita
       // Questo sarà l'ID dell'ultima lega nel loop se ce ne sono molte,
       // ma per una sola lega, sarà l'ID di quella lega.

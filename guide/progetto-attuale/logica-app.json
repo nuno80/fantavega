@@ -1,0 +1,130 @@
+{
+  "projectName": "Fantavega - Fantacalcio Auction System",
+  "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
+  "currentDevelopmentPhase": "Task 4 (Core Auction System): Completata la gestione admin delle leghe e dei partecipanti (Subtask 4.1). Iniziata l'implementazione della logica di offerta dei manager (Subtask 4.2), inclusa la creazione di aste con la prima offerta e le offerte successive.",
+  "technologyStack": {
+    "frontend": "Next.js 15 (App Router), React, TypeScript, Tailwind CSS",
+    "backend": "Next.js API Routes (TypeScript)",
+    "database": "BetterSQLite3 (accesso diretto)",
+    "authentication": "Clerk",
+    "packageManager": "pnpm",
+    "developmentEnvironment": "Docker & Docker Compose (Node 20 Slim/Debian base)",
+    "uiComponents": "shadcn/ui (base per theming), lucide-react (icone)",
+    "theming": "next-themes"
+  },
+  "databaseManagement": {
+    "schemaDefinition": "SQL DDL in `database/schema.sql`",
+    "dbConnection": "`src/lib/db/index.ts` (singleton pattern, crea DB file se non esiste)",
+    "scripts": [
+      {
+        "name": "db:migrate",
+        "purpose": "Applica l'intero `database/schema.sql`."
+      },
+      {
+        "name": "db:reset",
+        "purpose": "Cancella e ricrea DB da `schema.sql` (con backup)."
+      },
+      {
+        "name": "db:apply-changes",
+        "purpose": "Esegue query SQL ad-hoc da `database/adhoc_changes.sql` (con backup)."
+      },
+      {
+        "name": "db:backup",
+        "purpose": "Crea backup manuale."
+      },
+      {
+        "name": "db:seed",
+        "purpose": "Popola DB con dati di esempio (`users`, `players`, `auction_leagues`, `league_participants`)."
+      }
+    ]
+  },
+  "coreEntitiesSchema": [
+    {
+      "tableName": "users",
+      "description": "Estende utenti Clerk (ID, email, nome, avatar) con `role` ('admin', 'manager') e `status`."
+    },
+    {
+      "tableName": "players",
+      "description": "Catalogo giocatori (ID, ruolo, nome, squadra, quotazioni, FVM)."
+    },
+    {
+      "tableName": "auction_leagues",
+      "description": "Configurazione della lega/stagione d'asta (nome, tipo, budget iniziale, status, `active_auction_roles`, finestre temporali, `min_bid`, `timer_duration_hours`, slot per ruolo)."
+    },
+    {
+      "tableName": "league_participants",
+      "description": "Associazione utenti (manager) a leghe. Traccia `current_budget`, `locked_credits` (futuro)."
+    },
+    {
+      "tableName": "auctions",
+      "description": "Asta per un singolo giocatore in una `auction_league`. Contiene `auction_league_id`, `player_id`, `start_time`, `scheduled_end_time` (resettabile), `current_highest_bid_amount`, `current_highest_bidder_id`, `status`."
+    },
+    {
+      "tableName": "bids",
+      "description": "Log di ogni offerta (`auction_id`, `user_id`, `amount`, `bid_time`, `bid_type`)."
+    },
+    {
+      "tableName": "auto_bids",
+      "description": "Impostazioni auto-offerta (futuro)."
+    },
+    {
+      "tableName": "player_assignments",
+      "description": "Traccia l'assegnazione finale di un giocatore a un manager in una lega, con il prezzo di acquisto."
+    },
+    {
+      "tableName": "player_discard_requests",
+      "description": "Richieste di svincolo (futuro)."
+    },
+    {
+      "tableName": "budget_transactions",
+      "description": "Log delle transazioni di budget (futuro)."
+    },
+    {
+      "tableName": "user_auction_cooldowns",
+      "description": "Cooldown per rientro in asta dopo abbandono (futuro)."
+    },
+    {
+      "tableName": "user_auction_response_timers",
+      "description": "Timer di risposta per offerte superate (futuro)."
+    }
+  ],
+  "auctionLogic": {
+    "leagueSetup": {
+      "adminCreatesLeague": "Admin definisce `auction_leagues` (nome, tipo, budget, slot per ruolo, `min_bid`, `timer_duration_hours`).",
+      "adminAddsParticipants": "Admin aggiunge utenti a `league_participants`.",
+      "adminManagesAuctionPhases": "Admin aggiorna `auction_leagues.status` e `auction_leagues.active_auction_roles` per controllare quali giocatori sono astabili."
+    },
+    "auctionStartAndBidding": {
+      "firstBidCreatesAuction": "Un'asta per un giocatore (`auctions` record) inizia quando un manager fa la prima offerta valida (rispettando `min_bid`, ruolo attivo, budget, slot disponibili).",
+      "existingAuctionBids": "Offerte successive su un'asta attiva devono superare l'offerta corrente.",
+      "timerReset": "Ogni offerta valida resetta `auctions.scheduled_end_time` (basato su `timer_duration_hours` della lega).",
+      "bidTypes": "["manual", "quick"]. "Quick bid" su asta esistente incrementa l'offerta corrente (es. +1). "Auto-bid" è una funzionalità futura.",
+      "budgetAndSlotValidation": "Ogni offerta valida budget e disponibilità di slot (considerando giocatori già assegnati e offerte attive vincenti per lo stesso ruolo)."
+    },
+    "auctionEndAndPlayerAssignment": {
+      "timerExpiration": "L'asta termina quando `scheduled_end_time` scade.",
+      "winnerProcessing": "Il `current_highest_bidder_id` vince. Viene creato un record in `player_assignments`. Budget del manager e `players_X_acquired` (in `league_participants`) vengono aggiornati. `auctions.status` diventa `sold`."
+    },
+    "futureFeatures": [
+      "Auto-bid",
+      "Notifiche e timer di risposta per offerte superate",
+      "Abbandono asta e cooldown",
+      "Fasi di riparazione con svincoli"
+    ]
+  },
+  "adminFunctionalitiesImplemented": [
+    "Creare `auction_leagues`.",
+    "Listare `auction_leagues` create dall'admin.",
+    "Ottenere dettagli e aggiornare una `auction_league` (nome, status, budget, slot, ruoli attivi, finestre temporali).",
+    "Aggiungere e rimuovere partecipanti (manager) da una `auction_league`."
+  ],
+  "managerFunctionalitiesImplemented_Backend": [
+    "Piazzare la prima offerta per un giocatore, creando un'asta.",
+    "Piazzare offerte successive (manuali, quick) su un'asta esistente.",
+    "Ottenere lo stato di un'asta per un giocatore (dettagli, cronologia offerte)."
+  ],
+  "authenticationRoles": {
+    "admin": "Gestisce leghe e configurazioni del sistema.",
+    "manager": "Partecipa alle aste e fa offerte."
+  }
+}

@@ -3,6 +3,8 @@
 Usa fantavega per le API retest admin
 usa fantavega-user per le API test user
 
+armando.luongo = user_2vultw8Mzhm6PZDOuiMHtd2IPJ3
+
 ## Test Suite per Aste con Postman
 
 ### 1. Creazione Asta Iniziale

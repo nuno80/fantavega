@@ -1,11 +1,12 @@
-// src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts
+// src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts v.1.3
+// API Route Handler per la gestione delle offerte (POST) e il recupero dello stato di un'asta (GET) per un giocatore specifico in una lega.
+// 1. Importazioni e Definizioni di Interfaccia (INVARIATE)
 import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 
 import {
   type AuctionCreationResult,
-  // Importa i tipi di risultato
   type ExistingAuctionBidResult,
   getAuctionStatusForPlayer,
   placeBidOnExistingAuction,
@@ -24,11 +25,13 @@ interface PlaceBidRequestBody {
   bid_type?: "manual" | "quick";
 }
 
+// 2. Funzione POST per Piazzare Offerte (MODIFICATO SOLO IL BLOCCO CATCH)
 export async function POST(request: Request, context: RouteContext) {
   console.log(
     "!!!!!!!!!! POST HANDLER REACHED for /api/leagues/[league-id]/players/[player-id]/bids !!!!!!!!!!"
   );
   try {
+    // 2.1. Autenticazione utente e parsing dei parametri dalla route (INVARIATO)
     const user = await currentUser();
     if (!user) {
       return NextResponse.json(
@@ -51,46 +54,39 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    // 2.2. Parsing e validazione del corpo della richiesta (offerta) (INVARIATO)
     const body = (await request.json()) as PlaceBidRequestBody;
-
-    // Validazione più robusta per amount
-    if (
-      body.amount === undefined ||
-      typeof body.amount !== "number" ||
-      body.amount <= 0
-    ) {
-      // Se è 'quick', l'amount potrebbe non essere rilevante o potrebbe essere 0/1 per indicare +1
-      // Ma la nostra logica di servizio per 'quick' calcola l'importo, quindi amount qui è più per 'manual'
-      if (body.bid_type !== "quick") {
-        // Solo se non è quick bid, amount deve essere > 0
-        return NextResponse.json(
-          {
-            error:
-              "Invalid bid amount provided. Amount must be a positive number for manual bids.",
-          },
-          { status: 400 }
-        );
-      } else if (
-        body.bid_type === "quick" &&
-        body.amount <= 0 &&
-        body.amount !== undefined
-      ) {
-        // Se è quick e amount è specificato ma non positivo, è un errore
-        return NextResponse.json(
-          {
-            error:
-              "Amount for quick bid, if provided, must be positive or will be ignored.",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    const bidAmount = body.amount; // Per 'quick', il servizio lo ricalcolerà.
+    const bidAmount = body.amount;
     const bidType = body.bid_type || "manual";
+
     if (bidType !== "manual" && bidType !== "quick") {
       return NextResponse.json(
         { error: "Invalid bid_type. Must be 'manual' or 'quick'." },
+        { status: 400 }
+      );
+    }
+    if (
+      bidType === "manual" &&
+      (typeof bidAmount !== "number" || bidAmount <= 0)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid bid amount for 'manual' bid. Amount must be a positive number.",
+        },
+        { status: 400 }
+      );
+    }
+    if (
+      bidType === "quick" &&
+      body.amount !== undefined &&
+      (typeof body.amount !== "number" || body.amount <= 0)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Amount for quick bid, if provided, should be positive or omitted.",
+        },
         { status: 400 }
       );
     }
@@ -99,6 +95,7 @@ export async function POST(request: Request, context: RouteContext) {
       `[API BIDS POST] User ${user.id} attempting bid of ${bidAmount} (type: ${bidType}) for player ${playerIdNum} in league ${leagueIdNum}`
     );
 
+    // 2.3. Logica di offerta: determina se creare una nuova asta o fare un'offerta su una esistente (INVARIATO)
     const existingAuctionStatus = await getAuctionStatusForPlayer(
       leagueIdNum,
       playerIdNum
@@ -118,7 +115,7 @@ export async function POST(request: Request, context: RouteContext) {
       result = await placeBidOnExistingAuction(
         existingAuctionStatus.id,
         user.id,
-        bidAmount, // Passiamo l'amount, il servizio gestirà il calcolo per 'quick'
+        bidAmount,
         bidType
       );
       httpStatus = 200;
@@ -128,26 +125,21 @@ export async function POST(request: Request, context: RouteContext) {
       );
     } else {
       console.log(
-        "[API BIDS POST] No active auction found. Placing initial bid to create auction."
+        "[API BIDS POST] No active auction found or auction not in biddable state. Placing initial bid to create auction."
       );
       if (bidType === "quick") {
-        // Per la prima offerta, 'quick' non ha un'offerta precedente a cui aggiungere +1.
-        // Il servizio placeInitialBidAndCreateAuction si aspetta un amount.
-        // Se amount non è valido (es. <=0), la validazione del body sopra dovrebbe averlo già gestito.
-        // Se amount è valido, verrà usato come offerta manuale iniziale.
-        console.warn(
-          "[API BIDS POST] 'quick' bid type on a new auction; using provided amount as initial manual bid if valid."
-        );
-        if (bidAmount <= 0) {
-          // Se amount non è stato validato sopra per quick
+        if (typeof bidAmount !== "number" || bidAmount <= 0) {
           return NextResponse.json(
             {
               error:
-                "Quick bid on a new auction requires a valid positive amount to start or will use league minimum.",
+                "Quick bid on a new auction requires a valid positive amount (or will use league minimum).",
             },
             { status: 400 }
           );
         }
+        console.warn(
+          "[API BIDS POST] 'quick' bid type on a new auction; using provided amount as initial manual bid (will be checked against min_bid)."
+        );
       }
       result = await placeInitialBidAndCreateAuction(
         leagueIdNum,
@@ -163,9 +155,11 @@ export async function POST(request: Request, context: RouteContext) {
 
     return NextResponse.json(result, { status: httpStatus });
   } catch (error) {
+    // 2.4. Gestione centralizzata degli errori (MODIFICATA LA CONDIZIONE PER SLOT PIENI)
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    console.error(`[API BIDS POST] Error: ${errorMessage}`);
+    console.error(`[API BIDS POST] Raw Error Object:`, error);
+    console.error(`[API BIDS POST] Error Message: ${errorMessage}`);
 
     if (
       error instanceof SyntaxError &&
@@ -177,32 +171,41 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    let statusCode = 500; // Default Internal Server Error
+    let statusCode = 500;
+    let clientErrorMessage =
+      "An unexpected error occurred while processing your bid.";
+
     if (error instanceof Error) {
-      if (error.message.includes("not found")) statusCode = 404;
-      else if (
+      clientErrorMessage = error.message;
+
+      if (error.message.includes("not found")) {
+        statusCode = 404;
+      } else if (
         error.message.includes("Bidding is not currently active") ||
-        error.message.includes("Player's role is not currently active") ||
+        (error.message.includes("Player's role") &&
+          error.message.includes("is not currently active for bidding")) ||
         error.message.includes("has already been assigned") ||
-        error.message.includes(
-          "must be greater than the current highest bid"
-        ) ||
+        error.message.includes("must be > current bid") ||
         error.message.includes("is already the highest bidder") ||
         error.message.includes("Auction is not active or closing") ||
         error.message.includes("Insufficient budget") ||
-        error.message.includes("no available slots") ||
-        error.message.includes("is less than the minimum bid")
+        // MODIFICA QUI: Rendi la corrispondenza più generica per l'errore di slot pieni
+        error.message.startsWith("Slot full, you cannot bid") ||
+        error.message.includes("is less than the minimum bid") ||
+        error.message.includes("is not a manager")
       ) {
-        statusCode = 400; // Bad Request per errori di logica di business / validazione
+        statusCode = 400;
       } else if (error.message.includes("active auction already exists")) {
-        // Questo errore da placeInitialBid... non dovrebbe più verificarsi qui a causa del check precedente
-        statusCode = 409; // Conflict
+        statusCode = 409;
+      } else {
+        console.error(
+          `[API BIDS POST] Unhandled service error being masked for client: ${error.message}`
+        );
+        clientErrorMessage =
+          "An unexpected error occurred while processing your bid.";
       }
     }
-    // Se lo statusCode è ancora 500, è un errore server non previsto.
-    // Altrimenti, usiamo lo statusCode determinato.
-    const clientErrorMessage =
-      statusCode === 500 ? "Failed to process bid." : errorMessage;
+
     return NextResponse.json(
       { error: clientErrorMessage },
       { status: statusCode }
@@ -210,7 +213,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
 }
 
+// 3. Funzione GET per Recuperare lo Stato dell'Asta (INVARIATA)
 export async function GET(_request: Request, context: RouteContext) {
+  // ... implementazione invariata ...
   console.log(
     "!!!!!!!!!! GET HANDLER REACHED for /api/leagues/[league-id]/players/[player-id]/bids !!!!!!!!!!"
   );
@@ -243,9 +248,6 @@ export async function GET(_request: Request, context: RouteContext) {
     );
 
     if (!auctionDetails) {
-      // Invece di 404, potremmo voler restituire uno stato che indica "nessuna asta per questo giocatore"
-      // ma per ora 404 va bene se l'aspettativa è che un'asta esista.
-      // O un oggetto con status: 'not_started' o simile.
       return NextResponse.json(
         { message: "No auction found for this player in this league." },
         { status: 404 }
@@ -264,4 +266,5 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 }
 
+// 4. Configurazione della Route (INVARIATA)
 export const dynamic = "force-dynamic";

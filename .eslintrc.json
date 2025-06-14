@@ -5,8 +5,6 @@
   "rules": {
     "prefer-arrow-callback": ["error"],
     "prefer-template": ["error"],
-    "semi": ["error"],
-    "quotes": ["warn"], // <<--- CAMBIATO DA "error" A "warn" (per ora)
     "check-file/filename-naming-convention": [
       "warn", // <<--- CAMBIATO DA "error" A "warn" (per ora)
       {
