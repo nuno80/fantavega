@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "github.com/upstash/context7-mcp": {
+      "url": "http://localhost:3001/mcp",
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

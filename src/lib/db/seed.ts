@@ -37,6 +37,14 @@ const usersToSeed = [
     role: "manager",
     status: "active",
   },
+    { // <-- AGGIUNGI QUESTO UTENTE SE MANCA
+    id: "user_2ybRb12u9haFhrS4U7w3d1Yl5zD", 
+    email: "user_test_new@example.com", // Metti un'email unica
+    username: "managertest4",         // Metti uno username unico
+    full_name: "Manager Test New",
+    role: "manager",
+    status: "active",
+  }
 ];
 
 // 3. Dati di Esempio per Giocatori

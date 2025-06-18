@@ -1,4 +1,5 @@
-// src/lib/db/services/bid.service.ts v.1.3
+// src/lib/db/services/bid.service.ts v.1.4
+
 // Servizio per la logica di business relativa alle offerte, alle aste e al loro completamento.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -91,8 +92,9 @@ interface ExpiredAuctionData {
   auction_league_id: number;
   player_id: number;
   current_highest_bid_amount: number;
-  current_highest_bidder_id: string; // Assumiamo che ci sia sempre un vincitore se l'asta è scaduta e creata da un'offerta
-  player_role: string; // Ruolo del giocatore per aggiornare i contatori corretti
+  current_highest_bidder_id: string;
+  player_role: string;
+  player_name?: string; // Ruolo del giocatore per aggiornare i contatori corretti
 }
 
 // 3. Funzione Helper Interna per Controllo Slot e Budget (Invariata)
@@ -570,51 +572,40 @@ export const getAuctionStatusForPlayer = async (
   }
 };
 
-// 5. NUOVA Funzione Esportata per Processare Aste Scadute e Assegnare Giocatori
-export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
-  processedCount: number;
-  failedCount: number;
-  errors: string[];
-}> => {
-  console.log(
-    "[SERVICE AUCTION_PROCESSING] Starting to process expired auctions..."
-  );
+// 5. Funzione Esportata per Processare Aste Scadute e Assegnare Giocatori (MODIFICATA)
+export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{ processedCount: number; failedCount: number; errors: string[] }> => {
+  console.log("[SERVICE AUCTION_PROCESSING] Starting to process expired auctions...");
   const now = Math.floor(Date.now() / 1000);
   let processedCount = 0;
   let failedCount = 0;
   const errors: string[] = [];
 
   // 5.1. Seleziona tutte le aste attive che sono scadute e hanno un offerente
-  // Si unisce con players per ottenere il player_role
+  // Si unisce con players per ottenere il player_role e player_name
   const getExpiredAuctionsStmt = db.prepare(
     `SELECT
        a.id, a.auction_league_id, a.player_id,
        a.current_highest_bid_amount, a.current_highest_bidder_id,
-       p.role as player_role
+       p.role as player_role,
+       p.name as player_name 
      FROM auctions a
      JOIN players p ON a.player_id = p.id
      WHERE a.status = 'active'
        AND a.scheduled_end_time <= ?
        AND a.current_highest_bidder_id IS NOT NULL
-       AND a.current_highest_bid_amount > 0` // Assicura che ci sia un'offerta valida
+       AND a.current_highest_bid_amount > 0`
   );
 
-  const expiredAuctions = getExpiredAuctionsStmt.all(
-    now
-  ) as ExpiredAuctionData[];
+  const expiredAuctions = getExpiredAuctionsStmt.all(now) as ExpiredAuctionData[];
 
   if (expiredAuctions.length === 0) {
-    console.log(
-      "[SERVICE AUCTION_PROCESSING] No expired auctions to process at this time."
-    );
+    console.log("[SERVICE AUCTION_PROCESSING] No expired auctions to process at this time.");
     return { processedCount, failedCount, errors };
   }
 
-  console.log(
-    `[SERVICE AUCTION_PROCESSING] Found ${expiredAuctions.length} expired auctions to process.`
-  );
+  console.log(`[SERVICE AUCTION_PROCESSING] Found ${expiredAuctions.length} expired auctions to process.`);
 
-  // 5.2. Prepara le query per gli aggiornamenti (ottimizzazione per non ricrearle nel loop)
+  // 5.2. Prepara le query per gli aggiornamenti
   const updateAuctionStatusStmt = db.prepare(
     "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?"
   );
@@ -625,81 +616,92 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
     `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price, assigned_at)
      VALUES (?, ?, ?, ?, ?)`
   );
-  // Query per aggiornare i contatori giocatori acquisiti
   const getPlayerAcquiredCountColumnName = (role: string): string | null => {
     switch (role) {
-      case "P":
-        return "players_P_acquired";
-      case "D":
-        return "players_D_acquired";
-      case "C":
-        return "players_C_acquired";
-      case "A":
-        return "players_A_acquired";
-      default:
-        return null;
+      case "P": return "players_P_acquired";
+      case "D": return "players_D_acquired";
+      case "C": return "players_C_acquired";
+      case "A": return "players_A_acquired";
+      default: return null;
     }
   };
+  const createBudgetTransactionStmt = db.prepare( // Già definito nella v.1.4
+    `INSERT INTO budget_transactions (
+        auction_league_id, user_id, transaction_type, amount, 
+        related_auction_id, related_player_id, description, 
+        balance_after_in_league, transaction_time
+     ) VALUES (@auction_league_id, @user_id, @transaction_type, @amount, 
+               @related_auction_id, @related_player_id, @description, 
+               @balance_after_in_league, @transaction_time)` // Usiamo named placeholders per chiarezza
+  );
+  const getParticipantBudgetStmt = db.prepare( // Già definito nella v.1.4
+    "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
+  );
+
 
   // 5.3. Itera su ogni asta scaduta e processala
   for (const auction of expiredAuctions) {
-    console.log(
-      `[SERVICE AUCTION_PROCESSING] Processing auction ID: ${auction.id} for player ID: ${auction.player_id}`
-    );
+    console.log(`[SERVICE AUCTION_PROCESSING] Processing auction ID: ${auction.id} for player ID: ${auction.player_id} (Name: ${auction.player_name || 'N/A'})`);
+    
     const singleAuctionTransaction = db.transaction(() => {
       // 5.3.1. Aggiorna lo stato dell'asta a 'sold'
       const auctionUpdateResult = updateAuctionStatusStmt.run(now, auction.id);
       if (auctionUpdateResult.changes === 0) {
-        throw new Error(
-          `Failed to update status for auction ID ${auction.id}.`
-        );
+        throw new Error(`Failed to update status for auction ID ${auction.id}.`);
       }
       console.log(`  Auction ID ${auction.id} status updated to 'sold'.`);
 
       // 5.3.2. Aggiorna il budget del manager vincitore
       const budgetUpdateResult = updateParticipantBudgetStmt.run(
         auction.current_highest_bid_amount,
-        now,
+        now, // per updated_at in league_participants
         auction.auction_league_id,
         auction.current_highest_bidder_id
       );
       if (budgetUpdateResult.changes === 0) {
-        // Questo potrebbe accadere se il partecipante non esiste, ma dovrebbe essere garantito da offerte precedenti
-        throw new Error(
-          `Failed to update budget for user ${auction.current_highest_bidder_id} in league ${auction.auction_league_id} for auction ID ${auction.id}.`
-        );
+        throw new Error(`Failed to update budget for user ${auction.current_highest_bidder_id} in league ${auction.auction_league_id} for auction ID ${auction.id}.`);
       }
-      console.log(
-        `  Budget updated for user ${auction.current_highest_bidder_id} in league ${auction.auction_league_id}.`
-      );
+      console.log(`  Budget updated for user ${auction.current_highest_bidder_id} in league ${auction.auction_league_id}.`);
+
+      // 5.3.2.1 OTTIENI IL NUOVO SALDO e INSERISCI TRANSAZIONE BUDGET
+      const updatedParticipant = getParticipantBudgetStmt.get(auction.auction_league_id, auction.current_highest_bidder_id) as { current_budget: number } | undefined;
+      if (!updatedParticipant) {
+        throw new Error(`Failed to retrieve updated budget for user ${auction.current_highest_bidder_id} after update for auction ID ${auction.id}.`);
+      }
+      const balanceAfter = updatedParticipant.current_budget;
+
+      createBudgetTransactionStmt.run({ // Uso di named placeholders
+        auction_league_id: auction.auction_league_id,
+        user_id: auction.current_highest_bidder_id,
+        transaction_type: 'win_auction_debit',
+        amount: auction.current_highest_bid_amount, // Importo della spesa (positivo)
+        related_auction_id: auction.id,
+        related_player_id: auction.player_id,
+        description: `Acquisto giocatore ${auction.player_name || `ID ${auction.player_id}`} per ${auction.current_highest_bid_amount} crediti (Asta ID: ${auction.id}).`,
+        balance_after_in_league: balanceAfter,
+        transaction_time: now
+      });
+      console.log(`  Budget transaction (win_auction_debit) logged for user ${auction.current_highest_bidder_id} for auction ID ${auction.id}.`);
+
 
       // 5.3.3. Aggiorna contatore giocatori acquisiti per ruolo
-      const acquiredColumn = getPlayerAcquiredCountColumnName(
-        auction.player_role
-      );
+      const acquiredColumn = getPlayerAcquiredCountColumnName(auction.player_role);
       if (!acquiredColumn) {
-        throw new Error(
-          `Invalid player role '${auction.player_role}' for player ID ${auction.player_id} in auction ID ${auction.id}.`
-        );
+        throw new Error(`Invalid player role '${auction.player_role}' for player ID ${auction.player_id} in auction ID ${auction.id}.`);
       }
-      // Costruisci la query dinamicamente (ma in modo sicuro) per aggiornare la colonna corretta
       const updatePlayerCountStmt = db.prepare(
         `UPDATE league_participants SET ${acquiredColumn} = ${acquiredColumn} + 1, updated_at = ?
          WHERE league_id = ? AND user_id = ?`
       );
       const playerCountUpdateResult = updatePlayerCountStmt.run(
-        now,
+        now, // per updated_at
         auction.auction_league_id,
         auction.current_highest_bidder_id
       );
       if (playerCountUpdateResult.changes === 0) {
-        throw new Error(
-          `Failed to update player count for role ${auction.player_role} for user ${auction.current_highest_bidder_id} in league ${auction.auction_league_id}.`
-        );
+        throw new Error(`Failed to update player count for role ${auction.player_role} for user ${auction.current_highest_bidder_id} in league ${auction.auction_league_id} for auction ID ${auction.id}.`);
       }
-      console.log(
-        `  Player count for role ${auction.player_role} updated for user ${auction.current_highest_bidder_id}.`
-      );
+      console.log(`  Player count for role ${auction.player_role} updated for user ${auction.current_highest_bidder_id}.`);
 
       // 5.3.4. Crea il record di assegnazione del giocatore
       const assignmentResult = createPlayerAssignmentStmt.run(
@@ -707,46 +709,31 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
         auction.player_id,
         auction.current_highest_bidder_id,
         auction.current_highest_bid_amount,
-        now
+        now // assigned_at
       );
       if (!assignmentResult.lastInsertRowid) {
-        throw new Error(
-          `Failed to create player assignment for player ID ${auction.player_id} to user ${auction.current_highest_bidder_id} in auction ID ${auction.id}.`
-        );
+         throw new Error(`Failed to create player assignment for player ID ${auction.player_id} to user ${auction.current_highest_bidder_id} in auction ID ${auction.id}.`);
       }
-      console.log(
-        `  Player assignment created for player ID ${auction.player_id}.`
-      );
+      console.log(`  Player assignment created for player ID ${auction.player_id}.`);
 
       return true; // Transazione per questa asta riuscita
-    });
+    }); // Fine della db.transaction per singola asta
 
     try {
-      singleAuctionTransaction(); // Esegui la transazione per la singola asta
+      singleAuctionTransaction(); 
       processedCount++;
-      console.log(
-        `[SERVICE AUCTION_PROCESSING] Successfully processed auction ID: ${auction.id}.`
-      );
+      console.log(`[SERVICE AUCTION_PROCESSING] Successfully processed auction ID: ${auction.id}.`);
     } catch (error) {
       failedCount++;
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Unknown error processing auction.";
-      console.error(
-        `[SERVICE AUCTION_PROCESSING] Error processing auction ID ${auction.id}: ${errorMessage}`,
-        error
-      );
+      const errorMessage = error instanceof Error ? error.message : "Unknown error processing auction.";
+      console.error(`[SERVICE AUCTION_PROCESSING] Error processing auction ID ${auction.id}: ${errorMessage}`, error);
       errors.push(`Auction ID ${auction.id}: ${errorMessage}`);
-      // Non rilanciare l'errore qui per permettere al loop di continuare con le altre aste (Opzione A)
     }
-  }
+  } // Fine del loop for...of expiredAuctions
 
-  console.log(
-    `[SERVICE AUCTION_PROCESSING] Finished processing auctions. Processed: ${processedCount}, Failed: ${failedCount}.`
-  );
+  console.log(`[SERVICE AUCTION_PROCESSING] Finished processing auctions. Processed: ${processedCount}, Failed: ${failedCount}.`);
   if (errors.length > 0) {
     console.error("[SERVICE AUCTION_PROCESSING] Errors encountered:", errors);
   }
   return { processedCount, failedCount, errors };
-};
+}; 

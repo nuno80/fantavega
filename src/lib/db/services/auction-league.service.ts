@@ -436,112 +436,186 @@ export const updateAuctionLeague = async (
 
 export const addParticipantToLeague = async (
   leagueId: number,
-  userIdToAdd: string,
-  adminUserId: string // Per verificare i permessi dell'admin che esegue l'azione
-): Promise<LeagueParticipant> => {
-  console.log(
-    `[SERVICE] addParticipantToLeague called for league ID: ${leagueId}, user to add: ${userIdToAdd}, by admin ID: ${adminUserId}`
-  );
-
-  // 1. Verificare che adminUserId sia l'admin della lega
-  const league = await getAuctionLeagueByIdForAdmin(leagueId, adminUserId); // Riusa la funzione esistente
-  if (!league) {
-    throw new Error(
-      "League not found or user is not authorized to manage this league's participants."
-    );
-  }
-
-  // 2. Verificare che l'utente da aggiungere esista nella tabella 'users'
-  const userToAddStmt = db.prepare(
-    "SELECT id, username, full_name, role FROM users WHERE id = ?"
-  );
-  const userToAdd = userToAddStmt.get(userIdToAdd) as
-    | { id: string; username?: string; full_name?: string; role: AppRole }
-    | undefined;
-
-  if (!userToAdd) {
-    throw new Error(`User with ID ${userIdToAdd} not found.`);
-  }
-  // Potresti voler aggiungere un controllo per assicurarti che solo utenti con ruolo 'manager' possano essere aggiunti
-  if (userToAdd.role !== "manager") {
-    throw new Error(
-      `User ${userIdToAdd} is not a manager and cannot be added as a participant.`
-    );
-  }
-
-  // 3. Verificare che l'utente non sia già partecipante in questa lega
-  const existingParticipantStmt = db.prepare(
-    "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
-  );
-  const existingParticipant = existingParticipantStmt.get(
-    leagueId,
-    userIdToAdd
-  );
-
-  if (existingParticipant) {
-    throw new Error(
-      `User ${userIdToAdd} is already a participant in league ${leagueId}.`
-    );
-  }
-
-  // 4. Ottenere initial_budget_per_manager dalla lega (già fatto con 'league' sopra)
-  const initialBudget = league.initial_budget_per_manager;
+  adminUserId: string,
+  participantUserId: string
+): Promise<{
+  success: boolean;
+  message: string;
+  participant_user_id?: string;
+}> => {
   const now = Math.floor(Date.now() / 1000);
 
-  // 5. Inserire in league_participants
-  try {
-    const insertStmt = db.prepare(
-      `INSERT INTO league_participants (
-        league_id, user_id, current_budget, locked_credits,
-        players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired,
-        joined_at
-      ) VALUES (
-        @league_id, @user_id, @current_budget, 0,
-        0, 0, 0, 0,
-        @joined_at
-      ) RETURNING *` // Usiamo RETURNING * per ottenere la riga inserita
+  // Definiamo la funzione che verrà eseguita come una transazione
+  const runTransaction = () => {
+    // 1. Verifica che la lega esista e che l'utente che esegue l'azione sia l'admin
+    //    LETTURA DELLA LEGA SPOSTATA QUI DENTRO LA TRANSAZIONE
+    const leagueStmt = db.prepare(
+      "SELECT id, admin_creator_id, initial_budget_per_manager, status FROM auction_leagues WHERE id = ?"
+    );
+    const league = leagueStmt.get(leagueId) as
+      | Pick<
+          AuctionLeague,
+          "id" | "admin_creator_id" | "initial_budget_per_manager" | "status"
+        >
+      | undefined;
+
+    // NUOVO LOG DI DEBUG per vedere cosa legge la transazione
+    console.log(
+      `[SERVICE AUCTION_LEAGUE DEBUG] Inside transaction, league status for ID ${leagueId}: ${league?.status}`
     );
 
-    const newParticipant = insertStmt.get({
-      league_id: leagueId,
-      user_id: userIdToAdd,
-      current_budget: initialBudget,
-      joined_at: now,
-    }) as LeagueParticipant | undefined; // LeagueParticipant dovrebbe includere i campi players_X_acquired
-
-    if (!newParticipant) {
+    if (!league) {
+      throw new Error("Auction league not found.");
+    }
+    if (league.admin_creator_id !== adminUserId) {
+      throw new Error("Only the league administrator can add participants.");
+    }
+    // Controllo sullo stato della lega per permettere l'aggiunta di partecipanti
+    if (!["setup", "participants_joining"].includes(league.status)) {
       throw new Error(
-        "Failed to add participant or retrieve their data after insert."
+        `Cannot add participants when league status is '${league.status}'.`
       );
     }
 
-    console.log("[SERVICE] Participant added successfully:", newParticipant);
-    return newParticipant;
+    // 2. Verifica che l'utente da aggiungere esista nella tabella users e sia un manager
+    const userQuerySql = "SELECT id, role, username FROM users WHERE id = ?"; // Aggiungi username per più info
+    console.log(
+      `[SERVICE AUCTION_LEAGUE DEBUG] Preparing user query: ${userQuerySql} with ID: '${participantUserId}'`
+    );
+    const userStmt = db.prepare(userQuerySql);
+
+    let user: { id: string; role: string; username?: string } | undefined =
+      undefined;
+    try {
+      user = userStmt.get(participantUserId) as
+        | { id: string; role: string; username?: string }
+        | undefined;
+    } catch (e: any) {
+      console.error(
+        `[SERVICE AUCTION_LEAGUE DEBUG] Error executing userStmt.get(): ${e.message}`,
+        e
+      );
+      throw new Error(
+        `Database error while fetching user ${participantUserId}.`
+      ); // Rilancia un errore più specifico
+    }
+
+    console.log(
+      `[SERVICE AUCTION_LEAGUE DEBUG] Result of user query (userStmt.get):`,
+      JSON.stringify(user)
+    ); // Logga l'oggetto utente completo
+
+    if (!user) {
+      // Log aggiuntivo per capire perché non è stato trovato
+      const allUsersTestStmt = db.prepare(
+        "SELECT COUNT(*) as count FROM users"
+      );
+      const userCount = allUsersTestStmt.get() as { count: number };
+      console.warn(
+        `[SERVICE AUCTION_LEAGUE DEBUG] User ${participantUserId} not found by query. Total users in DB: ${userCount?.count}. Are you sure the seed ran correctly and this user ID is exact?`
+      );
+
+      // Per un debug estremo, potresti anche listare alcuni ID dalla tabella users qui
+      // const sampleUserIdsStmt = db.prepare("SELECT id FROM users LIMIT 5");
+      // const sampleUserIds = sampleUserIdsStmt.all();
+      // console.warn("[SERVICE AUCTION_LEAGUE DEBUG] Sample user IDs from DB:", JSON.stringify(sampleUserIds));
+
+      throw new Error(`User with ID ${participantUserId} not found.`);
+    }
+    if (user.role !== "manager") {
+      throw new Error(
+        `User ${participantUserId} (Role: ${user.role}, Username: ${user.username || "N/A"}) is not a manager and cannot be added as a participant.`
+      );
+    }
+
+    // 3. Inserisci il partecipante in league_participants
+    const initialBudget = league.initial_budget_per_manager;
+    const enrollManagerSQL = `
+      INSERT OR IGNORE INTO league_participants (
+        league_id, user_id, current_budget, locked_credits,
+        players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired,
+        joined_at, updated_at 
+      ) VALUES (
+        @league_id, @user_id, @current_budget, 0, /* locked_credits iniziali a 0 */
+        0, 0, 0, 0, /* contatori giocatori a 0 */
+        @joined_at, @updated_at /* timestamp per joined_at e updated_at */
+      )
+    `;
+    const enrollManagerStmt = db.prepare(enrollManagerSQL);
+    const enrollManagerResult = enrollManagerStmt.run({
+      league_id: leagueId,
+      user_id: participantUserId,
+      current_budget: initialBudget,
+      joined_at: now,
+      updated_at: now,
+    });
+
+    if (enrollManagerResult.changes === 0) {
+      console.log(
+        `[SERVICE AUCTION_LEAGUE] Participant ${participantUserId} already in league ${leagueId}. No changes made to participation or budget allocation transaction.`
+      );
+      return {
+        success: true,
+        message: "Participant already in league.",
+        participant_user_id: participantUserId,
+      };
+    }
+
+    // 4. INSERISCI TRANSAZIONE BUDGET per l'allocazione iniziale (solo se il partecipante è stato effettivamente aggiunto ora)
+    const budgetTransactionSQL = `
+      INSERT INTO budget_transactions (
+          auction_league_id, user_id, transaction_type, amount, 
+          description, balance_after_in_league, transaction_time
+       ) VALUES (@league_id, @user_id, @transaction_type, @amount, @description, @balance_after, @time)
+    `;
+    const createBudgetTransactionStmt = db.prepare(budgetTransactionSQL);
+    createBudgetTransactionStmt.run({
+      league_id: leagueId,
+      user_id: participantUserId,
+      transaction_type: "initial_allocation",
+      amount: initialBudget,
+      description: `Allocazione budget iniziale per la lega ID ${leagueId}.`,
+      balance_after: initialBudget,
+      time: now,
+    });
+    console.log(
+      `[SERVICE AUCTION_LEAGUE] Budget transaction for initial allocation logged for user ${participantUserId} in league ${leagueId}.`
+    );
+
+    return {
+      success: true,
+      message: "Participant added successfully and initial budget allocated.",
+      participant_user_id: participantUserId,
+    };
+  }; // Fine della funzione runTransaction
+
+  try {
+    // Esegui la funzione definita sopra come una transazione
+    const transaction = db.transaction(runTransaction); // Crea l'oggetto transazione
+    return transaction(); // Esegue la transazione
   } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error adding participant.";
     console.error(
-      `[SERVICE] Error adding participant ${userIdToAdd} to league ${leagueId}:`,
+      `[SERVICE AUCTION_LEAGUE] Error adding participant ${participantUserId} to league ${leagueId}: ${errorMessage}`,
       error
     );
-    // Gestire errori specifici del DB, es. violazione UNIQUE (anche se già controllato sopra)
-    throw new Error("Failed to add participant to league.");
+    return { success: false, message: errorMessage };
   }
-};
+}; // Fine di addParticipantToLeague
 
 /**
  * Ottiene tutti i partecipanti di una lega d'asta, includendo alcuni dettagli dell'utente.
  */
 export const getLeagueParticipants = async (
   leagueId: number
-  // Potremmo aggiungere adminUserId se solo l'admin può vedere tutti i partecipanti
-  // o se un partecipante può vedere solo sé stesso o info limitate.
-  // Per ora, assumiamo che sia una funzione accessibile (es. dall'admin o da chiunque veda la lega).
 ): Promise<LeagueParticipant[]> => {
-  // LeagueParticipant dovrebbe essere estesa o modificata per includere user details
   console.log(
     `[SERVICE] getLeagueParticipants called for league ID: ${leagueId}`
   );
   try {
-    // Query con JOIN per prendere anche username e full_name dalla tabella users
     const stmt = db.prepare(
       `SELECT 
          lp.*, 
@@ -553,7 +627,6 @@ export const getLeagueParticipants = async (
        WHERE lp.league_id = ?
        ORDER BY lp.joined_at ASC`
     );
-    // Estendi l'interfaccia LeagueParticipant se necessario per includere user_username, user_full_name, user_avatar_url
     const participants = stmt.all(leagueId) as (LeagueParticipant & {
       user_username?: string;
       user_full_name?: string;
@@ -576,23 +649,34 @@ export const getLeagueParticipants = async (
 /**
  * Rimuove un partecipante da una lega d'asta.
  * Solo l'admin creatore della lega può farlo.
- * Considerazioni aggiuntive: cosa succede ai giocatori/offerte del partecipante rimosso?
- * Per ora, implementazione semplice di rimozione.
  */
 export const removeParticipantFromLeague = async (
   leagueId: number,
   userIdToRemove: string,
-  adminUserId: string // Per verificare i permessi
+  adminUserId: string
 ): Promise<{ success: boolean; message?: string }> => {
   console.log(
     `[SERVICE] removeParticipantFromLeague called for league ID: ${leagueId}, user to remove: ${userIdToRemove}, by admin ID: ${adminUserId}`
   );
 
   // 1. Verificare che adminUserId sia l'admin della lega
-  const league = await getAuctionLeagueByIdForAdmin(leagueId, adminUserId);
-  if (!league) {
+  //    Dobbiamo recuperare la lega per controllare admin_creator_id.
+  //    Assumiamo che getAuctionLeagueByIdForAdmin (o una funzione simile) esista e funzioni.
+  //    Se non esiste, dovremmo crearla o fare una query diretta qui.
+  //    Per ora, farò una query diretta per semplicità, ma un servizio dedicato sarebbe meglio.
+  const leagueCheckStmt = db.prepare(
+    "SELECT admin_creator_id FROM auction_leagues WHERE id = ?"
+  );
+  const leagueInfo = leagueCheckStmt.get(leagueId) as
+    | { admin_creator_id: string }
+    | undefined;
+
+  if (!leagueInfo) {
+    throw new Error("League not found.");
+  }
+  if (leagueInfo.admin_creator_id !== adminUserId) {
     throw new Error(
-      "League not found or user is not authorized to manage this league's participants."
+      "User is not authorized to manage this league's participants."
     );
   }
 
@@ -609,16 +693,21 @@ export const removeParticipantFromLeague = async (
     };
   }
 
-  // 3. Logica di validazione aggiuntiva (opzionale per ora):
-  //    - La lega deve essere in uno stato 'setup' o 'participants_joining'?
-  //    - Se il partecipante ha già giocatori o offerte attive, la rimozione è più complessa.
-  //    Per ora, permettiamo la rimozione.
-  if (league.status !== "setup" && league.status !== "participants_joining") {
+  // 3. Logica di validazione aggiuntiva (opzionale)
+  const currentLeagueStatusStmt = db.prepare(
+    "SELECT status FROM auction_leagues WHERE id = ?"
+  );
+  const currentLeague = currentLeagueStatusStmt.get(leagueId) as
+    | { status: string }
+    | undefined;
+  if (
+    currentLeague &&
+    currentLeague.status !== "setup" &&
+    currentLeague.status !== "participants_joining"
+  ) {
     console.warn(
-      `[SERVICE] Warning: Removing participant ${userIdToRemove} from league ${leagueId} which is in status '${league.status}'. This might have side effects.`
+      `[SERVICE] Warning: Removing participant ${userIdToRemove} from league ${leagueId} which is in status '${currentLeague.status}'. This might have side effects.`
     );
-    // Potresti voler lanciare un errore qui se non vuoi permetterlo:
-    // throw new Error("Participants can only be removed when league status is 'setup' or 'participants_joining'.");
   }
 
   try {
@@ -631,16 +720,12 @@ export const removeParticipantFromLeague = async (
       console.log(
         `[SERVICE] Participant ${userIdToRemove} removed successfully from league ${leagueId}.`
       );
-      // TODO: Logica aggiuntiva?
-      // - Annullare le offerte attive del partecipante?
-      // - Svincolare i giocatori del partecipante? (Questo è complesso e dipende dalle regole)
-      // - Registrare una transazione di budget se i crediti vengono restituiti?
+      // TODO: Logica aggiuntiva (annullare offerte, svincolare giocatori, transazione budget)
       return {
         success: true,
         message: `Participant ${userIdToRemove} removed successfully.`,
       };
     } else {
-      // Non dovrebbe accadere se il controllo precedente del partecipante è passato
       return {
         success: false,
         message: `Failed to remove participant ${userIdToRemove}. Participant not found or no changes made.`,
