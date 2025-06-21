@@ -37,14 +37,15 @@ const usersToSeed = [
     role: "manager",
     status: "active",
   },
-    { // <-- AGGIUNGI QUESTO UTENTE SE MANCA
-    id: "user_2ybRb12u9haFhrS4U7w3d1Yl5zD", 
+  {
+    // <-- AGGIUNGI QUESTO UTENTE SE MANCA
+    id: "user_2ybRb12u9haFhrS4U7w3d1Yl5zD",
     email: "user_test_new@example.com", // Metti un'email unica
-    username: "managertest4",         // Metti uno username unico
+    username: "managertest4", // Metti uno username unico
     full_name: "Manager Test New",
     role: "manager",
     status: "active",
-  }
+  },
 ];
 
 // 3. Dati di Esempio per Giocatori
@@ -123,7 +124,7 @@ const leaguesToSeed = [
     active_auction_roles: "P,D,C,A", // Tutti i ruoli attivi per test completi
     draft_window_start: Math.floor(Date.now() / 1000) - 3600 * 24 * 2, // Iniziata due giorni fa
     draft_window_end: Math.floor(Date.now() / 1000) + 3600 * 24 * 7, // Finisce tra una settimana
-    slots_P: 2,
+    slots_P: 3,
     slots_D: 8,
     slots_C: 8,
     slots_A: 6,
