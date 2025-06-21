@@ -4,6 +4,7 @@ Usa fantavega per le API retest admin
 usa fantavega-user per le API test user
 
 armando.luongo = user_2vultw8Mzhm6PZDOuiMHtd2IPJ3
+user1@test.com = user_2yAf7DnJ7asI88hIP03WtYnzxDL
 
 # Guida Rapida: Eseguire Query SQLite in un Container Docker
 

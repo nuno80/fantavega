@@ -1,5 +1,4 @@
 // src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts v.1.3
-
 // API Route Handler per la gestione delle offerte (POST) e il recupero dello stato di un'asta (GET) per un giocatore specifico in una lega.
 // 1. Importazioni e Definizioni di Interfaccia (INVARIATE)
 import { NextResponse } from "next/server";
@@ -180,6 +179,7 @@ export async function POST(request: Request, context: RouteContext) {
       clientErrorMessage = error.message;
 
       if (error.message.includes("not found")) {
+        // Cattura "Player not found", "League not found", "Auction not found"
         statusCode = 404;
       } else if (
         error.message.includes("Bidding is not currently active") ||
@@ -189,11 +189,12 @@ export async function POST(request: Request, context: RouteContext) {
         error.message.includes("must be > current bid") ||
         error.message.includes("is already the highest bidder") ||
         error.message.includes("Auction is not active or closing") ||
-        error.message.includes("Insufficient budget") ||
-        // MODIFICA QUI: Rendi la corrispondenza più generica per l'errore di slot pieni
+        error.message.includes("Insufficient budget") || // Già presente
+        error.message.startsWith("Insufficient available budget") || // <<< NUOVA CONDIZIONE AGGIUNTA
         error.message.startsWith("Slot full, you cannot bid") ||
         error.message.includes("is less than the minimum bid") ||
-        error.message.includes("is not a manager")
+        error.message.includes("is not a participant") || // Cambiato da "is not a manager" se il controllo è sulla partecipazione
+        error.message.includes("is not a manager") // Mantenuto se c'è un controllo specifico sul ruolo manager per fare offerte
       ) {
         statusCode = 400;
       } else if (error.message.includes("active auction already exists")) {
