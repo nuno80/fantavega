@@ -1,4 +1,4 @@
-// src/lib/services/auction-league.service.ts
+// src/lib/db/services/auction-league.service.ts
 import { db } from "@/lib/db";
 
 type AppRole = "admin" | "manager";
@@ -75,6 +75,36 @@ export interface UpdateAuctionLeagueData {
   slots_C?: number;
   slots_A?: number;
   config_json?: string | null;
+}
+
+// NUOVA INTERFACCIA per lo stato di assegnazione di un giocatore
+export interface PlayerAssignmentStatus {
+  is_assigned: boolean;
+  player_id?: number; // Presente solo se is_assigned è true
+  league_id?: number; // Presente solo se is_assigned è true
+  manager_user_id?: string | null;
+  manager_username?: string | null;
+  manager_full_name?: string | null;
+  purchase_price?: number | null;
+  assigned_at?: number | null; // Timestamp Unix
+}
+
+// NUOVA INTERFACCIA per i giocatori nella rosa
+export interface RosterPlayer {
+  // Campi da players
+  player_id: number; // Rinominato da 'id' per chiarezza nel contesto della rosa
+  name: string;
+  role: string;
+  team: string;
+  // Potremmo voler includere la quotazione con cui è stato acquistato,
+  // ma 'purchase_price' da player_assignments è più accurato per la rosa.
+  // Se vuoi la quotazione attuale del giocatore (che può cambiare), aggiungi:
+  // current_quotation: number;
+  fvm: number | null;
+
+  // Campi da player_assignments
+  purchase_price: number;
+  assigned_at: number; // Timestamp Unix
 }
 
 // --- Funzioni del Servizio ---
@@ -737,5 +767,118 @@ export const removeParticipantFromLeague = async (
       error
     );
     throw new Error("Failed to remove participant from league.");
+  }
+};
+
+/**
+ * Recupera la rosa dei giocatori assegnati a un manager specifico in una lega.
+ * @param leagueId L'ID della lega.
+ * @param managerUserId L'ID del manager.
+ * @returns Una Promise che risolve in un array di RosterPlayer.
+ */
+export const getManagerRoster = async (
+  leagueId: number,
+  managerUserId: string
+): Promise<RosterPlayer[]> => {
+  console.log(
+    `[SERVICE AUCTION_LEAGUE] Getting roster for manager ${managerUserId} in league ${leagueId}`
+  );
+
+  try {
+    const stmt = db.prepare(`
+      SELECT
+        p.id AS player_id, 
+        p.name,
+        p.role,
+        p.team,
+        p.fvm, 
+        pa.purchase_price,
+        pa.assigned_at
+      FROM player_assignments pa
+      JOIN players p ON pa.player_id = p.id
+      WHERE pa.auction_league_id = @leagueId AND pa.user_id = @managerUserId
+      ORDER BY 
+        CASE p.role  -- Ordinamento personalizzato per ruolo: P, D, C, A
+          WHEN 'P' THEN 1
+          WHEN 'D' THEN 2
+          WHEN 'C' THEN 3
+          WHEN 'A' THEN 4
+          ELSE 5
+        END,
+        p.name ASC -- Poi per nome all'interno di ogni ruolo
+    `);
+
+    const roster = stmt.all({
+      leagueId: leagueId,
+      managerUserId: managerUserId,
+    }) as RosterPlayer[];
+
+    console.log(
+      `[SERVICE AUCTION_LEAGUE] Found ${roster.length} players in roster for manager ${managerUserId}, league ${leagueId}.`
+    );
+    return roster;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error retrieving manager roster.";
+    console.error(
+      `[SERVICE AUCTION_LEAGUE] Error getting roster for manager ${managerUserId}, league ${leagueId}: ${errorMessage}`,
+      error
+    );
+    throw new Error(`Failed to retrieve manager roster: ${errorMessage}`);
+  }
+};
+
+/**
+ * Recupera lo stato di assegnazione di un giocatore specifico in una lega.
+ * @param leagueId L'ID della lega.
+ * @param playerId L'ID del giocatore.
+ * @returns Una Promise che risolve in un oggetto PlayerAssignmentStatus.
+ */
+export const getPlayerAssignmentStatus = async (
+  leagueId: number,
+  playerId: number
+): Promise<PlayerAssignmentStatus> => {
+  console.log(`[SERVICE AUCTION_LEAGUE] Getting assignment status for player ${playerId} in league ${leagueId}`);
+
+  try {
+    const stmt = db.prepare(`
+      SELECT
+        pa.user_id AS manager_user_id,
+        u.username AS manager_username,
+        u.full_name AS manager_full_name,
+        pa.purchase_price,
+        pa.assigned_at
+      FROM player_assignments pa
+      JOIN users u ON pa.user_id = u.id
+      WHERE pa.auction_league_id = @leagueId AND pa.player_id = @playerId
+    `);
+
+    const assignment = stmt.get({
+      leagueId: leagueId,
+      playerId: playerId,
+    }) as Omit<PlayerAssignmentStatus, 'is_assigned' | 'player_id' | 'league_id'> | undefined; // Omit per evitare conflitti con i campi che aggiungiamo
+
+    if (assignment) {
+      console.log(`[SERVICE AUCTION_LEAGUE] Player ${playerId} is assigned to manager ${assignment.manager_user_id} in league ${leagueId}.`);
+      return {
+        is_assigned: true,
+        player_id: playerId,
+        league_id: leagueId,
+        ...assignment,
+      };
+    } else {
+      console.log(`[SERVICE AUCTION_LEAGUE] Player ${playerId} is not assigned in league ${leagueId}.`);
+      return {
+        is_assigned: false,
+        player_id: playerId, // Includiamo comunque per riferimento
+        league_id: leagueId,  // Includiamo comunque per riferimento
+      };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error retrieving player assignment status.";
+    console.error(`[SERVICE AUCTION_LEAGUE] Error getting assignment status for player ${playerId}, league ${leagueId}: ${errorMessage}`, error);
+    throw new Error(`Failed to retrieve player assignment status: ${errorMessage}`);
   }
 };
