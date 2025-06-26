@@ -1,7 +1,7 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Inizio implementazione Subtask 5.4 (Automatic Penalty Application) del Task 5 (Budget Management System). Definiti i requisiti di penalità e la logica di base.",
+  "currentDevelopmentPhase": "Completato Task 6 (Player Management System), inclusa importazione giocatori da Excel, API CRUD base, API di ricerca/filtro, tracciamento assegnazioni (visualizzazione), ed export CSV rose. Inizio Task 7 (Real-Time Notification System).",
   "technologyStack": {
     "frontend": "Next.js 15 (App Router), React, TypeScript, Tailwind CSS",
     "backend": "Next.js API Routes (TypeScript)",
@@ -10,156 +10,107 @@
     "packageManager": "pnpm",
     "developmentEnvironment": "Docker & Docker Compose (Node 20 Slim/Debian base)",
     "uiComponents": "shadcn/ui (base per theming), lucide-react (icone)",
-    "theming": "next-themes"
+    "theming": "next-themes",
+    "excelParsing": "xlsx (SheetJS)"
   },
   "databaseManagement": {
     "schemaDefinition": "SQL DDL in `database/schema.sql`",
     "dbConnection": "`src/lib/db/index.ts` (singleton pattern, crea DB file se non esiste)",
     "scripts": [
-      {
-        "name": "db:migrate",
-        "purpose": "Applica l'intero `database/schema.sql`."
-      },
-      {
-        "name": "db:reset",
-        "purpose": "Cancella e ricrea DB da `schema.sql` (con backup)."
-      },
-      {
-        "name": "db:apply-changes",
-        "purpose": "Esegue query SQL ad-hoc da `database/adhoc_changes.sql` (con backup)."
-      },
-      {
-        "name": "db:backup",
-        "purpose": "Crea backup manuale."
-      },
-      {
-        "name": "db:seed",
-        "purpose": "Popola DB con dati di esempio (`users`, `players`, `auction_leagues`, `league_participants`, `auctions`, `bids`)."
-      }
+      { "name": "db:migrate", "purpose": "Applica l'intero `database/schema.sql`." },
+      { "name": "db:reset", "purpose": "Cancella e ricrea DB da `schema.sql` (con backup)." },
+      { "name": "db:apply-changes", "purpose": "Esegue query SQL ad-hoc da `database/adhoc_changes.sql` (con backup)." },
+      { "name": "db:backup", "purpose": "Crea backup manuale." },
+      { "name": "db:seed", "purpose": "Popola DB con dati di esempio (`users`, `players`, `auction_leagues`, `league_participants`, `auctions`, `bids`). Ora include `manager_team_name`." }
     ]
   },
   "coreEntitiesSchema": [
-    {
-      "tableName": "users",
-      "description": "Estende utenti Clerk (ID, email, nome, avatar) con `role` ('admin', 'manager') e `status`."
-    },
-    {
-      "tableName": "players",
-      "description": "Catalogo giocatori (ID, ruolo, nome, squadra, quotazioni, FVM)."
-    },
-    {
-      "tableName": "auction_leagues",
-      "description": "Configurazione della lega/stagione d'asta (nome, tipo, budget iniziale, status, `active_auction_roles`, finestre temporali, `min_bid`, `timer_duration_hours`, slot per ruolo)."
-    },
-    {
-      "tableName": "league_participants",
-      "description": "Associazione utenti (manager) a leghe. Traccia `current_budget` (budget totale teorico) e `locked_credits` (crediti impegnati in offerte attive vincenti)."
-    },
-    {
-      "tableName": "auctions",
-      "description": "Asta per un singolo giocatore in una `auction_league`. Contiene `auction_league_id`, `player_id`, `start_time`, `scheduled_end_time` (resettabile), `current_highest_bid_amount`, `current_highest_bidder_id`, `status`."
-    },
-    {
-      "tableName": "bids",
-      "description": "Log di ogni offerta (`auction_id`, `user_id`, `amount`, `bid_time`, `bid_type`)."
-    },
-    {
-      "tableName": "player_assignments",
-      "description": "Traccia l'assegnazione finale di un giocatore a un manager in una lega, con il prezzo di acquisto."
-    },
-    {
-      "tableName": "budget_transactions",
-      "description": "Log granulare delle modifiche al `current_budget`. Tipi implementati: 'initial_allocation', 'win_auction_debit'. Da implementare: 'penalty_requirement'."
-    },
-    {
-      "tableName": "user_league_compliance_status",
-      "description": "(Proposta/Da Definire) Tabella per tracciare lo stato di conformità dell'utente ai requisiti di composizione rosa per lega/fase, per la gestione delle penalità. Colonne: `league_id`, `user_id`, `phase_identifier`, `compliance_timer_start_at`, `last_penalty_applied_for_hour_ending_at`, `penalties_applied_this_cycle`."
-    },
-    {
-      "tableName": "auto_bids",
-      "description": "Impostazioni auto-offerta (futuro)."
-    },
-    {
-      "tableName": "player_discard_requests",
-      "description": "Richieste di svincolo (futuro)."
-    },
-    {
-      "tableName": "user_auction_cooldowns",
-      "description": "Cooldown per rientro in asta dopo abbandono (futuro)."
-    },
-    {
-      "tableName": "user_auction_response_timers",
-      "description": "Timer di risposta per offerte superate (futuro)."
-    }
+    { "tableName": "users", "description": "Estende utenti Clerk con `role` ('admin', 'manager') e `status`." },
+    { "tableName": "players", "description": "Catalogo giocatori. Popolato/aggiornato tramite import Excel admin e API CRUD admin." },
+    { "tableName": "auction_leagues", "description": "Configurazione della lega d'asta." },
+    { "tableName": "league_participants", "description": "Associazione utenti a leghe. Traccia `current_budget`, `locked_credits`, e `manager_team_name` (nome squadra del manager nella lega)." },
+    { "tableName": "auctions", "description": "Asta per un singolo giocatore." },
+    { "tableName": "bids", "description": "Log di ogni offerta." },
+    { "tableName": "player_assignments", "description": "Traccia l'assegnazione finale di un giocatore a un manager." },
+    { "tableName": "budget_transactions", "description": "Log delle modifiche al `current_budget`. Tipi: 'initial_allocation', 'win_auction_debit', 'penalty_requirement'." },
+    { "tableName": "user_league_compliance_status", "description": "Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase, per la gestione delle penalità." },
+    { "tableName": "auto_bids", "description": "Futuro." },
+    { "tableName": "player_discard_requests", "description": "Futuro." },
+    { "tableName": "user_auction_cooldowns", "description": "Futuro." },
+    { "tableName": "user_auction_response_timers", "description": "Futuro." }
   ],
   "auctionLogic": {
     "leagueSetup": {
       "adminCreatesLeague": "Admin definisce `auction_leagues` (nome, tipo, budget, slot per ruolo, `min_bid`, `timer_duration_hours`).",
       "adminAddsParticipants": "Admin aggiunge utenti a `league_participants`.",
-      "adminManagesAuctionPhases": "Admin aggiorna `auction_leagues.status` e `auction_leagues.active_auction_roles` per controllare quali giocatori sono astabili."
+      "adminManagesAuctionPhases": "Admin aggiorna `auction_leagues.status` e `auction_leagues.active_auction_roles`."
     },
     "auctionStartAndBidding": {
-      "firstBidCreatesAuction": "Un'asta per un giocatore (`auctions` record) inizia quando un manager fa la prima offerta valida (rispettando `min_bid`, ruolo attivo, budget disponibile, slot disponibili).",
+      "firstBidCreatesAuction": "Un'asta per un giocatore (`auctions` record) inizia quando un manager fa la prima offerta valida.",
       "existingAuctionBids": "Offerte successive su un'asta attiva devono superare l'offerta corrente.",
-      "timerReset": "Ogni offerta valida resetta `auctions.scheduled_end_time` (basato su `timer_duration_hours` della lega).",
-      "bidTypes": "['manual', 'quick']. 'Quick bid' incrementa l'offerta corrente.",
+      "timerReset": "Ogni offerta valida resetta `auctions.scheduled_end_time`.",
+      "bidTypes": "['manual', 'quick'].",
       "budgetAndSlotValidation": {
         "description": "Ogni offerta valida il budget disponibile e la disponibilità di slot.",
         "availableBudget": "Calcolato come `league_participants.current_budget - league_participants.locked_credits`.",
-        "slotConsideration": "Considera giocatori già assegnati (`player_assignments`) e offerte attive vincenti per lo stesso ruolo (`auctions`)."
+        "slotConsideration": "Considera giocatori già assegnati e offerte attive vincenti per lo stesso ruolo."
       }
     },
     "auctionEndAndPlayerAssignment": {
-      "timerExpiration": "L'asta termina quando `scheduled_end_time` scade. Un processo automatico (attualmente triggerato da API admin, futuro CRON) gestisce la chiusura.",
-      "winnerProcessing": "Il `current_highest_bidder_id` vince. Viene creato un record in `player_assignments`. Per il vincitore: `current_budget` diminuisce, `locked_credits` diminuisce (perché spesi), `players_X_acquired` aumenta. `auctions.status` diventa `sold`. Viene registrata una transazione in `budget_transactions`."
+      "timerExpiration": "L'asta termina quando `scheduled_end_time` scade. Un processo automatico gestisce la chiusura.",
+      "winnerProcessing": "Il vincitore ottiene il giocatore. `current_budget` e `locked_credits` del vincitore aggiornati. `players_X_acquired` incrementato. `auctions.status` a `sold`. Transazione registrata."
     },
     "penaltySystem": {
-      "goal": "Incentivare i manager a costruire attivamente la rosa durante le fasi d'asta.",
-      "trigger": "Al login dell'utente o all'accesso a sezioni chiave dell'asta (es. pagina aste, pagina team/budget, prima di un'offerta). Adotta un approccio 'lazy'.",
-      "requirement": "Entro 1 ora dall'attivazione del controllo (trigger), l'utente deve avere N-1 slot coperti (giocatori vinti o con offerta vincente attiva) per ogni ruolo attualmente attivo per le offerte nella lega.",
-      "complianceTimer": "Un 'periodo di osservazione/grazia' di 1 ora inizia per l'utente al momento del trigger, resettato ad ogni interazione che avvia il controllo.",
-      "penaltyApplication": "Se, allo scadere dell'ora di osservazione, l'utente non è conforme, viene applicata una penalità di 5 crediti.",
-      "penaltyRecurrence": "La penalità di 5 crediti viene applicata per ogni ora successiva (valutata al successivo trigger) in cui l'utente rimane non conforme.",
-      "penaltyCap": "Massimo 5 penalità (25 crediti totali) per un singolo ciclo continuo di non conformità.",
-      "cycleReset": "Se l'utente diventa conforme, il contatore delle penalità per quel ciclo si azzera. Se ridiventa non conforme (es. offerte superate), un nuovo ciclo di '1 ora per conformarsi' e potenziali 5 penalità può iniziare al successivo trigger.",
-      "noExplicitLogoutHandling": "Le penalità maturate durante un periodo di inattività (sessione utente ancora valida ma senza interazioni che triggerano il controllo) vengono calcolate e applicate retroattivamente al successivo trigger, basandosi sul tempo trascorso e sul cap.",
-      "trackingMechanism": "Utilizzo della tabella `user_league_compliance_status` (proposta) per tracciare lo stato di conformità e i timer/contatori relativi alle penalità per utente/lega/fase."
+      "trigger": "Al login/accesso sezioni chiave asta (approccio 'lazy').",
+      "requirement": "Entro 1 ora dal trigger, N-1 slot coperti per ruoli attivi.",
+      "complianceTimer": "Periodo di osservazione/grazia di 1 ora.",
+      "penaltyApplication": "5 crediti se non conforme dopo 1 ora.",
+      "penaltyRecurrence": "Ricorrente ogni ora successiva di non conformità (valutata al trigger).",
+      "penaltyCap": "Max 5 penalità (25 crediti) per ciclo di non conformità.",
+      "cycleReset": "Se conforme, contatore penalità azzerato.",
+      "noExplicitLogoutHandling": "Penalità maturate durante inattività applicate retroattivamente al successivo trigger.",
+      "trackingTable": "`user_league_compliance_status`."
     },
     "futureFeatures": [
-      "Auto-bid",
-      "Notifiche e timer di risposta per offerte superate (diverso da timer di penalità)",
-      "Abbandono asta e cooldown",
-      "Fasi di riparazione con svincoli",
-      "Avvisi al logout per requisiti di compliance non soddisfatti (frontend)",
-      "Notifiche email per scadenze penalità (richiede infrastruttura email)",
-      "Implementazione di un CRON job per automatizzare `processExpiredAuctionsAndAssignPlayers` e potenzialmente i controlli di penalità."
+      "Auto-bid", "Notifiche offerte superate", "Abbandono asta", "Riparazione con svincoli", 
+      "Avvisi logout requisiti non soddisfatti", "Email per scadenze penalità", 
+      "CRON job per automatizzare `processExpiredAuctionsAndAssignPlayers` e `processUserComplianceAndPenalties`."
     ]
   },
   "budgetManagementSystem": {
-    "realTimeTracking": "Implementato con `current_budget` (budget totale teorico) e `locked_credits` (crediti impegnati in offerte attive vincenti) nella tabella `league_participants`. `locked_credits` vengono aggiornati ad ogni offerta vincente (incremento per il nuovo offerente, decremento per il precedente se superato) e sbloccati (decrementati) quando un'asta si conclude per il vincitore (crediti spesi).",
-    "availableSpendingBudget": "Il budget effettivamente disponibile per nuove offerte è calcolato come `current_budget - locked_credits`.",
-    "transactionLogging": "La tabella `budget_transactions` registra le modifiche effettive al `current_budget`. Tipi di transazione implementati: 'initial_allocation' (all'aggiunta del partecipante), 'win_auction_debit' (alla vincita di un'asta). Da implementare: 'penalty_requirement'.",
-    "penaltyLogicIntegration": "Le penalità applicate (vedi 'auctionLogic.penaltySystem') deducono crediti dal `current_budget` del manager e generano un record corrispondente in `budget_transactions`.",
-    "budgetAlerts": {
-      "status": "Non implementato/Considerato superfluo per ora.",
-      "reasoning": "La visibilità del budget disponibile nella UI e i blocchi per offerte fuori budget sono ritenuti sufficienti al momento."
-    }
+    "realTimeTracking": "Implementato con `current_budget` e `locked_credits`. Budget disponibile è `current_budget - locked_credits`.",
+    "transactionLogging": "Tabella `budget_transactions` logga modifiche a `current_budget`. Tipi: 'initial_allocation', 'win_auction_debit', 'penalty_requirement'.",
+    "penaltyLogicIntegration": "Penalità deducono da `current_budget` e generano transazione.",
+    "budgetAlerts": { "status": "Non implementato/Considerato superfluo per ora." }
+  },
+  "playerManagement": {
+    "importFromExcel": "Admin può caricare file Excel (foglio 'Tutti') per fare l'UPSERT dei giocatori nella tabella `players`.",
+    "crudApis": "Admin ha API per creare, aggiornare, eliminare singoli giocatori.",
+    "searchAndFilterApi": "Endpoint `GET /api/players` permette di listare giocatori con filtri (nome, ruolo, team), ordinamento e paginazione.",
+    "assignmentTrackingApis": {
+        "managerRosterView": "Endpoint `GET /api/leagues/{leagueId}/managers/{managerUserId}/roster` per vedere la rosa di un manager.",
+        "playerAssignmentStatus": "Endpoint `GET /api/leagues/{leagueId}/players/{playerId}/assignment` per vedere a chi è assegnato un giocatore."
+    },
+    "csvExport": "Admin può esportare le rose complete di una lega (formato: NomeSquadraManager,IDGiocatore,CostoAcquisto) tramite `GET /api/admin/leagues/{leagueId}/rosters/export/csv`."
   },
   "adminFunctionalitiesImplemented": [
-    "Creare `auction_leagues`.",
-    "Listare `auction_leagues` create dall'admin.",
-    "Ottenere dettagli e aggiornare una `auction_league`.",
-    "Aggiungere e rimuovere partecipanti (manager) da una `auction_league`.",
-    "Triggerare manualmente il processamento delle aste scadute (per test/admin)."
+    "Gestione Leghe (CRUD).",
+    "Gestione Partecipanti Leghe (aggiungi/rimuovi).",
+    "Trigger manuale processamento aste scadute.",
+    "Importazione giocatori da file Excel.",
+    "API CRUD per singoli giocatori.",
+    "Esportazione CSV rose della lega."
   ],
   "managerFunctionalitiesImplemented_Backend": [
-    "Piazzare la prima offerta per un giocatore, creando un'asta e bloccando i crediti.",
-    "Piazzare offerte successive (manuali, quick) su un'asta esistente, gestendo il lock/unlock dei crediti.",
-    "Ottenere lo stato di un'asta per un giocatore.",
-    "Ottenere la propria cronologia delle transazioni di budget per una lega."
+    "Offerte (iniziali, successive) con gestione `locked_credits`.",
+    "Visualizzazione stato asta giocatore.",
+    "Visualizzazione propria cronologia transazioni budget.",
+    "Visualizzazione propria rosa.",
+    "Visualizzazione stato assegnazione giocatore nella propria lega.",
+    "Trigger (implicito) del controllo di compliance per penalità."
   ],
   "authenticationRoles": {
     "admin": "Gestisce leghe, configurazioni del sistema, e può triggerare task amministrativi.",
-    "manager": "Partecipa alle aste, fa offerte, gestisce il proprio budget e la rosa."
+    "manager": "Partecipa alle aste, gestisce il proprio budget e la rosa."
   }
 }
