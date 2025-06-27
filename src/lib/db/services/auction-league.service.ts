@@ -39,6 +39,7 @@ export interface LeagueParticipant {
   user_id: string;
   current_budget: number;
   locked_credits: number;
+  manager_team_name?: string | null;
   players_P_acquired: number;
   players_D_acquired: number;
   players_C_acquired: number;
@@ -47,6 +48,15 @@ export interface LeagueParticipant {
   joined_at: number; // Timestamp Unix
   user_username?: string; // Opzionale, per JOIN con users
   user_full_name?: string; // Opzionale, per JOIN con users
+}
+
+// Interfaccia specifica per i dati dei giocatori necessari per l'export CSV
+interface RosterPlayerForExport {
+  player_id: number;
+  purchase_price: number;
+  // Aggiungiamo ruolo e nome per l'ordinamento interno se necessario, anche se non direttamente nel CSV finale per riga
+  role: string;
+  name: string;
 }
 
 export interface CreateAuctionLeagueData {
@@ -840,7 +850,9 @@ export const getPlayerAssignmentStatus = async (
   leagueId: number,
   playerId: number
 ): Promise<PlayerAssignmentStatus> => {
-  console.log(`[SERVICE AUCTION_LEAGUE] Getting assignment status for player ${playerId} in league ${leagueId}`);
+  console.log(
+    `[SERVICE AUCTION_LEAGUE] Getting assignment status for player ${playerId} in league ${leagueId}`
+  );
 
   try {
     const stmt = db.prepare(`
@@ -858,10 +870,14 @@ export const getPlayerAssignmentStatus = async (
     const assignment = stmt.get({
       leagueId: leagueId,
       playerId: playerId,
-    }) as Omit<PlayerAssignmentStatus, 'is_assigned' | 'player_id' | 'league_id'> | undefined; // Omit per evitare conflitti con i campi che aggiungiamo
+    }) as
+      | Omit<PlayerAssignmentStatus, "is_assigned" | "player_id" | "league_id">
+      | undefined; // Omit per evitare conflitti con i campi che aggiungiamo
 
     if (assignment) {
-      console.log(`[SERVICE AUCTION_LEAGUE] Player ${playerId} is assigned to manager ${assignment.manager_user_id} in league ${leagueId}.`);
+      console.log(
+        `[SERVICE AUCTION_LEAGUE] Player ${playerId} is assigned to manager ${assignment.manager_user_id} in league ${leagueId}.`
+      );
       return {
         is_assigned: true,
         player_id: playerId,
@@ -869,16 +885,156 @@ export const getPlayerAssignmentStatus = async (
         ...assignment,
       };
     } else {
-      console.log(`[SERVICE AUCTION_LEAGUE] Player ${playerId} is not assigned in league ${leagueId}.`);
+      console.log(
+        `[SERVICE AUCTION_LEAGUE] Player ${playerId} is not assigned in league ${leagueId}.`
+      );
       return {
         is_assigned: false,
         player_id: playerId, // Includiamo comunque per riferimento
-        league_id: leagueId,  // Includiamo comunque per riferimento
+        league_id: leagueId, // Includiamo comunque per riferimento
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error retrieving player assignment status.";
-    console.error(`[SERVICE AUCTION_LEAGUE] Error getting assignment status for player ${playerId}, league ${leagueId}: ${errorMessage}`, error);
-    throw new Error(`Failed to retrieve player assignment status: ${errorMessage}`);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error retrieving player assignment status.";
+    console.error(
+      `[SERVICE AUCTION_LEAGUE] Error getting assignment status for player ${playerId}, league ${leagueId}: ${errorMessage}`,
+      error
+    );
+    throw new Error(
+      `Failed to retrieve player assignment status: ${errorMessage}`
+    );
   }
+};
+
+/**
+ * Prepara i dati per l'esportazione CSV delle rose di tutti i manager in una lega.
+ * @param leagueId L'ID della lega.
+ * @returns Una Promise che risolve in un array di stringhe, dove ogni stringa è una riga CSV.
+ */
+export const getLeagueRostersForCsvExport = async (
+  leagueId: number
+): Promise<string[]> => {
+  console.log(
+    `[SERVICE AUCTION_LEAGUE] Preparing CSV export data for league ${leagueId}`
+  );
+  const csvRows: string[] = [];
+
+  try {
+    // 1. Recupera tutti i partecipanti della lega, con il nome del loro team e username
+    //    Ordiniamo per manager_team_name o username per un output CSV consistente.
+    const participantsStmt = db.prepare(`
+      SELECT 
+        lp.user_id,
+        COALESCE(lp.manager_team_name, u.username, u.id) AS effective_team_name, -- Fallback chain per il nome del team
+        u.username AS user_username -- Mantenuto per possibile uso o logging
+      FROM league_participants lp
+      JOIN users u ON lp.user_id = u.id
+      WHERE lp.league_id = ?
+      ORDER BY effective_team_name ASC 
+    `);
+    const participants = participantsStmt.all(leagueId) as {
+      user_id: string;
+      effective_team_name: string;
+      user_username: string | null;
+    }[];
+
+    if (participants.length === 0) {
+      console.log(
+        `[SERVICE AUCTION_LEAGUE] No participants found for league ${leagueId}. CSV will be empty.`
+      );
+      return [];
+    }
+
+    // 2. Prepara lo statement per recuperare i giocatori assegnati a un manager
+    const rosterForManagerStmt = db.prepare(`
+      SELECT
+        p.id AS player_id,
+        pa.purchase_price,
+        p.role, -- Per l'ordinamento
+        p.name  -- Per l'ordinamento
+      FROM player_assignments pa
+      JOIN players p ON pa.player_id = p.id
+      WHERE pa.auction_league_id = @leagueId AND pa.user_id = @managerUserId
+      ORDER BY 
+        CASE p.role
+          WHEN 'P' THEN 1
+          WHEN 'D' THEN 2
+          WHEN 'C' THEN 3
+          WHEN 'A' THEN 4
+          ELSE 5
+        END,
+        p.name ASC
+    `);
+
+    // 3. Itera su ogni partecipante per costruire le righe CSV
+    for (let i = 0; i < participants.length; i++) {
+      const participant = participants[i];
+      const managerTeamName = participant.effective_team_name; // Usa il nome del team effettivo
+
+      console.log(
+        `[SERVICE AUCTION_LEAGUE] Processing roster for manager: ${managerTeamName} (User ID: ${participant.user_id})`
+      );
+
+      const rosterPlayers = rosterForManagerStmt.all({
+        leagueId: leagueId,
+        managerUserId: participant.user_id,
+      }) as RosterPlayerForExport[];
+
+      if (rosterPlayers.length > 0) {
+        rosterPlayers.forEach((player) => {
+          // Formato riga: NomeSquadraManager,IDGiocatore,CostoAcquisto
+          // Assicurati che managerTeamName non contenga virgole o racchiudilo tra virgolette se necessario.
+          // Per semplicità, ora non gestiamo l'escaping CSV complesso.
+          const csvRow = `${managerTeamName},${player.player_id},${player.purchase_price}`;
+          csvRows.push(csvRow);
+        });
+      } else {
+        // Se un manager non ha giocatori, potremmo voler comunque includere il suo nome squadra
+        // seguito da nessuna riga giocatore, o una riga placeholder.
+        // Per ora, se non ha giocatori, non aggiungiamo righe per lui,
+        // ma il separatore $,$,$ verrà aggiunto dopo (se non è l'ultimo).
+        // Potremmo aggiungere una riga vuota con il nome squadra per rappresentarlo:
+        // csvRows.push(`${managerTeamName},,`); // Esempio: NomeSquadra,,
+        console.log(
+          `[SERVICE AUCTION_LEAGUE] Manager ${managerTeamName} has no players in roster.`
+        );
+      }
+
+      // Aggiungi il separatore `$,$,$` se non è l'ultimo partecipante
+      // E se il partecipante corrente (o quelli precedenti) avevano giocatori.
+      // Questo evita un separatore alla fine del file o separatori doppi se team intermedi sono vuoti.
+      if (i < participants.length - 1) {
+        // Aggiungiamo il separatore solo se questo team aveva giocatori O se il CSV non è vuoto
+        // per evitare separatori all'inizio se i primi team sono vuoti.
+        // Una logica più semplice è aggiungerlo sempre tranne per l'ultimo,
+        // e poi l'API handler potrebbe pulire eventuali separatori finali.
+        // Per ora, lo aggiungiamo sempre tranne per l'ultimo.
+        csvRows.push("$,$,$");
+      }
+    }
+
+    // Rimuovi un eventuale separatore $,$,$ finale se l'ultimo team non aveva giocatori
+    // o se l'array è solo [ '$,$,$' ]
+    if (csvRows.length > 0 && csvRows[csvRows.length - 1] === "$,$,$") {
+      csvRows.pop();
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error preparing CSV data.";
+    console.error(
+      `[SERVICE AUCTION_LEAGUE] Error preparing CSV data for league ${leagueId}: ${errorMessage}`,
+      error
+    );
+    throw new Error(`Failed to prepare CSV data: ${errorMessage}`);
+  }
+
+  console.log(
+    `[SERVICE AUCTION_LEAGUE] CSV data preparation finished for league ${leagueId}. Total rows: ${csvRows.length}`
+  );
+  return csvRows;
 };

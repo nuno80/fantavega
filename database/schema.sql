@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS league_participants (
     user_id TEXT NOT NULL,
     current_budget INTEGER NOT NULL,
     locked_credits INTEGER NOT NULL DEFAULT 0,
+    manager_team_name TEXT, 
     players_P_acquired INTEGER NOT NULL DEFAULT 0,
     players_D_acquired INTEGER NOT NULL DEFAULT 0,
     players_C_acquired INTEGER NOT NULL DEFAULT 0,
