@@ -4,536 +4,169 @@
       "id": "1",
       "title": "Project Setup and Infrastructure",
       "description": "Initialize the project repository, set up the development environment, configure the build system, and establish the basic project structure.",
-      "details": "Set up Next.js 15 with TypeScript, configure Tailwind CSS and shadcn/ui, set up ESLint and Prettier, configure BetterSQLite, and set up Docker for development.",
-      "testStrategy": "Verify that developers can clone the repository and start development with minimal setup. Ensure all configurations work as expected.",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "1.1",
-          "title": "Initialize Next.js 15 project with TypeScript",
-          "description": "Create a new Next.js 15 project with TypeScript support.",
-          "details": "Use create-next-app to initialize the project with TypeScript, ESLint, and other necessary configurations.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "1.2",
-          "title": "Configure Tailwind CSS and shadcn/ui",
-          "description": "Set up Tailwind CSS and integrate shadcn/ui components.",
-          "details": "Install and configure Tailwind CSS, set up shadcn/ui component library, and configure theme settings.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "1.3",
-          "title": "Set up ESLint and Prettier for code quality",
-          "description": "Configure ESLint and Prettier for consistent code style and quality.",
-          "details": "Install and configure ESLint and Prettier with appropriate rules for TypeScript and React.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "1.4",
-          "title": "Configure BetterSQLite database connection",
-          "description": "Set up BetterSQLite for database operations.",
-          "details": "Install BetterSQLite, create database connection utility, and configure database settings.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "1.5",
-          "title": "Set up Docker and Docker Compose for development",
-          "description": "Configure Docker and Docker Compose for development and deployment.",
-          "details": "Create Dockerfile and docker-compose.yml for development and production environments.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "1.1", "title": "Initialize Next.js 15 project with TypeScript", "status": "completed" },
+        { "id": "1.2", "title": "Configure Tailwind CSS and shadcn/ui", "status": "completed" },
+        { "id": "1.3", "title": "Set up ESLint and Prettier for code quality", "status": "completed" },
+        { "id": "1.4", "title": "Configure BetterSQLite database connection", "status": "completed" },
+        { "id": "1.5", "title": "Set up Docker and Docker Compose for development", "status": "completed" }
       ]
     },
     {
       "id": "2",
       "title": "Authentication System",
-      "description": "Implement user authentication and authorization using Clark, including registration, login, and role-based access control.",
-      "details": "Set up Clark authentication, create login and registration pages, implement role-based access control, and develop user profile management.",
-      "testStrategy": "Test user registration, login, logout, and role-based access control. Verify that protected routes are accessible only to authorized users.",
-      "status": "pending",
+      "description": "Implement user authentication and authorization using Clerk, including registration, login, and role-based access control.",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "2.1",
-          "title": "Set up Clark authentication",
-          "description": "Integrate Clark authentication service with Next.js.",
-          "details": "Install Clark, configure authentication settings, and set up authentication API routes.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "2.2",
-          "title": "Create login and registration pages",
-          "description": "Develop user-friendly login and registration interfaces.",
-          "details": "Create login and registration forms with validation, error handling, and responsive design.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "2.3",
-          "title": "Implement role-based access control",
-          "description": "Set up role-based access control for admin and manager roles.",
-          "details": "Define role permissions, create middleware for route protection, and implement role-based UI rendering.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "2.4",
-          "title": "Develop user profile management",
-          "description": "Create user profile management functionality.",
-          "details": "Develop profile editing, avatar upload, and profile viewing components.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "2.1", "title": "Set up Clerk authentication", "status": "completed" },
+        { "id": "2.2", "title": "Create login and registration pages", "status": "completed" },
+        { "id": "2.3", "title": "Implement role-based access control", "status": "completed" },
+        { "id": "2.4", "title": "Develop user profile management", "status": "completed" }
       ]
     },
     {
       "id": "3",
       "title": "Database Schema and Migrations",
       "description": "Design and implement the database schema, create migrations, and set up seed data for development.",
-      "details": "Define database tables, relationships, and constraints. Create migration scripts and seed data for testing.",
-      "testStrategy": "Verify that all tables are created correctly with proper relationships. Test migrations and rollbacks.",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "3.1",
-          "title": "Design database schema",
-          "description": "Create comprehensive database schema design.",
-          "details": "Define tables, relationships, indexes, and constraints for all system entities.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "3.2",
-          "title": "Implement schema creation script",
-          "description": "Create SQL script for database schema creation.",
-          "details": "Write SQL script to create all tables, indexes, and constraints.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "3.3",
-          "title": "Set up migration system",
-          "description": "Implement database migration system for schema changes.",
-          "details": "Create migration framework for applying and rolling back schema changes.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "3.4",
-          "title": "Create seed data",
-          "description": "Develop seed data for development and testing.",
-          "details": "Create realistic sample data for users, players, auctions, and other entities.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "3.1", "title": "Design database schema", "status": "completed" },
+        { "id": "3.2", "title": "Implement schema creation script", "status": "completed" },
+        { "id": "3.3", "title": "Set up migration system", "status": "completed", "notes": "Sistema basato su reset/migrate/seed." },
+        { "id": "3.4", "title": "Create seed data", "status": "completed" }
       ]
     },
     {
       "id": "4",
       "title": "Core Auction System",
       "description": "Implement the core auction system with 24-hour countdown timers, bidding mechanics, and player assignment.",
-      "details": "Develop auction creation, bidding logic, timer management, and auction completion functionality.",
-      "testStrategy": "Test auction creation, bidding, timer reset, and auction completion. Verify that players are correctly assigned to winning bidders.",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "4.1",
-          "title": "Implement auction creation and configuration",
-          "description": "Develop functionality for creating and configuring auctions.",
-          "details": "Create interfaces and API endpoints for auction setup, including phased role starts.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "4.2",
-          "title": "Develop bidding mechanics",
-          "description": "Implement quick bid, manual bid, and auto-bid functionality.",
-          "details": "Create bidding logic, validation, and conflict resolution for all bid types.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "4.3",
-          "title": "Create timer management system",
-          "description": "Develop 24-hour countdown timer with reset functionality.",
-          "details": "Implement timer logic, reset on new bids, and expiration handling.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "4.4",
-          "title": "Implement auction completion and player assignment",
-          "description": "Develop functionality for completing auctions and assigning players.",
-          "details": "Create logic for auction completion, player assignment, and budget adjustment.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "4.1", "title": "Implement auction creation and configuration", "status": "completed" },
+        { "id": "4.2", "title": "Develop bidding mechanics", "status": "completed" },
+        { "id": "4.3", "title": "Create timer management system", "status": "completed" },
+        { "id": "4.4", "title": "Implement auction completion and player assignment", "status": "completed" }
       ]
     },
     {
       "id": "5",
       "title": "Budget Management System",
       "description": "Implement budget tracking, spending history, and penalty application for managers.",
-      "details": "Develop real-time budget tracking, transaction history, budget alerts, and automatic penalty application.",
-      "testStrategy": "Test budget updates on bids and wins. Verify penalty application for missed bidding requirements.",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "5.1",
-          "title": "Implement real-time budget tracking",
-          "description": "Develop system for tracking manager budgets in real-time.",
-          "details": "Create budget calculation logic, database updates, and real-time display.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "5.2",
-          "title": "Create transaction history",
-          "description": "Implement spending history and transaction logging.",
-          "details": "Develop transaction recording, history display, and filtering functionality.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "5.3",
-          "title": "Develop budget alerts",
-          "description": "Implement budget threshold alerts for managers.",
-          "details": "Create alert logic, notification generation, and display for budget thresholds.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "5.4",
-          "title": "Implement automatic penalty application",
-          "description": "Develop system for applying penalties for missed bidding requirements.",
-          "details": "Create penalty logic, budget deduction, and notification for post-login bidding requirement violations.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "5.1", "title": "Implement real-time budget tracking (current_budget and locked_credits)", "status": "completed" },
+        { "id": "5.2", "title": "Create transaction history (logging and API)", "status": "completed" },
+        { "id": "5.3", "title": "Develop budget alerts", "status": "skipped", "notes": "Considerato superfluo al momento." },
+        { "id": "5.4", "title": "Implement automatic penalty application (lazy with cap)", "status": "completed" }
       ]
     },
     {
       "id": "6",
       "title": "Player Management System",
-      "description": "Implement player database, search and filtering, and assignment tracking.",
-      "details": "Develop player data management, search functionality, and player assignment tracking.",
-      "testStrategy": "Test player search, filtering, and assignment tracking. Verify data export functionality.",
-      "status": "pending",
+      "description": "Implement player database, search and filtering, assignment tracking, and data export.",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "6.1",
-          "title": "Create player database management",
-          "description": "Implement player data storage and management.",
-          "details": "Develop player data model, CRUD operations, and batch operations.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "6.2",
-          "title": "Implement player search and filtering",
-          "description": "Develop advanced search and filtering for players.",
-          "details": "Create search functionality by name, position, team, and availability status.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "6.3",
-          "title": "Develop player assignment tracking",
-          "description": "Implement system for tracking player assignments to managers.",
-          "details": "Create assignment status tracking, display, and management functionality.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "6.4",
-          "title": "Implement data export functionality",
-          "description": "Develop export functionality for player data.",
-          "details": "Create CSV and JSON export for player lists and assignment data.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "6.1", "title": "Create player database management (Excel import & CRUD APIs)", "status": "completed" },
+        { "id": "6.2", "title": "Implement player search and filtering (API)", "status": "completed" },
+        { "id": "6.3", "title": "Develop player assignment tracking (APIs for roster & assignment status)", "status": "completed", "notes": "Funzionalità di management manuale delle assegnazioni omessa per design." },
+        { "id": "6.4", "title": "Implement data export functionality (CSV export for league rosters)", "status": "completed" }
       ]
     },
     {
       "id": "7",
       "title": "Real-Time Notification System",
       "description": "Implement WebSocket-powered real-time updates and notifications for auction events.",
-      "details": "Develop WebSocket server, client integration, and notification management for real-time updates.",
-      "testStrategy": "Test real-time updates for bids, timer changes, and notifications. Verify notification delivery and display.",
       "status": "pending",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "7.1",
-          "title": "Set up WebSocket server",
-          "description": "Implement WebSocket server for real-time communication.",
-          "details": "Create WebSocket server, connection management, and message handling.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "7.2",
-          "title": "Develop WebSocket client integration",
-          "description": "Integrate WebSocket client with frontend components.",
-          "details": "Create WebSocket client, connection management, and message processing.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "7.3",
-          "title": "Implement in-app notifications",
-          "description": "Develop toast notifications and notification center.",
-          "details": "Create notification components, storage, and display functionality.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "7.4",
-          "title": "Create bidding reminders and penalty notifications",
-          "description": "Implement post-login bidding reminders and penalty notifications.",
-          "details": "Develop reminder logic, countdown display, and penalty notification system.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "7.1", "title": "Set up WebSocket server", "status": "pending" },
+        { "id": "7.2", "title": "Develop WebSocket client integration", "status": "pending" },
+        { "id": "7.3", "title": "Implement in-app notifications (toasts, center)", "status": "pending" },
+        { "id": "7.4", "title": "Create bidding reminders and penalty notifications (via WebSocket)", "status": "pending" }
       ]
     },
     {
       "id": "8",
       "title": "Administrative Controls",
       "description": "Implement admin dashboard, auction management controls, and system monitoring.",
-      "details": "Develop admin interface, auction management tools, user management, and system monitoring functionality.",
-      "testStrategy": "Test admin controls for auction management, user management, and system monitoring. Verify data backup and export functionality.",
       "status": "pending",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "8.1",
-          "title": "Create admin dashboard",
-          "description": "Develop central admin interface for system management.",
-          "details": "Create dashboard layout, navigation, and overview components.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "8.2",
-          "title": "Implement auction management controls",
-          "description": "Develop tools for managing auctions and bidding.",
-          "details": "Create interfaces for auction initiation, pausing, resuming, and manual resolution.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "8.3",
-          "title": "Develop user management tools",
-          "description": "Implement user management functionality for admins.",
-          "details": "Create interfaces for user approval, role management, and budget adjustment.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "8.4",
-          "title": "Create system monitoring and logging",
-          "description": "Implement system health monitoring and activity logging.",
-          "details": "Develop monitoring dashboard, log viewing, and data export functionality.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "8.1", "title": "Create admin dashboard", "status": "pending" },
+        { "id": "8.2", "title": "Implement auction management controls", "status": "pending" },
+        { "id": "8.3", "title": "Develop user management tools", "status": "pending" },
+        { "id": "8.4", "title": "Create system monitoring and logging", "status": "pending" }
       ]
     },
     {
       "id": "9",
       "title": "User Interface Development",
       "description": "Implement responsive UI components for all system features, ensuring a consistent and intuitive user experience.",
-      "details": "Develop UI components for authentication, auction, player management, budget tracking, and notifications.",
-      "testStrategy": "Test UI components for responsiveness, accessibility, and usability across devices. Verify visual consistency and adherence to design guidelines.",
       "status": "pending",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "9.1",
-          "title": "Develop layout and navigation components",
-          "description": "Create consistent layout and navigation structure.",
-          "details": "Develop app layout, navigation bar, sidebar, and responsive containers.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "9.2",
-          "title": "Implement auction interface components",
-          "description": "Create UI components for auction viewing and bidding.",
-          "details": "Develop auction cards, bid forms, timer displays, and auction history components.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "9.3",
-          "title": "Create player management interface",
-          "description": "Develop UI for player browsing, searching, and management.",
-          "details": "Create player cards, search interface, filters, and assignment indicators.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "9.4",
-          "title": "Implement budget and notification components",
-          "description": "Develop UI for budget tracking and notifications.",
-          "details": "Create budget displays, transaction history, notification toasts, and notification center.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "9.1", "title": "Develop layout and navigation components", "status": "pending" },
+        { "id": "9.2", "title": "Implement auction interface components", "status": "pending" },
+        { "id": "9.3", "title": "Create player management interface", "status": "pending" },
+        { "id": "9.4", "title": "Implement budget and notification components", "status": "pending" }
       ]
     },
     {
       "id": "10",
       "title": "Testing and Quality Assurance",
       "description": "Implement comprehensive testing for all system components, including unit tests, integration tests, and end-to-end tests.",
-      "details": "Develop test suites for all major components, implement CI/CD pipeline, and perform security testing.",
-      "testStrategy": "Verify test coverage for all critical components. Ensure CI/CD pipeline runs tests automatically on code changes.",
       "status": "pending",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "10.1",
-          "title": "Implement unit tests",
-          "description": "Develop unit tests for core components and services.",
-          "details": "Create test suites for auction logic, bidding, budget management, and other critical functions.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "10.2",
-          "title": "Create integration tests",
-          "description": "Develop integration tests for system components.",
-          "details": "Test interactions between services, database operations, and API endpoints.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "10.3",
-          "title": "Implement end-to-end tests",
-          "description": "Develop end-to-end tests for critical user flows.",
-          "details": "Test complete user journeys such as registration, bidding, and auction completion.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "10.4",
-          "title": "Perform security testing",
-          "description": "Conduct security testing and vulnerability assessment.",
-          "details": "Test for common vulnerabilities, input validation, and authentication security.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "10.1", "title": "Implement unit tests", "status": "pending" },
+        { "id": "10.2", "title": "Create integration tests", "status": "pending" },
+        { "id": "10.3", "title": "Implement end-to-end tests", "status": "pending" },
+        { "id": "10.4", "title": "Perform security testing", "status": "pending" }
       ]
     },
     {
       "id": "11",
       "title": "Deployment and DevOps",
       "description": "Set up deployment pipeline, containerization, and monitoring for production environment.",
-      "details": "Configure Docker deployment, set up CI/CD pipeline, implement monitoring, and create backup procedures.",
-      "testStrategy": "Verify successful deployment to staging and production environments. Test backup and restore procedures.",
       "status": "pending",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "11.1",
-          "title": "Finalize Docker configuration",
-          "description": "Complete Docker setup for production deployment.",
-          "details": "Optimize Dockerfile and docker-compose.yml for production use.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "11.2",
-          "title": "Set up CI/CD pipeline",
-          "description": "Implement continuous integration and deployment pipeline.",
-          "details": "Configure automated testing, building, and deployment workflow.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "11.3",
-          "title": "Implement monitoring and logging",
-          "description": "Set up production monitoring and logging.",
-          "details": "Configure monitoring tools, alerts, and log aggregation.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "11.4",
-          "title": "Create backup and disaster recovery procedures",
-          "description": "Develop backup and recovery processes for production.",
-          "details": "Implement automated backups, restore procedures, and disaster recovery documentation.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "11.1", "title": "Finalize Docker configuration", "status": "pending" },
+        { "id": "11.2", "title": "Set up CI/CD pipeline", "status": "pending" },
+        { "id": "11.3", "title": "Implement monitoring and logging", "status": "pending" },
+        { "id": "11.4", "title": "Create backup and disaster recovery procedures", "status": "pending" }
       ]
     },
     {
       "id": "12",
       "title": "Documentation",
       "description": "Create comprehensive documentation for the system, including API documentation, user guides, and deployment instructions.",
-      "details": "Develop API documentation, user manuals, admin guides, and technical documentation.",
-      "testStrategy": "Verify documentation accuracy and completeness. Test documentation usability with target audiences.",
       "status": "pending",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        {
-          "id": "12.1",
-          "title": "Create API documentation",
-          "description": "Develop comprehensive API documentation.",
-          "details": "Document all API endpoints, parameters, responses, and examples.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "12.2",
-          "title": "Write user manuals",
-          "description": "Create user guides for managers and administrators.",
-          "details": "Develop step-by-step instructions, screenshots, and FAQs for all user functions.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "12.3",
-          "title": "Prepare deployment documentation",
-          "description": "Create deployment and configuration guides.",
-          "details": "Document installation, configuration, and maintenance procedures.",
-          "status": "pending",
-          "dependencies": []
-        },
-        {
-          "id": "12.4",
-          "title": "Develop technical documentation",
-          "description": "Create technical documentation for developers.",
-          "details": "Document system architecture, code structure, and development guidelines.",
-          "status": "pending",
-          "dependencies": []
-        }
+        { "id": "12.1", "title": "Create API documentation", "status": "pending" },
+        { "id": "12.2", "title": "Write user manuals", "status": "pending" },
+        { "id": "12.3", "title": "Prepare deployment documentation", "status": "pending" },
+        { "id": "12.4", "title": "Develop technical documentation", "status": "pending" }
       ]
     }
   ]
