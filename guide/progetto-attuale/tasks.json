@@ -8,11 +8,31 @@
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "1.1", "title": "Initialize Next.js 15 project with TypeScript", "status": "completed" },
-        { "id": "1.2", "title": "Configure Tailwind CSS and shadcn/ui", "status": "completed" },
-        { "id": "1.3", "title": "Set up ESLint and Prettier for code quality", "status": "completed" },
-        { "id": "1.4", "title": "Configure BetterSQLite database connection", "status": "completed" },
-        { "id": "1.5", "title": "Set up Docker and Docker Compose for development", "status": "completed" }
+        {
+          "id": "1.1",
+          "title": "Initialize Next.js 15 project with TypeScript",
+          "status": "completed"
+        },
+        {
+          "id": "1.2",
+          "title": "Configure Tailwind CSS and shadcn/ui",
+          "status": "completed"
+        },
+        {
+          "id": "1.3",
+          "title": "Set up ESLint and Prettier for code quality",
+          "status": "completed"
+        },
+        {
+          "id": "1.4",
+          "title": "Configure BetterSQLite database connection",
+          "status": "completed"
+        },
+        {
+          "id": "1.5",
+          "title": "Set up Docker and Docker Compose for development",
+          "status": "completed"
+        }
       ]
     },
     {
@@ -23,10 +43,26 @@
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "2.1", "title": "Set up Clerk authentication", "status": "completed" },
-        { "id": "2.2", "title": "Create login and registration pages", "status": "completed" },
-        { "id": "2.3", "title": "Implement role-based access control", "status": "completed" },
-        { "id": "2.4", "title": "Develop user profile management", "status": "completed" }
+        {
+          "id": "2.1",
+          "title": "Set up Clerk authentication",
+          "status": "completed"
+        },
+        {
+          "id": "2.2",
+          "title": "Create login and registration pages",
+          "status": "completed"
+        },
+        {
+          "id": "2.3",
+          "title": "Implement role-based access control",
+          "status": "completed"
+        },
+        {
+          "id": "2.4",
+          "title": "Develop user profile management",
+          "status": "completed"
+        }
       ]
     },
     {
@@ -37,9 +73,22 @@
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "3.1", "title": "Design database schema", "status": "completed" },
-        { "id": "3.2", "title": "Implement schema creation script", "status": "completed" },
-        { "id": "3.3", "title": "Set up migration system", "status": "completed", "notes": "Sistema basato su reset/migrate/seed." },
+        {
+          "id": "3.1",
+          "title": "Design database schema",
+          "status": "completed"
+        },
+        {
+          "id": "3.2",
+          "title": "Implement schema creation script",
+          "status": "completed"
+        },
+        {
+          "id": "3.3",
+          "title": "Set up migration system",
+          "status": "completed",
+          "notes": "Sistema basato su reset/migrate/seed."
+        },
         { "id": "3.4", "title": "Create seed data", "status": "completed" }
       ]
     },
@@ -51,10 +100,26 @@
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "4.1", "title": "Implement auction creation and configuration", "status": "completed" },
-        { "id": "4.2", "title": "Develop bidding mechanics", "status": "completed" },
-        { "id": "4.3", "title": "Create timer management system", "status": "completed" },
-        { "id": "4.4", "title": "Implement auction completion and player assignment", "status": "completed" }
+        {
+          "id": "4.1",
+          "title": "Implement auction creation and configuration",
+          "status": "completed"
+        },
+        {
+          "id": "4.2",
+          "title": "Develop bidding mechanics",
+          "status": "completed"
+        },
+        {
+          "id": "4.3",
+          "title": "Create timer management system",
+          "status": "completed"
+        },
+        {
+          "id": "4.4",
+          "title": "Implement auction completion and player assignment",
+          "status": "completed"
+        }
       ]
     },
     {
@@ -65,10 +130,27 @@
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "5.1", "title": "Implement real-time budget tracking (current_budget and locked_credits)", "status": "completed" },
-        { "id": "5.2", "title": "Create transaction history (logging and API)", "status": "completed" },
-        { "id": "5.3", "title": "Develop budget alerts", "status": "skipped", "notes": "Considerato superfluo al momento." },
-        { "id": "5.4", "title": "Implement automatic penalty application (lazy with cap)", "status": "completed" }
+        {
+          "id": "5.1",
+          "title": "Implement real-time budget tracking (current_budget and locked_credits)",
+          "status": "completed"
+        },
+        {
+          "id": "5.2",
+          "title": "Create transaction history (logging and API)",
+          "status": "completed"
+        },
+        {
+          "id": "5.3",
+          "title": "Develop budget alerts",
+          "status": "skipped",
+          "notes": "Considerato superfluo al momento."
+        },
+        {
+          "id": "5.4",
+          "title": "Implement automatic penalty application (lazy with cap)",
+          "status": "completed"
+        }
       ]
     },
     {
@@ -79,24 +161,57 @@
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        { "id": "6.1", "title": "Create player database management (Excel import & CRUD APIs)", "status": "completed" },
-        { "id": "6.2", "title": "Implement player search and filtering (API)", "status": "completed" },
-        { "id": "6.3", "title": "Develop player assignment tracking (APIs for roster & assignment status)", "status": "completed", "notes": "Funzionalità di management manuale delle assegnazioni omessa per design." },
-        { "id": "6.4", "title": "Implement data export functionality (CSV export for league rosters)", "status": "completed" }
+        {
+          "id": "6.1",
+          "title": "Create player database management (Excel import & CRUD APIs)",
+          "status": "completed"
+        },
+        {
+          "id": "6.2",
+          "title": "Implement player search and filtering (API)",
+          "status": "completed"
+        },
+        {
+          "id": "6.3",
+          "title": "Develop player assignment tracking (APIs for roster & assignment status)",
+          "status": "completed",
+          "notes": "Funzionalità di management manuale delle assegnazioni omessa per design."
+        },
+        {
+          "id": "6.4",
+          "title": "Implement data export functionality (CSV export for league rosters)",
+          "status": "completed"
+        }
       ]
     },
     {
       "id": "7",
       "title": "Real-Time Notification System",
       "description": "Implement WebSocket-powered real-time updates and notifications for auction events.",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "7.1", "title": "Set up WebSocket server", "status": "pending" },
-        { "id": "7.2", "title": "Develop WebSocket client integration", "status": "pending" },
-        { "id": "7.3", "title": "Implement in-app notifications (toasts, center)", "status": "pending" },
-        { "id": "7.4", "title": "Create bidding reminders and penalty notifications (via WebSocket)", "status": "pending" }
+        {
+          "id": "7.1",
+          "title": "Set up WebSocket server",
+          "status": "completed"
+        },
+        {
+          "id": "7.2",
+          "title": "Develop WebSocket client integration",
+          "status": "completed"
+        },
+        {
+          "id": "7.3",
+          "title": "Implement in-app notifications (toasts, center)",
+          "status": "completed"
+        },
+        {
+          "id": "7.4",
+          "title": "Create bidding reminders and penalty notifications (via WebSocket)",
+          "status": "completed"
+        }
       ]
     },
     {
@@ -108,9 +223,21 @@
       "dependencies": [],
       "subtasks": [
         { "id": "8.1", "title": "Create admin dashboard", "status": "pending" },
-        { "id": "8.2", "title": "Implement auction management controls", "status": "pending" },
-        { "id": "8.3", "title": "Develop user management tools", "status": "pending" },
-        { "id": "8.4", "title": "Create system monitoring and logging", "status": "pending" }
+        {
+          "id": "8.2",
+          "title": "Implement auction management controls",
+          "status": "pending"
+        },
+        {
+          "id": "8.3",
+          "title": "Develop user management tools",
+          "status": "pending"
+        },
+        {
+          "id": "8.4",
+          "title": "Create system monitoring and logging",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -121,10 +248,26 @@
       "priority": "high",
       "dependencies": [],
       "subtasks": [
-        { "id": "9.1", "title": "Develop layout and navigation components", "status": "pending" },
-        { "id": "9.2", "title": "Implement auction interface components", "status": "pending" },
-        { "id": "9.3", "title": "Create player management interface", "status": "pending" },
-        { "id": "9.4", "title": "Implement budget and notification components", "status": "pending" }
+        {
+          "id": "9.1",
+          "title": "Develop layout and navigation components",
+          "status": "pending"
+        },
+        {
+          "id": "9.2",
+          "title": "Implement auction interface components",
+          "status": "pending"
+        },
+        {
+          "id": "9.3",
+          "title": "Create player management interface",
+          "status": "pending"
+        },
+        {
+          "id": "9.4",
+          "title": "Implement budget and notification components",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -136,9 +279,21 @@
       "dependencies": [],
       "subtasks": [
         { "id": "10.1", "title": "Implement unit tests", "status": "pending" },
-        { "id": "10.2", "title": "Create integration tests", "status": "pending" },
-        { "id": "10.3", "title": "Implement end-to-end tests", "status": "pending" },
-        { "id": "10.4", "title": "Perform security testing", "status": "pending" }
+        {
+          "id": "10.2",
+          "title": "Create integration tests",
+          "status": "pending"
+        },
+        {
+          "id": "10.3",
+          "title": "Implement end-to-end tests",
+          "status": "pending"
+        },
+        {
+          "id": "10.4",
+          "title": "Perform security testing",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -149,10 +304,22 @@
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        { "id": "11.1", "title": "Finalize Docker configuration", "status": "pending" },
+        {
+          "id": "11.1",
+          "title": "Finalize Docker configuration",
+          "status": "pending"
+        },
         { "id": "11.2", "title": "Set up CI/CD pipeline", "status": "pending" },
-        { "id": "11.3", "title": "Implement monitoring and logging", "status": "pending" },
-        { "id": "11.4", "title": "Create backup and disaster recovery procedures", "status": "pending" }
+        {
+          "id": "11.3",
+          "title": "Implement monitoring and logging",
+          "status": "pending"
+        },
+        {
+          "id": "11.4",
+          "title": "Create backup and disaster recovery procedures",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -163,10 +330,22 @@
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        { "id": "12.1", "title": "Create API documentation", "status": "pending" },
+        {
+          "id": "12.1",
+          "title": "Create API documentation",
+          "status": "pending"
+        },
         { "id": "12.2", "title": "Write user manuals", "status": "pending" },
-        { "id": "12.3", "title": "Prepare deployment documentation", "status": "pending" },
-        { "id": "12.4", "title": "Develop technical documentation", "status": "pending" }
+        {
+          "id": "12.3",
+          "title": "Prepare deployment documentation",
+          "status": "pending"
+        },
+        {
+          "id": "12.4",
+          "title": "Develop technical documentation",
+          "status": "pending"
+        }
       ]
     }
   ]

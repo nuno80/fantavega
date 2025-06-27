@@ -1,15 +1,16 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Completato Task 6 (Player Management System), inclusa importazione giocatori da Excel, API CRUD base, API di ricerca/filtro, tracciamento assegnazioni (visualizzazione), ed export CSV rose. Inizio Task 7 (Real-Time Notification System).",
+  "currentDevelopmentPhase": "Completato Task 7 (Real-Time Notification System). L'applicazione ora supporta aggiornamenti live per le aste e notifiche personali via WebSocket, inclusa la notifica per le penalità applicate.",
   "technologyStack": {
     "frontend": "Next.js 15 (App Router), React, TypeScript, Tailwind CSS",
     "backend": "Next.js API Routes (TypeScript)",
     "database": "BetterSQLite3 (accesso diretto)",
     "authentication": "Clerk",
+    "realTime": "Socket.IO",
     "packageManager": "pnpm",
     "developmentEnvironment": "Docker & Docker Compose (Node 20 Slim/Debian base)",
-    "uiComponents": "shadcn/ui (base per theming), lucide-react (icone)",
+    "uiComponents": "shadcn/ui (base per theming), lucide-react (icone), sonner (notifiche)",
     "theming": "next-themes",
     "excelParsing": "xlsx (SheetJS)"
   },
@@ -17,100 +18,93 @@
     "schemaDefinition": "SQL DDL in `database/schema.sql`",
     "dbConnection": "`src/lib/db/index.ts` (singleton pattern, crea DB file se non esiste)",
     "scripts": [
-      { "name": "db:migrate", "purpose": "Applica l'intero `database/schema.sql`." },
-      { "name": "db:reset", "purpose": "Cancella e ricrea DB da `schema.sql` (con backup)." },
-      { "name": "db:apply-changes", "purpose": "Esegue query SQL ad-hoc da `database/adhoc_changes.sql` (con backup)." },
+      {
+        "name": "db:migrate",
+        "purpose": "Applica l'intero `database/schema.sql`."
+      },
+      {
+        "name": "db:reset",
+        "purpose": "Cancella e ricrea DB da `schema.sql` (con backup)."
+      },
+      {
+        "name": "db:apply-changes",
+        "purpose": "Esegue query SQL ad-hoc da `database/adhoc_changes.sql` (con backup)."
+      },
       { "name": "db:backup", "purpose": "Crea backup manuale." },
-      { "name": "db:seed", "purpose": "Popola DB con dati di esempio (`users`, `players`, `auction_leagues`, `league_participants`, `auctions`, `bids`). Ora include `manager_team_name`." }
+      { "name": "db:seed", "purpose": "Popola DB con dati di esempio." }
     ]
   },
   "coreEntitiesSchema": [
-    { "tableName": "users", "description": "Estende utenti Clerk con `role` ('admin', 'manager') e `status`." },
-    { "tableName": "players", "description": "Catalogo giocatori. Popolato/aggiornato tramite import Excel admin e API CRUD admin." },
-    { "tableName": "auction_leagues", "description": "Configurazione della lega d'asta." },
-    { "tableName": "league_participants", "description": "Associazione utenti a leghe. Traccia `current_budget`, `locked_credits`, e `manager_team_name` (nome squadra del manager nella lega)." },
-    { "tableName": "auctions", "description": "Asta per un singolo giocatore." },
+    {
+      "tableName": "users",
+      "description": "Estende utenti Clerk con `role` ('admin', 'manager') e `status`."
+    },
+    { "tableName": "players", "description": "Catalogo giocatori." },
+    {
+      "tableName": "auction_leagues",
+      "description": "Configurazione della lega d'asta."
+    },
+    {
+      "tableName": "league_participants",
+      "description": "Associazione utenti a leghe. Traccia `current_budget`, `locked_credits`, etc."
+    },
+    {
+      "tableName": "auctions",
+      "description": "Asta per un singolo giocatore."
+    },
     { "tableName": "bids", "description": "Log di ogni offerta." },
-    { "tableName": "player_assignments", "description": "Traccia l'assegnazione finale di un giocatore a un manager." },
-    { "tableName": "budget_transactions", "description": "Log delle modifiche al `current_budget`. Tipi: 'initial_allocation', 'win_auction_debit', 'penalty_requirement'." },
-    { "tableName": "user_league_compliance_status", "description": "Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase, per la gestione delle penalità." },
-    { "tableName": "auto_bids", "description": "Futuro." },
-    { "tableName": "player_discard_requests", "description": "Futuro." },
-    { "tableName": "user_auction_cooldowns", "description": "Futuro." },
-    { "tableName": "user_auction_response_timers", "description": "Futuro." }
+    {
+      "tableName": "player_assignments",
+      "description": "Traccia l'assegnazione finale di un giocatore a un manager."
+    },
+    {
+      "tableName": "budget_transactions",
+      "description": "Log delle modifiche al `current_budget`."
+    },
+    {
+      "tableName": "user_league_compliance_status",
+      "description": "Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase."
+    }
   ],
+  "realTimeNotificationSystem": {
+    "feature_name": "Sistema di Notifiche e Aggiornamenti in Tempo Reale",
+    "summary": "Implementa un sistema basato su WebSocket (Socket.IO) per fornire aggiornamenti della UI in tempo reale e notifiche personali.",
+    "architectural_pattern": "Pattern a 'Server Dedicato Stateful'. Un server Socket.IO (`socket-server.ts`) gira come processo separato. Il backend Next.js comunica con esso tramite un 'ponte HTTP' per istruirlo su quali eventi emettere.",
+    "user_flow": [
+      "1. Al login, il `SocketProvider` stabilisce una connessione WebSocket per l'utente.",
+      "2. Il client si unisce a una 'stanza' personale (es. 'user-user_123') e, in un'asta, alla 'stanza' della lega (es. 'league-456').",
+      "3. Quando un'azione di business avviene (es. offerta, penalità), il servizio corrispondente (`bid.service.ts`, `penalty.service.ts`) chiama `notifySocketServer` dopo aver aggiornato il DB.",
+      "4. `notifySocketServer` invia una richiesta POST al server Socket.IO.",
+      "5. Il server Socket.IO emette gli eventi (`auction-update`, `bid-surpassed-notification`, `penalty-applied-notification`) alle stanze appropriate.",
+      "6. I client connessi ricevono gli eventi, aggiornando la UI e mostrando notifiche toast."
+    ],
+    "core_components_interaction": {
+      "socket-server.ts": "Server Node.js autonomo con Socket.IO.",
+      "src/lib/socket-emitter.ts": "Funzione helper usata dal backend Next.js per comunicare con `socket-server.ts`.",
+      "src/lib/db/services/bid.service.ts": "Chiama `notifySocketServer` dopo le operazioni di offerta/chiusura asta.",
+      "src/lib/db/services/penalty.service.ts": "Chiama `notifySocketServer` dopo l'applicazione di una penalità.",
+      "src/contexts/SocketContext.tsx": "React Context che gestisce il ciclo di vita della connessione socket del client.",
+      "src/app/layout.tsx": "Avvolge l'app nel `SocketProvider` per rendere il socket globalmente accessibile.",
+      "src/components/auction/AuctionRealtimeDisplay.tsx": "Componente client che usa `useSocket` per ascoltare eventi e aggiornare la UI."
+    }
+  },
   "auctionLogic": {
-    "leagueSetup": {
-      "adminCreatesLeague": "Admin definisce `auction_leagues` (nome, tipo, budget, slot per ruolo, `min_bid`, `timer_duration_hours`).",
-      "adminAddsParticipants": "Admin aggiunge utenti a `league_participants`.",
-      "adminManagesAuctionPhases": "Admin aggiorna `auction_leagues.status` e `auction_leagues.active_auction_roles`."
-    },
-    "auctionStartAndBidding": {
-      "firstBidCreatesAuction": "Un'asta per un giocatore (`auctions` record) inizia quando un manager fa la prima offerta valida.",
-      "existingAuctionBids": "Offerte successive su un'asta attiva devono superare l'offerta corrente.",
-      "timerReset": "Ogni offerta valida resetta `auctions.scheduled_end_time`.",
-      "bidTypes": "['manual', 'quick'].",
-      "budgetAndSlotValidation": {
-        "description": "Ogni offerta valida il budget disponibile e la disponibilità di slot.",
-        "availableBudget": "Calcolato come `league_participants.current_budget - league_participants.locked_credits`.",
-        "slotConsideration": "Considera giocatori già assegnati e offerte attive vincenti per lo stesso ruolo."
-      }
-    },
-    "auctionEndAndPlayerAssignment": {
-      "timerExpiration": "L'asta termina quando `scheduled_end_time` scade. Un processo automatico gestisce la chiusura.",
-      "winnerProcessing": "Il vincitore ottiene il giocatore. `current_budget` e `locked_credits` del vincitore aggiornati. `players_X_acquired` incrementato. `auctions.status` a `sold`. Transazione registrata."
-    },
     "penaltySystem": {
       "trigger": "Al login/accesso sezioni chiave asta (approccio 'lazy').",
       "requirement": "Entro 1 ora dal trigger, N-1 slot coperti per ruoli attivi.",
-      "complianceTimer": "Periodo di osservazione/grazia di 1 ora.",
-      "penaltyApplication": "5 crediti se non conforme dopo 1 ora.",
-      "penaltyRecurrence": "Ricorrente ogni ora successiva di non conformità (valutata al trigger).",
+      "penaltyApplication": "5 crediti se non conforme dopo 1 ora, con notifica real-time all'utente.",
+      "penaltyRecurrence": "Ricorrente ogni ora successiva di non conformità.",
       "penaltyCap": "Max 5 penalità (25 crediti) per ciclo di non conformità.",
       "cycleReset": "Se conforme, contatore penalità azzerato.",
-      "noExplicitLogoutHandling": "Penalità maturate durante inattività applicate retroattivamente al successivo trigger.",
       "trackingTable": "`user_league_compliance_status`."
-    },
-    "futureFeatures": [
-      "Auto-bid", "Notifiche offerte superate", "Abbandono asta", "Riparazione con svincoli", 
-      "Avvisi logout requisiti non soddisfatti", "Email per scadenze penalità", 
-      "CRON job per automatizzare `processExpiredAuctionsAndAssignPlayers` e `processUserComplianceAndPenalties`."
-    ]
+    }
   },
-  "budgetManagementSystem": {
-    "realTimeTracking": "Implementato con `current_budget` e `locked_credits`. Budget disponibile è `current_budget - locked_credits`.",
-    "transactionLogging": "Tabella `budget_transactions` logga modifiche a `current_budget`. Tipi: 'initial_allocation', 'win_auction_debit', 'penalty_requirement'.",
-    "penaltyLogicIntegration": "Penalità deducono da `current_budget` e generano transazione.",
-    "budgetAlerts": { "status": "Non implementato/Considerato superfluo per ora." }
-  },
-  "playerManagement": {
-    "importFromExcel": "Admin può caricare file Excel (foglio 'Tutti') per fare l'UPSERT dei giocatori nella tabella `players`.",
-    "crudApis": "Admin ha API per creare, aggiornare, eliminare singoli giocatori.",
-    "searchAndFilterApi": "Endpoint `GET /api/players` permette di listare giocatori con filtri (nome, ruolo, team), ordinamento e paginazione.",
-    "assignmentTrackingApis": {
-        "managerRosterView": "Endpoint `GET /api/leagues/{leagueId}/managers/{managerUserId}/roster` per vedere la rosa di un manager.",
-        "playerAssignmentStatus": "Endpoint `GET /api/leagues/{leagueId}/players/{playerId}/assignment` per vedere a chi è assegnato un giocatore."
-    },
-    "csvExport": "Admin può esportare le rose complete di una lega (formato: NomeSquadraManager,IDGiocatore,CostoAcquisto) tramite `GET /api/admin/leagues/{leagueId}/rosters/export/csv`."
-  },
-  "adminFunctionalitiesImplemented": [
-    "Gestione Leghe (CRUD).",
-    "Gestione Partecipanti Leghe (aggiungi/rimuovi).",
-    "Trigger manuale processamento aste scadute.",
-    "Importazione giocatori da file Excel.",
-    "API CRUD per singoli giocatori.",
-    "Esportazione CSV rose della lega."
-  ],
   "managerFunctionalitiesImplemented_Backend": [
     "Offerte (iniziali, successive) con gestione `locked_credits`.",
     "Visualizzazione stato asta giocatore.",
     "Visualizzazione propria cronologia transazioni budget.",
     "Visualizzazione propria rosa.",
-    "Visualizzazione stato assegnazione giocatore nella propria lega.",
-    "Trigger (implicito) del controllo di compliance per penalità."
-  ],
-  "authenticationRoles": {
-    "admin": "Gestisce leghe, configurazioni del sistema, e può triggerare task amministrativi.",
-    "manager": "Partecipa alle aste, gestisce il proprio budget e la rosa."
-  }
+    "Trigger (implicito) del controllo di compliance per penalità.",
+    "Ricezione aggiornamenti asta e notifiche (offerte superate, penalità) in tempo reale."
+  ]
 }

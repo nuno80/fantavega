@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier src/ --write",
+    "socket:dev": "tsx watch socket-server.ts",
     "db:seed": "pnpm exec tsx src/lib/db/seed.ts",
     "db:backup": "pnpm exec tsx src/lib/db/backup.ts",
     "db:migrate": "pnpm exec tsx src/lib/db/migrate.ts",
@@ -29,6 +30,9 @@
     "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "sonner": "^2.0.5",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5"

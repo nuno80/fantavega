@@ -1,8 +1,8 @@
-// src/lib/db/services/bid.service.ts v.2.1
-// Servizio per la logica di business relativa alle offerte, alle aste,
-// al loro completamento, e alla gestione dei locked_credits.
+// src/lib/db/services/bid.service.ts v.2.2
+// Servizio completo per la logica delle offerte, con integrazione Socket.IO per notifiche in tempo reale.
 // 1. Importazioni
 import { db } from "@/lib/db";
+import { notifySocketServer } from "@/lib/socket-emitter";
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
@@ -73,16 +73,11 @@ export interface AuctionCreationResult {
   new_bid_id: number;
 }
 
-export interface ExistingAuctionBidResult {
-  auction_id: number;
-  player_id: number;
-  league_id: number;
-  new_current_bid: number;
-  new_current_winner_id: string;
-  new_scheduled_end_time: number;
-  new_bid_id: number;
-  previous_winner_id: string | null;
-  previous_bid_amount: number;
+interface PlaceBidParams {
+  leagueId: number;
+  playerId: number;
+  userId: string;
+  bidAmount: number;
 }
 
 interface ExpiredAuctionData {
@@ -95,7 +90,7 @@ interface ExpiredAuctionData {
   player_name?: string;
 }
 
-// 3. Funzione Helper Interna per Controllo Slot e Budget (MODIFICATA per locked_credits)
+// 3. Funzione Helper Interna per Controllo Slot e Budget
 const checkSlotsAndBudgetOrThrow = (
   league: LeagueForBidding,
   player: PlayerForBidding,
@@ -109,13 +104,12 @@ const checkSlotsAndBudgetOrThrow = (
     participant.current_budget - participant.locked_credits;
   if (availableBudget < bidAmountForCheck) {
     throw new Error(
-      `Insufficient available budget for user ${bidderUserIdForCheck}. Available (Budget - Locked): ${availableBudget}, Bid: ${bidAmountForCheck}. (Total Budget: ${participant.current_budget}, Locked: ${participant.locked_credits})`
+      `Budget disponibile insufficiente. Disponibile: ${availableBudget}, Offerta: ${bidAmountForCheck}.`
     );
   }
 
   const countAssignedPlayerForRoleStmt = db.prepare(
-    `SELECT COUNT(*) as count FROM player_assignments pa JOIN players p ON pa.player_id = p.id
-       WHERE pa.auction_league_id = ? AND pa.user_id = ? AND p.role = ?`
+    `SELECT COUNT(*) as count FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? AND pa.user_id = ? AND p.role = ?`
   );
   const assignedCountResult = countAssignedPlayerForRoleStmt.get(
     league.id,
@@ -124,8 +118,7 @@ const checkSlotsAndBudgetOrThrow = (
   ) as { count: number };
   const currentlyAssignedForRole = assignedCountResult.count;
 
-  let activeBidsAsWinnerSql = `SELECT COUNT(DISTINCT a.player_id) as count FROM auctions a JOIN players p ON a.player_id = p.id
-       WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ? AND p.role = ? AND a.status IN ('active', 'closing')`;
+  let activeBidsAsWinnerSql = `SELECT COUNT(DISTINCT a.player_id) as count FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ? AND p.role = ? AND a.status IN ('active', 'closing')`;
   const activeBidsQueryParams: (string | number)[] = [
     league.id,
     bidderUserIdForCheck,
@@ -159,47 +152,29 @@ const checkSlotsAndBudgetOrThrow = (
       maxSlotsForRole = league.slots_A;
       break;
     default:
-      console.error(
-        `[SERVICE ERROR SLOTS] Invalid player role for slot check: ${player.role}`
-      );
       throw new Error(
-        `Invalid player role (${player.role}) for slot checking.`
+        `Ruolo giocatore non valido (${player.role}) per il controllo degli slot.`
       );
   }
 
-  console.log(
-    `[SERVICE DEBUG SLOTS] User: ${bidderUserIdForCheck}, Role: ${player.role}, TargetPlayerID: ${player.id ?? currentAuctionTargetPlayerId}`
-  );
-  console.log(
-    `  Assigned: ${currentlyAssignedForRole}, ActiveWinningBidsOnOtherPlayers: ${activeWinningBidsForRoleOnOtherPlayers}`
-  );
-  console.log(
-    `  SlotsVirtualByOthers: ${slotsVirtuallyOccupiedByOthers}, MaxSlotsForRole: ${maxSlotsForRole}`
-  );
-
   const slotErrorMessage =
-    "Slot full, you cannot bid for other players of this specific role";
+    "Slot pieni, non puoi offrire per altri giocatori di questo ruolo";
   if (isNewAuctionAttempt) {
     if (slotsVirtuallyOccupiedByOthers + 1 > maxSlotsForRole) {
       throw new Error(
-        `${slotErrorMessage} (Role: ${player.role}, Max: ${maxSlotsForRole}, Current commitments: ${slotsVirtuallyOccupiedByOthers})`
+        `${slotErrorMessage} (Ruolo: ${player.role}, Max: ${maxSlotsForRole}, Impegni attuali: ${slotsVirtuallyOccupiedByOthers})`
       );
     }
   } else {
     if (slotsVirtuallyOccupiedByOthers >= maxSlotsForRole) {
-      // Se sto rilanciando per un giocatore CHE NON SONO IO a detenere, non devo contare questo slot come "nuovo"
       throw new Error(
-        `${slotErrorMessage} (Role: ${player.role}, Max: ${maxSlotsForRole}, Current commitments: ${slotsVirtuallyOccupiedByOthers})`
+        `${slotErrorMessage} (Ruolo: ${player.role}, Max: ${maxSlotsForRole}, Impegni attuali: ${slotsVirtuallyOccupiedByOthers})`
       );
     }
   }
-  console.log(
-    `[SERVICE DEBUG SLOTS] Slot check passed for User: ${bidderUserIdForCheck}, Role: ${player.role}`
-  );
 };
 
-// 4. Funzioni Esportate del Servizio per le Offerte (MODIFICATE per locked_credits)
-
+// 4. Funzioni Esportate del Servizio per le Offerte
 const incrementLockedCreditsStmt = db.prepare(
   "UPDATE league_participants SET locked_credits = locked_credits + ?, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?"
 );
@@ -213,34 +188,30 @@ export const placeInitialBidAndCreateAuction = async (
   bidderUserIdParam: string,
   bidAmountParam: number
 ): Promise<AuctionCreationResult> => {
-  console.log(
-    `[SERVICE BID] placeInitialBidAndCreateAuction: leagueId=${leagueIdParam}, playerId=${playerIdParam}, bidder=${bidderUserIdParam}, amount=${bidAmountParam}`
-  );
-
-  return db.transaction(() => {
+  const result = db.transaction(() => {
     const now = Math.floor(Date.now() / 1000);
-
     const leagueStmt = db.prepare(
       "SELECT id, status, active_auction_roles, min_bid, timer_duration_hours, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
     );
     const league = leagueStmt.get(leagueIdParam) as
       | LeagueForBidding
       | undefined;
-    if (!league) throw new Error(`League with ID ${leagueIdParam} not found.`);
+    if (!league) throw new Error(`Lega con ID ${leagueIdParam} non trovata.`);
     if (league.status !== "draft_active" && league.status !== "repair_active")
       throw new Error(
-        `Bidding is not currently active for league ${leagueIdParam} (status: ${league.status}).`
+        `Le offerte non sono attive per la lega (status: ${league.status}).`
       );
     if (bidAmountParam < league.min_bid)
       throw new Error(
-        `Bid amount ${bidAmountParam} is less than the minimum bid of ${league.min_bid} for this league.`
+        `L'offerta è inferiore all'offerta minima di ${league.min_bid}.`
       );
 
     const playerStmt = db.prepare("SELECT id, role FROM players WHERE id = ?");
     const player = playerStmt.get(playerIdParam) as
       | PlayerForBidding
       | undefined;
-    if (!player) throw new Error(`Player with ID ${playerIdParam} not found.`);
+    if (!player)
+      throw new Error(`Giocatore con ID ${playerIdParam} non trovato.`);
 
     const participantStmt = db.prepare(
       "SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?"
@@ -251,7 +222,7 @@ export const placeInitialBidAndCreateAuction = async (
     ) as ParticipantForBidding | undefined;
     if (!participant)
       throw new Error(
-        `User ${bidderUserIdParam} is not a participant in league ${leagueIdParam}.`
+        `Utente ${bidderUserIdParam} non partecipa alla lega ${leagueIdParam}.`
       );
 
     const assignmentStmt = db.prepare(
@@ -259,14 +230,15 @@ export const placeInitialBidAndCreateAuction = async (
     );
     if (assignmentStmt.get(leagueIdParam, playerIdParam))
       throw new Error(
-        `Player ${playerIdParam} has already been assigned in league ${leagueIdParam}.`
+        `Giocatore ${playerIdParam} già assegnato in questa lega.`
       );
+
     const existingAuctionStmt = db.prepare(
       "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
     );
     if (existingAuctionStmt.get(leagueIdParam, playerIdParam))
       throw new Error(
-        `An active auction already exists for player ${playerIdParam} in league ${leagueIdParam}.`
+        `Esiste già un'asta attiva per il giocatore ${playerIdParam}.`
       );
 
     checkSlotsAndBudgetOrThrow(
@@ -284,14 +256,10 @@ export const placeInitialBidAndCreateAuction = async (
       leagueIdParam,
       bidderUserIdParam
     );
-    if (lockResult.changes === 0) {
+    if (lockResult.changes === 0)
       throw new Error(
-        `Failed to lock credits for user ${bidderUserIdParam} in league ${leagueIdParam}. Participant not found or no update occurred.`
+        `Impossibile bloccare i crediti per l'utente ${bidderUserIdParam}.`
       );
-    }
-    console.log(
-      `[SERVICE BID] Locked ${bidAmountParam} credits for user ${bidderUserIdParam} (Initial Bid).`
-    );
 
     const auctionDurationSeconds = league.timer_duration_hours * 3600;
     const scheduledEndTime = now + auctionDurationSeconds;
@@ -309,7 +277,7 @@ export const placeInitialBidAndCreateAuction = async (
       now
     );
     const newAuctionId = auctionInfo.lastInsertRowid as number;
-    if (!newAuctionId) throw new Error("Failed to create auction.");
+    if (!newAuctionId) throw new Error("Creazione asta fallita.");
 
     const createBidStmt = db.prepare(
       `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, ?, 'manual')`
@@ -320,7 +288,8 @@ export const placeInitialBidAndCreateAuction = async (
       bidAmountParam,
       now
     );
-    if (!bidInfo.lastInsertRowid) throw new Error("Failed to record bid.");
+    if (!bidInfo.lastInsertRowid)
+      throw new Error("Registrazione offerta fallita.");
 
     return {
       auction_id: newAuctionId,
@@ -333,440 +302,279 @@ export const placeInitialBidAndCreateAuction = async (
       new_bid_id: bidInfo.lastInsertRowid as number,
     };
   })();
+
+  // **NUOVO**: Notifica Socket.IO dopo che la transazione ha avuto successo
+  if (result.auction_id) {
+    await notifySocketServer({
+      room: `league-${leagueIdParam}`,
+      event: "auction-created",
+      data: {
+        playerId: result.player_id,
+        auctionId: result.auction_id,
+        newPrice: result.current_bid,
+        highestBidderId: result.current_winner_id,
+        scheduledEndTime: result.scheduled_end_time,
+      },
+    });
+  }
+  return result;
 };
 
-export const placeBidOnExistingAuction = async (
-  auctionIdParam: number,
-  bidderUserIdParam: string,
-  bidAmountFromRequestParam: number,
-  bidTypeParam: "manual" | "quick"
-): Promise<ExistingAuctionBidResult> => {
-  console.log(
-    `[SERVICE BID] placeBidOnExistingAuction: auctionId=${auctionIdParam}, bidder=${bidderUserIdParam}, amountReq=${bidAmountFromRequestParam}, type=${bidTypeParam}`
-  );
-
-  return db.transaction(() => {
-    const now = Math.floor(Date.now() / 1000);
-
-    const auctionStmt = db.prepare(
-      "SELECT id, auction_league_id, player_id, current_highest_bid_amount, current_highest_bidder_id, status FROM auctions WHERE id = ?"
-    );
-    const auction = auctionStmt.get(auctionIdParam) as
+export async function placeBidOnExistingAuction({
+  leagueId,
+  userId,
+  playerId,
+  bidAmount,
+}: PlaceBidParams) {
+  const transaction = db.transaction(() => {
+    // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
+    const auction = db
+      .prepare(
+        `SELECT id, current_highest_bid_amount, current_highest_bidder_id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
+      )
+      .get(leagueId, playerId) as
       | {
           id: number;
-          auction_league_id: number;
-          player_id: number;
           current_highest_bid_amount: number;
           current_highest_bidder_id: string | null;
-          status: string;
         }
       | undefined;
-    if (!auction)
-      throw new Error(`Auction with ID ${auctionIdParam} not found.`);
-    if (auction.status !== "active" && auction.status !== "closing")
-      throw new Error(
-        `Auction ${auctionIdParam} is not active or closing (status: ${auction.status}).`
-      );
+    if (!auction) throw new Error("Asta non trovata o non più attiva.");
 
-    const previousWinnerId = auction.current_highest_bidder_id;
-    const previousBidAmount = auction.current_highest_bid_amount;
+    const league = db
+      .prepare(
+        `SELECT id, status, active_auction_roles, min_bid, timer_duration_hours, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
+      )
+      .get(leagueId) as LeagueForBidding | undefined;
+    if (!league) throw new Error("Lega non trovata.");
 
-    let finalBidAmount = bidAmountFromRequestParam;
-    if (bidTypeParam === "quick") {
-      if (previousBidAmount === null || previousBidAmount < 0)
-        throw new Error(
-          "Cannot place quick bid on an auction with no valid current bid."
-        );
-      finalBidAmount = previousBidAmount + 1;
-    }
-    if (finalBidAmount <= previousBidAmount)
-      throw new Error(
-        `Bid ${finalBidAmount} must be > current bid ${previousBidAmount}.`
-      );
-    if (previousWinnerId === bidderUserIdParam)
-      throw new Error(
-        `User ${bidderUserIdParam} is already the highest bidder.`
-      );
+    if (bidAmount <= auction.current_highest_bid_amount)
+      throw new Error("L'offerta deve essere superiore all'offerta attuale.");
 
-    const leagueStmt = db.prepare(
-      "SELECT id, status, active_auction_roles, min_bid, timer_duration_hours, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
-    );
-    const league = leagueStmt.get(auction.auction_league_id) as
-      | LeagueForBidding
-      | undefined;
-    if (!league)
-      throw new Error(
-        `League ${auction.auction_league_id} for auction ${auctionIdParam} not found.`
-      );
-    if (league.status !== "draft_active" && league.status !== "repair_active")
-      throw new Error(
-        `Bidding not active for league ${auction.auction_league_id} (status: ${league.status}).`
-      );
+    const previousHighestBidderId = auction.current_highest_bidder_id;
+    if (previousHighestBidderId === userId)
+      throw new Error("Sei già il miglior offerente.");
 
-    const playerStmt = db.prepare("SELECT id, role FROM players WHERE id = ?");
-    const player = playerStmt.get(auction.player_id) as
-      | PlayerForBidding
-      | undefined;
-    if (!player)
+    // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
+    const player = db
+      .prepare(`SELECT id, role FROM players WHERE id = ?`)
+      .get(playerId) as PlayerForBidding | undefined;
+    if (!player) throw new Error(`Giocatore con ID ${playerId} non trovato.`);
+    const participant = db
+      .prepare(
+        `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+      )
+      .get(leagueId, userId) as ParticipantForBidding | undefined;
+    if (!participant)
       throw new Error(
-        `Player ${auction.player_id} for auction ${auctionIdParam} not found.`
+        `Utente ${userId} non è un partecipante della lega ${leagueId}.`
       );
-
-    const participantStmt = db.prepare(
-      "SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?"
-    );
-    const newBidderParticipant = participantStmt.get(
-      auction.auction_league_id,
-      bidderUserIdParam
-    ) as ParticipantForBidding | undefined;
-    if (!newBidderParticipant)
-      throw new Error(
-        `User ${bidderUserIdParam} (new bidder) not in league ${auction.auction_league_id}.`
-      );
-
     checkSlotsAndBudgetOrThrow(
       league,
       player,
-      newBidderParticipant,
-      bidderUserIdParam,
-      finalBidAmount,
-      previousWinnerId !== bidderUserIdParam,
-      auction.player_id
+      participant,
+      userId,
+      bidAmount,
+      false,
+      playerId
     );
 
-    if (previousWinnerId && previousWinnerId !== bidderUserIdParam) {
-      // Sblocca i crediti del precedente miglior offerente
-      const unlockResult = decrementLockedCreditsStmt.run(
-        previousBidAmount,
-        auction.auction_league_id,
-        previousWinnerId
-      );
-      if (unlockResult.changes === 0) {
-        console.warn(
-          `[SERVICE BID] Failed to unlock credits for previous winner ${previousWinnerId} or participant not found for auction ${auctionIdParam}.`
-        );
-      } else {
-        console.log(
-          `[SERVICE BID] Unlocked ${previousBidAmount} credits for previous winner ${previousWinnerId}.`
+    // --- Blocco 3: Gestione Crediti Bloccati ---
+    if (previousHighestBidderId) {
+      const previousBid = db
+        .prepare(
+          `SELECT amount FROM bids WHERE auction_id = ? AND user_id = ? ORDER BY amount DESC LIMIT 1`
+        )
+        .get(auction.id, previousHighestBidderId) as
+        | { amount: number }
+        | undefined;
+      if (previousBid) {
+        decrementLockedCreditsStmt.run(
+          previousBid.amount,
+          leagueId,
+          previousHighestBidderId
         );
       }
     }
-    // Blocca i crediti per il nuovo miglior offerente
-    const lockResult = incrementLockedCreditsStmt.run(
-      finalBidAmount,
-      auction.auction_league_id,
-      bidderUserIdParam
-    );
-    if (lockResult.changes === 0) {
-      throw new Error(
-        `Failed to lock credits for new bidder ${bidderUserIdParam} for auction ${auctionIdParam}.`
-      );
-    }
-    console.log(
-      `[SERVICE BID] Locked ${finalBidAmount} credits for new bidder ${bidderUserIdParam}.`
-    );
+    incrementLockedCreditsStmt.run(bidAmount, leagueId, userId);
 
-    const auctionDurationSeconds = league.timer_duration_hours * 3600;
-    const newScheduledEndTime = now + auctionDurationSeconds;
-    const updateAuctionStmt = db.prepare(
-      `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, status = 'active', updated_at = strftime('%s', 'now') WHERE id = ?`
-    );
-    updateAuctionStmt.run(
-      finalBidAmount,
-      bidderUserIdParam,
-      newScheduledEndTime,
-      auctionIdParam
-    );
-
-    const createBidStmt = db.prepare(
-      `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, ?, ?)`
-    );
-    const bidInfo = createBidStmt.run(
-      auctionIdParam,
-      bidderUserIdParam,
-      finalBidAmount,
-      now,
-      bidTypeParam
-    );
-    if (!bidInfo.lastInsertRowid) throw new Error("Failed to record new bid.");
+    // --- Blocco 4: Aggiornamento Asta e Inserimento Nuova Offerta ---
+    const newScheduledEndTime =
+      Math.floor(Date.now() / 1000) + league.timer_duration_hours * 3600;
+    db.prepare(
+      `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
+    ).run(bidAmount, userId, newScheduledEndTime, auction.id);
+    db.prepare(
+      `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
+    ).run(auction.id, userId, bidAmount, "manual");
 
     return {
-      auction_id: auctionIdParam,
-      player_id: auction.player_id,
-      league_id: auction.auction_league_id,
-      new_current_bid: finalBidAmount,
-      new_current_winner_id: bidderUserIdParam,
-      new_scheduled_end_time: newScheduledEndTime,
-      new_bid_id: bidInfo.lastInsertRowid as number,
-      previous_winner_id: previousWinnerId,
-      previous_bid_amount: previousBidAmount,
+      success: true,
+      previousHighestBidderId,
+      newScheduledEndTime,
+      playerName: db
+        .prepare(`SELECT name FROM players WHERE id = ?`)
+        .get(playerId) as { name: string } | undefined,
     };
-  })();
-};
+  });
+
+  const result = transaction();
+
+  // --- Blocco 5: Invio Notifiche Socket.IO ---
+  if (result.success) {
+    await notifySocketServer({
+      room: `league-${leagueId}`,
+      event: "auction-update",
+      data: {
+        playerId,
+        newPrice: bidAmount,
+        highestBidderId: userId,
+        scheduledEndTime: result.newScheduledEndTime,
+      },
+    });
+    if (result.previousHighestBidderId) {
+      await notifySocketServer({
+        room: `user-${result.previousHighestBidderId}`,
+        event: "bid-surpassed-notification",
+        data: {
+          playerName: result.playerName?.name || "Giocatore",
+          newBidAmount: bidAmount,
+        },
+      });
+    }
+  }
+  return { message: "Offerta piazzata con successo!" };
+}
 
 export const getAuctionStatusForPlayer = async (
   leagueIdParam: number,
   playerIdParam: number
 ): Promise<AuctionStatusDetails | null> => {
-  console.log(
-    `[SERVICE BID] getAuctionStatusForPlayer: leagueId=${leagueIdParam}, playerId=${playerIdParam}`
+  const auctionStmt = db.prepare(
+    `SELECT a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id, a.status, a.created_at, a.updated_at, p.name AS player_name, u.username AS current_highest_bidder_username FROM auctions a JOIN players p ON a.player_id = p.id LEFT JOIN users u ON a.current_highest_bidder_id = u.id WHERE a.auction_league_id = ? AND a.player_id = ? ORDER BY CASE a.status WHEN 'active' THEN 1 WHEN 'closing' THEN 2 ELSE 3 END, a.updated_at DESC LIMIT 1`
   );
-  try {
-    const auctionStmtCorrected = db.prepare(
-      `SELECT
-         a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, a.scheduled_end_time,
-         a.current_highest_bid_amount, a.current_highest_bidder_id, a.status,
-         a.created_at, a.updated_at,
-         p.name AS player_name,
-         u.username AS current_highest_bidder_username
-       FROM auctions a
-       JOIN players p ON a.player_id = p.id
-       LEFT JOIN users u ON a.current_highest_bidder_id = u.id
-       WHERE a.auction_league_id = ? AND a.player_id = ?
-       ORDER BY CASE a.status WHEN 'active' THEN 1 WHEN 'closing' THEN 2 ELSE 3 END, a.updated_at DESC
-       LIMIT 1`
-    );
-    const auctionDataFromDb = auctionStmtCorrected.get(
-      leagueIdParam,
-      playerIdParam
-    ) as
-      | (AuctionStatusDetails & {
-          player_name: string;
-          current_highest_bidder_username: string | null;
-        })
-      | undefined;
+  const auctionData = auctionStmt.get(leagueIdParam, playerIdParam) as
+    | (Omit<AuctionStatusDetails, "bid_history" | "time_remaining_seconds"> & {
+        player_name: string;
+        current_highest_bidder_username: string | null;
+      })
+    | undefined;
+  if (!auctionData) return null;
 
-    if (!auctionDataFromDb) {
-      console.log(
-        `[SERVICE BID] No auction found for player ${playerIdParam} in league ${leagueIdParam}.`
-      );
-      return null;
-    }
+  const bidsStmt = db.prepare(
+    `SELECT b.id, b.auction_id, b.user_id, b.amount, b.bid_time, b.bid_type, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 10`
+  );
+  const bidHistory = bidsStmt.all(auctionData.id) as BidRecord[];
 
-    const bidsStmt = db.prepare(
-      `SELECT b.id, b.auction_id, b.user_id, b.amount, b.bid_time, b.bid_type, u.username as bidder_username
-       FROM bids b
-       JOIN users u ON b.user_id = u.id
-       WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 10`
-    );
-    const bidHistory = bidsStmt.all(auctionDataFromDb.id) as BidRecord[];
+  const timeRemainingSeconds =
+    auctionData.status === "active" || auctionData.status === "closing"
+      ? Math.max(
+          0,
+          auctionData.scheduled_end_time - Math.floor(Date.now() / 1000)
+        )
+      : undefined;
 
-    let timeRemainingSeconds: number | undefined = undefined;
-    if (
-      auctionDataFromDb.status === "active" ||
-      auctionDataFromDb.status === "closing"
-    ) {
-      const now = Math.floor(Date.now() / 1000);
-      timeRemainingSeconds = Math.max(
-        0,
-        auctionDataFromDb.scheduled_end_time - now
-      );
-    }
-
-    const { player_name, current_highest_bidder_username, ...baseAuctionData } =
-      auctionDataFromDb;
-
-    const result: AuctionStatusDetails = {
-      ...baseAuctionData,
-      player_name: player_name,
-      current_highest_bidder_username: current_highest_bidder_username,
-      bid_history: bidHistory.reverse(),
-      time_remaining_seconds: timeRemainingSeconds,
-    };
-
-    console.log(
-      `[SERVICE BID] Auction status found for player ${playerIdParam} in league ${leagueIdParam}.`
-    );
-    return result;
-  } catch (error) {
-    console.error(
-      `[SERVICE BID] Error in getAuctionStatusForPlayer for league ${leagueIdParam}, player ${playerIdParam}:`,
-      error
-    );
-    throw new Error(
-      "Failed to retrieve auction status due to an internal error."
-    );
-  }
+  return {
+    ...auctionData,
+    bid_history: bidHistory.reverse(),
+    time_remaining_seconds: timeRemainingSeconds,
+  };
 };
 
-// 5. Funzione Esportata per Processare Aste Scadute e Assegnare Giocatori (MODIFICATA per locked_credits)
 export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
   processedCount: number;
   failedCount: number;
   errors: string[];
 }> => {
-  console.log(
-    "[SERVICE AUCTION_PROCESSING] Starting to process expired auctions..."
-  );
   const now = Math.floor(Date.now() / 1000);
-  let processedCount = 0;
-  let failedCount = 0;
-  const errors: string[] = [];
-
   const getExpiredAuctionsStmt = db.prepare(
-    `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, 
-            a.current_highest_bidder_id, p.role as player_role, p.name as player_name 
-     FROM auctions a JOIN players p ON a.player_id = p.id
-     WHERE a.status = 'active' AND a.scheduled_end_time <= ? 
-       AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0`
+    `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0`
   );
   const expiredAuctions = getExpiredAuctionsStmt.all(
     now
   ) as ExpiredAuctionData[];
 
-  if (expiredAuctions.length === 0) {
-    console.log(
-      "[SERVICE AUCTION_PROCESSING] No expired auctions to process at this time."
-    );
-    return { processedCount, failedCount, errors };
-  }
-  console.log(
-    `[SERVICE AUCTION_PROCESSING] Found ${expiredAuctions.length} expired auctions to process.`
-  );
+  if (expiredAuctions.length === 0)
+    return { processedCount: 0, failedCount: 0, errors: [] };
 
-  const updateAuctionStatusStmt = db.prepare(
-    "UPDATE auctions SET status = 'sold', updated_at = strftime('%s', 'now') WHERE id = ?"
-  );
-  const updateParticipantBudgetStmt = db.prepare(
-    "UPDATE league_participants SET current_budget = current_budget - ?, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?"
-  );
-  const decrementWinnerLockedCreditsStmt = db.prepare(
-    // Già definito, ma usato qui
-    "UPDATE league_participants SET locked_credits = locked_credits - ?, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?"
-  );
-  const createPlayerAssignmentStmt = db.prepare(
-    `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price, assigned_at) VALUES (?, ?, ?, ?, ?)`
-  );
-  const getPlayerAcquiredCountColumnName = (role: string): string | null => {
-    switch (role) {
-      case "P":
-        return "players_P_acquired";
-      case "D":
-        return "players_D_acquired";
-      case "C":
-        return "players_C_acquired";
-      case "A":
-        return "players_A_acquired";
-      default:
-        return null;
-    }
-  };
-  const createBudgetTransactionStmt = db.prepare(
-    `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, related_auction_id, related_player_id, description, balance_after_in_league, transaction_time) VALUES (@auction_league_id, @user_id, @transaction_type, @amount, @related_auction_id, @related_player_id, @description, @balance_after_in_league, @transaction_time)`
-  );
-  const getParticipantBudgetStmt = db.prepare(
-    "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
-  );
+  let processedCount = 0,
+    failedCount = 0;
+  const errors: string[] = [];
 
   for (const auction of expiredAuctions) {
-    console.log(
-      `[SERVICE AUCTION_PROCESSING] Processing auction ID: ${auction.id} for player ID: ${auction.player_id} (Name: ${auction.player_name || "N/A"})`
-    );
-
-    const singleAuctionTransaction = db.transaction(() => {
-      updateAuctionStatusStmt.run(auction.id);
-      console.log(`  Auction ID ${auction.id} status updated to 'sold'.`);
-
-      updateParticipantBudgetStmt.run(
-        auction.current_highest_bid_amount,
-        auction.auction_league_id,
-        auction.current_highest_bidder_id
-      );
-      console.log(
-        `  Current budget DECREMENTED for user ${auction.current_highest_bidder_id}.`
-      );
-
-      const decrementLockResult = decrementWinnerLockedCreditsStmt.run(
-        auction.current_highest_bid_amount,
-        auction.auction_league_id,
-        auction.current_highest_bidder_id
-      );
-      if (decrementLockResult.changes === 0) {
-        console.warn(
-          `[SERVICE AUCTION_PROCESSING] Failed to decrement locked_credits for winner ${auction.current_highest_bidder_id} for auction ${auction.id}.`
-        );
-      } else {
-        console.log(
-          `  Locked credits DECREMENTED for winner ${auction.current_highest_bidder_id}.`
-        );
-      }
-
-      const updatedParticipant = getParticipantBudgetStmt.get(
-        auction.auction_league_id,
-        auction.current_highest_bidder_id
-      ) as { current_budget: number } | undefined;
-      if (!updatedParticipant)
-        throw new Error(
-          `Failed to retrieve updated budget for user ${auction.current_highest_bidder_id} after update for auction ID ${auction.id}.`
-        );
-      createBudgetTransactionStmt.run({
-        auction_league_id: auction.auction_league_id,
-        user_id: auction.current_highest_bidder_id,
-        transaction_type: "win_auction_debit",
-        amount: auction.current_highest_bid_amount,
-        related_auction_id: auction.id,
-        related_player_id: auction.player_id,
-        description: `Acquisto giocatore ${auction.player_name || `ID ${auction.player_id}`} per ${auction.current_highest_bid_amount} crediti (Asta ID: ${auction.id}).`,
-        balance_after_in_league: updatedParticipant.current_budget,
-        transaction_time: now,
-      });
-      console.log(
-        `  Budget transaction (win_auction_debit) logged for user ${auction.current_highest_bidder_id}.`
-      );
-
-      const acquiredColumn = getPlayerAcquiredCountColumnName(
-        auction.player_role
-      );
-      if (!acquiredColumn)
-        throw new Error(
-          `Invalid player role '${auction.player_role}' for player ID ${auction.player_id}.`
-        );
-      const updatePlayerCountStmt = db.prepare(
-        `UPDATE league_participants SET ${acquiredColumn} = ${acquiredColumn} + 1, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?`
-      );
-      updatePlayerCountStmt.run(
-        auction.auction_league_id,
-        auction.current_highest_bidder_id
-      );
-      console.log(
-        `  Player count for role ${auction.player_role} updated for user ${auction.current_highest_bidder_id}.`
-      );
-
-      createPlayerAssignmentStmt.run(
-        auction.auction_league_id,
-        auction.player_id,
-        auction.current_highest_bidder_id,
-        auction.current_highest_bid_amount,
-        now
-      );
-      console.log(
-        `  Player assignment created for player ID ${auction.player_id}.`
-      );
-
-      return true;
-    });
-
     try {
-      singleAuctionTransaction();
+      db.transaction(() => {
+        db.prepare(
+          "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?"
+        ).run(now, auction.id);
+        db.prepare(
+          "UPDATE league_participants SET current_budget = current_budget - ?, locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?"
+        ).run(
+          auction.current_highest_bid_amount,
+          auction.current_highest_bid_amount,
+          auction.auction_league_id,
+          auction.current_highest_bidder_id
+        );
+        const newBalance = (
+          db
+            .prepare(
+              "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
+            )
+            .get(
+              auction.auction_league_id,
+              auction.current_highest_bidder_id
+            ) as { current_budget: number }
+        ).current_budget;
+        db.prepare(
+          `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, related_auction_id, related_player_id, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'win_auction_debit', ?, ?, ?, ?, ?, ?)`
+        ).run(
+          auction.auction_league_id,
+          auction.current_highest_bidder_id,
+          auction.current_highest_bid_amount,
+          auction.id,
+          auction.player_id,
+          `Acquisto ${auction.player_name || `ID ${auction.player_id}`}`,
+          newBalance,
+          now
+        );
+        const col = `players_${auction.player_role}_acquired`;
+        db.prepare(
+          `UPDATE league_participants SET ${col} = ${col} + 1, updated_at = ? WHERE league_id = ? AND user_id = ?`
+        ).run(
+          now,
+          auction.auction_league_id,
+          auction.current_highest_bidder_id
+        );
+        db.prepare(
+          `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price, assigned_at) VALUES (?, ?, ?, ?, ?)`
+        ).run(
+          auction.auction_league_id,
+          auction.player_id,
+          auction.current_highest_bidder_id,
+          auction.current_highest_bid_amount,
+          now
+        );
+      })();
+
       processedCount++;
+
+      // **NUOVO**: Notifica Socket.IO per l'asta conclusa
+      await notifySocketServer({
+        room: `league-${auction.auction_league_id}`,
+        event: "auction-closed-notification",
+        data: {
+          playerId: auction.player_id,
+          playerName: auction.player_name,
+          winnerId: auction.current_highest_bidder_id,
+          finalPrice: auction.current_highest_bid_amount,
+        },
+      });
     } catch (error) {
       failedCount++;
       const errMsg =
-        error instanceof Error
-          ? error.message
-          : "Unknown error processing auction.";
-      console.error(
-        `[SERVICE AUCTION_PROCESSING] Error processing auction ID ${auction.id}: ${errMsg}`,
-        error
-      );
-      errors.push(`Auction ID ${auction.id}: ${errMsg}`);
+        error instanceof Error ? error.message : "Errore sconosciuto.";
+      errors.push(`Asta ID ${auction.id}: ${errMsg}`);
     }
   }
-
-  console.log(
-    `[SERVICE AUCTION_PROCESSING] Finished. Processed: ${processedCount}, Failed: ${failedCount}.`
-  );
-  if (errors.length > 0)
-    console.error("[SERVICE AUCTION_PROCESSING] Errors:", errors);
   return { processedCount, failedCount, errors };
 };
