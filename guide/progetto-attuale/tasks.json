@@ -222,7 +222,7 @@
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        { "id": "8.1", "title": "Create admin dashboard", "status": "pending" },
+        { "id": "8.1", "title": "Create admin dashboard", "status": "completed" },
         {
           "id": "8.2",
           "title": "Implement auction management controls",
