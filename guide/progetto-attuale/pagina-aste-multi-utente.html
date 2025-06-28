@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fatavega</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Icons" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        .sidebar-icon {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white overflow-hidden">
+<div class="flex flex-col h-screen">
+<header class="bg-gray-800 p-2 flex justify-between items-center border-b border-gray-700">
+<div class="flex items-center">
+<img alt="Company logo" class="h-8 w-8 mr-2 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIFWTsgt9gj2dEOfjhcSrMv7b1DOUKvQt8KxVaAS9FYyrqSzq9j6_tb38eWblAYfeKFXwBjhVfrmXPokgel--1tCzltxhoy3m17XUPA3hQ3wMvyRjIAin2fO0UECbmEvzzWXvFgOyL1dnZU9bSy086JJuGs4s_eL62AO8BF1hFoObvCoIJtz2c79odanE-Z_zADmli2AOVhOax3rQWRhNBSMaBGYbtPLgmNJoTfQEdVhead_q4qrUpdmzpkjPy4bNkbsCwL5t4AWR2"/>
+<span class="text-xl font-semibold">Fantavega</span>
+<span class="text-gray-400 ml-2 text-sm">&lt; Nome LEGA</span>
+</div>
+<div class="flex items-center space-x-2">
+
+<button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-md text-sm flex items-center">
+<span class="material-icons text-sm mr-1">group</span>
+                    Gestione Schiere
+                </button>
+<button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm flex items-center">
+<span class="material-icons text-sm mr-1">send</span>
+                    Invita Amici
+                </button>
+<span class="material-icons text-gray-400 cursor-pointer">notifications</span>
+<span class="material-icons text-gray-400 cursor-pointer">settings</span>
+<img alt="User avatar" class="h-8 w-8 rounded-full cursor-pointer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANkjP36SceKSEnP2Ig2JSChATZRXO4uLZEYX5DzvDqiHlsMQ6UKHFxnlSnXAJqVm01mfNuHZoqc0m_n8yS4Qx7GaTNNj6rqQeFq39c6Yw1wgiox9tYbGOgl1tv4kxk0WM-sXEqzuXXKtgVlQnOdmxVFWVvAhEGieDSioEBK2N8HdhyUaJGQJbWlZ656gDlOECeR4NB0jD_iGgPLkvHHlFsMzAFxsZrXCYHm4Imqr6BpkR3sF2VkU1poUbHHLjRg6531JEul9iR9SVl"/>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<main class="flex-1 flex flex-col bg-gray-900 overflow-hidden">
+<div class="h-2/5 flex p-4 space-x-4">
+<div class="w-1/2 bg-gray-800 rounded-lg p-4 flex flex-col" style="background-image: url('img/pocker-table1.png'); background-size: cover; background-position: center;">
+  <div class="bg-black bg-opacity-50 p-4 rounded-lg flex-1">
+    <h2 class="text-lg font-semibold mb-2">CHIAMA UN GIOCATORE</h2>
+
+    <div class="flex space-x-1 mb-3">
+      <button class="bg-red-600 text-white px-3 py-1 rounded-md text-xs">TUTTI</button>
+      <button class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-xs">P</button>
+      <button class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-xs">D</button>
+      <button class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-xs">C</button>
+      <button class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-xs">A</button>
+    </div>
+
+    <div class="flex items-center space-x-2 mb-4">
+      <select class="bg-gray-700 text-white p-2 rounded-md flex-1 text-sm">
+        <option>Seleziona un Giocatore</option>
+      </select>
+      <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm flex items-center">
+        <span class="material-icons text-sm mr-1">gavel</span> 
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="w-1/2 bg-gray-800 rounded-lg p-4 flex flex-col">
+<div class="flex items-center mb-3">
+<img alt="Player silhouette" class="h-16 w-16 rounded-full mr-3 border-2 border-purple-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD54noXwK3V_8enTGWk0uZq2asgMbc9A_RSaPrEnj_Wx3Nde876TSFGTTZ_Iqe811d1hult6-THRoGmWRKOxId-2gNlBfMXkjD8_jcIREQ0kvSVp5mENVs2ICWLu3p_6gdHxqTjuqJ3dQQvDqS0_jCIRjzNb0qqv_gAXs1P0m98-w25X-d7N53WdzIjmC66Ik_MqfIKMP0pLNArWCqIvfO20c9Nnx26daUXygKxNSk2oypxzZHLJFLnluznqk7M5A7VJ8dPsogxwtb2"/>
+<div>
+<h3 class="text-sm text-gray-400">squadra</h3>
+<h2 class="text-xl font-semibold">Giocatore</h2>
+<div class="flex items-center text-xs text-gray-400">
+<span class="material-icons text-sm mr-1 text-yellow-400">star</span>
+<span>AzzardoSI</span>
+<span class="mx-1">|</span>
+<span>Svincolato</span>
+</div>
+</div>
+<div class="ml-auto text-xs text-gray-500">NOTE</div>
+</div>
+
+<div class="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+<div>
+<div class="bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1">
+<span class="material-icons text-purple-400">shield</span>
+</div>
+<p>Titolare</p>
+</div>
+<div>
+<div class="bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1">
+<span class="material-icons text-purple-400">sports_soccer</span>
+</div>
+<p>Preferito</p>
+</div>
+<div>
+<div class="bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1">
+<span class="material-icons text-purple-400">trending_up</span>
+</div>
+<p>Integro</p>
+</div>
+<div>
+<div class="bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1">
+<span class="material-icons text-purple-400">timer</span>
+</div>
+<p>FMV</p>
+</div>
+</div>
+
+<div class="w-full bg-gray-700 rounded-full h-2.5 mb-2">
+<div class="bg-purple-600 h-2.5 rounded-full" style="width: 45%"></div>
+</div>
+
+</div>
+</div>
+<div class="flex-1 grid grid-cols-8 gap-0.5 p-0.5 bg-gray-700 overflow-y-auto">
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-yellow-400 text-lg mr-1">star</span>
+<span class="text-xs font-semibold">Team #1</span>
+</div>
+<div class="text-lg font-bold text-green-400">444</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 1</span><span>D: 0</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 overflow-y-auto pr-1" style="max-height: 200px;">
+<div class="bg-yellow-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">P</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhP0CPdOhfF4MT4V5DM8vE5b86c9RCffmMfEY_pfqgqDB2c-EnXbDiNo9mc5GTcYNI0FKef7y3CM0fVW__pwxudXkS7VY-czyTm_gJeGeya8ilJOWmEUpKNZDwmhSjliZaHsz2xZ1tCvzpvjvTXAIN0fsvXwS2Rxa-l4kJP3uu5dIYwYUsBiK_nFPGYZfng_m_Xd5ONIVk8GS1PoGHp62F_sraqWgdVWXicEzGhAEbcBknrlr_-yey7sEGhb9Rmhia2pPMbG2Yh1Et"/>
+<span class="text-xs">Meret</span>
+</div>
+<span class="text-xs font-semibold text-green-400">P 46</span>
+</div>
+
+<div class="bg-green-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">D</div>
+
+<div class="bg-gray-700 p-1.5 rounded-md flex items-center justify-between">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQsayOSF6nJ3ANIQ1klJHZDZcj8JVv-Gwob-xb9XkD_MRmybeunU4_zTA2GYjjprmA-ZFUzASc3e8FZYKkiGTU7fgW7yiQDWJ4kdFGMAigkewbmDy6f4PYmzWZm9a9Mc5y7aPOLE7GtNxKnhzYqYHFHR4-8rr2IDNkSZoymfTfs2vlTTzJ2Zlq45ouRs5IVkOoNcgPQ1s3g65dL6fpA3bt8W3eF6ZSlseKPt6sSDKUR701Vxd9gGDUDZRfylndXd28Ibwtr1f-0Azu"/>
+<span class="text-xs">Calligaris</span>
+</div>
+<span class="text-xs font-semibold text-green-400">D 5</span>
+</div>
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-red-500 text-lg mr-1">person_pin_circle</span>
+<span class="text-xs font-semibold">Team #2</span>
+</div>
+<div class="text-lg font-bold text-red-400">462</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 0</span><span>D: 0</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+<div class="bg-green-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">D</div>
+<div class="bg-green-600 bg-opacity-20 border border-green-500 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFxlDyKataUeutLgXWnk_SF8CyEunMU43p35rzlFKdeRFG2ctaPedX-rbBPENagOX3GFEYtb19OrNcomwcD3cLgiLj6UA-yC4eaXUsfATCXnvgR-oh9jXgovzY_-s3EuAFvruWdYybT1Zq8GSf0rmDJHt0P2htg4PqpYxekJ0_FUxzhIytsbqDqZ8W1xQQAfjwHZv_0k_irs32LlqwHwtpPRHFuBum9bBMCGtTomqKZ6c1y2IHLp2cZIq5CmUyowwKtYqHzs8aTvAk"/>
+<span class="text-xs">Smolling</span>
+</div>
+<span class="text-xs font-semibold text-green-400">D 8</span>
+</div>
+<div class="bg-green-600 bg-opacity-20 border border-green-500 p-1.5 rounded-md flex items-center justify-between">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDynFIEM8u-PZfwl2yF4n6GyyhrdZgmSU7KYGbLpnCfy8G4v9e3L53B6PSXzKjmYtD4-63YUzeMWcd2FD0PFidgH6nTzB6UbOxh37L_U2mU4CdK3GD3nlya8ntbwzqCP9ni1FJLk8k8iQxOmDL3eCh5Dw51BVrW_HOkyXsLm0x7D2n7mUTHbF4JxeiMOiA7_JB4o5iZY-qmX96WuDLDRr0qZu13yGv0Sr1IMNuYWYFhVaTD2War9OpvM0yGEW0BWzOb3sGKclVf1WHu"/>
+<span class="text-xs">Carlos Augusto</span>
+</div>
+<div class="flex items-center">
+<span class="text-xs font-semibold text-green-400">D 41</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-red-500 text-lg mr-1">person_pin_circle</span>
+<span class="text-xs font-semibold">Team #3</span>
+</div>
+<div class="text-lg font-bold text-blue-400">459</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 0</span><span>D: 0</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+<div class="bg-green-600 bg-opacity-20 border border-green-500 p-1.5 rounded-md flex items-center justify-between">
+<div class="flex items-center">
+<span class="text-xs">Player X</span>
+</div>
+<span class="text-xs font-semibold text-green-400">M 8</span>
+</div>
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-blue-500 text-lg mr-1">person_pin_circle</span> 
+<span class="text-xs font-semibold">Team #4</span>
+</div>
+<div class="text-lg font-bold text-green-400">482</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 0</span><span>D: 0</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-red-500 text-lg mr-1">person_pin_circle</span>
+<span class="text-xs font-semibold">Team #5</span>
+</div>
+<div class="text-lg font-bold text-yellow-400">435</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 0</span><span>D: 0</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-red-500 text-lg mr-1">person_pin_circle</span>
+<span class="text-xs font-semibold">Team #6</span>
+</div>
+<div class="text-lg font-bold text-blue-400">400</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 0</span><span>D: 0</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-red-500 text-lg mr-1">person_pin_circle</span>
+<span class="text-xs font-semibold">Team #7</span>
+</div>
+<div class="text-lg font-bold text-red-400">302</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">$436</span></span>
+<span class="text-white">% 7.6</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 1</span><span>D: 1</span><span>C: 1</span><span>A: 1</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+<div class="bg-yellow-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">P</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIFWTsgt9gj2dEOfjhcSrMv7b1DOUKvQt8KxVaAS9FYyrqSzq9j6_tb38eWblAYfeKFXwBjhVfrmXPokgel--1tCzltxhoy3m17XUPA3hQ3wMvyRjIAin2fO0UECbmEvzzWXvFgOyL1dnZU9bSy086JJuGs4s_eL62AO8BF1hFoObvCoIJtz2c79odanE-Z_zADmli2AOVhOax3rQWRhNBSMaBGYbtPLgmNJoTfQEdVhead_q4qrUpdmzpkjPy4bNkbsCwL5t4AWR2"/>
+<span class="text-xs">Provedel</span>
+</div>
+<span class="text-xs font-semibold text-green-400">P 40</span>
+</div>
+<div class="bg-green-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">D</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANkjP36SceKSEnP2Ig2JSChATZRXO4uLZEYX5DzvDqiHlsMQ6UKHFxnlSnXAJqVm01mfNuHZoqc0m_n8yS4Qx7GaTNNj6rqQeFq39c6Yw1wgiox9tYbGOgl1tv4kxk0WM-sXEqzuXXKtgVlQnOdmxVFWVvAhEGieDSioEBK2N8HdhyUaJGQJbWlZ656gDlOECeR4NB0jD_iGgPLkvHHlFsMzAFxsZrXCYHm4Imqr6BpkR3sF2VkU1poUbHHLjRg6531JEul9iR9SVl"/>
+<span class="text-xs">Bremer</span>
+</div>
+<span class="text-xs font-semibold text-green-400">D 25</span>
+</div>
+<div class="bg-blue-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">C</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD54noXwK3V_8enTGWk0uZq2asgMbc9A_RSaPrEnj_Wx3Nde876TSFGTTZ_Iqe811d1hult6-THRoGmWRKOxId-2gNlBfMXkjD8_jcIREQ0kvSVp5mENVs2ICWLu3p_6gdHxqTjuqJ3dQQvDqS0_jCIRjzNb0qqv_gAXs1P0m98-w25X-d7N53WdzIjmC66Ik_MqfIKMP0pLNArWCqIvfO20c9Nnx26daUXygKxNSk2oypxzZHLJFLnluznqk7M5A7VJ8dPsogxwtb2"/>
+<span class="text-xs">Koopmeiners</span>
+</div>
+<span class="text-xs font-semibold text-blue-400">C 50</span>
+</div>
+<div class="bg-red-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">A</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZP9oB1d0dhjrsq7G7KnMTmekGo19lZKtgF7_MlhqJXnDPqUo-SgWh3Fj14hRcHhy8ej81gBQjDiMYoZWSXX0vcpdBtl-BIf67MS1yofCFBkP8W5ZUaZjc7LyMzT7rD-6mIH8xjl_c2hYgUMn6BPWn8_vwsRFeJgIqYujB6QXgumEaMRZMQYxOYqwu_N5wlYJHqFGvBmWuJv4mK1qyB1C6aCwVhzypbmYrc24m-mEwr0XOFa_c13zAE2YCGZCY5idtjErKsDyF3XId"/>
+<span class="text-xs">Dybala</span>
+</div>
+<span class="text-xs font-semibold text-red-400">A 120</span>
+</div>
+</div>
+</div>
+<div class="bg-gray-800 rounded-tl-md rounded-tr-md p-2 flex flex-col">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center">
+<span class="material-icons text-red-500 text-lg mr-1">person_pin_circle</span>
+<span class="text-xs font-semibold">Team #8</span>
+</div>
+<div class="text-lg font-bold text-yellow-400">490</div>
+</div>
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>max <span class="text-white">-</span></span>
+<span>1 Ab <span class="text-white">% 2.0</span></span>
+<span>1 Ab <span class="text-white">-</span></span>
+</div>
+<div class="flex justify-around text-xs text-gray-500 mb-2">
+<span>P: 1</span><span>D: 2</span><span>C: 0</span><span>A: 0</span>
+</div>
+<div class="w-full bg-yellow-500 h-1 rounded-full mb-2"></div>
+<div class="space-y-1 flex-1 pr-1">
+<div class="bg-yellow-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">P</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqF40YpgZvcg9w7tR194jkU2fMShFH2iC3yknlhcaGaTGd8dhJJ35FMMBWdVM_66XRYfrTktqb7LPWvEZziK2sU0nsmRjNN39K3EfF0eoMSX9zWD6VmGgA8a-MUB5sO3F-Rt2a72xkq8vjsffyppm6NyM1BRSCflj0MGhi5PC_NiQ3j_WjtsjYryJzJVxeyZHkNEW2MCrm7uC9kPbQb4t6r6iZX476oxXDJvWYyhowqQdE0z7uIu2gl5Aw-bZI3NZzhvYpQTMn6s3u"/>
+<span class="text-xs">Di Gregorio</span>
+</div>
+<span class="text-xs font-semibold text-yellow-400">P 30</span>
+</div>
+<div class="bg-green-500 text-gray-900 px-2 py-0.5 rounded-t-md text-xs font-semibold flex items-center">D</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhP0CPdOhfF4MT4V5DM8vE5b86c9RCffmMfEY_pfqgqDB2c-EnXbDiNo9mc5GTcYNI0FKef7y3CM0fVW__pwxudXkS7VY-czyTm_gJeGeya8ilJOWmEUpKNZDwmhSjliZaHsz2xZ1tCvzpvjvTXAIN0fsvXwS2Rxa-l4kJP3uu5dIYwYUsBiK_nFPGYZfng_m_Xd5ONIVk8GS1PoGHp62F_sraqWgdVWXicEzGhAEbcBknrlr_-yey7sEGhb9Rmhia2pPMbG2Yh1Et"/>
+<span class="text-xs">Theo Hernandez</span>
+</div>
+<span class="text-xs font-semibold text-green-400">D 70</span>
+</div>
+<div class="bg-gray-700 p-1.5 rounded-b-md flex items-center justify-between mb-1">
+<div class="flex items-center">
+<img alt="Player jersey" class="h-5 w-5 mr-1.5 rounded-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQsayOSF6nJ3ANIQ1klJHZDZcj8JVv-Gwob-xb9XkD_MRmybeunU4_zTA2GYjjprmA-ZFUzASc3e8FZYKkiGTU7fgW7yiQDWJ4kdFGMAigkewbmDy6f4PYmzWZm9a9Mc5y7aPOLE7GtNxKnhzYqYHFHR4-8rr2IDNkSZoymfTfs2vlTTzJ2Zlq45ouRs5IVkOoNcgPQ1s3g65dL6fpA3bt8W3eF6ZSlseKPt6sSDKUR701Vxd9gGDUDZRfylndXd28Ibwtr1f-0Azu"/>
+<span class="text-xs">Danilo</span>
+</div>
+<span class="text-xs font-semibold text-green-400">D 45</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+</div>
+<footer class="bg-gray-800 p-1.5 flex justify-center space-x-1 border-t border-gray-700">
+<button class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-md text-xs">Lista Giocatori</button>
+<button class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-xs">Analisi Squadre</button>
+<button class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-md text-xs">Pagina utile 1</button>
+<button class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-md text-xs">Pagina utile 2</button>
+</footer>
+</div>
+
+</body></html>

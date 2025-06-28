@@ -3,7 +3,7 @@
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
   "currentDevelopmentPhase": "Completato Task 7 (Real-Time Notification System). L'applicazione ora supporta aggiornamenti live per le aste e notifiche personali via WebSocket, inclusa la notifica per le penalità applicate.",
   "technologyStack": {
-    "frontend": "Next.js 15 (App Router), React, TypeScript, Tailwind CSS",
+    "frontend": "Next.js 15.2.3 (App Router), React, TypeScript, Tailwind CSS",
     "backend": "Next.js API Routes (TypeScript)",
     "database": "BetterSQLite3 (accesso diretto)",
     "authentication": "Clerk",
@@ -24,7 +24,7 @@
       },
       {
         "name": "db:reset",
-        "purpose": "Cancella e ricrea DB da `schema.sql` (con backup)."
+        "purpose": "Effettua un backup, cancella il file del database e richiede una migrazione successiva per ricrearlo."
       },
       {
         "name": "db:apply-changes",
@@ -64,6 +64,22 @@
     {
       "tableName": "user_league_compliance_status",
       "description": "Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase."
+    },
+    {
+      "tableName": "auto_bids",
+      "description": "Tabella per la gestione delle offerte automatiche (funzionalità futura)."
+    },
+    {
+      "tableName": "player_discard_requests",
+      "description": "Tabella per la gestione delle richieste di svincolo giocatori (funzionalità futura)."
+    },
+    {
+      "tableName": "user_auction_cooldowns",
+      "description": "Tabella per gestire i cooldown degli utenti dopo l'abbandono di un'asta (funzionalità futura)."
+    },
+    {
+      "tableName": "user_auction_response_timers",
+      "description": "Tabella per i timer di risposta degli utenti alle aste (funzionalità futura)."
     }
   ],
   "realTimeNotificationSystem": {
