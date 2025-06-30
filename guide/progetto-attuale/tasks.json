@@ -3,7 +3,6 @@
     {
       "id": "1",
       "title": "Project Setup and Infrastructure",
-      "description": "Initialize the project repository, set up the development environment, configure the build system, and establish the basic project structure.",
       "status": "completed",
       "priority": "high",
       "dependencies": [],
@@ -38,7 +37,6 @@
     {
       "id": "2",
       "title": "Authentication System",
-      "description": "Implement user authentication and authorization using Clerk, including registration, login, and role-based access control.",
       "status": "completed",
       "priority": "high",
       "dependencies": [],
@@ -68,7 +66,6 @@
     {
       "id": "3",
       "title": "Database Schema and Migrations",
-      "description": "Design and implement the database schema, create migrations, and set up seed data for development.",
       "status": "completed",
       "priority": "high",
       "dependencies": [],
@@ -95,7 +92,6 @@
     {
       "id": "4",
       "title": "Core Auction System",
-      "description": "Implement the core auction system with 24-hour countdown timers, bidding mechanics, and player assignment.",
       "status": "completed",
       "priority": "high",
       "dependencies": [],
@@ -125,7 +121,6 @@
     {
       "id": "5",
       "title": "Budget Management System",
-      "description": "Implement budget tracking, spending history, and penalty application for managers.",
       "status": "completed",
       "priority": "high",
       "dependencies": [],
@@ -156,7 +151,6 @@
     {
       "id": "6",
       "title": "Player Management System",
-      "description": "Implement player database, search and filtering, assignment tracking, and data export.",
       "status": "completed",
       "priority": "medium",
       "dependencies": [],
@@ -174,8 +168,7 @@
         {
           "id": "6.3",
           "title": "Develop player assignment tracking (APIs for roster & assignment status)",
-          "status": "completed",
-          "notes": "Funzionalità di management manuale delle assegnazioni omessa per design."
+          "status": "completed"
         },
         {
           "id": "6.4",
@@ -187,7 +180,6 @@
     {
       "id": "7",
       "title": "Real-Time Notification System",
-      "description": "Implement WebSocket-powered real-time updates and notifications for auction events.",
       "status": "completed",
       "priority": "high",
       "dependencies": [],
@@ -218,19 +210,23 @@
       "id": "8",
       "title": "Administrative Controls",
       "description": "Implement admin dashboard, auction management controls, and system monitoring.",
-      "status": "pending",
+      "status": "in-progress",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
-        { "id": "8.1", "title": "Create admin dashboard", "status": "completed" },
+        {
+          "id": "8.1",
+          "title": "Develop user management tools",
+          "status": "completed"
+        },
         {
           "id": "8.2",
-          "title": "Implement auction management controls",
-          "status": "pending"
+          "title": "Implement league creation functionality",
+          "status": "completed"
         },
         {
           "id": "8.3",
-          "title": "Develop user management tools",
+          "title": "Create admin dashboard for league management",
           "status": "pending"
         },
         {

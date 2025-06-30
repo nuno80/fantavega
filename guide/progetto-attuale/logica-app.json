@@ -1,13 +1,14 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Completato Task 7 (Real-Time Notification System). L'applicazione ora supporta aggiornamenti live per le aste e notifiche personali via WebSocket, inclusa la notifica per le penalità applicate.",
+  "currentDevelopmentPhase": "Completato Task 8.2 (Creazione Lega). Il sistema ora permette agli admin di creare nuove leghe tramite un form dedicato che utilizza una Server Action. Prossimo task: 8.3 (Dashboard di gestione lega).",
   "technologyStack": {
     "frontend": "Next.js 15.2.3 (App Router), React, TypeScript, Tailwind CSS",
-    "backend": "Next.js API Routes (TypeScript)",
+    "backend": "Next.js API Routes & Server Actions (TypeScript)",
     "database": "BetterSQLite3 (accesso diretto)",
     "authentication": "Clerk",
     "realTime": "Socket.IO",
+    "validation": "Zod",
     "packageManager": "pnpm",
     "developmentEnvironment": "Docker & Docker Compose (Node 20 Slim/Debian base)",
     "uiComponents": "shadcn/ui (base per theming), lucide-react (icone), sonner (notifiche)",
@@ -64,45 +65,38 @@
     {
       "tableName": "user_league_compliance_status",
       "description": "Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase."
-    },
-    {
-      "tableName": "auto_bids",
-      "description": "Tabella per la gestione delle offerte automatiche (funzionalità futura)."
-    },
-    {
-      "tableName": "player_discard_requests",
-      "description": "Tabella per la gestione delle richieste di svincolo giocatori (funzionalità futura)."
-    },
-    {
-      "tableName": "user_auction_cooldowns",
-      "description": "Tabella per gestire i cooldown degli utenti dopo l'abbandono di un'asta (funzionalità futura)."
-    },
-    {
-      "tableName": "user_auction_response_timers",
-      "description": "Tabella per i timer di risposta degli utenti alle aste (funzionalità futura)."
     }
   ],
+  "leagueCreationSystem": {
+    "feature_name": "Creazione Nuova Lega d'Asta (Admin)",
+    "summary": "Implementa il processo che consente a un utente 'admin' di creare una nuova lega. Il sistema registra la lega con le sue regole, assegna il creatore come primo partecipante e lo reindirizza alla dashboard di gestione.",
+    "architectural_pattern": "Form gestito lato client con React (`useActionState`) che invoca una Server Action per una User Experience reattiva e mutazioni dati sicure sul server. La validazione dei dati è gestita da Zod sia lato client che server.",
+    "user_flow": [
+      "1. L'admin naviga a '/admin/leagues/create'.",
+      "2. Compila il form specificando i parametri della lega.",
+      "3. Alla sottomissione, `CreateLeagueForm` invoca la Server Action `createLeague`.",
+      "4. La Server Action valida i dati con lo schema Zod `CreateLeagueSchema`.",
+      "5. Se valido, esegue una transazione DB per creare lega, partecipante e transazione budget.",
+      "6. Al termine, reindirizza l'utente alla dashboard della nuova lega."
+    ],
+    "core_components_interaction": {
+      "src/app/admin/leagues/create/page.tsx": "Pagina contenitore che renderizza il form.",
+      "src/components/forms/CreateLeagueForm.tsx": "Componente Client che gestisce lo stato del form e chiama la Server Action.",
+      "src/lib/actions/league.actions.ts": "File Server-Side che contiene la logica di business per creare la lega.",
+      "src/lib/validators/league.validators.ts": "Contiene lo schema Zod `CreateLeagueSchema` per la validazione."
+    }
+  },
   "realTimeNotificationSystem": {
     "feature_name": "Sistema di Notifiche e Aggiornamenti in Tempo Reale",
     "summary": "Implementa un sistema basato su WebSocket (Socket.IO) per fornire aggiornamenti della UI in tempo reale e notifiche personali.",
-    "architectural_pattern": "Pattern a 'Server Dedicato Stateful'. Un server Socket.IO (`socket-server.ts`) gira come processo separato. Il backend Next.js comunica con esso tramite un 'ponte HTTP' per istruirlo su quali eventi emettere.",
+    "architectural_pattern": "Pattern a 'Server Dedicato Stateful'. Un server Socket.IO (`socket-server.ts`) gira come processo separato. Il backend Next.js comunica con esso tramite un 'ponte HTTP'.",
     "user_flow": [
-      "1. Al login, il `SocketProvider` stabilisce una connessione WebSocket per l'utente.",
-      "2. Il client si unisce a una 'stanza' personale (es. 'user-user_123') e, in un'asta, alla 'stanza' della lega (es. 'league-456').",
-      "3. Quando un'azione di business avviene (es. offerta, penalità), il servizio corrispondente (`bid.service.ts`, `penalty.service.ts`) chiama `notifySocketServer` dopo aver aggiornato il DB.",
-      "4. `notifySocketServer` invia una richiesta POST al server Socket.IO.",
-      "5. Il server Socket.IO emette gli eventi (`auction-update`, `bid-surpassed-notification`, `penalty-applied-notification`) alle stanze appropriate.",
-      "6. I client connessi ricevono gli eventi, aggiornando la UI e mostrando notifiche toast."
-    ],
-    "core_components_interaction": {
-      "socket-server.ts": "Server Node.js autonomo con Socket.IO.",
-      "src/lib/socket-emitter.ts": "Funzione helper usata dal backend Next.js per comunicare con `socket-server.ts`.",
-      "src/lib/db/services/bid.service.ts": "Chiama `notifySocketServer` dopo le operazioni di offerta/chiusura asta.",
-      "src/lib/db/services/penalty.service.ts": "Chiama `notifySocketServer` dopo l'applicazione di una penalità.",
-      "src/contexts/SocketContext.tsx": "React Context che gestisce il ciclo di vita della connessione socket del client.",
-      "src/app/layout.tsx": "Avvolge l'app nel `SocketProvider` per rendere il socket globalmente accessibile.",
-      "src/components/auction/AuctionRealtimeDisplay.tsx": "Componente client che usa `useSocket` per ascoltare eventi e aggiornare la UI."
-    }
+      "1. Al login, il `SocketProvider` stabilisce una connessione WebSocket.",
+      "2. Il client si unisce a stanze personali e di lega.",
+      "3. Un'azione di business (`bid.service.ts`, `penalty.service.ts`) chiama `notifySocketServer` dopo l'aggiornamento del DB.",
+      "4. `notifySocketServer` invia una richiesta POST al server Socket.IO, che emette gli eventi.",
+      "5. I client connessi ricevono gli eventi, aggiornando la UI e mostrando notifiche toast."
+    ]
   },
   "auctionLogic": {
     "penaltySystem": {
@@ -115,6 +109,10 @@
       "trackingTable": "`user_league_compliance_status`."
     }
   },
+  "adminFunctionalitiesImplemented": [
+    "Gestione Utenti (visualizzazione e cambio ruolo).",
+    "Creazione di nuove leghe tramite form dedicato (Server Action)."
+  ],
   "managerFunctionalitiesImplemented_Backend": [
     "Offerte (iniziali, successive) con gestione `locked_credits`.",
     "Visualizzazione stato asta giocatore.",

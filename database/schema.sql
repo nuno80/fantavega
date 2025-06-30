@@ -55,13 +55,13 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     slots_A INTEGER NOT NULL DEFAULT 6,
     max_players_per_team INTEGER GENERATED ALWAYS AS (slots_P + slots_D + slots_C + slots_A) STORED,
     min_bid INTEGER NOT NULL DEFAULT 1,
-    timer_duration_hours INTEGER NOT NULL DEFAULT 24,
+    -- CORREZIONE CHIAVE: rinominata la colonna
+    timer_duration_minutes INTEGER NOT NULL DEFAULT 1440,
     config_json TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (admin_creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_auction_leagues_status ON auction_leagues(status);
 
 -- Tabella Partecipanti Lega (Manager iscritti a una lega/stagione)
 CREATE TABLE IF NOT EXISTS league_participants (

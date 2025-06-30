@@ -1,8 +1,20 @@
+// src/app/admin/leagues/create/page.tsx v.1.0
+// Pagina per la creazione di una nuova lega, che renderizza il form.
+// 1. Importazioni
+import { CreateLeagueForm } from "@/components/forms/CreateLeagueForm";
+import { Navbar } from "@/components/navbar";
+
+// Assumiamo esista una Navbar
+
+// 2. Componente Pagina
 export default function CreateLeaguePage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-3xl font-bold">Crea Nuova Lega</h1>
-      <p>Pagina per la creazione di una nuova lega. (Placeholder)</p>
+    <div className="flex min-h-screen w-full flex-col bg-background">
+      <Navbar />
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {/* Renderizziamo il nostro componente form client-side */}
+        <CreateLeagueForm />
+      </main>
     </div>
   );
 }
