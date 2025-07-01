@@ -1,7 +1,7 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Completato Task 8.2 (Creazione Lega). Il sistema ora permette agli admin di creare nuove leghe tramite un form dedicato che utilizza una Server Action. Prossimo task: 8.3 (Dashboard di gestione lega).",
+  "currentDevelopmentPhase": "Completato Task 8.3 (Aggiunta Partecipanti). L'admin può ora aggiungere partecipanti a una lega dalla dashboard di gestione. Prossimo task: 8.4 (Gestione stato lega).",
   "technologyStack": {
     "frontend": "Next.js 15.2.3 (App Router), React, TypeScript, Tailwind CSS",
     "backend": "Next.js API Routes & Server Actions (TypeScript)",
@@ -69,49 +69,45 @@
   ],
   "leagueCreationSystem": {
     "feature_name": "Creazione Nuova Lega d'Asta (Admin)",
-    "summary": "Implementa il processo che consente a un utente 'admin' di creare una nuova lega. Il sistema registra la lega con le sue regole, assegna il creatore come primo partecipante e lo reindirizza alla dashboard di gestione.",
-    "architectural_pattern": "Form gestito lato client con React (`useActionState`) che invoca una Server Action per una User Experience reattiva e mutazioni dati sicure sul server. La validazione dei dati è gestita da Zod sia lato client che server.",
+    "summary": "Implementa il processo che consente a un utente 'admin' di creare una nuova lega, registrandone le regole e assegnando il creatore come primo partecipante.",
+    "architectural_pattern": "Form gestito lato client (`CreateLeagueForm`) con React (`useActionState`) che invoca una Server Action (`createLeague`). La validazione è gestita da Zod.",
     "user_flow": [
       "1. L'admin naviga a '/admin/leagues/create'.",
-      "2. Compila il form specificando i parametri della lega.",
-      "3. Alla sottomissione, `CreateLeagueForm` invoca la Server Action `createLeague`.",
-      "4. La Server Action valida i dati con lo schema Zod `CreateLeagueSchema`.",
-      "5. Se valido, esegue una transazione DB per creare lega, partecipante e transazione budget.",
-      "6. Al termine, reindirizza l'utente alla dashboard della nuova lega."
-    ],
-    "core_components_interaction": {
-      "src/app/admin/leagues/create/page.tsx": "Pagina contenitore che renderizza il form.",
-      "src/components/forms/CreateLeagueForm.tsx": "Componente Client che gestisce lo stato del form e chiama la Server Action.",
-      "src/lib/actions/league.actions.ts": "File Server-Side che contiene la logica di business per creare la lega.",
-      "src/lib/validators/league.validators.ts": "Contiene lo schema Zod `CreateLeagueSchema` per la validazione."
-    }
+      "2. Compila il form e lo sottomette, invocando la Server Action `createLeague`.",
+      "3. La action valida i dati e, se validi, esegue una transazione DB per creare lega, partecipante e transazione budget.",
+      "4. Al termine, reindirizza l'utente alla dashboard della nuova lega."
+    ]
+  },
+  "participantManagementSystem": {
+    "feature_name": "Aggiunta Partecipanti a una Lega (Admin)",
+    "summary": "Implementa la funzionalità che permette a un admin di aggiungere manager a una lega esistente dalla dashboard di gestione.",
+    "architectural_pattern": "Componente Client (`AddParticipantForm`) che usa `useActionState` per invocare una Server Action (`addParticipantAction`). La logica di business è incapsulata in un servizio (`auction-league.service.ts`).",
+    "user_flow": [
+      "1. L'admin apre un dialogo dalla dashboard della lega.",
+      "2. Il sistema recupera gli utenti idonei da Clerk (`getEligibleUsersForLeague`).",
+      "3. L'admin seleziona un utente e inserisce un nome squadra.",
+      "4. La Server Action `addParticipantAction` chiama il servizio `addParticipantToLeague`.",
+      "5. Il servizio verifica se l'utente esiste nel DB locale. Se no, lo recupera da Clerk e lo inserisce (sincronizzazione JIT).",
+      "6. Una transazione DB inserisce il nuovo partecipante e la sua transazione di budget.",
+      "7. `revalidatePath` aggiorna la UI della dashboard, mostrando il nuovo partecipante."
+    ]
   },
   "realTimeNotificationSystem": {
     "feature_name": "Sistema di Notifiche e Aggiornamenti in Tempo Reale",
     "summary": "Implementa un sistema basato su WebSocket (Socket.IO) per fornire aggiornamenti della UI in tempo reale e notifiche personali.",
-    "architectural_pattern": "Pattern a 'Server Dedicato Stateful'. Un server Socket.IO (`socket-server.ts`) gira come processo separato. Il backend Next.js comunica con esso tramite un 'ponte HTTP'.",
-    "user_flow": [
-      "1. Al login, il `SocketProvider` stabilisce una connessione WebSocket.",
-      "2. Il client si unisce a stanze personali e di lega.",
-      "3. Un'azione di business (`bid.service.ts`, `penalty.service.ts`) chiama `notifySocketServer` dopo l'aggiornamento del DB.",
-      "4. `notifySocketServer` invia una richiesta POST al server Socket.IO, che emette gli eventi.",
-      "5. I client connessi ricevono gli eventi, aggiornando la UI e mostrando notifiche toast."
-    ]
+    "architectural_pattern": "Pattern a 'Server Dedicato Stateful'. Un server Socket.IO (`socket-server.ts`) gira come processo separato. Il backend Next.js comunica con esso tramite un 'ponte HTTP'."
   },
   "auctionLogic": {
     "penaltySystem": {
       "trigger": "Al login/accesso sezioni chiave asta (approccio 'lazy').",
       "requirement": "Entro 1 ora dal trigger, N-1 slot coperti per ruoli attivi.",
-      "penaltyApplication": "5 crediti se non conforme dopo 1 ora, con notifica real-time all'utente.",
-      "penaltyRecurrence": "Ricorrente ogni ora successiva di non conformità.",
-      "penaltyCap": "Max 5 penalità (25 crediti) per ciclo di non conformità.",
-      "cycleReset": "Se conforme, contatore penalità azzerato.",
-      "trackingTable": "`user_league_compliance_status`."
+      "penaltyApplication": "5 crediti se non conforme dopo 1 ora, con notifica real-time all'utente."
     }
   },
   "adminFunctionalitiesImplemented": [
     "Gestione Utenti (visualizzazione e cambio ruolo).",
-    "Creazione di nuove leghe tramite form dedicato (Server Action)."
+    "Creazione di nuove leghe tramite form dedicato (Server Action).",
+    "Dashboard di gestione lega (visualizzazione e aggiunta partecipanti)."
   ],
   "managerFunctionalitiesImplemented_Backend": [
     "Offerte (iniziali, successive) con gestione `locked_credits`.",

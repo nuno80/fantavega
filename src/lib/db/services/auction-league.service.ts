@@ -1,4 +1,8 @@
-// src/lib/db/services/auction-league.service.ts
+// src/lib/db/services/auction-league.service.ts v.1.5 (Definitivo)
+// Aggiunta l'importazione mancante di clerkClient.
+// 1. Importazioni
+import { clerkClient } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 
 type AppRole = "admin" | "manager";
@@ -474,177 +478,158 @@ export const updateAuctionLeague = async (
 //Aggiunge un utente (manager) a una lega d'asta.
 //Solo l'admin creatore della lega può farlo.
 
-export const addParticipantToLeague = async (
+export async function addParticipantToLeague(
   leagueId: number,
   adminUserId: string,
-  participantUserId: string
+  participantUserId: string,
+  teamName: string
 ): Promise<{
   success: boolean;
   message: string;
   participant_user_id?: string;
-}> => {
-  const now = Math.floor(Date.now() / 1000);
+}> {
+  try {
+    // --- FASE 1: OPERAZIONI ASINCRONE E DI LETTURA (FUORI DALLA TRANSAZIONE) ---
 
-  // Definiamo la funzione che verrà eseguita come una transazione
-  const runTransaction = () => {
-    // 1. Verifica che la lega esista e che l'utente che esegue l'azione sia l'admin
-    //    LETTURA DELLA LEGA SPOSTATA QUI DENTRO LA TRANSAZIONE
-    const leagueStmt = db.prepare(
-      "SELECT id, admin_creator_id, initial_budget_per_manager, status FROM auction_leagues WHERE id = ?"
-    );
-    const league = leagueStmt.get(leagueId) as
-      | Pick<
-          AuctionLeague,
-          "id" | "admin_creator_id" | "initial_budget_per_manager" | "status"
-        >
+    // 1.1. Validazione Lega e Autorizzazione Admin
+    const league = db
+      .prepare(
+        "SELECT id, admin_creator_id, initial_budget_per_manager, status FROM auction_leagues WHERE id = ?"
+      )
+      .get(leagueId) as
+      | {
+          id: number;
+          admin_creator_id: string;
+          initial_budget_per_manager: number;
+          status: string;
+        }
       | undefined;
 
-    // NUOVO LOG DI DEBUG per vedere cosa legge la transazione
-    console.log(
-      `[SERVICE AUCTION_LEAGUE DEBUG] Inside transaction, league status for ID ${leagueId}: ${league?.status}`
-    );
-
-    if (!league) {
-      throw new Error("Auction league not found.");
-    }
-    if (league.admin_creator_id !== adminUserId) {
-      throw new Error("Only the league administrator can add participants.");
-    }
-    // Controllo sullo stato della lega per permettere l'aggiunta di partecipanti
-    if (!["setup", "participants_joining"].includes(league.status)) {
+    if (!league) throw new Error("Lega non trovata.");
+    if (league.admin_creator_id !== adminUserId)
       throw new Error(
-        `Cannot add participants when league status is '${league.status}'.`
+        "Solo l'amministratore della lega può aggiungere partecipanti."
       );
-    }
-
-    // 2. Verifica che l'utente da aggiungere esista nella tabella users e sia un manager
-    const userQuerySql = "SELECT id, role, username FROM users WHERE id = ?"; // Aggiungi username per più info
-    console.log(
-      `[SERVICE AUCTION_LEAGUE DEBUG] Preparing user query: ${userQuerySql} with ID: '${participantUserId}'`
-    );
-    const userStmt = db.prepare(userQuerySql);
-
-    let user: { id: string; role: string; username?: string } | undefined =
-      undefined;
-    try {
-      user = userStmt.get(participantUserId) as
-        | { id: string; role: string; username?: string }
-        | undefined;
-    } catch (e: any) {
-      console.error(
-        `[SERVICE AUCTION_LEAGUE DEBUG] Error executing userStmt.get(): ${e.message}`,
-        e
-      );
+    if (!["setup", "participants_joining"].includes(league.status))
       throw new Error(
-        `Database error while fetching user ${participantUserId}.`
-      ); // Rilancia un errore più specifico
-    }
-
-    console.log(
-      `[SERVICE AUCTION_LEAGUE DEBUG] Result of user query (userStmt.get):`,
-      JSON.stringify(user)
-    ); // Logga l'oggetto utente completo
-
-    if (!user) {
-      // Log aggiuntivo per capire perché non è stato trovato
-      const allUsersTestStmt = db.prepare(
-        "SELECT COUNT(*) as count FROM users"
-      );
-      const userCount = allUsersTestStmt.get() as { count: number };
-      console.warn(
-        `[SERVICE AUCTION_LEAGUE DEBUG] User ${participantUserId} not found by query. Total users in DB: ${userCount?.count}. Are you sure the seed ran correctly and this user ID is exact?`
+        `Non è possibile aggiungere partecipanti quando lo stato della lega è '${league.status}'.`
       );
 
-      // Per un debug estremo, potresti anche listare alcuni ID dalla tabella users qui
-      // const sampleUserIdsStmt = db.prepare("SELECT id FROM users LIMIT 5");
-      // const sampleUserIds = sampleUserIdsStmt.all();
-      // console.warn("[SERVICE AUCTION_LEAGUE DEBUG] Sample user IDs from DB:", JSON.stringify(sampleUserIds));
+    // 1.2. Validazione e Sincronizzazione Utente
+    let userInDb = db
+      .prepare("SELECT id, role, username FROM users WHERE id = ?")
+      .get(participantUserId) as
+      | { id: string; role: string; username?: string }
+      | undefined;
 
-      throw new Error(`User with ID ${participantUserId} not found.`);
-    }
-    if (user.role !== "manager") {
-      throw new Error(
-        `User ${participantUserId} (Role: ${user.role}, Username: ${user.username || "N/A"}) is not a manager and cannot be added as a participant.`
-      );
-    }
-
-    // 3. Inserisci il partecipante in league_participants
-    const initialBudget = league.initial_budget_per_manager;
-    const enrollManagerSQL = `
-      INSERT OR IGNORE INTO league_participants (
-        league_id, user_id, current_budget, locked_credits,
-        players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired,
-        joined_at, updated_at 
-      ) VALUES (
-        @league_id, @user_id, @current_budget, 0, /* locked_credits iniziali a 0 */
-        0, 0, 0, 0, /* contatori giocatori a 0 */
-        @joined_at, @updated_at /* timestamp per joined_at e updated_at */
-      )
-    `;
-    const enrollManagerStmt = db.prepare(enrollManagerSQL);
-    const enrollManagerResult = enrollManagerStmt.run({
-      league_id: leagueId,
-      user_id: participantUserId,
-      current_budget: initialBudget,
-      joined_at: now,
-      updated_at: now,
-    });
-
-    if (enrollManagerResult.changes === 0) {
+    if (!userInDb) {
       console.log(
-        `[SERVICE AUCTION_LEAGUE] Participant ${participantUserId} already in league ${leagueId}. No changes made to participation or budget allocation transaction.`
+        `[SYNC] Utente ${participantUserId} non trovato nel DB locale. Tentativo di fetch da Clerk...`
       );
-      return {
-        success: true,
-        message: "Participant already in league.",
-        participant_user_id: participantUserId,
-      };
+      try {
+        const clerkUser = await (
+          await clerkClient()
+        ).users.getUser(participantUserId);
+
+        if (clerkUser) {
+          const primaryEmail = clerkUser.emailAddresses.find(
+            (e) => e.id === clerkUser.primaryEmailAddressId
+          )?.emailAddress;
+          // Inseriamo l'utente nel nostro DB locale (questa è un'operazione di scrittura, ma la facciamo qui per semplicità)
+          db.prepare(
+            `INSERT OR IGNORE INTO users (id, email, username, role, status) VALUES (?, ?, ?, ?, ?)`
+          ).run(
+            clerkUser.id,
+            primaryEmail || "no-email@example.com",
+            clerkUser.username,
+            (clerkUser.publicMetadata?.role as string) || "manager",
+            "active"
+          );
+          console.log(
+            `[SYNC] Utente ${clerkUser.id} sincronizzato con successo nel DB locale.`
+          );
+          // Ora lo rileggiamo dal DB per continuare
+          userInDb = db
+            .prepare("SELECT id, role, username FROM users WHERE id = ?")
+            .get(participantUserId) as
+            | { id: string; role: string; username?: string }
+            | undefined;
+        } else {
+          throw new Error(
+            `Utente con ID ${participantUserId} non trovato su Clerk.`
+          );
+        }
+      } catch (clerkError) {
+        console.error(
+          `[SYNC] Errore durante il fetch da Clerk per l'utente ${participantUserId}:`,
+          clerkError
+        );
+        throw new Error(
+          `Impossibile verificare l'utente ${participantUserId} su Clerk.`
+        );
+      }
     }
 
-    // 4. INSERISCI TRANSAZIONE BUDGET per l'allocazione iniziale (solo se il partecipante è stato effettivamente aggiunto ora)
-    const budgetTransactionSQL = `
-      INSERT INTO budget_transactions (
-          auction_league_id, user_id, transaction_type, amount, 
-          description, balance_after_in_league, transaction_time
-       ) VALUES (@league_id, @user_id, @transaction_type, @amount, @description, @balance_after, @time)
-    `;
-    const createBudgetTransactionStmt = db.prepare(budgetTransactionSQL);
-    createBudgetTransactionStmt.run({
-      league_id: leagueId,
-      user_id: participantUserId,
-      transaction_type: "initial_allocation",
-      amount: initialBudget,
-      description: `Allocazione budget iniziale per la lega ID ${leagueId}.`,
-      balance_after: initialBudget,
-      time: now,
-    });
-    console.log(
-      `[SERVICE AUCTION_LEAGUE] Budget transaction for initial allocation logged for user ${participantUserId} in league ${leagueId}.`
-    );
+    if (!userInDb)
+      throw new Error(
+        `Sincronizzazione fallita per l'utente ${participantUserId}.`
+      );
+    if (userInDb.role !== "manager")
+      throw new Error(
+        `L'utente ${userInDb.username || userInDb.id} non è un 'manager'.`
+      );
+
+    // 1.3. Controllo Duplicati
+    const existingParticipant = db
+      .prepare(
+        "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
+      )
+      .get(leagueId, participantUserId);
+    if (existingParticipant)
+      throw new Error(
+        `L'utente ${userInDb.username || userInDb.id} è già un partecipante.`
+      );
+
+    // --- FASE 2: OPERAZIONI DI SCRITTURA SINCRONE (DENTRO LA TRANSAZIONE) ---
+    db.transaction(() => {
+      // Inserisci il nuovo partecipante
+      db.prepare(
+        `INSERT INTO league_participants (league_id, user_id, current_budget, manager_team_name) VALUES (?, ?, ?, ?)`
+      ).run(
+        leagueId,
+        participantUserId,
+        league.initial_budget_per_manager,
+        teamName
+      );
+
+      // Registra la transazione di budget iniziale
+      db.prepare(
+        `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, ?, ?, ?, ?)`
+      ).run(
+        leagueId,
+        participantUserId,
+        "initial_allocation",
+        league.initial_budget_per_manager,
+        league.initial_budget_per_manager,
+        "Allocazione budget iniziale"
+      );
+    })();
 
     return {
       success: true,
-      message: "Participant added successfully and initial budget allocated.",
+      message: "Partecipante aggiunto con successo.",
       participant_user_id: participantUserId,
     };
-  }; // Fine della funzione runTransaction
-
-  try {
-    // Esegui la funzione definita sopra come una transazione
-    const transaction = db.transaction(runTransaction); // Crea l'oggetto transazione
-    return transaction(); // Esegue la transazione
   } catch (error) {
     const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unknown error adding participant.";
+      error instanceof Error ? error.message : "Errore sconosciuto.";
     console.error(
-      `[SERVICE AUCTION_LEAGUE] Error adding participant ${participantUserId} to league ${leagueId}: ${errorMessage}`,
-      error
+      `Errore nell'aggiungere il partecipante ${participantUserId} alla lega ${leagueId}:`,
+      errorMessage
     );
     return { success: false, message: errorMessage };
   }
-}; // Fine di addParticipantToLeague
+}
 
 /**
  * Ottiene tutti i partecipanti di una lega d'asta, includendo alcuni dettagli dell'utente.
@@ -1038,3 +1023,72 @@ export const getLeagueRostersForCsvExport = async (
   );
   return csvRows;
 };
+
+// 5. Tipi e Funzioni per la Dashboard di Gestione Lega
+
+// 5.1. Tipi di dati per la dashboard
+export interface LeagueParticipantDetails {
+  userId: string;
+  username: string | null;
+  teamName: string | null;
+  currentBudget: number;
+  lockedCredits: number;
+  joinedAt: number;
+}
+
+export interface LeagueDashboardDetails {
+  id: number;
+  name: string;
+  status: string;
+  leagueType: string;
+  initialBudget: number;
+  timerDurationMinutes: number;
+  participants: LeagueParticipantDetails[];
+}
+
+// 5.2. Funzione per recuperare i dettagli della lega per la dashboard admin
+export async function getLeagueDetailsForAdminDashboard(
+  leagueId: number
+): Promise<LeagueDashboardDetails | null> {
+  // 1. Recupera i dettagli principali della lega
+  const league = db
+    .prepare(
+      `SELECT
+        id,
+        name,
+        status,
+        league_type as leagueType,
+        initial_budget_per_manager as initialBudget,
+        timer_duration_minutes as timerDurationMinutes
+       FROM auction_leagues
+       WHERE id = ?`
+    )
+    .get(leagueId) as Omit<LeagueDashboardDetails, "participants"> | undefined;
+
+  if (!league) {
+    return null; // La lega non è stata trovata
+  }
+
+  // 2. Recupera i partecipanti della lega, unendo la tabella utenti per ottenere il nome utente
+  const participants = db
+    .prepare(
+      `SELECT
+          lp.user_id as userId,
+          u.username,
+          lp.manager_team_name as teamName,
+          lp.current_budget as currentBudget,
+          lp.locked_credits as lockedCredits,
+          lp.joined_at as joinedAt
+       FROM league_participants lp
+       JOIN users u ON lp.user_id = u.id
+       WHERE lp.league_id = ?
+       ORDER BY lp.joined_at ASC`
+    )
+    .all(leagueId) as LeagueParticipantDetails[];
+
+  // 3. Combina i risultati e restituiscili
+  return {
+    ...league,
+    participants,
+  };
+}

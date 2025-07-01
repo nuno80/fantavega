@@ -83,8 +83,7 @@
         {
           "id": "3.3",
           "title": "Set up migration system",
-          "status": "completed",
-          "notes": "Sistema basato su reset/migrate/seed."
+          "status": "completed"
         },
         { "id": "3.4", "title": "Create seed data", "status": "completed" }
       ]
@@ -135,12 +134,7 @@
           "title": "Create transaction history (logging and API)",
           "status": "completed"
         },
-        {
-          "id": "5.3",
-          "title": "Develop budget alerts",
-          "status": "skipped",
-          "notes": "Considerato superfluo al momento."
-        },
+        { "id": "5.3", "title": "Develop budget alerts", "status": "skipped" },
         {
           "id": "5.4",
           "title": "Implement automatic penalty application (lazy with cap)",
@@ -216,22 +210,27 @@
       "subtasks": [
         {
           "id": "8.1",
-          "title": "Develop user management tools",
+          "title": "Develop user management page",
           "status": "completed"
         },
         {
           "id": "8.2",
-          "title": "Implement league creation functionality",
+          "title": "Implement league creation page",
           "status": "completed"
         },
         {
           "id": "8.3",
-          "title": "Create admin dashboard for league management",
-          "status": "pending"
+          "title": "Create league management dashboard (view & add participants)",
+          "status": "completed"
         },
         {
           "id": "8.4",
-          "title": "Create system monitoring and logging",
+          "title": "Implement league status management controls",
+          "status": "pending"
+        },
+        {
+          "id": "8.5",
+          "title": "Implement participant management (remove, edit team name)",
           "status": "pending"
         }
       ]

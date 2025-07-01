@@ -11,7 +11,14 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+// 6. Importazione aggiuntiva per la nuova action
+import { addParticipantToLeague as addParticipantService } from "@/lib/db/services/auction-league.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
+
+// src/lib/actions/league.actions.ts v.1.1
+// Correzione: Aggiunto 'await' alla chiamata auth() di Clerk.
+
+// 1. Direttiva per indicare che questo è un file di Server Actions
 
 // src/lib/actions/league.actions.ts v.1.1
 // Correzione: Aggiunto 'await' alla chiamata auth() di Clerk.
@@ -140,4 +147,71 @@ export async function createLeague(
   // 5. Post-creazione: Revalidazione e Redirect
   revalidatePath("/admin/leagues");
   redirect(`/admin/leagues/${newLeagueId}/dashboard`);
+}
+
+// 7. Definizione del tipo di ritorno per la nuova action
+export type AddParticipantFormState = {
+  success: boolean;
+  message: string;
+};
+
+// 8. Server Action per aggiungere un partecipante
+export async function addParticipantAction(
+  prevState: AddParticipantFormState,
+  formData: FormData
+): Promise<AddParticipantFormState> {
+  // 8.1. Autenticazione e Autorizzazione
+  const { userId: adminUserId } = await auth();
+  if (!adminUserId) {
+    return {
+      success: false,
+      message: "Azione non autorizzata: utente non autenticato.",
+    };
+  }
+
+  // 8.2. Estrazione e validazione dei dati dal form
+  const leagueId = Number(formData.get("leagueId"));
+  const userIdToAdd = formData.get("userIdToAdd") as string;
+  const teamName = formData.get("teamName") as string;
+
+  if (!leagueId || !userIdToAdd || !teamName) {
+    return {
+      success: false,
+      message: "Dati mancanti. Tutti i campi sono obbligatori.",
+    };
+  }
+
+  if (teamName.length < 3) {
+    return {
+      success: false,
+      message: "Il nome della squadra deve essere di almeno 3 caratteri.",
+    };
+  }
+
+  // 8.3. Chiamata alla funzione di servizio
+  try {
+    const result = await addParticipantService(
+      leagueId,
+      adminUserId,
+      userIdToAdd,
+      teamName
+    );
+
+    if (!result.success) {
+      return { success: false, message: result.message };
+    }
+
+    // 8.4. Revalidazione del path per aggiornare la UI
+    // Questo farà sì che la lista dei partecipanti nella dashboard si aggiorni automaticamente.
+    revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+
+    return { success: true, message: "Partecipante aggiunto con successo!" };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Errore sconosciuto durante l'aggiunta del partecipante.";
+    console.error("Errore nella Server Action addParticipantAction:", error);
+    return { success: false, message: errorMessage };
+  }
 }
