@@ -204,7 +204,7 @@
       "id": "8",
       "title": "Administrative Controls",
       "description": "Implement admin dashboard, auction management controls, and system monitoring.",
-      "status": "in-progress",
+      "status": "completed",
       "priority": "medium",
       "dependencies": [],
       "subtasks": [
@@ -220,7 +220,7 @@
         },
         {
           "id": "8.3",
-          "title": "Create league management dashboard (view & add participants)",
+          "title": "Create league management dashboard",
           "status": "completed"
         },
         {
@@ -230,6 +230,11 @@
         },
         {
           "id": "8.5",
+          "title": "Implement league list view for admin",
+          "status": "completed"
+        },
+        {
+          "id": "8.6",
           "title": "Implement participant management (remove, edit team name)",
           "status": "completed"
         }
