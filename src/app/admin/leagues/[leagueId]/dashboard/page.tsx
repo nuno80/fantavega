@@ -1,11 +1,13 @@
-// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.3
-// Aggiunto il componente per la gestione dello stato della lega in un layout a griglia.
+// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.5
+// Aggiunto il componente RemoveParticipant con logica condizionale.
 // 1. Importazioni
 import { notFound } from "next/navigation";
 
 import { Clock, Landmark, ShieldCheck, Users } from "lucide-react";
 
+import { EditTeamName } from "@/components/admin/EditTeamName";
 import { LeagueStatusManager } from "@/components/admin/LeagueStatusManager";
+import { RemoveParticipant } from "@/components/admin/RemoveParticipant";
 // <-- NUOVA IMPORTAZIONE
 import { AddParticipantForm } from "@/components/forms/AddParticipantForm";
 import { Navbar } from "@/components/navbar";
@@ -44,7 +46,6 @@ export default async function LeagueDashboardPage({
     notFound();
   }
 
-  // 3.1. Data fetching diretto
   const league = await getLeagueDetailsForAdminDashboard(leagueId);
   const eligibleUsers = await getEligibleUsersForLeague(leagueId);
 
@@ -52,7 +53,9 @@ export default async function LeagueDashboardPage({
     notFound();
   }
 
-  // 3.2. JSX aggiornato con layout a griglia
+  // Condizione per mostrare i controlli di modifica/rimozione
+  const canManageParticipants = league.status === "participants_joining";
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Navbar />
@@ -71,7 +74,7 @@ export default async function LeagueDashboardPage({
             }
             className="text-sm"
           >
-            Stato: {league.status.replace(/_/g, " ")}
+            {league.status.replace(/_/g, " ")}
           </Badge>
         </div>
 
@@ -139,10 +142,12 @@ export default async function LeagueDashboardPage({
                     Manager iscritti a questa lega.
                   </CardDescription>
                 </div>
-                <AddParticipantForm
-                  leagueId={league.id}
-                  eligibleUsers={eligibleUsers}
-                />
+                {canManageParticipants && (
+                  <AddParticipantForm
+                    leagueId={league.id}
+                    eligibleUsers={eligibleUsers}
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 <Table>
@@ -150,8 +155,8 @@ export default async function LeagueDashboardPage({
                     <TableRow>
                       <TableHead>Username</TableHead>
                       <TableHead>Nome Squadra</TableHead>
-                      <TableHead>Budget Corrente</TableHead>
-                      <TableHead>Crediti Bloccati</TableHead>
+                      <TableHead>Budget</TableHead>
+                      <TableHead className="text-right">Azioni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -160,9 +165,27 @@ export default async function LeagueDashboardPage({
                         <TableCell className="font-medium">
                           {p.username || "N/D"}
                         </TableCell>
-                        <TableCell>{p.teamName || "Da definire"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <span>{p.teamName || "Da definire"}</span>
+                            <EditTeamName
+                              leagueId={league.id}
+                              participantUserId={p.userId}
+                              currentTeamName={p.teamName}
+                            />
+                          </div>
+                        </TableCell>
                         <TableCell>{p.currentBudget} cr</TableCell>
-                        <TableCell>{p.lockedCredits} cr</TableCell>
+                        <TableCell className="text-right">
+                          {/* Mostra il pulsante di rimozione solo se lo stato lo permette */}
+                          {canManageParticipants && (
+                            <RemoveParticipant
+                              leagueId={league.id}
+                              participantUserId={p.userId}
+                              participantUsername={p.username}
+                            />
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

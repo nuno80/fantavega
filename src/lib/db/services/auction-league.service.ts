@@ -1,4 +1,4 @@
-// src/lib/db/services/auction-league.service.ts v.1.5 (Definitivo)
+// src/lib/db/services/auction-league.service.ts v.1.11
 // Aggiunta l'importazione mancante di clerkClient.
 // 1. Importazioni
 import { clerkClient } from "@clerk/nextjs/server";
@@ -671,99 +671,63 @@ export const getLeagueParticipants = async (
   }
 };
 
-/**
- * Rimuove un partecipante da una lega d'asta.
- * Solo l'admin creatore della lega può farlo.
- */
-export const removeParticipantFromLeague = async (
+export async function removeParticipantFromLeague(
   leagueId: number,
-  userIdToRemove: string,
-  adminUserId: string
-): Promise<{ success: boolean; message?: string }> => {
-  console.log(
-    `[SERVICE] removeParticipantFromLeague called for league ID: ${leagueId}, user to remove: ${userIdToRemove}, by admin ID: ${adminUserId}`
-  );
-
-  // 1. Verificare che adminUserId sia l'admin della lega
-  //    Dobbiamo recuperare la lega per controllare admin_creator_id.
-  //    Assumiamo che getAuctionLeagueByIdForAdmin (o una funzione simile) esista e funzioni.
-  //    Se non esiste, dovremmo crearla o fare una query diretta qui.
-  //    Per ora, farò una query diretta per semplicità, ma un servizio dedicato sarebbe meglio.
-  const leagueCheckStmt = db.prepare(
-    "SELECT admin_creator_id FROM auction_leagues WHERE id = ?"
-  );
-  const leagueInfo = leagueCheckStmt.get(leagueId) as
-    | { admin_creator_id: string }
-    | undefined;
-
-  if (!leagueInfo) {
-    throw new Error("League not found.");
-  }
-  if (leagueInfo.admin_creator_id !== adminUserId) {
-    throw new Error(
-      "User is not authorized to manage this league's participants."
-    );
-  }
-
-  // 2. Verificare che il partecipante esista nella lega
-  const participantStmt = db.prepare(
-    "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
-  );
-  const participant = participantStmt.get(leagueId, userIdToRemove);
-
-  if (!participant) {
-    return {
-      success: false,
-      message: `User ${userIdToRemove} is not a participant in league ${leagueId}.`,
-    };
-  }
-
-  // 3. Logica di validazione aggiuntiva (opzionale)
-  const currentLeagueStatusStmt = db.prepare(
-    "SELECT status FROM auction_leagues WHERE id = ?"
-  );
-  const currentLeague = currentLeagueStatusStmt.get(leagueId) as
-    | { status: string }
-    | undefined;
-  if (
-    currentLeague &&
-    currentLeague.status !== "setup" &&
-    currentLeague.status !== "participants_joining"
-  ) {
-    console.warn(
-      `[SERVICE] Warning: Removing participant ${userIdToRemove} from league ${leagueId} which is in status '${currentLeague.status}'. This might have side effects.`
-    );
-  }
-
+  adminUserId: string, // L'ID dell'admin che esegue l'azione
+  userIdToRemove: string // L'ID dell'utente da rimuovere
+): Promise<{ success: boolean; message: string }> {
+  console.log(`[SERVICE] removeParticipantFromLeague called for league ID: ${leagueId}, user to remove: ${userIdToRemove}, by admin ID: ${adminUserId}`);
+  
   try {
-    const deleteStmt = db.prepare(
-      "DELETE FROM league_participants WHERE league_id = ? AND user_id = ?"
-    );
-    const result = deleteStmt.run(leagueId, userIdToRemove);
+    // --- FASE 1: Controlli di Prevenzione (FUORI dalla transazione) ---
+    
+    // 1.1. Verifica che la lega esista e che l'esecutore sia l'admin
+    const league = db.prepare(
+      "SELECT admin_creator_id, status FROM auction_leagues WHERE id = ?"
+    ).get(leagueId) as { admin_creator_id: string; status: string; } | undefined;
 
-    if (result.changes > 0) {
-      console.log(
-        `[SERVICE] Participant ${userIdToRemove} removed successfully from league ${leagueId}.`
-      );
-      // TODO: Logica aggiuntiva (annullare offerte, svincolare giocatori, transazione budget)
-      return {
-        success: true,
-        message: `Participant ${userIdToRemove} removed successfully.`,
-      };
-    } else {
-      return {
-        success: false,
-        message: `Failed to remove participant ${userIdToRemove}. Participant not found or no changes made.`,
-      };
+    if (!league) {
+      throw new Error("Lega non trovata.");
     }
+    if (league.admin_creator_id !== adminUserId) {
+      throw new Error("Azione non autorizzata: solo l'admin della lega può rimuovere partecipanti.");
+    }
+
+    // 1.2. REGOLA DI BUSINESS CRITICA: Controlla lo stato della lega
+    if (league.status !== 'participants_joining') {
+      throw new Error(`Impossibile rimuovere partecipanti quando la lega è nello stato '${league.status}'.`);
+    }
+
+    // 1.3. Controlla se l'utente è il miglior offerente in un'asta (sicurezza aggiuntiva)
+    const activeBidCheck = db.prepare(
+      `SELECT COUNT(*) as count FROM auctions WHERE auction_league_id = ? AND current_highest_bidder_id = ? AND status = 'active'`
+    ).get(leagueId, userIdToRemove) as { count: number };
+
+    if (activeBidCheck.count > 0) {
+      throw new Error(`Impossibile rimuovere: il partecipante è il miglior offerente in un'asta attiva.`);
+    }
+
+    // --- FASE 2: Esecuzione della Rimozione Atomica (DENTRO la transazione) ---
+    db.transaction(() => {
+      // Rimuovi tutte le dipendenze prima di rimuovere il partecipante
+      db.prepare(`DELETE FROM player_assignments WHERE auction_league_id = ? AND user_id = ?`).run(leagueId, userIdToRemove);
+      db.prepare(`DELETE FROM budget_transactions WHERE auction_league_id = ? AND user_id = ?`).run(leagueId, userIdToRemove);
+      db.prepare(`DELETE FROM bids WHERE user_id = ? AND auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ?)`).run(userIdToRemove, leagueId);
+      
+      const deletedParticipant = db.prepare(`DELETE FROM league_participants WHERE league_id = ? AND user_id = ?`).run(leagueId, userIdToRemove).changes;
+      if (deletedParticipant === 0) {
+        throw new Error("Partecipante non trovato in questa lega.");
+      }
+    })();
+
+    return { success: true, message: 'Partecipante rimosso con successo.' };
+
   } catch (error) {
-    console.error(
-      `[SERVICE] Error removing participant ${userIdToRemove} from league ${leagueId}:`,
-      error
-    );
-    throw new Error("Failed to remove participant from league.");
+    const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto.';
+    console.error(`Errore durante la rimozione del partecipante ${userIdToRemove} dalla lega ${leagueId}:`, errorMessage);
+    return { success: false, message: errorMessage };
   }
-};
+}
 
 /**
  * Recupera la rosa dei giocatori assegnati a un manager specifico in una lega.
@@ -1164,5 +1128,39 @@ export async function getLeaguesForAdminList(): Promise<LeagueForAdminList[]> {
   } catch (error) {
     console.error("Errore nel recuperare la lista delle leghe:", error);
     return []; // Ritorna un array vuoto in caso di errore
+  }
+}
+
+// 9. Funzione per Modificare il Nome della Squadra di un Partecipante
+export async function updateParticipantTeamName(
+  leagueId: number,
+  userId: string,
+  newTeamName: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    if (newTeamName.length < 3) {
+      throw new Error(
+        "Il nome della squadra deve essere di almeno 3 caratteri."
+      );
+    }
+
+    const stmt = db.prepare(
+      `UPDATE league_participants SET manager_team_name = ? WHERE league_id = ? AND user_id = ?`
+    );
+    const result = stmt.run(newTeamName, leagueId, userId);
+
+    if (result.changes === 0) {
+      throw new Error("Partecipante non trovato in questa lega.");
+    }
+
+    return { success: true, message: "Nome squadra aggiornato con successo." };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    console.error(
+      `Errore durante l'aggiornamento del nome squadra per l'utente ${userId} nella lega ${leagueId}:`,
+      errorMessage
+    );
+    return { success: false, message: errorMessage };
   }
 }
