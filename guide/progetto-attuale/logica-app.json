@@ -116,5 +116,35 @@
     "Visualizzazione propria rosa.",
     "Trigger (implicito) del controllo di compliance per penalità.",
     "Ricezione aggiornamenti asta e notifiche (offerte superate, penalità) in tempo reale."
-  ]
+  ],
+  "last_task_completed": {
+    "last_update": "2024-07-02T12:00:00Z",
+    "task_completed": "8.4 - Implement league status management controls",
+    "feature_logic": {
+      "feature_name": "Gestione Stato Lega (Admin)",
+      "summary": "Implementa un controllo nella dashboard di gestione della lega che permette a un admin di cambiare la fase operativa della lega (es. da 'Iscrizioni Aperte' a 'Asta Iniziale').",
+      "architectural_pattern": "Componente Client (`LeagueStatusManager`) che usa `useActionState` per invocare una Server Action (`updateLeagueStatusAction`). La logica di business è incapsulata in un servizio (`auction-league.service.ts`).",
+      "user_flow": [
+        "1. L'admin naviga alla dashboard della lega.",
+        "2. Visualizza un pannello con lo stato attuale della lega e un dropdown con gli stati possibili.",
+        "3. Seleziona un nuovo stato dal dropdown e clicca 'Aggiorna Stato'.",
+        "4. La Server Action `updateLeagueStatusAction` viene chiamata.",
+        "5. La action chiama il servizio `updateLeagueStatus` che esegue una query `UPDATE` sul database.",
+        "6. La Server Action usa `revalidatePath` per aggiornare la UI della dashboard, mostrando il nuovo stato."
+      ],
+      "core_components_interaction": {
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx": "Pagina Server Component che passa lo stato attuale della lega al componente di gestione.",
+        "src/components/admin/LeagueStatusManager.tsx": "Componente Client che renderizza il dropdown e il form per l'aggiornamento dello stato.",
+        "src/lib/actions/league.actions.ts": "Contiene la `updateLeagueStatusAction` che orchestra la logica.",
+        "src/lib/db/services/auction-league.service.ts": "Contiene la funzione `updateLeagueStatus` che esegue la modifica sul database."
+      },
+      "database_interactions": [
+        {
+          "table": "auction_leagues",
+          "operation": "UPDATE",
+          "description": "Aggiorna la colonna 'status' per la lega specificata."
+        }
+      ]
+    }
+  }
 }

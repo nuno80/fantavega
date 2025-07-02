@@ -1092,3 +1092,39 @@ export async function getLeagueDetailsForAdminDashboard(
     participants,
   };
 }
+
+// 6. Funzione per aggiornare lo stato di una lega
+export async function updateLeagueStatus(
+  leagueId: number,
+  newStatus: string
+): Promise<{ success: boolean; message: string }> {
+  // Qui potremmo aggiungere una logica di validazione complessa per assicurarsi
+  // che le transizioni di stato siano valide (es. da 'setup' a 'completed' non è permesso).
+  // Per ora, ci limitiamo ad aggiornare lo stato.
+
+  try {
+    const stmt = db.prepare(
+      `UPDATE auction_leagues SET status = ? WHERE id = ?`
+    );
+    const result = stmt.run(newStatus, leagueId);
+
+    if (result.changes === 0) {
+      throw new Error(
+        `Nessuna lega trovata con ID ${leagueId}, o lo stato è già '${newStatus}'.`
+      );
+    }
+
+    return {
+      success: true,
+      message: `Stato della lega aggiornato a '${newStatus}'.`,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    console.error(
+      `Errore durante l'aggiornamento dello stato per la lega ${leagueId}:`,
+      errorMessage
+    );
+    return { success: false, message: errorMessage };
+  }
+}

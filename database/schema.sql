@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     name TEXT NOT NULL UNIQUE,
     league_type TEXT NOT NULL DEFAULT 'classic' CHECK(league_type IN ('classic', 'mantra')),
     initial_budget_per_manager INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'setup' CHECK(status IN ('setup', 'participants_joining', 'draft_active', 'repair_active', 'market_closed', 'season_active', 'completed', 'archived')),
+    -- CORREZIONE: Aggiornato il CHECK constraint con la lista di stati semplificata
+    status TEXT NOT NULL DEFAULT 'participants_joining' CHECK(status IN ('participants_joining', 'draft_active', 'repair_active', 'market_closed', 'completed')),
     active_auction_roles TEXT,
     draft_window_start INTEGER, 
     draft_window_end INTEGER,   
@@ -55,13 +56,13 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     slots_A INTEGER NOT NULL DEFAULT 6,
     max_players_per_team INTEGER GENERATED ALWAYS AS (slots_P + slots_D + slots_C + slots_A) STORED,
     min_bid INTEGER NOT NULL DEFAULT 1,
-    -- CORREZIONE CHIAVE: rinominata la colonna
     timer_duration_minutes INTEGER NOT NULL DEFAULT 1440,
     config_json TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (admin_creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
 
 -- Tabella Partecipanti Lega (Manager iscritti a una lega/stagione)
 CREATE TABLE IF NOT EXISTS league_participants (

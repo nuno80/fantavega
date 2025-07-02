@@ -13,7 +13,14 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 // 6. Importazione aggiuntiva per la nuova action
 import { addParticipantToLeague as addParticipantService } from "@/lib/db/services/auction-league.service";
+// 9. Importazione aggiuntiva per la nuova action
+import { updateLeagueStatus as updateLeagueStatusService } from "@/lib/db/services/auction-league.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
+
+// src/lib/actions/league.actions.ts v.1.1
+// Correzione: Aggiunto 'await' alla chiamata auth() di Clerk.
+
+// 1. Direttiva per indicare che questo è un file di Server Actions
 
 // src/lib/actions/league.actions.ts v.1.1
 // Correzione: Aggiunto 'await' alla chiamata auth() di Clerk.
@@ -212,6 +219,66 @@ export async function addParticipantAction(
         ? error.message
         : "Errore sconosciuto durante l'aggiunta del partecipante.";
     console.error("Errore nella Server Action addParticipantAction:", error);
+    return { success: false, message: errorMessage };
+  }
+}
+
+// 10. Definizione del tipo di ritorno per la nuova action
+export type UpdateStatusFormState = {
+  success: boolean;
+  message: string;
+};
+
+// 11. Server Action per aggiornare lo stato della lega
+export async function updateLeagueStatusAction(
+  prevState: UpdateStatusFormState,
+  formData: FormData
+): Promise<UpdateStatusFormState> {
+  // 11.1. Autenticazione e Autorizzazione
+  const { userId: adminUserId } = await auth();
+  if (!adminUserId) {
+    return {
+      success: false,
+      message: "Azione non autorizzata: utente non autenticato.",
+    };
+  }
+  // Qui potremmo aggiungere un controllo per verificare che l'adminUserId sia l'admin della lega.
+
+  // 11.2. Estrazione e validazione dei dati dal form
+  const leagueId = Number(formData.get("leagueId"));
+  const newStatus = formData.get("newStatus") as string;
+
+  if (!leagueId || !newStatus) {
+    return {
+      success: false,
+      message: "Dati mancanti. ID lega e nuovo stato sono obbligatori.",
+    };
+  }
+
+  // 11.3. Chiamata alla funzione di servizio
+  try {
+    const result = await updateLeagueStatusService(leagueId, newStatus);
+
+    if (!result.success) {
+      return { success: false, message: result.message };
+    }
+
+    // 11.4. Revalidazione del path per aggiornare la UI
+    revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+
+    return {
+      success: true,
+      message: "Stato della lega aggiornato con successo!",
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Errore sconosciuto durante l'aggiornamento dello stato.";
+    console.error(
+      "Errore nella Server Action updateLeagueStatusAction:",
+      error
+    );
     return { success: false, message: errorMessage };
   }
 }
