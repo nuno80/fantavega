@@ -1128,3 +1128,41 @@ export async function updateLeagueStatus(
     return { success: false, message: errorMessage };
   }
 }
+
+// 7. Tipi e Funzioni per la Lista delle Leghe
+
+// 7.1. Tipo di dati per la lista
+export interface LeagueForAdminList {
+  id: number;
+  name: string;
+  status: string;
+  leagueType: string;
+  participantCount: number;
+}
+
+// 7.2. Funzione per recuperare tutte le leghe per la vista admin
+export async function getLeaguesForAdminList(): Promise<LeagueForAdminList[]> {
+  try {
+    const leagues = db
+      .prepare(
+        `
+      SELECT
+        al.id,
+        al.name,
+        al.status,
+        al.league_type as leagueType,
+        (SELECT COUNT(*) FROM league_participants lp WHERE lp.league_id = al.id) as participantCount
+      FROM
+        auction_leagues al
+      ORDER BY
+        al.created_at DESC
+    `
+      )
+      .all() as LeagueForAdminList[];
+
+    return leagues;
+  } catch (error) {
+    console.error("Errore nel recuperare la lista delle leghe:", error);
+    return []; // Ritorna un array vuoto in caso di errore
+  }
+}
