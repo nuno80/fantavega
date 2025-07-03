@@ -21,6 +21,9 @@ import { CreateLeagueSchema } from "@/lib/validators/league.validators";
 // src/lib/actions/league.actions.ts v.1.8 (Definitivo)
 // Corretto il tipo nel blocco catch di removeParticipantAction.
 
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
 // 2. Action: Creare una Lega
 export type CreateLeagueFormState = {
   success: boolean;
@@ -263,6 +266,47 @@ export async function removeParticipantAction(
     if (error instanceof Error && error.message) {
       errorMessage = error.message;
     }
+    return { success: false, message: errorMessage };
+  }
+}
+
+// 7. Action: Aggiornare i Ruoli Attivi dell'Asta
+export type UpdateActiveRolesFormState = { success: boolean; message: string };
+export async function updateActiveRolesAction(
+  prevState: UpdateActiveRolesFormState,
+  formData: FormData
+): Promise<UpdateActiveRolesFormState> {
+  // 7.1. Autenticazione
+  const { userId: adminUserId } = await auth();
+  if (!adminUserId) {
+    return { success: false, message: "Azione non autorizzata." };
+  }
+
+  // 7.2. Estrazione dati
+  const leagueId = Number(formData.get("leagueId"));
+  // getAll() recupera tutti i valori per un campo con lo stesso nome (per i checkbox)
+  const activeRoles = formData.getAll("active_roles") as string[];
+
+  if (!leagueId) {
+    return { success: false, message: "ID lega mancante." };
+  }
+
+  // Converte l'array di ruoli in una stringa separata da virgole (es. "P,D,C,A")
+  const activeRolesString = activeRoles.join(",");
+
+  // 7.3. Chiamata diretta al DB (un servizio separato sarebbe eccessivo per una singola query)
+  try {
+    db.prepare(
+      `UPDATE auction_leagues SET active_auction_roles = ? WHERE id = ?`
+    ).run(activeRolesString, leagueId);
+
+    // 7.4. Revalidazione del path per aggiornare la UI
+    revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+
+    return { success: true, message: "Ruoli attivi aggiornati!" };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
     return { success: false, message: errorMessage };
   }
 }

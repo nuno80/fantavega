@@ -1,14 +1,14 @@
-// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.5
-// Aggiunto il componente RemoveParticipant con logica condizionale.
+// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.7 (Definitivo)
+// Versione completa della dashboard di gestione lega.
 // 1. Importazioni
 import { notFound } from "next/navigation";
 
 import { Clock, Landmark, ShieldCheck, Users } from "lucide-react";
 
 import { EditTeamName } from "@/components/admin/EditTeamName";
+import { LeagueActiveRolesManager } from "@/components/admin/LeagueActiveRolesManager";
 import { LeagueStatusManager } from "@/components/admin/LeagueStatusManager";
 import { RemoveParticipant } from "@/components/admin/RemoveParticipant";
-// <-- NUOVA IMPORTAZIONE
 import { AddParticipantForm } from "@/components/forms/AddParticipantForm";
 import { Navbar } from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ export default async function LeagueDashboardPage({
     notFound();
   }
 
+  // 3.1. Data fetching diretto
   const league = await getLeagueDetailsForAdminDashboard(leagueId);
   const eligibleUsers = await getEligibleUsersForLeague(leagueId);
 
@@ -53,9 +54,10 @@ export default async function LeagueDashboardPage({
     notFound();
   }
 
-  // Condizione per mostrare i controlli di modifica/rimozione
+  // Condizione per mostrare i controlli di gestione dei partecipanti
   const canManageParticipants = league.status === "participants_joining";
 
+  // 3.2. JSX completo e aggiornato
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Navbar />
@@ -72,7 +74,7 @@ export default async function LeagueDashboardPage({
             variant={
               league.status === "participants_joining" ? "default" : "secondary"
             }
-            className="text-sm"
+            className="text-sm capitalize"
           >
             {league.status.replace(/_/g, " ")}
           </Badge>
@@ -177,7 +179,6 @@ export default async function LeagueDashboardPage({
                         </TableCell>
                         <TableCell>{p.currentBudget} cr</TableCell>
                         <TableCell className="text-right">
-                          {/* Mostra il pulsante di rimozione solo se lo stato lo permette */}
                           {canManageParticipants && (
                             <RemoveParticipant
                               leagueId={league.id}
@@ -194,11 +195,15 @@ export default async function LeagueDashboardPage({
             </Card>
           </div>
 
-          {/* Colonna destra: Gestione Stato */}
-          <div className="lg:col-span-3">
+          {/* Colonna destra: Gestione Lega */}
+          <div className="space-y-4 lg:col-span-3">
             <LeagueStatusManager
               leagueId={league.id}
               currentStatus={league.status}
+            />
+            <LeagueActiveRolesManager
+              leagueId={league.id}
+              currentActiveRoles={league.activeAuctionRoles}
             />
           </div>
         </div>

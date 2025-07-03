@@ -1008,6 +1008,7 @@ export interface LeagueDashboardDetails {
   initialBudget: number;
   timerDurationMinutes: number;
   participants: LeagueParticipantDetails[];
+  activeAuctionRoles: string | null;
 }
 
 // 5.2. Funzione per recuperare i dettagli della lega per la dashboard admin
@@ -1023,7 +1024,8 @@ export async function getLeagueDetailsForAdminDashboard(
         status,
         league_type as leagueType,
         initial_budget_per_manager as initialBudget,
-        timer_duration_minutes as timerDurationMinutes
+        timer_duration_minutes as timerDurationMinutes,
+        active_auction_roles as activeAuctionRoles
        FROM auction_leagues
        WHERE id = ?`
     )
