@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AutoBidModal } from "./AutoBidModal";
 
 interface BiddingInterfaceProps {
   currentBid: number;
@@ -15,7 +16,15 @@ interface BiddingInterfaceProps {
   lockedCredits: number;
   isUserHighestBidder: boolean;
   auctionStatus: string;
-  onPlaceBid: (amount: number) => Promise<void>;
+  playerId: number;
+  leagueId: number;
+  playerName: string;
+  onPlaceBid: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
+  onAutoBidSet: (maxAmount: number) => Promise<void>;
+  existingAutoBid?: {
+    max_amount: number;
+    is_active: boolean;
+  };
   isLoading?: boolean;
 }
 
@@ -26,7 +35,12 @@ export function BiddingInterface({
   lockedCredits,
   isUserHighestBidder,
   auctionStatus,
+  playerId,
+  leagueId,
+  playerName,
   onPlaceBid,
+  onAutoBidSet,
+  existingAutoBid,
   isLoading = false,
 }: BiddingInterfaceProps) {
   const [bidAmount, setBidAmount] = useState(currentBid + 1);
@@ -36,7 +50,7 @@ export function BiddingInterface({
   const canBid = auctionStatus === "active" && !isUserHighestBidder;
   const minValidBid = Math.max(currentBid + 1, minBid);
 
-  const handleBidSubmit = async () => {
+  const handleBidSubmit = async (bidType: "manual" | "quick" = "manual") => {
     if (bidAmount <= currentBid) {
       toast.error("L'offerta deve essere superiore all'offerta attuale");
       return;
@@ -49,7 +63,7 @@ export function BiddingInterface({
 
     setIsSubmitting(true);
     try {
-      await onPlaceBid(bidAmount);
+      await onPlaceBid(bidAmount, bidType);
       toast.success("Offerta piazzata con successo!");
     } catch (error) {
       toast.error(
@@ -60,8 +74,25 @@ export function BiddingInterface({
     }
   };
 
-  const handleQuickBid = (increment: number) => {
-    setBidAmount(currentBid + increment);
+  const handleQuickBid = async (increment: number) => {
+    const quickBidAmount = currentBid + increment;
+    
+    if (quickBidAmount > availableBudget) {
+      toast.error("Budget insufficiente per questa offerta rapida");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onPlaceBid(quickBidAmount, "quick");
+      toast.success(`Offerta rapida di ${quickBidAmount} crediti piazzata!`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Errore nell'offerta rapida"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!canBid) {
@@ -113,7 +144,7 @@ export function BiddingInterface({
               variant="outline"
               size="sm"
               onClick={() => handleQuickBid(1)}
-              disabled={currentBid + 1 > availableBudget}
+              disabled={isSubmitting || currentBid + 1 > availableBudget}
             >
               +1
             </Button>
@@ -121,7 +152,7 @@ export function BiddingInterface({
               variant="outline"
               size="sm"
               onClick={() => handleQuickBid(5)}
-              disabled={currentBid + 5 > availableBudget}
+              disabled={isSubmitting || currentBid + 5 > availableBudget}
             >
               +5
             </Button>
@@ -129,7 +160,7 @@ export function BiddingInterface({
               variant="outline"
               size="sm"
               onClick={() => handleQuickBid(10)}
-              disabled={currentBid + 10 > availableBudget}
+              disabled={isSubmitting || currentBid + 10 > availableBudget}
             >
               +10
             </Button>
@@ -152,7 +183,7 @@ export function BiddingInterface({
 
         {/* Submit Button */}
         <Button
-          onClick={handleBidSubmit}
+          onClick={() => handleBidSubmit("manual")}
           disabled={
             isSubmitting ||
             isLoading ||
@@ -164,6 +195,18 @@ export function BiddingInterface({
         >
           {isSubmitting ? "Piazzando offerta..." : `Offri ${bidAmount} crediti`}
         </Button>
+
+        {/* Auto-Bid Modal */}
+        <AutoBidModal
+          currentBid={currentBid}
+          userBudget={userBudget}
+          lockedCredits={lockedCredits}
+          playerId={playerId}
+          leagueId={leagueId}
+          playerName={playerName}
+          onAutoBidSet={onAutoBidSet}
+          existingAutoBid={existingAutoBid}
+        />
 
         {/* Validation Messages */}
         {bidAmount <= currentBid && (

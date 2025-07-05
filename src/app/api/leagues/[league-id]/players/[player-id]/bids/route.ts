@@ -22,7 +22,8 @@ interface RouteContext {
 
 interface PlaceBidRequestBody {
   amount: number;
-  bid_type?: "manual" | "quick";
+  bid_type?: "manual" | "quick" | "auto";
+  max_amount?: number; // For auto-bids
 }
 
 // 2. Funzione POST per Piazzare Offerte (MODIFICATO SOLO IL BLOCCO CATCH)
@@ -56,12 +57,14 @@ export async function POST(request: Request, context: RouteContext) {
 
     // 2.2. Parsing e validazione del corpo della richiesta (offerta) (INVARIATO)
     const body = (await request.json()) as PlaceBidRequestBody;
+    console.log("[API BIDS POST] Request body:", body);
     const bidAmount = body.amount;
     const bidType = body.bid_type || "manual";
+    console.log("[API BIDS POST] Parsed - bidAmount:", bidAmount, "bidType:", bidType);
 
-    if (bidType !== "manual" && bidType !== "quick") {
+    if (bidType !== "manual" && bidType !== "quick" && bidType !== "auto") {
       return NextResponse.json(
-        { error: "Invalid bid_type. Must be 'manual' or 'quick'." },
+        { error: "Invalid bid_type. Must be 'manual', 'quick', or 'auto'." },
         { status: 400 }
       );
     }
@@ -112,12 +115,13 @@ export async function POST(request: Request, context: RouteContext) {
       console.log(
         `[API BIDS POST] Active auction found (ID: ${existingAuctionStatus.id}). Placing bid on existing auction.`
       );
-      result = await placeBidOnExistingAuction(
-        existingAuctionStatus.id,
-        user.id,
+      result = await placeBidOnExistingAuction({
+        leagueId: leagueIdNum,
+        playerId: playerIdNum,
+        userId: user.id,
         bidAmount,
-        bidType
-      );
+        bidType,
+      });
       httpStatus = 200;
       console.log(
         "[API BIDS POST] Bid placed on existing auction successfully. Result:",
@@ -188,6 +192,7 @@ export async function POST(request: Request, context: RouteContext) {
         error.message.includes("has already been assigned") ||
         error.message.includes("must be > current bid") ||
         error.message.includes("is already the highest bidder") ||
+        error.message.includes("Sei già il miglior offerente") ||
         error.message.includes("Auction is not active or closing") ||
         error.message.includes("Insufficient budget") || // Già presente
         error.message.startsWith("Insufficient available budget") || // <<< NUOVA CONDIZIONE AGGIUNTA

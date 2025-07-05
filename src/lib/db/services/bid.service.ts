@@ -12,7 +12,7 @@ export interface LeagueForBidding {
   status: string;
   active_auction_roles: string | null;
   min_bid: number;
-  timer_duration_hours: number;
+  timer_duration_minutes: number;
   slots_P: number;
   slots_D: number;
   slots_C: number;
@@ -78,6 +78,7 @@ interface PlaceBidParams {
   playerId: number;
   userId: string;
   bidAmount: number;
+  bidType?: "manual" | "quick" | "auto";
 }
 
 interface ExpiredAuctionData {
@@ -191,7 +192,7 @@ export const placeInitialBidAndCreateAuction = async (
   const result = db.transaction(() => {
     const now = Math.floor(Date.now() / 1000);
     const leagueStmt = db.prepare(
-      "SELECT id, status, active_auction_roles, min_bid, timer_duration_hours, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
+      "SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
     );
     const league = leagueStmt.get(leagueIdParam) as
       | LeagueForBidding
@@ -212,6 +213,17 @@ export const placeInitialBidAndCreateAuction = async (
       | undefined;
     if (!player)
       throw new Error(`Giocatore con ID ${playerIdParam} non trovato.`);
+
+    // Check if player role is in active auction roles
+    if (league.active_auction_roles) {
+      const activeRoles = league.active_auction_roles.toUpperCase() === "ALL" 
+        ? ["P", "D", "C", "A"] 
+        : league.active_auction_roles.split(",").map(r => r.trim().toUpperCase());
+      
+      if (!activeRoles.includes(player.role.toUpperCase())) {
+        throw new Error(`Le aste per il ruolo ${player.role} non sono attualmente attive. Ruoli attivi: ${league.active_auction_roles}`);
+      }
+    }
 
     const participantStmt = db.prepare(
       "SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?"
@@ -261,7 +273,7 @@ export const placeInitialBidAndCreateAuction = async (
         `Impossibile bloccare i crediti per l'utente ${bidderUserIdParam}.`
       );
 
-    const auctionDurationSeconds = league.timer_duration_hours * 3600;
+    const auctionDurationSeconds = league.timer_duration_minutes * 60;
     const scheduledEndTime = now + auctionDurationSeconds;
     const createAuctionStmt = db.prepare(
       `INSERT INTO auctions (auction_league_id, player_id, start_time, scheduled_end_time, current_highest_bid_amount, current_highest_bidder_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`
@@ -325,6 +337,7 @@ export async function placeBidOnExistingAuction({
   userId,
   playerId,
   bidAmount,
+  bidType = "manual",
 }: PlaceBidParams) {
   const transaction = db.transaction(() => {
     // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
@@ -343,7 +356,7 @@ export async function placeBidOnExistingAuction({
 
     const league = db
       .prepare(
-        `SELECT id, status, active_auction_roles, min_bid, timer_duration_hours, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
+        `SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
       )
       .get(leagueId) as LeagueForBidding | undefined;
     if (!league) throw new Error("Lega non trovata.");
@@ -360,6 +373,17 @@ export async function placeBidOnExistingAuction({
       .prepare(`SELECT id, role FROM players WHERE id = ?`)
       .get(playerId) as PlayerForBidding | undefined;
     if (!player) throw new Error(`Giocatore con ID ${playerId} non trovato.`);
+
+    // Check if player role is in active auction roles
+    if (league.active_auction_roles) {
+      const activeRoles = league.active_auction_roles.toUpperCase() === "ALL" 
+        ? ["P", "D", "C", "A"] 
+        : league.active_auction_roles.split(",").map(r => r.trim().toUpperCase());
+      
+      if (!activeRoles.includes(player.role.toUpperCase())) {
+        throw new Error(`Le aste per il ruolo ${player.role} non sono attualmente attive. Ruoli attivi: ${league.active_auction_roles}`);
+      }
+    }
     const participant = db
       .prepare(
         `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
@@ -400,13 +424,13 @@ export async function placeBidOnExistingAuction({
 
     // --- Blocco 4: Aggiornamento Asta e Inserimento Nuova Offerta ---
     const newScheduledEndTime =
-      Math.floor(Date.now() / 1000) + league.timer_duration_hours * 3600;
+      Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
     db.prepare(
       `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
     ).run(bidAmount, userId, newScheduledEndTime, auction.id);
     db.prepare(
       `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
-    ).run(auction.id, userId, bidAmount, "manual");
+    ).run(auction.id, userId, bidAmount, bidType);
 
     return {
       success: true,

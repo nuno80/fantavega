@@ -34,6 +34,19 @@ export interface PlayerWithAuctionStatus extends Player {
   isAssignedToUser?: boolean;
   assignedToTeam?: string;
   canStartAuction?: boolean;
+  currentHighestBidderName?: string;
+  autoBids?: Array<{
+    userId: string;
+    username: string;
+    maxAmount: number;
+    isActive: boolean;
+  }>;
+  userAutoBid?: {
+    userId: string;
+    username: string;
+    maxAmount: number;
+    isActive: boolean;
+  } | null;
 }
 
 export interface SearchFilters {
@@ -94,6 +107,8 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         if (!playersResponse.ok) throw new Error("Failed to fetch players");
         
         const playersData = await playersResponse.json();
+        console.log("Players data loaded:", playersData.slice(0, 3)); // Debug: mostra i primi 3 giocatori
+        console.log("Active auctions found:", playersData.filter((p: any) => p.auctionStatus === 'active_auction').length);
         setPlayers(playersData);
         setFilteredPlayers(playersData);
 
@@ -118,14 +133,24 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       playerId: number;
       newPrice: number;
       highestBidderId: string;
+      highestBidderName?: string;
       scheduledEndTime: number;
+      autoBids?: Array<{
+        userId: string;
+        username: string;
+        maxAmount: number;
+        isActive: boolean;
+      }>;
     }) => {
       setPlayers(prev => prev.map(player => 
         player.id === data.playerId 
           ? { 
               ...player, 
               currentBid: data.newPrice,
-              timeRemaining: Math.max(0, data.scheduledEndTime - Math.floor(Date.now() / 1000))
+              currentHighestBidderName: data.highestBidderName || data.highestBidderId,
+              timeRemaining: Math.max(0, data.scheduledEndTime - Math.floor(Date.now() / 1000)),
+              autoBids: data.autoBids || player.autoBids,
+              userAutoBid: data.autoBids?.find(ab => ab.userId === userId) || player.userAutoBid
             }
           : player
       ));
@@ -218,6 +243,21 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     setIsBidModalOpen(true);
   };
 
+  const refreshPlayersData = async () => {
+    if (!selectedLeagueId) return;
+    
+    try {
+      const playersResponse = await fetch(`/api/leagues/${selectedLeagueId}/players-with-status`);
+      if (playersResponse.ok) {
+        const playersData = await playersResponse.json();
+        setPlayers(playersData);
+        setFilteredPlayers(playersData);
+      }
+    } catch (error) {
+      console.error("Error refreshing players data:", error);
+    }
+  };
+
   const handleStartAuction = async (playerId: number) => {
     if (!selectedLeagueId) return;
 
@@ -230,7 +270,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Errore nell'avviare l'asta");
+        throw new Error(error.error || error.message || "Errore nell'avviare l'asta");
       }
 
       toast.success("Asta avviata con successo!");
@@ -286,6 +326,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
           player={selectedPlayer}
           leagueId={selectedLeagueId!}
           userId={userId}
+          onBidSuccess={refreshPlayersData}
         />
       )}
     </div>

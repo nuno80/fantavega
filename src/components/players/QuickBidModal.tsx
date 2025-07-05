@@ -24,6 +24,7 @@ interface QuickBidModalProps {
   player: PlayerWithAuctionStatus;
   leagueId: number;
   userId: string;
+  onBidSuccess?: () => void; // Callback per refresh dei dati
 }
 
 interface UserBudgetInfo {
@@ -38,8 +39,11 @@ export function QuickBidModal({
   player,
   leagueId,
   userId,
+  onBidSuccess,
 }: QuickBidModalProps) {
   const [bidAmount, setBidAmount] = useState(0);
+  const [maxAmount, setMaxAmount] = useState(0);
+  const [useAutoBid, setUseAutoBid] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
   const [isLoadingBudget, setIsLoadingBudget] = useState(false);
@@ -69,6 +73,7 @@ export function QuickBidModal({
   useEffect(() => {
     if (player?.currentBid) {
       setBidAmount(player.currentBid + 1);
+      setMaxAmount(player.currentBid + 10); // Default max amount
     }
   }, [player]);
 
@@ -108,22 +113,57 @@ export function QuickBidModal({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(
+      // First, place the manual bid
+      const bidResponse = await fetch(
         `/api/leagues/${leagueId}/players/${player.id}/bids`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bidAmount }),
+          body: JSON.stringify({ 
+            amount: bidAmount,
+            bid_type: "manual"
+          }),
         }
       );
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Errore nel piazzare l'offerta");
+      if (!bidResponse.ok) {
+        const error = await bidResponse.json();
+        throw new Error(error.error || error.message || "Errore nel piazzare l'offerta");
       }
 
-      toast.success("Offerta piazzata con successo!");
+      // If auto-bid is enabled and max amount is higher than bid amount, set auto-bid
+      if (useAutoBid && maxAmount > bidAmount) {
+        try {
+          const autoBidResponse = await fetch(
+            `/api/leagues/${leagueId}/players/${player.id}/auto-bid`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ max_amount: maxAmount }),
+            }
+          );
+
+          if (!autoBidResponse.ok) {
+            const autoBidError = await autoBidResponse.json();
+            console.warn("Auto-bid failed:", autoBidError.error);
+            toast.warning(`Offerta piazzata, ma auto-bid fallita: ${autoBidError.error}`);
+          } else {
+            toast.success(`Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`);
+          }
+        } catch (autoBidError) {
+          console.warn("Auto-bid request failed:", autoBidError);
+          toast.warning("Offerta piazzata, ma auto-bid non impostata");
+        }
+      } else {
+        toast.success("Offerta piazzata con successo!");
+      }
+
       onClose();
+      
+      // Trigger refresh of players data
+      if (onBidSuccess) {
+        onBidSuccess();
+      }
 
     } catch (error) {
       toast.error(
@@ -242,6 +282,42 @@ export function QuickBidModal({
             />
           </div>
 
+          {/* Auto-bid Section */}
+          <div className="space-y-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="useAutoBid"
+                checked={useAutoBid}
+                onChange={(e) => setUseAutoBid(e.target.checked)}
+                className="rounded"
+              />
+              <Label htmlFor="useAutoBid" className="text-sm font-medium">
+                Abilita Offerta Automatica
+              </Label>
+            </div>
+            
+            {useAutoBid && (
+              <div className="space-y-2">
+                <Label htmlFor="maxAmount" className="text-sm">
+                  Prezzo massimo per rilanci automatici
+                </Label>
+                <Input
+                  id="maxAmount"
+                  type="number"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(Number(e.target.value))}
+                  min={bidAmount + 1}
+                  max={availableBudget}
+                  placeholder={`Min: ${bidAmount + 1}`}
+                />
+                <p className="text-xs text-blue-600">
+                  Il sistema rilancera automaticamente fino a {maxAmount} crediti quando altri utenti fanno offerte superiori alla tua.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Validation Messages */}
           {bidAmount < minValidBid && bidAmount > 0 && (
             <p className="text-sm text-destructive">
@@ -253,6 +329,11 @@ export function QuickBidModal({
               Budget insufficiente (disponibili: {availableBudget} crediti)
             </p>
           )}
+          {useAutoBid && maxAmount <= bidAmount && (
+            <p className="text-sm text-destructive">
+              Il prezzo massimo deve essere superiore all'offerta attuale
+            </p>
+          )}
         </div>
 
         <DialogFooter>
@@ -261,9 +342,10 @@ export function QuickBidModal({
           </Button>
           <Button
             onClick={handleSubmitBid}
-            disabled={!canSubmitBid}
+            disabled={!canSubmitBid || (useAutoBid && maxAmount <= bidAmount)}
           >
-            {isSubmitting ? "Piazzando..." : `Offri ${bidAmount} crediti`}
+            {isSubmitting ? "Piazzando..." : 
+             useAutoBid ? `Offri ${bidAmount} (max ${maxAmount})` : `Offri ${bidAmount} crediti`}
           </Button>
         </DialogFooter>
       </DialogContent>

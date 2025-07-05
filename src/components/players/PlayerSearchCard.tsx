@@ -74,8 +74,8 @@ export function PlayerSearchCard({
     return `${minutes}m`;
   };
 
-  const canBid = player.auctionStatus === "active_auction" && !player.isAssignedToUser;
-  const canStartAuction = userRole === "admin" && player.auctionStatus === "no_auction" && player.canStartAuction;
+  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser && player.canStartAuction;
+  const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
     <Card className="h-full flex flex-col">
@@ -130,19 +130,63 @@ export function PlayerSearchCard({
 
         {/* Auction Info */}
         {player.auctionStatus === "active_auction" && (
-          <div className="space-y-2 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Offerta Attuale:</span>
-              <span className="font-bold text-orange-600">
-                {player.currentBid || 0} crediti
-              </span>
-            </div>
-            {player.timeRemaining && (
+          <div className="space-y-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+            {/* Current Bid Info */}
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Tempo:</span>
-                <span className="text-sm font-medium text-orange-600">
-                  {formatTimeRemaining(player.timeRemaining)}
+                <span className="text-sm font-medium">Offerta Attuale:</span>
+                <span className="font-bold text-orange-600">
+                  {player.currentBid || 0} crediti
                 </span>
+              </div>
+              
+              {player.currentHighestBidderName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Miglior offerente:</span>
+                  <span className="text-sm font-medium text-orange-700">
+                    {player.currentHighestBidderName}
+                  </span>
+                </div>
+              )}
+              
+              {player.timeRemaining && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Tempo rimanente:</span>
+                  <span className="text-sm font-medium text-orange-600">
+                    {formatTimeRemaining(player.timeRemaining)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Auto-bid Info */}
+            {player.autoBids && player.autoBids.length > 0 && (
+              <div className="border-t border-orange-200 dark:border-orange-800 pt-2">
+                <div className="text-xs font-medium text-orange-700 mb-1">Auto-offerte attive:</div>
+                <div className="space-y-1">
+                  {player.autoBids.map((autoBid, index) => (
+                    <div key={index} className="flex items-center justify-between text-xs">
+                      <span className={`${autoBid.userId === userId ? 'font-semibold text-blue-600' : 'text-muted-foreground'}`}>
+                        {autoBid.username}
+                        {autoBid.userId === userId && ' (Tu)'}
+                      </span>
+                      <span className="font-medium">
+                        Max: {autoBid.maxAmount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* User's Auto-bid Status */}
+            {player.userAutoBid && (
+              <div className="border-t border-blue-200 dark:border-blue-800 pt-2 bg-blue-50 dark:bg-blue-950/30 -mx-3 px-3 pb-2 rounded-b-lg">
+                <div className="text-xs font-medium text-blue-700 mb-1">La tua auto-offerta:</div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-blue-600">Prezzo massimo:</span>
+                  <span className="font-bold text-blue-700">{player.userAutoBid.maxAmount} crediti</span>
+                </div>
               </div>
             )}
           </div>
@@ -177,18 +221,6 @@ export function PlayerSearchCard({
           </Button>
         )}
         
-        {canStartAuction && (
-          <Button 
-            onClick={() => onStartAuction(player.id)}
-            variant="outline"
-            className="w-full"
-            size="sm"
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            Avvia Asta
-          </Button>
-        )}
-        
         {player.auctionStatus === "assigned" && (
           <Button 
             variant="secondary"
@@ -201,7 +233,7 @@ export function PlayerSearchCard({
           </Button>
         )}
         
-        {player.auctionStatus === "no_auction" && !canStartAuction && (
+        {!canBid && player.auctionStatus === "no_auction" && (
           <Button 
             variant="outline"
             className="w-full"
@@ -209,7 +241,7 @@ export function PlayerSearchCard({
             disabled
           >
             <User className="h-4 w-4 mr-2" />
-            Disponibile
+            Non disponibile per asta
           </Button>
         )}
       </CardFooter>
