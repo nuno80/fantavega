@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     // 2.2. Gestione del File Upload (multipart/form-data)
     const formData = await request.formData();
-    const file = formData.get("playersExcelFile") as File | null; // "playersExcelFile" è il nome del campo atteso
+    const file = formData.get("file") as File | null; // "file" è il nome del campo atteso
 
     if (!file) {
       console.warn("[API PLAYER_UPLOAD POST] No file provided in the request.");

@@ -95,6 +95,12 @@ export function Navbar() {
               >
                 Aste
               </Link>
+              <Link
+                href="/players" // Link alla ricerca giocatori
+                className="text-sm font-medium transition-colors hover:text-primary"
+              >
+                Cerca Giocatori
+              </Link>
               {isAdmin && ( // Mostra il link Dashboard/Admin solo se l'utente è admin
                 <Link
                   href="/dashboard" // Questa è la dashboard admin protetta dal middleware
@@ -180,6 +186,13 @@ export function Navbar() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Aste
+              </Link>
+              <Link
+                href="/players"
+                className="text-sm font-medium transition-colors hover:text-primary"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Cerca Giocatori
               </Link>
               {isAdmin && ( // Mostra il link Dashboard/Admin solo se l'utente è admin
                 <Link

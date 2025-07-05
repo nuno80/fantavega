@@ -1,37 +1,59 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2024-07-02T12:00:00Z",
-    "task_completed": "8.4 - Implement league status management controls",
+    "last_update": "2024-12-19T16:45:00Z",
+    "task_completed": "9.3 - Create player management interface",
     "feature_logic": {
-      "feature_name": "Gestione Stato Lega (Admin)",
-      "summary": "Implementa un controllo nella dashboard di gestione della lega che permette a un admin di cambiare la fase operativa della lega (es. da 'Iscrizioni Aperte' a 'Asta Iniziale').",
-      "architectural_pattern": "Componente Client (`LeagueStatusManager`) che usa `useActionState` per invocare una Server Action (`updateLeagueStatusAction`). La logica di business è incapsulata in un servizio (`auction-league.service.ts`).",
+      "feature_name": "Interfaccia Ricerca Giocatori (User)",
+      "summary": "Implementa un'interfaccia completa per la ricerca e gestione giocatori che permette agli utenti di cercare, filtrare e visualizzare giocatori con stato asta, piazzare offerte dirette, e agli admin di avviare nuove aste con design responsive.",
+      "architectural_pattern": "Pagina Server Component per autenticazione e data fetching iniziale, componenti Client modulari per interattività real-time, integrazione Socket.IO per aggiornamenti live, pattern di composizione per layout responsive.",
       "user_flow": [
-        "1. L'admin naviga alla dashboard della lega.",
-        "2. Visualizza un pannello con lo stato attuale della lega e un dropdown con gli stati possibili.",
-        "3. Seleziona un nuovo stato dal dropdown e clicca 'Aggiorna Stato'.",
-        "4. La Server Action `updateLeagueStatusAction` viene chiamata.",
-        "5. La action chiama il servizio `updateLeagueStatus` che esegue una query `UPDATE` sul database.",
-        "6. La Server Action usa `revalidatePath` per aggiornare la UI della dashboard, mostrando il nuovo stato."
+        "1. L'utente (manager/admin) naviga alla pagina `/players`.",
+        "2. Il sistema verifica l'autenticazione e il ruolo utente.",
+        "3. Vengono caricate le leghe dell'utente e tutti i giocatori con stato asta.",
+        "4. L'utente può cercare per nome/squadra e filtrare per ruolo, stato asta, tempo rimanente.",
+        "5. L'interfaccia mostra cards giocatori con stats, stato asta e azioni disponibili.",
+        "6. L'utente può piazzare offerte dirette tramite modal di bidding rapido.",
+        "7. Gli admin possono avviare nuove aste per giocatori disponibili.",
+        "8. Gli aggiornamenti real-time aggiornano stato aste e countdown timer."
       ],
       "core_components_interaction": {
-        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx": "Pagina Server Component che passa lo stato attuale della lega al componente di gestione.",
-        "src/components/admin/LeagueStatusManager.tsx": "Componente Client che renderizza il dropdown e il form per l'aggiornamento dello stato.",
-        "src/lib/actions/league.actions.ts": "Contiene la `updateLeagueStatusAction` che orchestra la logica.",
-        "src/lib/db/services/auction-league.service.ts": "Contiene la funzione `updateLeagueStatus` che esegue la modifica sul database."
+        "src/app/players/page.tsx": "Pagina Server Component che gestisce autenticazione e carica l'interfaccia ricerca giocatori.",
+        "src/app/players/PlayerSearchInterface.tsx": "Componente Client principale che orchestra ricerca, filtri e gestisce stato real-time.",
+        "src/components/players/PlayerSearchBar.tsx": "Barra di ricerca per nome giocatore e squadra con icona.",
+        "src/components/players/PlayerAdvancedFilters.tsx": "Filtri avanzati per ruolo, stato asta, tempo rimanente, squadra con contatori attivi.",
+        "src/components/players/PlayerSearchResults.tsx": "Griglia responsive di risultati con gestione stati vuoti.",
+        "src/components/players/PlayerSearchCard.tsx": "Card giocatore con stats, stato asta, timer e azioni (bid/start auction).",
+        "src/components/players/QuickBidModal.tsx": "Modal per offerte rapide con validazione budget e offerte quick (+1,+5,+10).",
+        "src/app/api/user/leagues/route.ts": "API per recuperare leghe utente con budget e team info.",
+        "src/app/api/leagues/[league-id]/players-with-status/route.ts": "API per giocatori con stato asta, assignment e timer real-time."
       },
       "database_interactions": [
         {
-          "table": "auction_leagues",
+          "table": "auctions",
+          "operation": "SELECT",
+          "description": "Recupera dettagli asta attiva per la lega."
+        },
+        {
+          "table": "bids",
+          "operation": "INSERT",
+          "description": "Inserisce nuove offerte degli utenti."
+        },
+        {
+          "table": "league_participants",
           "operation": "UPDATE",
-          "description": "Aggiorna la colonna 'status' per la lega specificata."
+          "description": "Aggiorna budget e crediti bloccati dopo le offerte."
+        },
+        {
+          "table": "budget_transactions",
+          "operation": "INSERT",
+          "description": "Registra transazioni budget per audit trail."
         }
       ]
     }
   },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Task 8 (Controlli Amministrativi) completato. L'admin ha ora una suite completa per creare e gestire leghe e partecipanti. Prossimo task: 9 (Sviluppo UI).",
+  "currentDevelopmentPhase": "Task 9 (Sviluppo UI) quasi completato. Completati subtask 9.1 (Layout/Navigation), 9.2 (Auction Interface) e 9.3 (Player Management Interface). Interfacce aste live e ricerca giocatori funzionali con design responsive, filtri avanzati e aggiornamenti real-time. Prossimo: 9.4 (Enhanced Notifications).",
   "technologyStack": {
     "frontend": "Next.js 15.2.3 (App Router), React, TypeScript, Tailwind CSS",
     "backend": "Next.js API Routes & Server Actions (TypeScript)",
@@ -106,5 +128,20 @@
     "Visualizzazione propria rosa.",
     "Trigger (implicito) del controllo di compliance per penalità.",
     "Ricezione aggiornamenti asta e notifiche (offerte superate, penalità) in tempo reale."
+  ],
+  "managerFunctionalitiesImplemented_Frontend": [
+    "Interfaccia aste live responsive con visualizzazione giocatore e timer real-time.",
+    "Sistema di offerte con validazione budget e offerte rapide (+1, +5, +10).",
+    "Monitoraggio budget in tempo reale con progress bar e avvisi.",
+    "Cronologia offerte con evidenziazione utente corrente.",
+    "Notifiche toast per offerte superate e aste concluse.",
+    "Layout responsive (desktop: 2 colonne, mobile: singola colonna).",
+    "Integrazione Socket.IO per aggiornamenti live dell'interfaccia.",
+    "Interfaccia ricerca giocatori con filtri avanzati (ruolo, stato asta, tempo rimanente, squadra).",
+    "Ricerca testuale per nome giocatore e squadra con risultati real-time.",
+    "Cards giocatori con stats complete (Qt.A, Qt.I, FVM, Diff) e stato asta.",
+    "Modal offerte rapide direttamente dalla ricerca con validazione budget.",
+    "Countdown timer per aste in scadenza con aggiornamenti real-time.",
+    "Funzionalità admin per avviare nuove aste direttamente dall'interfaccia giocatori."
   ]
 }
