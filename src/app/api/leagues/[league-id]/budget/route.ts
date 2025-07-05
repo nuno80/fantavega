@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { "league-id": string } }
+  { params }: { params: Promise<{ "league-id": string }> }
 ) {
   try {
     const user = await currentUser();
@@ -16,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    const leagueId = parseInt(params["league-id"]);
+    const resolvedParams = await params;
+    const leagueId = parseInt(resolvedParams["league-id"]);
     
     if (isNaN(leagueId)) {
       return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });

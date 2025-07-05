@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { "league-id": string } }
+  { params }: { params: Promise<{ "league-id": string }> }
 ) {
   try {
     const user = await currentUser();
@@ -23,7 +23,8 @@ export async function POST(
       return NextResponse.json({ error: "Solo gli admin possono avviare aste" }, { status: 403 });
     }
 
-    const leagueId = parseInt(params["league-id"]);
+    const resolvedParams = await params;
+    const leagueId = parseInt(resolvedParams["league-id"]);
     
     if (isNaN(leagueId)) {
       return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
