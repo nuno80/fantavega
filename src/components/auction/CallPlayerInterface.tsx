@@ -51,6 +51,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
   const [filteredPlayers, setFilteredPlayers] = useState<PlayerWithStatus[]>([]);
   const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<PlayerWithStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   // Bid modal state
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
@@ -92,16 +93,31 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
         player.name.toLowerCase().includes(term) ||
         player.team.toLowerCase().includes(term)
       );
+      // Auto-open dropdown when typing
+      setIsDropdownOpen(true);
+    } else {
+      // Close dropdown when search is empty
+      setIsDropdownOpen(false);
     }
 
     setFilteredPlayers(filtered);
   }, [players, selectedRole, searchTerm]);
 
   // Handle player selection
-  const handlePlayerSelect = (playerId: string) => {
-    setSelectedPlayer(playerId);
-    const player = filteredPlayers.find(p => p.id === parseInt(playerId));
-    setSelectedPlayerDetails(player || null);
+  const handlePlayerSelect = (player: PlayerWithStatus) => {
+    setSelectedPlayer(player.id.toString());
+    setSelectedPlayerDetails(player);
+    setSearchTerm(player.name); // Set search term to selected player name
+    setIsDropdownOpen(false); // Close dropdown after selection
+  };
+
+  // Handle search input change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (!value.trim()) {
+      setSelectedPlayer("");
+      setSelectedPlayerDetails(null);
+    }
   };
 
   // Handle bid on player
@@ -204,16 +220,59 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
           <CardTitle className="text-lg font-semibold text-white">CHIAMA UN GIOCATORE</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Search Bar */}
+          {/* Search Bar with Auto-dropdown */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
               placeholder="Cerca giocatore o squadra..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
               className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
             />
+            
+            {/* Auto-dropdown */}
+            {isDropdownOpen && filteredPlayers.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto bg-gray-700 border border-gray-600 rounded-md shadow-lg">
+                {filteredPlayers.slice(0, 10).map((player) => (
+                  <div
+                    key={player.id}
+                    className="px-3 py-2 hover:bg-gray-600 cursor-pointer text-white border-b border-gray-600 last:border-b-0"
+                    onClick={() => handlePlayerSelect(player)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium">{player.name}</span>
+                        <span className="text-gray-400 ml-2">({player.role}) - {player.team}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {player.auctionStatus === "active_auction" && (
+                          <Badge variant="destructive" className="text-xs">
+                            ASTA
+                          </Badge>
+                        )}
+                        {player.auctionStatus === "assigned" && (
+                          <Badge variant="secondary" className="text-xs">
+                            ASSEGNATO
+                          </Badge>
+                        )}
+                        {player.auctionStatus === "no_auction" && (
+                          <Badge variant="outline" className="text-xs text-green-400 border-green-400">
+                            DISPONIBILE
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {filteredPlayers.length > 10 && (
+                  <div className="px-3 py-2 text-gray-400 text-sm text-center border-t border-gray-600">
+                    ... e altri {filteredPlayers.length - 10} giocatori
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Role Filter Buttons */}
