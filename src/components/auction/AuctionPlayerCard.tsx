@@ -64,7 +64,7 @@ export function AuctionPlayerCard({
                 />
               ) : (
                 <span className="text-2xl font-bold text-gray-500">
-                  {playerName.charAt(0)}
+                  {playerName?.charAt(0) || "?"}
                 </span>
               )}
             </div>
@@ -78,7 +78,7 @@ export function AuctionPlayerCard({
 
           {/* Player Info */}
           <div className="text-center space-y-2">
-            <h3 className="text-xl font-bold">{playerName}</h3>
+            <h3 className="text-xl font-bold">{playerName || "Giocatore"}</h3>
             {playerTeam && (
               <p className="text-sm text-muted-foreground">{playerTeam}</p>
             )}

@@ -10,6 +10,7 @@ import { AuctionTimer } from "@/components/auction/AuctionTimer";
 import { BidHistory } from "@/components/auction/BidHistory";
 import { BudgetDisplay } from "@/components/auction/BudgetDisplay";
 import { AuctionLayout } from "@/components/auction/AuctionLayout";
+import { ManagerColumn } from "@/components/auction/ManagerColumn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +35,63 @@ interface LeagueInfo {
   status: string;
 }
 
+interface Manager {
+  user_id: string;
+  manager_team_name: string;
+  current_budget: number;
+  locked_credits: number;
+  total_budget: number;
+  firstName?: string;
+  lastName?: string;
+  players: PlayerInRoster[];
+}
+
+interface PlayerInRoster {
+  id: number;
+  name: string;
+  role: string;
+  team: string;
+  assignment_price: number;
+}
+
+interface LeagueSlots {
+  slots_P: number;
+  slots_D: number;
+  slots_C: number;
+  slots_A: number;
+}
+
+interface ActiveAuction {
+  player_id: number;
+  player_name: string;
+  player_role: string;
+  player_team: string;
+  current_highest_bidder_id: string | null;
+  current_highest_bid_amount: number;
+  scheduled_end_time: number;
+  status: string;
+  min_bid?: number;
+  time_remaining?: number;
+  player_value?: number;
+}
+
+interface AutoBid {
+  player_id: number;
+  user_id: string;
+  max_bid_amount: number;
+}
+
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
-  const [currentAuction, setCurrentAuction] = useState<AuctionStatusDetails | null>(null);
+  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(null);
   const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
+  const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
+  const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
+  const [bidHistory, setBidHistory] = useState<any[]>([]);
+  const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
+  const [showLeagueSelector, setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   
@@ -65,6 +119,22 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         const league = leagues[0];
         setSelectedLeagueId(league.id);
         setLeagueInfo(league);
+        setLeagues(leagues);
+
+        // Get ALL MANAGERS for this league - THIS IS THE KEY!
+        console.log("Fetching managers for league:", league.id);
+        const managersResponse = await fetch(`/api/leagues/${league.id}/managers`);
+        if (managersResponse.ok) {
+          const managersData = await managersResponse.json();
+          console.log("Managers API response:", managersData);
+          setManagers(managersData.managers || []);
+          console.log("Set managers:", managersData.managers?.length);
+          setLeagueSlots(managersData.leagueSlots || null);
+          setActiveAuctions(managersData.activeAuctions || []);
+          setAutoBids(managersData.autoBids || []);
+        } else {
+          console.error("Failed to fetch managers");
+        }
 
         // Get user budget for this league
         const budgetResponse = await fetch(`/api/leagues/${league.id}/budget`);
@@ -78,6 +148,15 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         if (auctionResponse.ok) {
           const auction = await auctionResponse.json();
           setCurrentAuction(auction);
+          
+          // If there's a current auction, fetch bid history
+          if (auction?.player_id) {
+            const bidsResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/bids`);
+            if (bidsResponse.ok) {
+              const bidsData = await bidsResponse.json();
+              setBidHistory(bidsData.bids || []);
+            }
+          }
         }
 
       } catch (error) {
@@ -187,141 +266,115 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   if (isLoading) {
-    return <div>Caricamento...</div>;
+    return <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+      <div className="text-xl">Caricamento...</div>
+    </div>;
   }
 
-  if (!currentAuction) {
-    return (
-      <AuctionLayout 
-        leagueName={leagueInfo?.name}
-        onTeamManagement={handleTeamManagement}
-      >
-        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-          <h2 className="text-2xl font-bold mb-4">Nessuna Asta Attiva</h2>
-          <p className="text-muted-foreground mb-6">
-            Al momento non ci sono aste attive in questa lega.
-          </p>
-          <Button onClick={() => window.location.reload()}>
-            Aggiorna Pagina
-          </Button>
-        </div>
-      </AuctionLayout>
-    );
-  }
+  console.log("Checking managers:", managers.length, "selectedLeagueId:", selectedLeagueId);
+  
+  const isUserHighestBidder = currentAuction?.current_highest_bidder_id === userId;
 
-  const isUserHighestBidder = currentAuction.current_highest_bidder_id === userId;
-
+  // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
-    <AuctionLayout 
-      leagueName={leagueInfo?.name}
-      onTeamManagement={handleTeamManagement}
-    >
-      {/* Mobile Layout - Single Column */}
-      <div className="lg:hidden space-y-6">
-        <AuctionPlayerCard
-          playerName={currentAuction.player_name || "Giocatore"}
-          playerRole="A" // You'll need to get this from player data
-          currentBid={currentAuction.current_highest_bid_amount}
-          timeRemaining={currentAuction.time_remaining_seconds}
-          status={currentAuction.status}
-        />
-        
-        <AuctionTimer
-          scheduledEndTime={currentAuction.scheduled_end_time}
-          status={currentAuction.status}
-        />
-
-        {userBudget && (
-          <BudgetDisplay
-            totalBudget={userBudget.total_budget}
-            currentBudget={userBudget.current_budget}
-            lockedCredits={userBudget.locked_credits}
-            teamName={userBudget.team_name}
-          />
-        )}
-
-        {userBudget && leagueInfo && (
-          <BiddingInterface
-            currentBid={currentAuction.current_highest_bid_amount}
-            minBid={leagueInfo.min_bid}
-            userBudget={userBudget.current_budget}
-            lockedCredits={userBudget.locked_credits}
-            isUserHighestBidder={isUserHighestBidder}
-            auctionStatus={currentAuction.status}
-            onPlaceBid={handlePlaceBid}
-          />
-        )}
-
-        <BidHistory
-          bids={currentAuction.bid_history || []}
-          currentUserId={userId}
-        />
-      </div>
-
-      {/* Desktop Layout - Two Columns */}
-      <div className="hidden lg:grid lg:grid-cols-2 gap-6">
-        {/* Left Panel - Auction Info */}
-        <div className="space-y-6">
-          <AuctionPlayerCard
-            playerName={currentAuction.player_name || "Giocatore"}
-            playerRole="A" // You'll need to get this from player data
-            currentBid={currentAuction.current_highest_bid_amount}
-            timeRemaining={currentAuction.time_remaining_seconds}
-            status={currentAuction.status}
-          />
-          
-          <AuctionTimer
-            scheduledEndTime={currentAuction.scheduled_end_time}
-            status={currentAuction.status}
-          />
-
-          <BidHistory
-            bids={currentAuction.bid_history || []}
-            currentUserId={userId}
-          />
+    <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+        {/* Manager Columns */}
+        <div className="flex-1 flex space-x-2 p-2">
+          {managers.length > 0 ? (
+            managers.map((manager, index) => (
+              <div key={manager.user_id} className="flex-1 min-w-0">
+                <ManagerColumn
+                  manager={manager}
+                  isCurrentUser={manager.user_id === userId}
+                  isHighestBidder={
+                    currentAuction?.current_highest_bidder_id === manager.user_id
+                  }
+                  position={index + 1}
+                  leagueSlots={leagueSlots}
+                  activeAuctions={activeAuctions}
+                  autoBids={autoBids}
+                />
+              </div>
+            ))
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-gray-400">
+                <h3 className="text-lg font-semibold mb-2">Nessun Manager Trovato</h3>
+                <p className="text-sm">
+                  Non sono stati trovati partecipanti per questa lega.
+                </p>
+                <Button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4"
+                  variant="outline"
+                >
+                  Ricarica
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right Panel - Bidding & Budget */}
-        <div className="space-y-6">
-          {userBudget && (
-            <BudgetDisplay
-              totalBudget={userBudget.total_budget}
-              currentBudget={userBudget.current_budget}
-              lockedCredits={userBudget.locked_credits}
-              teamName={userBudget.team_name}
-            />
-          )}
-
-          {userBudget && leagueInfo && (
-            <BiddingInterface
+        {/* Right Sidebar - Current Auction */}
+        {currentAuction && (
+          <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4 flex flex-col">
+            <h2 className="text-lg font-semibold mb-4">Asta Corrente</h2>
+            
+            {/* Player Card */}
+            <AuctionPlayerCard
+              playerName={currentAuction.player_name || "Giocatore"}
+              playerRole={currentAuction.player_role || "A"}
+              playerTeam={currentAuction.player_team}
               currentBid={currentAuction.current_highest_bid_amount}
-              minBid={leagueInfo.min_bid}
-              userBudget={userBudget.current_budget}
-              lockedCredits={userBudget.locked_credits}
-              isUserHighestBidder={isUserHighestBidder}
-              auctionStatus={currentAuction.status}
-              onPlaceBid={handlePlaceBid}
+              timeRemaining={currentAuction.time_remaining}
+              status={currentAuction.status}
             />
-          )}
 
-          {/* Current Bidder Info */}
-          {currentAuction.current_highest_bidder_id && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Miglior Offerente</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <span>{currentAuction.current_highest_bidder_username || currentAuction.current_highest_bidder_id}</span>
-                  {isUserHighestBidder && (
-                    <Badge className="bg-green-500">Sei tu!</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-    </AuctionLayout>
+            {/* Timer */}
+            <div className="mt-4">
+              <AuctionTimer
+                scheduledEndTime={currentAuction.scheduled_end_time}
+                status={currentAuction.status}
+              />
+            </div>
+
+            {/* Bidding Interface */}
+            {userBudget && leagueInfo && (
+              <div className="mt-4">
+                <BiddingInterface
+                  currentBid={currentAuction.current_highest_bid_amount}
+                  minBid={leagueInfo.min_bid}
+                  userBudget={userBudget.current_budget}
+                  lockedCredits={userBudget.locked_credits}
+                  isUserHighestBidder={currentAuction.current_highest_bidder_id === userId}
+                  auctionStatus={currentAuction.status}
+                  onPlaceBid={handlePlaceBid}
+                />
+              </div>
+            )}
+
+            {/* Bid History */}
+            <div className="mt-4 flex-1">
+              <BidHistory
+                bids={bidHistory}
+                currentUserId={userId}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* No Auction State */}
+        {!currentAuction && (
+          <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4 flex flex-col items-center justify-center">
+            <h2 className="text-lg font-semibold mb-4">Nessuna Asta Attiva</h2>
+            <p className="text-gray-400 text-center mb-4">
+              Al momento non ci sono aste in corso.
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Ricarica
+            </Button>
+          </div>
+        )}
+    </div>
   );
 }
