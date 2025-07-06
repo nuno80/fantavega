@@ -7,6 +7,7 @@ interface PlayerSearchResultsProps {
   players: PlayerWithAuctionStatus[];
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
   onStartAuction: (playerId: number) => void;
+  onTogglePlayerIcon?: (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => void;
   userRole: string;
   userId: string;
 }
@@ -15,6 +16,7 @@ export function PlayerSearchResults({
   players,
   onBidOnPlayer,
   onStartAuction,
+  onTogglePlayerIcon,
   userRole,
   userId,
 }: PlayerSearchResultsProps) {
@@ -45,6 +47,7 @@ export function PlayerSearchResults({
             player={player}
             onBidOnPlayer={onBidOnPlayer}
             onStartAuction={onStartAuction}
+            onTogglePlayerIcon={onTogglePlayerIcon}
             userRole={userRole}
             userId={userId}
           />

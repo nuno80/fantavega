@@ -16,3 +16,11 @@
 -- DELETE FROM logs WHERE timestamp < '2023-01-01';
 
 -- Incolla qui le tue query ad-hoc:
+
+-- MODIFICHE APPLICATE IL 06/07/2025:
+-- Aggiunte colonne per le icone dei giocatori
+-- - is_starter (BOOLEAN)
+-- - is_favorite (BOOLEAN)
+-- - integrity_value (INTEGER)
+-- - has_fmv (BOOLEAN)
+-- Queste colonne sono ora presenti anche nello schema principale in database/schema.sql

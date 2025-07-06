@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Tabella Giocatori (dal file Excel e dati applicativi)
 CREATE TABLE IF NOT EXISTS players (
-    id INTEGER PRIMARY KEY, 
+    id INTEGER PRIMARY KEY,
     role TEXT NOT NULL CHECK(role IN ('P', 'D', 'C', 'A')),
     role_mantra TEXT,
     name TEXT NOT NULL,
@@ -28,7 +28,11 @@ CREATE TABLE IF NOT EXISTS players (
     fvm INTEGER,
     fvm_mantra INTEGER,
     photo_url TEXT,
-    last_updated_from_source INTEGER, 
+    is_starter BOOLEAN DEFAULT 0,       -- Titolare (icona shield)
+    is_favorite BOOLEAN DEFAULT 0,      -- Preferito (icona sports_soccer)
+    integrity_value INTEGER DEFAULT 0,  -- Integrità (icona trending_up) - valore numerico per possibili livelli
+    has_fmv BOOLEAN DEFAULT 0,          -- FMV (icona timer)
+    last_updated_from_source INTEGER,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );

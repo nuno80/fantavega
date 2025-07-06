@@ -80,15 +80,23 @@ export function PlayerAdvancedFilters({
       auctionStatus: [],
       timeRemaining: [],
       showAssigned: true,
+      isStarter: false,
+      isFavorite: false,
+      hasIntegrity: false,
+      hasFmv: false
     });
   };
 
-  const activeFiltersCount = 
-    filters.roles.length + 
-    filters.teams.length + 
-    filters.auctionStatus.length + 
+  const activeFiltersCount =
+    filters.roles.length +
+    filters.teams.length +
+    filters.auctionStatus.length +
     filters.timeRemaining.length +
-    (!filters.showAssigned ? 1 : 0);
+    (!filters.showAssigned ? 1 : 0) +
+    (filters.isStarter ? 1 : 0) +
+    (filters.isFavorite ? 1 : 0) +
+    (filters.hasIntegrity ? 1 : 0) +
+    (filters.hasFmv ? 1 : 0);
 
   return (
     <Card>
@@ -227,6 +235,73 @@ export function PlayerAdvancedFilters({
           <Label htmlFor="show-assigned" className="text-sm font-normal cursor-pointer">
             Mostra giocatori già assegnati
           </Label>
+        </div>
+
+        {/* Player Icons Filters */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Caratteristiche Giocatore</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="filter-starter"
+                checked={filters.isStarter}
+                onCheckedChange={(checked) =>
+                  onFiltersChange({ ...filters, isStarter: !!checked })
+                }
+              />
+              <Label
+                htmlFor="filter-starter"
+                className="text-sm font-normal cursor-pointer"
+              >
+                Titolare
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="filter-favorite"
+                checked={filters.isFavorite}
+                onCheckedChange={(checked) =>
+                  onFiltersChange({ ...filters, isFavorite: !!checked })
+                }
+              />
+              <Label
+                htmlFor="filter-favorite"
+                className="text-sm font-normal cursor-pointer"
+              >
+                Preferito
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="filter-integrity"
+                checked={filters.hasIntegrity}
+                onCheckedChange={(checked) =>
+                  onFiltersChange({ ...filters, hasIntegrity: !!checked })
+                }
+              />
+              <Label
+                htmlFor="filter-integrity"
+                className="text-sm font-normal cursor-pointer"
+              >
+                Integrità
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="filter-fmv"
+                checked={filters.hasFmv}
+                onCheckedChange={(checked) =>
+                  onFiltersChange({ ...filters, hasFmv: !!checked })
+                }
+              />
+              <Label
+                htmlFor="filter-fmv"
+                className="text-sm font-normal cursor-pointer"
+              >
+                FMV
+              </Label>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

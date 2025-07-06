@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Clock, Gavel, User, Users } from "lucide-react";
+import { Clock, Gavel, User, Users, Shield, Timer, TrendingUp } from "lucide-react";
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 
 interface PlayerSearchCardProps {
@@ -12,6 +12,7 @@ interface PlayerSearchCardProps {
   onStartAuction: (playerId: number) => void;
   userRole: string;
   userId: string;
+  onTogglePlayerIcon?: (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => void;
 }
 
 export function PlayerSearchCard({
@@ -20,6 +21,7 @@ export function PlayerSearchCard({
   onStartAuction,
   userRole,
   userId,
+  onTogglePlayerIcon,
 }: PlayerSearchCardProps) {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -106,6 +108,50 @@ export function PlayerSearchCard({
       </CardHeader>
 
       <CardContent className="flex-1 space-y-3">
+        {/* Player Icons Grid */}
+        <div className="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+          <div>
+            <div
+              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.isStarter ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
+              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'isStarter', !player.isStarter)}
+              title={player.isStarter ? "Rimuovi come titolare" : "Segna come titolare"}
+            >
+              <Shield className={`h-4 w-4 ${player.isStarter ? 'text-purple-400' : 'text-gray-400'}`} />
+            </div>
+            <p className={player.isStarter ? 'text-purple-400' : 'text-gray-400'}>Titolare</p>
+          </div>
+          <div>
+            <div
+              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.isFavorite ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
+              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'isFavorite', !player.isFavorite)}
+              title={player.isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+            >
+              <div className={`h-4 w-4 ${player.isFavorite ? 'text-purple-400' : 'text-gray-400'}`}>⚽</div>
+            </div>
+            <p className={player.isFavorite ? 'text-purple-400' : 'text-gray-400'}>Preferito</p>
+          </div>
+          <div>
+            <div
+              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.integrityValue ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
+              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'integrityValue', player.integrityValue ? 0 : 1)}
+              title={player.integrityValue ? "Rimuovi integrità" : "Segna come integro"}
+            >
+              <TrendingUp className={`h-4 w-4 ${player.integrityValue ? 'text-purple-400' : 'text-gray-400'}`} />
+            </div>
+            <p className={player.integrityValue ? 'text-purple-400' : 'text-gray-400'}>Integrità</p>
+          </div>
+          <div>
+            <div
+              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.hasFmv ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
+              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'hasFmv', !player.hasFmv)}
+              title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
+            >
+              <Timer className={`h-4 w-4 ${player.hasFmv ? 'text-purple-400' : 'text-gray-400'}`} />
+            </div>
+            <p className={player.hasFmv ? 'text-purple-400' : 'text-gray-400'}>FMV</p>
+          </div>
+        </div>
+
         {/* Player Stats */}
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>

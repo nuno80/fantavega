@@ -24,6 +24,10 @@ export interface Player {
   diffM: number; // Diff.M column
   fvm: number; // FVM column
   fvmM: number; // FVM M column
+  isStarter?: boolean; // Titolare (icona shield)
+  isFavorite?: boolean; // Preferito (icona sports_soccer)
+  integrityValue?: number; // Integrità (icona trending_up)
+  hasFmv?: boolean; // FMV (icona timer)
 }
 
 export interface PlayerWithAuctionStatus extends Player {
@@ -56,6 +60,10 @@ export interface SearchFilters {
   auctionStatus: string[];
   timeRemaining: string[];
   showAssigned: boolean;
+  isStarter: boolean;
+  isFavorite: boolean;
+  hasIntegrity: boolean;
+  hasFmv: boolean;
 }
 
 interface PlayerSearchInterfaceProps {
@@ -78,6 +86,10 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     auctionStatus: [],
     timeRemaining: [],
     showAssigned: true,
+    isStarter: false,
+    isFavorite: false,
+    hasIntegrity: false,
+    hasFmv: false
   });
 
   const { socket, isConnected } = useSocket();
@@ -191,7 +203,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     // Search term filter
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
-      filtered = filtered.filter(player => 
+      filtered = filtered.filter(player =>
         player.name.toLowerCase().includes(term) ||
         player.team.toLowerCase().includes(term)
       );
@@ -233,6 +245,23 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     // Show/hide assigned players
     if (!filters.showAssigned) {
       filtered = filtered.filter(player => player.auctionStatus !== "assigned");
+    }
+
+    // Player characteristics filters
+    if (filters.isStarter) {
+      filtered = filtered.filter(player => player.isStarter);
+    }
+
+    if (filters.isFavorite) {
+      filtered = filtered.filter(player => player.isFavorite);
+    }
+
+    if (filters.hasIntegrity) {
+      filtered = filtered.filter(player => player.integrityValue && player.integrityValue > 0);
+    }
+
+    if (filters.hasFmv) {
+      filtered = filtered.filter(player => player.hasFmv);
     }
 
     setFilteredPlayers(filtered);
@@ -287,6 +316,42 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     }
   };
 
+  const handleTogglePlayerIcon = async (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => {
+    try {
+      if (!selectedLeagueId) return;
+
+      const response = await fetch(`/api/players/${playerId}/toggle-icon`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          iconType,
+          value,
+          leagueId: selectedLeagueId
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || error.message || "Errore nell'aggiornare l'icona");
+      }
+
+      // Aggiorna lo stato locale del giocatore
+      setPlayers(prev => prev.map(player =>
+        player.id === playerId
+          ? {
+              ...player,
+              [iconType]: value
+            }
+          : player
+      ));
+
+      toast.success("Preferenza salvata con successo!");
+      
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Errore nell'aggiornare l'icona");
+    }
+  };
+
   if (isLoading) {
     return <div>Caricamento giocatori...</div>;
   }
@@ -315,6 +380,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         players={filteredPlayers}
         onBidOnPlayer={handleBidOnPlayer}
         onStartAuction={handleStartAuction}
+        onTogglePlayerIcon={handleTogglePlayerIcon}
         userRole={userRole}
         userId={userId}
       />

@@ -264,10 +264,15 @@ export const updatePlayer = (
     if (playerData[key] !== undefined) {
       // Solo se il campo è presente nei dati di update
       setClauses.push(`${key} = @${key}`);
-      params[key] =
-        playerData[key] === "" && ["role_mantra", "photo_url"].includes(key)
-          ? null
-          : playerData[key]; // Gestisci stringhe vuote per campi nullable
+      
+      // Gestisci i valori booleani convertendoli in 0/1 per SQLite
+      if (typeof playerData[key] === 'boolean') {
+        params[key] = playerData[key] ? 1 : 0;
+      } else if (playerData[key] === "" && ["role_mantra", "photo_url"].includes(key)) {
+        params[key] = null; // Gestisci stringhe vuote per campi nullable
+      } else {
+        params[key] = playerData[key];
+      }
     }
   });
 
