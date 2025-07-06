@@ -72,6 +72,44 @@ const getRoleColor = (role: string) => {
   }
 };
 
+const getRoleTextColor = (role: string) => {
+  switch (role.toUpperCase()) {
+    case 'P': return 'text-yellow-400';
+    case 'D': return 'text-green-400';
+    case 'C': return 'text-blue-400';
+    case 'A': return 'text-red-400';
+    default: return 'text-gray-400';
+  }
+};
+
+const getSlotStyle = (role: string): React.CSSProperties => {
+  const style: React.CSSProperties = {
+    backgroundColor: 'rgba(107, 114, 128, 0.2)',
+    borderColor: '#6B7280',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+  };
+  switch (role.toUpperCase()) {
+    case 'P':
+      style.backgroundColor = 'rgba(234, 179, 8, 0.2)';
+      style.borderColor = '#F59E0B';
+      break;
+    case 'D':
+      style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+      style.borderColor = '#10B981';
+      break;
+    case 'C':
+      style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+      style.borderColor = '#3B82F6';
+      break;
+    case 'A':
+      style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+      style.borderColor = '#EF4444';
+      break;
+  }
+  return style;
+};
+
 const formatTimeRemaining = (endTime: number) => {
   const now = Math.floor(Date.now() / 1000);
   const remaining = Math.max(0, endTime - now);
@@ -100,13 +138,39 @@ const formatTimeRemaining = (endTime: number) => {
 
 // Slot Components
 function AssignedSlot({ player, role }: { player: PlayerInRoster; role: string }) {
+  const roleColor = getRoleColor(role);
+  const roleTextColor = getRoleTextColor(role);
+
+  // Classi esplicite per ogni ruolo
+  let bgClass = "bg-gray-700";
+  let borderClass = "border-gray-700";
+  
+  switch (role.toUpperCase()) {
+    case 'P':
+      bgClass = "bg-yellow-600 bg-opacity-20";
+      borderClass = "border-yellow-500";
+      break;
+    case 'D':
+      bgClass = "bg-green-600 bg-opacity-20";
+      borderClass = "border-green-500";
+      break;
+    case 'C':
+      bgClass = "bg-blue-600 bg-opacity-20";
+      borderClass = "border-blue-500";
+      break;
+    case 'A':
+      bgClass = "bg-red-600 bg-opacity-20";
+      borderClass = "border-red-500";
+      break;
+  }
+
   return (
-    <div className="p-1.5 flex items-center justify-between bg-gray-700 rounded-md">
+    <div className={`p-1.5 flex items-center justify-between rounded-md ${bgClass} border ${borderClass}`}>
       <div className="flex items-center min-w-0">
-        <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${getRoleColor(role).replace('-500', '-600')}`} />
+        <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
         <span className="text-xs truncate">{player.name}</span>
       </div>
-      <span className="text-xs font-semibold flex-shrink-0 text-green-400">
+      <span className={`text-xs font-semibold flex-shrink-0 ${roleTextColor}`}>
         {role} {player.assignment_price}
       </span>
     </div>
@@ -117,9 +181,33 @@ function InAuctionSlot({ auction, role, autoBids = [], managerUserId, isLast }: 
   const autoBid = autoBids.find(ab => ab.player_id === auction.player_id && ab.user_id === managerUserId);
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
+  const roleTextColor = getRoleTextColor(role);
+
+  // Classi esplicite per ogni ruolo
+  let bgClass = "bg-gray-700";
+  let borderClass = "border-gray-700";
+  
+  switch (role.toUpperCase()) {
+    case 'P':
+      bgClass = "bg-yellow-600 bg-opacity-20";
+      borderClass = "border-yellow-500";
+      break;
+    case 'D':
+      bgClass = "bg-green-600 bg-opacity-20";
+      borderClass = "border-green-500";
+      break;
+    case 'C':
+      bgClass = "bg-blue-600 bg-opacity-20";
+      borderClass = "border-blue-500";
+      break;
+    case 'A':
+      bgClass = "bg-red-600 bg-opacity-20";
+      borderClass = "border-red-500";
+      break;
+  }
 
   return (
-    <div className={`p-1.5 flex items-center justify-between ${roleColor.replace('-500', '-600')} bg-opacity-20 border ${roleColor.replace('bg-', 'border-')} ${isLast ? 'rounded-b-md' : ''}`}>
+    <div className={`p-1.5 flex items-center justify-between ${bgClass} border ${borderClass} ${isLast ? 'rounded-b-md' : ''}`}>
       <div className="flex items-center min-w-0">
         <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
         <span className="text-xs truncate">{auction.player_name}</span>
@@ -127,7 +215,7 @@ function InAuctionSlot({ auction, role, autoBids = [], managerUserId, isLast }: 
       <div className="text-xs flex items-center justify-between">
         <div className="flex items-center gap-1">
           {autoBid && <span className="text-blue-400 font-semibold">{autoBid.max_bid_amount}</span>}
-          <span className="text-green-400 font-semibold">{auction.current_highest_bid_amount || 0}</span>
+          <span className={`${roleTextColor} font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
         </div>
         <span className={`ml-2 ${timeInfo.color} ${timeInfo.color === 'text-red-500' && timeInfo.text.includes('s') ? 'animate-pulse' : ''}`}>
           {timeInfo.text}
@@ -139,7 +227,7 @@ function InAuctionSlot({ auction, role, autoBids = [], managerUserId, isLast }: 
 
 function EmptySlot() {
   return (
-    <div className="p-1.5 flex items-center justify-between bg-gray-600 bg-opacity-50 border border-gray-500 border-dashed rounded-md">
+    <div className="p-1.5 flex items-center justify-between bg-gray-600 bg-opacity-20 border border-gray-500 border-dashed rounded-md">
       <div className="flex items-center min-w-0">
         <div className="w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 bg-gray-500 opacity-50" />
         <span className="text-xs truncate">Slot vuoto</span>
@@ -162,6 +250,29 @@ export function ManagerColumn({
   const getTeamColor = (position: number) => {
     const colors = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-orange-400', 'text-cyan-400'];
     return colors[(position - 1) % colors.length];
+  };
+
+  // Determina il ruolo predominante per il colore della barra di progresso
+  const getPredominantRoleColor = () => {
+    // Conta i giocatori per ruolo
+    const pCount = getRoleCount('P');
+    const dCount = getRoleCount('D');
+    const cCount = getRoleCount('C');
+    const aCount = getRoleCount('A');
+    
+    // Trova il ruolo con più giocatori
+    if (pCount >= dCount && pCount >= cCount && pCount >= aCount) {
+      return 'bg-yellow-500';
+    } else if (dCount >= pCount && dCount >= cCount && dCount >= aCount) {
+      return 'bg-green-500';
+    } else if (cCount >= pCount && cCount >= dCount && cCount >= aCount) {
+      return 'bg-blue-500';
+    } else if (aCount >= pCount && aCount >= dCount && aCount >= cCount) {
+      return 'bg-red-500';
+    }
+    
+    // Default
+    return 'bg-yellow-500';
   };
 
   const getRoleCount = (role: string) => {
@@ -196,7 +307,7 @@ export function ManagerColumn({
   const availableBudget = manager.current_budget - manager.locked_credits;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-2 flex flex-col h-full">
+    <div className="bg-gray-800 rounded-lg p-2 flex flex-col h-full border-2 border-gray-700">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1">
@@ -231,8 +342,8 @@ export function ManagerColumn({
       </div>
 
       {/* Budget bar */}
-      <div className="w-full bg-gray-600 h-1 rounded-full mb-2">
-        <div className="bg-yellow-500 h-1 rounded-full transition-all duration-300" style={{ width: `${Math.min(budgetPercentage, 100)}%` }} />
+      <div className="w-full bg-gray-600 h-2 rounded-full mb-2">
+        <div className={`${getPredominantRoleColor()} h-2 rounded-full transition-all duration-300`} style={{ width: `${Math.min(budgetPercentage, 100)}%` }} />
       </div>
 
       {/* Slots list */}
@@ -243,7 +354,7 @@ export function ManagerColumn({
 
           return (
             <div key={role} className="flex flex-col">
-              <div className={`${getRoleColor(role)} text-gray-900 px-2 py-0.5 ${slots.some(s => s.type === 'in_auction') ? 'rounded-t-md' : 'rounded-md mb-1'} text-xs font-semibold flex items-center justify-between`}>
+              <div className={`${getRoleColor(role)} text-gray-900 px-2 py-1 ${slots.some(s => s.type === 'in_auction') ? 'rounded-t-md' : 'rounded-md mb-1'} text-xs font-semibold flex items-center justify-between`}>
                 <span>{role}</span>
                 <span>{manager.players.filter(p => p.role.toUpperCase() === role.toUpperCase()).length}/{leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0}</span>
               </div>
