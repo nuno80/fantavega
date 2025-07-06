@@ -101,7 +101,18 @@ export async function GET(
       .all(leagueId);
 
     // Group auto-bids by player
-    const autoBidsByPlayer = autoBidsData.reduce((acc: any, autoBid: any) => {
+    interface AutoBid {
+      userId: string;
+      username: string;
+      maxAmount: number;
+      isActive: boolean;
+    }
+    
+    interface AutoBidsByPlayer {
+      [key: number]: AutoBid[];
+    }
+
+    const autoBidsByPlayer = (autoBidsData as any[]).reduce((acc: AutoBidsByPlayer, autoBid) => {
       if (!acc[autoBid.player_id]) {
         acc[autoBid.player_id] = [];
       }
@@ -116,13 +127,13 @@ export async function GET(
 
     // Calculate time remaining for active auctions and add auto-bid info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = playersWithStatus.map((player: any) => ({
+    const processedPlayers = (playersWithStatus as any[]).map((player) => ({
       ...player,
       timeRemaining: player.scheduled_end_time 
         ? Math.max(0, player.scheduled_end_time - now)
         : undefined,
       autoBids: autoBidsByPlayer[player.id] || [],
-      userAutoBid: autoBidsByPlayer[player.id]?.find((ab: any) => ab.userId === user.id) || null,
+      userAutoBid: autoBidsByPlayer[player.id]?.find((ab) => ab.userId === user.id) || null,
     }));
 
     return NextResponse.json(processedPlayers);

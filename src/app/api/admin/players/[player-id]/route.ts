@@ -60,10 +60,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json(updatedPlayer, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(
       `[API ADMIN_PLAYERS PUT] Error updating player ID ${playerIdStr}:`,
-      error.message
+      errorMessage
     );
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -72,7 +73,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
     return NextResponse.json(
-      { error: `Failed to update player: ${error.message}` },
+      { error: `Failed to update player: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -118,17 +119,18 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       { message: result.message || "Player deleted successfully." },
       { status: 200 }
     ); // o 204 No Content
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(
       `[API ADMIN_PLAYERS DELETE] Error deleting player ID ${playerIdStr}:`,
-      error.message
+      errorMessage
     );
-    if (error.message.includes("still referenced")) {
+    if (errorMessage.includes("still referenced")) {
       // Errore da FK constraint
-      return NextResponse.json({ error: error.message }, { status: 409 }); // Conflict
+      return NextResponse.json({ error: errorMessage }, { status: 409 }); // Conflict
     }
     return NextResponse.json(
-      { error: `Failed to delete player: ${error.message}` },
+      { error: `Failed to delete player: ${errorMessage}` },
       { status: 500 }
     );
   }

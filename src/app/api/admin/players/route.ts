@@ -73,13 +73,14 @@ export async function POST(request: NextRequest) {
     const newPlayer = createPlayer(body); // La funzione di servizio ora lancia eccezioni in caso di errore DB
 
     return NextResponse.json(newPlayer, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(
       "[API ADMIN_PLAYERS POST] Error creating player:",
-      error.message
+      errorMessage
     );
-    if (error.message.includes("already exists")) {
-      return NextResponse.json({ error: error.message }, { status: 409 }); // Conflict
+    if (errorMessage.includes("already exists")) {
+      return NextResponse.json({ error: errorMessage }, { status: 409 }); // Conflict
     }
     if (error instanceof SyntaxError) {
       // Errore nel parsing del JSON body
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json(
-      { error: `Failed to create player: ${error.message}` },
+      { error: `Failed to create player: ${errorMessage}` },
       { status: 500 }
     );
   }

@@ -11,6 +11,7 @@ import { BidHistory } from "@/components/auction/BidHistory";
 import { BudgetDisplay } from "@/components/auction/BudgetDisplay";
 import { AuctionLayout } from "@/components/auction/AuctionLayout";
 import { ManagerColumn } from "@/components/auction/ManagerColumn";
+import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -315,66 +316,16 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           )}
         </div>
 
-        {/* Right Sidebar - Current Auction */}
-        {currentAuction && (
-          <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4 flex flex-col">
-            <h2 className="text-lg font-semibold mb-4">Asta Corrente</h2>
-            
-            {/* Player Card */}
-            <AuctionPlayerCard
-              playerName={currentAuction.player_name || "Giocatore"}
-              playerRole={currentAuction.player_role || "A"}
-              playerTeam={currentAuction.player_team}
-              currentBid={currentAuction.current_highest_bid_amount}
-              timeRemaining={currentAuction.time_remaining}
-              status={currentAuction.status}
-            />
-
-            {/* Timer */}
-            <div className="mt-4">
-              <AuctionTimer
-                scheduledEndTime={currentAuction.scheduled_end_time}
-                status={currentAuction.status}
-              />
-            </div>
-
-            {/* Bidding Interface */}
-            {userBudget && leagueInfo && (
-              <div className="mt-4">
-                <BiddingInterface
-                  currentBid={currentAuction.current_highest_bid_amount}
-                  minBid={leagueInfo.min_bid}
-                  userBudget={userBudget.current_budget}
-                  lockedCredits={userBudget.locked_credits}
-                  isUserHighestBidder={currentAuction.current_highest_bidder_id === userId}
-                  auctionStatus={currentAuction.status}
-                  onPlaceBid={handlePlaceBid}
-                />
-              </div>
-            )}
-
-            {/* Bid History */}
-            <div className="mt-4 flex-1">
-              <BidHistory
-                bids={bidHistory}
-                currentUserId={userId}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* No Auction State */}
-        {!currentAuction && (
-          <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4 flex flex-col items-center justify-center">
-            <h2 className="text-lg font-semibold mb-4">Nessuna Asta Attiva</h2>
-            <p className="text-gray-400 text-center mb-4">
-              Al momento non ci sono aste in corso.
-            </p>
-            <Button onClick={() => window.location.reload()}>
-              Ricarica
-            </Button>
-          </div>
-        )}
+        {/* Right Sidebar - Call Player Interface */}
+        <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4">
+          <CallPlayerInterface 
+            leagueId={selectedLeagueId || 0}
+            onStartAuction={(playerId) => {
+              // Refresh the page or update state when auction starts
+              window.location.reload();
+            }}
+          />
+        </div>
     </div>
   );
 }
