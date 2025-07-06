@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 
 import { AuctionPlayerCard } from "@/components/auction/AuctionPlayerCard";
 import { BiddingInterface } from "@/components/auction/BiddingInterface";
@@ -263,7 +264,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   const handleTeamManagement = () => {
-    router.push(`/leagues/${selectedLeagueId}/roster`);
+    if (!selectedLeagueId) return;
+    router.push(`/leagues/${selectedLeagueId}/roster` as Route);
   };
 
   if (isLoading) {
@@ -278,8 +280,20 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
-    <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
-        {/* Manager Columns */}
+    <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
+        {/* Top Panel - Call Player Interface */}
+        <div className="flex-1 min-w-0 bg-gray-800 border-b border-gray-700 p-4">
+          <CallPlayerInterface 
+            leagueId={selectedLeagueId || 0}
+            userId={userId}
+            onStartAuction={(playerId) => {
+              // Refresh the page or update state when auction starts
+              window.location.reload();
+            }}
+          />
+        </div>
+
+        {/* Bottom Panel - Manager Columns */}
         <div className="flex-1 flex space-x-2 p-2">
           {managers.length > 0 ? (
             managers.map((manager, index) => (
@@ -291,7 +305,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                     currentAuction?.current_highest_bidder_id === manager.user_id
                   }
                   position={index + 1}
-                  leagueSlots={leagueSlots}
+                  leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
                   autoBids={autoBids}
                 />
@@ -314,18 +328,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Right Sidebar - Call Player Interface */}
-        <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4">
-          <CallPlayerInterface 
-            leagueId={selectedLeagueId || 0}
-            userId={userId}
-            onStartAuction={(playerId) => {
-              // Refresh the page or update state when auction starts
-              window.location.reload();
-            }}
-          />
         </div>
     </div>
   );

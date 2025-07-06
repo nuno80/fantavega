@@ -34,17 +34,17 @@ export default async function AuctionsPage() {
 function AuctionPageSkeleton() {
   return (
     <div className="container px-4 py-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Panel Skeleton */}
-        <div className="space-y-6">
-          <div className="h-96 bg-muted animate-pulse rounded-lg" />
-          <div className="h-64 bg-muted animate-pulse rounded-lg" />
-        </div>
-        {/* Right Panel Skeleton */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Top Panel Skeleton */}
         <div className="space-y-6">
           <div className="h-48 bg-muted animate-pulse rounded-lg" />
           <div className="h-64 bg-muted animate-pulse rounded-lg" />
           <div className="h-32 bg-muted animate-pulse rounded-lg" />
+        </div>
+        {/* Bottom Panel Skeleton */}
+        <div className="space-y-6">
+          <div className="h-96 bg-muted animate-pulse rounded-lg" />
+          <div className="h-64 bg-muted animate-pulse rounded-lg" />
         </div>
       </div>
     </div>
