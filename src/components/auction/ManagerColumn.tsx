@@ -293,10 +293,10 @@ export function ManagerColumn({
                         <div className="text-xs">
                           {(() => {
                             const autoBid = autoBids.find(ab => 
-                              ab.player_id === slot.auction!.player_id && 
+                              ab.player_id === slot.auction?.player_id && 
                               ab.user_id === manager.user_id
                             );
-                            const timeInfo = formatTimeRemaining(slot.auction.scheduled_end_time);
+                            const timeInfo = slot.auction ? formatTimeRemaining(slot.auction.scheduled_end_time) : { text: '-', color: 'text-gray-500' };
                             
                             return (
                               <div className="flex items-center justify-between">
@@ -307,7 +307,7 @@ export function ManagerColumn({
                                     </span>
                                   )}
                                   <span className="text-green-400 font-semibold">
-                                    {slot.auction.current_highest_bid_amount}
+                                    {slot.auction?.current_highest_bid_amount || 0}
                                   </span>
                                 </div>
                                 <span 
