@@ -76,7 +76,7 @@ export function PlayerSearchCard({
     return `${minutes}m`;
   };
 
-  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser;
+  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser && player.canStartAuction;
   const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
@@ -217,7 +217,7 @@ export function PlayerSearchCard({
                         {autoBid.userId === userId && ' (Tu)'}
                       </span>
                       <span className="font-medium">
-                        Max: {autoBid.maxAmount}
+                        {autoBid.userId === userId ? `Max: ${autoBid.maxAmount}` : 'Auto-bid attiva'}
                       </span>
                     </div>
                   ))}
@@ -280,7 +280,7 @@ export function PlayerSearchCard({
         )}
         
         {!canBid && player.auctionStatus === "no_auction" && (
-          <Button 
+          <Button
             variant="outline"
             className="w-full"
             size="sm"
@@ -288,6 +288,18 @@ export function PlayerSearchCard({
           >
             <User className="h-4 w-4 mr-2" />
             Non disponibile per asta
+          </Button>
+        )}
+        
+        {!canBid && player.auctionStatus === "active_auction" && !player.isAssignedToUser && !player.canStartAuction && (
+          <Button
+            variant="outline"
+            className="w-full"
+            size="sm"
+            disabled
+          >
+            <Gavel className="h-4 w-4 mr-2" />
+            {player.currentHighestBidderName === "Tu" ? "Sei già il miglior offerente" : "Non puoi fare offerte ora"}
           </Button>
         )}
       </CardFooter>

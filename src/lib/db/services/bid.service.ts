@@ -361,10 +361,82 @@ export async function placeBidOnExistingAuction({
       .get(leagueId) as LeagueForBidding | undefined;
     if (!league) throw new Error("Lega non trovata.");
 
-    if (bidAmount <= auction.current_highest_bid_amount)
-      throw new Error("L'offerta deve essere superiore all'offerta attuale.");
-
+    // Ottieni l'ID del miglior offerente attuale prima di qualsiasi controllo
     const previousHighestBidderId = auction.current_highest_bidder_id;
+
+    if (bidAmount <= auction.current_highest_bid_amount) {
+      // Controlla se ci sono auto-bid attive che potrebbero essere attivate
+      const autoBids = db
+        .prepare(
+          `SELECT ab.user_id, ab.max_amount, u.username
+           FROM auto_bids ab
+           JOIN users u ON ab.user_id = u.id
+           WHERE ab.auction_id = ? AND ab.is_active = TRUE AND ab.user_id != ?
+           ORDER BY ab.max_amount DESC`
+        )
+        .all(auction.id, userId) as Array<{user_id: string, max_amount: number, username: string}>;
+      
+      // Se ci sono auto-bid attive con importo massimo superiore all'offerta attuale
+      if (autoBids.length > 0 && autoBids[0].max_amount > auction.current_highest_bid_amount) {
+        // Calcola la nuova offerta (1 in più rispetto all'offerta tentata)
+        const newBidAmount = bidAmount + 1;
+        
+        // Verifica se l'auto-bid può coprire questa nuova offerta
+        if (autoBids[0].max_amount >= newBidAmount) {
+          // Invece di chiamare ricorsivamente placeBidOnExistingAuction,
+          // eseguiamo direttamente la logica di offerta per l'auto-bid
+          console.log(`Attivazione auto-bid per l'utente ${autoBids[0].user_id} con importo ${newBidAmount}`);
+          
+          // Aggiorna l'offerta con l'auto-bid
+          const autoBidUserId = autoBids[0].user_id;
+          
+          // Gestione crediti bloccati
+          if (previousHighestBidderId) {
+            const previousBid = db
+              .prepare(
+                `SELECT amount FROM bids WHERE auction_id = ? AND user_id = ? ORDER BY amount DESC LIMIT 1`
+              )
+              .get(auction.id, previousHighestBidderId) as
+              | { amount: number }
+              | undefined;
+            if (previousBid) {
+              decrementLockedCreditsStmt.run(
+                previousBid.amount,
+                leagueId,
+                previousHighestBidderId
+              );
+            }
+          }
+          incrementLockedCreditsStmt.run(newBidAmount, leagueId, autoBidUserId);
+          
+          // Aggiornamento asta e inserimento nuova offerta
+          const newScheduledEndTime =
+            Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
+          db.prepare(
+            `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
+          ).run(newBidAmount, autoBidUserId, newScheduledEndTime, auction.id);
+          db.prepare(
+            `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
+          ).run(auction.id, autoBidUserId, newBidAmount, "auto");
+          
+          // Restituisci il risultato dell'auto-bid
+          return {
+            success: true,
+            previousHighestBidderId,
+            newScheduledEndTime,
+            playerName: db
+              .prepare(`SELECT name FROM players WHERE id = ?`)
+              .get(playerId) as { name: string } | undefined,
+            autoBidActivated: true,
+            autoBidUserId: autoBidUserId,
+            autoBidUsername: autoBids[0].username
+          };
+        }
+      }
+      
+      // Se non ci sono auto-bid o non possono coprire l'offerta, rifiuta l'offerta
+      throw new Error("L'offerta deve essere superiore all'offerta attuale.");
+    }
     if (previousHighestBidderId === userId)
       throw new Error("Sei già il miglior offerente.");
 
