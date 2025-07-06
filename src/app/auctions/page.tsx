@@ -22,11 +22,13 @@ export default async function AuctionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background">
       <Navbar />
-      <Suspense fallback={<AuctionPageSkeleton />}>
-        <AuctionPageContent userId={user.id} />
-      </Suspense>
+      <div className="flex-1 overflow-y-auto">
+        <Suspense fallback={<AuctionPageSkeleton />}>
+          <AuctionPageContent userId={user.id} />
+        </Suspense>
+      </div>
     </div>
   );
 }

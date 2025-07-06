@@ -236,7 +236,7 @@ export function ManagerColumn({
       </div>
 
       {/* Slots list */}
-      <div className="flex-1 flex flex-col space-y-1 overflow-hidden">
+      <div className="flex-1 flex flex-col space-y-1 overflow-y-auto scrollbar-hide">
         {['P', 'D', 'C', 'A'].map(role => {
           const slots = createSlotsForRole(role);
           if (slots.length === 0) return null;

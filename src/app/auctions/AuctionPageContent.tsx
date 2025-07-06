@@ -280,9 +280,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-900 text-white">
         {/* Top Panel - Call Player Interface */}
-        <div className="flex-1 min-w-0 bg-gray-800 border-b border-gray-700 p-4">
+        <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 p-4">
           <CallPlayerInterface 
             leagueId={selectedLeagueId || 0}
             userId={userId}
@@ -294,7 +294,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         </div>
 
         {/* Bottom Panel - Manager Columns */}
-        <div className="flex-1 flex space-x-2 p-2">
+        <div className="flex-1 flex space-x-2 p-2 overflow-x-auto scrollbar-hide">
           {managers.length > 0 ? (
             managers.map((manager, index) => (
               <div key={manager.user_id} className="flex-1 min-w-0">
