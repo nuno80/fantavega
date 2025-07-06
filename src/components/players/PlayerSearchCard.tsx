@@ -76,7 +76,7 @@ export function PlayerSearchCard({
     return `${minutes}m`;
   };
 
-  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser && player.canStartAuction;
+  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser;
   const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
