@@ -17,10 +17,11 @@ export async function POST(
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    // Check if user is admin
-    const userRole = user.publicMetadata?.role as string;
-    if (userRole !== "admin") {
-      return NextResponse.json({ error: "Solo gli admin possono avviare aste" }, { status: 403 });
+    // Check if user is admin or manager
+    const userRole = user.publicMetadata?.role as string || "manager";
+    
+    if (userRole !== "admin" && userRole !== "manager") {
+      return NextResponse.json({ error: "Solo gli admin e i manager possono avviare aste" }, { status: 403 });
     }
 
     const resolvedParams = await params;
@@ -30,7 +31,19 @@ export async function POST(
       return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
     }
 
-    const { playerId } = await request.json();
+    // If user is a manager, check if they are a participant in this league
+    if (userRole === "manager") {
+      const participation = db
+        .prepare("SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?")
+        .get(leagueId, user.id);
+      
+      if (!participation) {
+        return NextResponse.json({ error: "Solo i partecipanti alla lega possono avviare aste" }, { status: 403 });
+      }
+    }
+
+    const requestBody = await request.json();
+    const { playerId } = requestBody;
 
     if (!playerId || isNaN(parseInt(playerId))) {
       return NextResponse.json({ error: "ID giocatore non valido" }, { status: 400 });
@@ -80,8 +93,6 @@ export async function POST(
     }
 
     // Start the auction with minimum bid using admin as initial bidder
-    // Note: In a real scenario, you might want to create the auction without an initial bid
-    // or use a system user. For now, we'll use the admin as the initial bidder.
     const auctionResult = await placeInitialBidAndCreateAuction(
       leagueId,
       playerId,
@@ -98,7 +109,6 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error("Error starting auction:", error);
     
     // Handle specific error messages from the bid service
     if (error instanceof Error) {

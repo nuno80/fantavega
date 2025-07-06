@@ -320,6 +320,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         <div className="flex-1 min-w-0 bg-gray-800 border-l border-gray-700 p-4">
           <CallPlayerInterface 
             leagueId={selectedLeagueId || 0}
+            userId={userId}
             onStartAuction={(playerId) => {
               // Refresh the page or update state when auction starts
               window.location.reload();
