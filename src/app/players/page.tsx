@@ -15,11 +15,9 @@ export default async function PlayersPage() {
     redirect("/devi-autenticarti");
   }
 
-  // Check if user has manager or admin role
-  const userRole = user.publicMetadata?.role as string;
-  if (userRole !== "manager" && userRole !== "admin") {
-    redirect("/no-access");
-  }
+  // Tutti gli utenti registrati possono accedere alla pagina dei giocatori
+  // Otteniamo il ruolo dell'utente per passarlo all'interfaccia
+  const userRole = user.publicMetadata?.role as string || "user";
 
   return (
     <div className="min-h-screen bg-background">

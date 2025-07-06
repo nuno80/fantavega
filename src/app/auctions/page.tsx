@@ -15,9 +15,23 @@ export default async function AuctionsPage() {
     redirect("/devi-autenticarti");
   }
 
-  // Check if user has manager role
-  const userRole = user.publicMetadata?.role as string;
-  if (userRole !== "manager" && userRole !== "admin") {
+  // Verifica se l'utente partecipa ad almeno una lega
+  try {
+    // Utilizziamo il servizio DB direttamente per verificare la partecipazione
+    const { db } = await import("@/lib/db");
+    
+    const userLeagues = db
+      .prepare(
+        `SELECT 1 FROM league_participants WHERE user_id = ? LIMIT 1`
+      )
+      .get(user.id);
+    
+    if (!userLeagues) {
+      // L'utente è registrato ma non partecipa a nessuna lega
+      redirect("/no-access?reason=no-league");
+    }
+  } catch (error) {
+    console.error("Errore nel verificare la partecipazione alle leghe:", error);
     redirect("/no-access");
   }
 

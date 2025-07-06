@@ -105,8 +105,22 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
         
         const leagues = await leaguesResponse.json();
+        
         if (leagues.length === 0) {
-          toast.error("Non sei iscritto a nessuna lega");
+          // Se l'utente non ha leghe, carica solo i dati base dei giocatori
+          const playersResponse = await fetch(`/api/players`);
+          if (!playersResponse.ok) throw new Error("Failed to fetch players");
+          
+          const playersData = await playersResponse.json();
+          // Adatta i dati al formato PlayerWithAuctionStatus
+          const adaptedPlayers = playersData.players.map((p: Player) => ({
+            ...p,
+            auctionStatus: "no_auction" as const,
+          }));
+          
+          setPlayers(adaptedPlayers);
+          setFilteredPlayers(adaptedPlayers);
+          toast.info("Stai visualizzando i giocatori in modalità sola lettura perché non sei iscritto a nessuna lega");
           return;
         }
 
