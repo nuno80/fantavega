@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, User } from "lucide-react";
+import { Star, User, Lock } from "lucide-react";
 
 // Type definitions
 interface PlayerInRoster {
@@ -174,9 +174,12 @@ function AssignedSlot({ player, role }: { player: PlayerInRoster; role: string }
         <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
         <span className="text-xs truncate">{player.name}</span>
       </div>
-      <span className={`text-xs font-semibold flex-shrink-0 ${roleTextColor}`}>
-        {role} {player.assignment_price}
-      </span>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <span className="text-xs font-semibold text-white">
+          {player.assignment_price}
+        </span>
+        <Lock className="h-3 w-3 text-gray-400" />
+      </div>
     </div>
   );
 }
