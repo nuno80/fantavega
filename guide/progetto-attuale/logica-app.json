@@ -1,21 +1,21 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2024-12-19T16:45:00Z",
-    "task_completed": "9.3 - Create player management interface",
+    "last_update": "2024-12-25T14:30:00Z",
+    "task_completed": "9.4 - Enhanced notifications and system fixes",
     "feature_logic": {
-      "feature_name": "Interfaccia Ricerca Giocatori (User)",
-      "summary": "Implementa un'interfaccia completa per la ricerca e gestione giocatori che permette agli utenti di cercare, filtrare e visualizzare giocatori con stato asta, piazzare offerte dirette, e agli admin di avviare nuove aste con design responsive.",
-      "architectural_pattern": "Pagina Server Component per autenticazione e data fetching iniziale, componenti Client modulari per interattività real-time, integrazione Socket.IO per aggiornamenti live, pattern di composizione per layout responsive.",
+      "feature_name": "Sistema Auto-Bid e Correzioni Avanzate",
+      "summary": "Implementa sistema auto-bid con logica eBay, correzioni per aste scadute, miglioramenti notifiche Socket.IO, standardizzazione colori ruoli e pulizia database duplicati.",
+      "architectural_pattern": "Sistema auto-bid con priorità temporale, processamento automatico aste scadute, Socket.IO per notifiche real-time, pattern di validazione multi-livello per integrità dati.",
       "user_flow": [
-        "1. L'utente (manager/admin) naviga alla pagina `/players`.",
-        "2. Il sistema verifica l'autenticazione e il ruolo utente.",
-        "3. Vengono caricate le leghe dell'utente e tutti i giocatori con stato asta.",
-        "4. L'utente può cercare per nome/squadra e filtrare per ruolo, stato asta, tempo rimanente.",
-        "5. L'interfaccia mostra cards giocatori con stats, stato asta e azioni disponibili.",
-        "6. L'utente può piazzare offerte dirette tramite modal di bidding rapido.",
-        "7. Gli admin possono avviare nuove aste per giocatori disponibili.",
-        "8. Gli aggiornamenti real-time aggiornano stato aste e countdown timer."
+        "1. L'utente imposta auto-bid tramite QuickBidModal o AutoBidModal con importo massimo.",
+        "2. Quando altri utenti fanno offerte, il sistema attiva automaticamente l'auto-bid se può coprire l'offerta.",
+        "3. L'auto-bid segue logica eBay: priorità temporale per importi uguali, counter-bid intelligente.",
+        "4. Le aste scadute vengono processate automaticamente ogni 30 secondi.",
+        "5. Socket.IO invia notifiche real-time per auto-bid attivate e aste concluse.",
+        "6. L'interfaccia mostra auto-bid solo al proprietario per privacy.",
+        "7. Giocatori assegnati mostrano icona lucchetto invece del ruolo.",
+        "8. Colori ruoli consistenti: P=giallo, D=verde, C=blu, A=rosso."
       ],
       "core_components_interaction": {
         "src/app/players/page.tsx": "Pagina Server Component che gestisce autenticazione e carica l'interfaccia ricerca giocatori.",
@@ -53,7 +53,7 @@
     }
   },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Task 9 (Sviluppo UI) quasi completato. Completati subtask 9.1 (Layout/Navigation), 9.2 (Auction Interface) e 9.3 (Player Management Interface). Interfacce aste live e ricerca giocatori funzionali con design responsive, filtri avanzati e aggiornamenti real-time. Prossimo: 9.4 (Enhanced Notifications).",
+  "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",
   "technologyStack": {
     "frontend": "Next.js 15.2.3 (App Router), React, TypeScript, Tailwind CSS",
     "backend": "Next.js API Routes & Server Actions (TypeScript)",
@@ -143,5 +143,67 @@
     "Modal offerte rapide direttamente dalla ricerca con validazione budget.",
     "Countdown timer per aste in scadenza con aggiornamenti real-time.",
     "Funzionalità admin per avviare nuove aste direttamente dall'interfaccia giocatori."
-  ]
+  ],
+  "autoBidSystem": {
+    "feature_name": "Sistema Auto-Bid con Logica eBay",
+    "summary": "Sistema di offerte automatiche che segue la logica di proxy bidding di eBay con priorità temporale e counter-bid intelligente.",
+    "core_logic": [
+      "Auto-bid si attiva quando qualcuno fa offerta superiore a quella corrente.",
+      "Counter-bid automatico a (offerta_avversaria + 1) se auto-bid può coprire.",
+      "Priorità temporale: auto-bid più vecchia vince in caso di importi uguali.",
+      "Auto-bid vs auto-bid: vincitore paga (secondo_max + 1) fino al proprio limite.",
+      "Privacy: solo il proprietario vede la propria auto-bid.",
+      "Notifiche real-time per attivazioni e superamenti."
+    ],
+    "components": [
+      "src/components/auction/AutoBidModal.tsx - Modal per impostare auto-bid",
+      "src/components/players/QuickBidModal.tsx - Quick bid con auto-bid integrata",
+      "src/app/api/leagues/[league-id]/players/[player-id]/auto-bid/route.ts - API gestione auto-bid",
+      "src/lib/db/services/bid.service.ts - Logica eBay per attivazione auto-bid"
+    ]
+  },
+  "expiredAuctionsSystem": {
+    "feature_name": "Processamento Automatico Aste Scadute",
+    "summary": "Sistema che previene offerte su aste scadute e processa automaticamente le assegnazioni.",
+    "core_logic": [
+      "Validazione scadenza in tutte le API di bidding.",
+      "Processamento automatico ogni 30 secondi nelle pagine auctions e players.",
+      "Endpoint dedicato /process-expired-auctions per elaborazione.",
+      "Assegnazione automatica al miglior offerente quando timer scade.",
+      "Aggiornamento real-time dell'UI dopo processamento."
+    ]
+  },
+  "socketIOEnhancements": {
+    "feature_name": "Miglioramenti Sistema Socket.IO",
+    "summary": "Ottimizzazioni per notifiche real-time e avvio automatico del socket server.",
+    "improvements": [
+      "Socket server avviato automaticamente con 'pnpm run dev' usando concurrently.",
+      "Correzione nomi stanze Socket.IO (league-1 invece di league-league-1).",
+      "Notifiche specifiche per auto-bid attivate e offerte superate.",
+      "Debug logs per troubleshooting eventi Socket.IO.",
+      "Gestione corretta cleanup intervalli nelle pagine."
+    ]
+  },
+  "uiImprovements": {
+    "feature_name": "Miglioramenti Interfaccia Utente",
+    "summary": "Standardizzazione colori, icone e correzioni visual consistency.",
+    "improvements": [
+      "Colori ruoli standardizzati: P=giallo, D=verde, C=blu, A=rosso.",
+      "Icona lucchetto per giocatori assegnati invece di ruolo+prezzo.",
+      "Visualizzazione auto-bid solo al proprietario (privacy).",
+      "Correzione duplicazioni nei menu a tendina squadre.",
+      "Database pulito: rimossi duplicati giocatori e standardizzati nomi squadre."
+    ]
+  },
+  "databaseCleanup": {
+    "feature_name": "Pulizia Database e Standardizzazione",
+    "summary": "Rimozione duplicati e standardizzazione nomi squadre per consistenza dati.",
+    "actions_performed": [
+      "Rimossi giocatori duplicati (es. MAIGNAN/MIL vs Maignan/Milan).",
+      "Standardizzati nomi squadre a versioni complete (Milan invece di MIL).",
+      "560 giocatori totali dopo pulizia (vs ~570 con duplicati).",
+      "20 squadre uniche con nomi completi standardizzati.",
+      "Eliminazione confusione nei menu a tendina e filtri."
+    ]
+  }
 }
