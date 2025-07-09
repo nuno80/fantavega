@@ -246,12 +246,20 @@ export const placeInitialBidAndCreateAuction = async (
       );
 
     const existingAuctionStmt = db.prepare(
-      "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
+      "SELECT id, scheduled_end_time, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
     );
-    if (existingAuctionStmt.get(leagueIdParam, playerIdParam))
+    const existingAuction = existingAuctionStmt.get(leagueIdParam, playerIdParam) as {id: number, scheduled_end_time: number, status: string} | undefined;
+    if (existingAuction) {
+      // Check if existing auction has expired and should be processed
+      if (existingAuction.scheduled_end_time <= now) {
+        throw new Error(
+          `Esiste un'asta scaduta per il giocatore ${playerIdParam}. Contatta l'amministratore per processare le aste scadute.`
+        );
+      }
       throw new Error(
         `Esiste già un'asta attiva per il giocatore ${playerIdParam}.`
       );
+    }
 
     checkSlotsAndBudgetOrThrow(
       league,
@@ -343,16 +351,23 @@ export async function placeBidOnExistingAuction({
     // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
     const auction = db
       .prepare(
-        `SELECT id, current_highest_bid_amount, current_highest_bidder_id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
+        `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
       )
       .get(leagueId, playerId) as
       | {
           id: number;
           current_highest_bid_amount: number;
           current_highest_bidder_id: string | null;
+          scheduled_end_time: number;
         }
       | undefined;
     if (!auction) throw new Error("Asta non trovata o non più attiva.");
+    
+    // Check if auction has expired
+    const now = Math.floor(Date.now() / 1000);
+    if (auction.scheduled_end_time <= now) {
+      throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
+    }
 
     const league = db
       .prepare(

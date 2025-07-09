@@ -186,6 +186,34 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     // Join league room
     socket.emit("join-league-room", `league-${selectedLeagueId}`);
 
+    // Auto-process expired auctions every 30 seconds
+    const processExpiredAuctions = async () => {
+      try {
+        const response = await fetch(`/api/leagues/${selectedLeagueId}/process-expired-auctions`, {
+          method: "POST",
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.processedCount > 0) {
+            console.log(`Processed ${result.processedCount} expired auctions`);
+            // Refresh current auction data
+            const auctionResponse = await fetch(`/api/leagues/${selectedLeagueId}/current-auction`);
+            if (auctionResponse.ok) {
+              const auction = await auctionResponse.json();
+              setCurrentAuction(auction);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error processing expired auctions:", error);
+      }
+    };
+
+    // Process expired auctions immediately and then every 30 seconds
+    processExpiredAuctions();
+    const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
+
     // Handle auction updates
     const handleAuctionUpdate = (data: {
       playerId: number;
@@ -237,6 +265,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
+      clearInterval(expiredAuctionsInterval);
     };
   }, [socket, isConnected, selectedLeagueId, currentAuction]);
 
