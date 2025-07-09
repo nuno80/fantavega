@@ -77,10 +77,9 @@ interface ActiveAuction {
   player_value?: number;
 }
 
-interface AutoBid {
+interface AutoBidIndicator {
   player_id: number;
-  user_id: string;
-  max_bid_amount: number;
+  auto_bid_count: number;
 }
 
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
@@ -90,12 +89,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
-  const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
+  const [autoBids, setAutoBids] = useState<AutoBidIndicator[]>([]);
   const [bidHistory, setBidHistory] = useState<any[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [showLeagueSelector, setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+  const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
   
   const { socket, isConnected } = useSocket();
   const router = useRouter();
@@ -151,12 +151,19 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           const auction = await auctionResponse.json();
           setCurrentAuction(auction);
           
-          // If there's a current auction, fetch bid history
+          // If there's a current auction, fetch bid history and user's auto-bid
           if (auction?.player_id) {
             const bidsResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/bids`);
             if (bidsResponse.ok) {
               const bidsData = await bidsResponse.json();
               setBidHistory(bidsData.bids || []);
+            }
+            
+            // Fetch user's auto-bid for this player
+            const autoBidResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/auto-bid`);
+            if (autoBidResponse.ok) {
+              const autoBidData = await autoBidResponse.json();
+              setUserAutoBid(autoBidData.auto_bid);
             }
           }
         }
@@ -308,6 +315,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
                   autoBids={autoBids}
+                  userAutoBid={manager.user_id === userId ? userAutoBid : null}
+                  currentAuctionPlayerId={currentAuction?.player_id}
                 />
               </div>
             ))

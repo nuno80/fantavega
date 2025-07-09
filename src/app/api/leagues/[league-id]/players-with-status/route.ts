@@ -84,56 +84,45 @@ export async function GET(
       )
       .all(user.id, leagueId, leagueId);
 
-    // Get auto-bid information for active auctions
-    const autoBidsData = db
+    // Get only the current user's auto-bid information for active auctions
+    const userAutoBidsData = db
       .prepare(
         `SELECT 
           a.player_id,
-          ab.user_id,
           ab.max_amount,
-          ab.is_active,
-          u.username
+          ab.is_active
          FROM auto_bids ab
          JOIN auctions a ON ab.auction_id = a.id
-         JOIN users u ON ab.user_id = u.id
-         WHERE a.auction_league_id = ? AND ab.is_active = 1 AND a.status = 'active'`
+         WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = 1 AND a.status = 'active'`
       )
-      .all(leagueId);
+      .all(leagueId, user.id);
 
-    // Group auto-bids by player
-    interface AutoBid {
-      userId: string;
-      username: string;
+    // Create a map of user's auto-bids by player ID
+    interface UserAutoBid {
       maxAmount: number;
       isActive: boolean;
     }
     
-    interface AutoBidsByPlayer {
-      [key: number]: AutoBid[];
+    interface UserAutoBidsByPlayer {
+      [key: number]: UserAutoBid;
     }
 
-    const autoBidsByPlayer = (autoBidsData as any[]).reduce((acc: AutoBidsByPlayer, autoBid) => {
-      if (!acc[autoBid.player_id]) {
-        acc[autoBid.player_id] = [];
-      }
-      acc[autoBid.player_id].push({
-        userId: autoBid.user_id,
-        username: autoBid.username,
+    const userAutoBidsByPlayer = (userAutoBidsData as any[]).reduce((acc: UserAutoBidsByPlayer, autoBid) => {
+      acc[autoBid.player_id] = {
         maxAmount: autoBid.max_amount,
         isActive: autoBid.is_active === 1
-      });
+      };
       return acc;
     }, {});
 
-    // Calculate time remaining for active auctions and add auto-bid info
+    // Calculate time remaining for active auctions and add user's auto-bid info only
     const now = Math.floor(Date.now() / 1000);
     const processedPlayers = (playersWithStatus as any[]).map((player) => ({
       ...player,
       timeRemaining: player.scheduled_end_time 
         ? Math.max(0, player.scheduled_end_time - now)
         : undefined,
-      autoBids: autoBidsByPlayer[player.id] || [],
-      userAutoBid: autoBidsByPlayer[player.id]?.find((ab) => ab.userId === user.id) || null,
+      userAutoBid: userAutoBidsByPlayer[player.id] || null,
     }));
 
     return NextResponse.json(processedPlayers);

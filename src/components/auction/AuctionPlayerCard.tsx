@@ -11,6 +11,10 @@ interface AuctionPlayerCardProps {
   currentBid: number;
   timeRemaining?: number;
   status: string;
+  userAutoBid?: {
+    max_amount: number;
+    is_active: boolean;
+  } | null;
 }
 
 export function AuctionPlayerCard({
@@ -21,6 +25,7 @@ export function AuctionPlayerCard({
   currentBid,
   timeRemaining,
   status,
+  userAutoBid,
 }: AuctionPlayerCardProps) {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -84,12 +89,22 @@ export function AuctionPlayerCard({
             )}
           </div>
 
-          {/* Current Bid */}
-          <div className="text-center space-y-1">
-            <p className="text-sm text-muted-foreground">Offerta Attuale</p>
-            <p className="text-3xl font-bold text-primary">
-              {currentBid} <span className="text-lg">crediti</span>
-            </p>
+          {/* Auto-Bid and Current Bid */}
+          <div className="text-center space-y-2">
+            {userAutoBid && userAutoBid.is_active && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">La tua Auto-Bid</p>
+                <p className="text-2xl font-bold text-blue-500">
+                  {userAutoBid.max_amount} <span className="text-sm">crediti</span>
+                </p>
+              </div>
+            )}
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Offerta Attuale</p>
+              <p className="text-3xl font-bold text-green-600">
+                {currentBid} <span className="text-lg">crediti</span>
+              </p>
+            </div>
           </div>
 
           {/* Timer */}

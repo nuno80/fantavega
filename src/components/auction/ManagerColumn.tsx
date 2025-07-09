@@ -39,10 +39,9 @@ interface ActiveAuction {
   scheduled_end_time: number;
 }
 
-interface AutoBid {
+interface AutoBidIndicator {
   player_id: number;
-  user_id: string;
-  max_bid_amount: number;
+  auto_bid_count: number;
 }
 
 // Discriminated union for Slot
@@ -58,7 +57,12 @@ interface ManagerColumnProps {
   position: number;
   leagueSlots?: LeagueSlots;
   activeAuctions?: ActiveAuction[];
-  autoBids?: AutoBid[];
+  autoBids?: AutoBidIndicator[];
+  userAutoBid?: {
+    max_amount: number;
+    is_active: boolean;
+  } | null;
+  currentAuctionPlayerId?: number;
 }
 
 // Helper functions
@@ -177,11 +181,35 @@ function AssignedSlot({ player, role }: { player: PlayerInRoster; role: string }
   );
 }
 
-function InAuctionSlot({ auction, role, autoBids = [], managerUserId, isLast }: { auction: ActiveAuction; role: string; autoBids: AutoBid[]; managerUserId: string; isLast: boolean }) {
-  const autoBid = autoBids.find(ab => ab.player_id === auction.player_id && ab.user_id === managerUserId);
+function InAuctionSlot({ 
+  auction, 
+  role, 
+  autoBids = [], 
+  managerUserId, 
+  isLast, 
+  userAutoBid, 
+  currentAuctionPlayerId, 
+  isCurrentUser 
+}: { 
+  auction: ActiveAuction; 
+  role: string; 
+  autoBids: AutoBidIndicator[]; 
+  managerUserId: string; 
+  isLast: boolean;
+  userAutoBid?: { max_amount: number; is_active: boolean } | null;
+  currentAuctionPlayerId?: number;
+  isCurrentUser: boolean;
+}) {
+  const autoBidIndicator = autoBids.find(ab => ab.player_id === auction.player_id);
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
   const roleTextColor = getRoleTextColor(role);
+  
+  // Show user's auto-bid only if this is the current user and current auction
+  const showUserAutoBid = isCurrentUser && 
+                          userAutoBid && 
+                          userAutoBid.is_active && 
+                          currentAuctionPlayerId === auction.player_id;
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -214,8 +242,10 @@ function InAuctionSlot({ auction, role, autoBids = [], managerUserId, isLast }: 
       </div>
       <div className="text-xs flex items-center justify-between">
         <div className="flex items-center gap-1">
-          {autoBid && <span className="text-blue-400 font-semibold">{autoBid.max_bid_amount}</span>}
-          <span className={`${roleTextColor} font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
+          {showUserAutoBid && (
+            <span className="text-blue-400 font-semibold">{userAutoBid.max_amount}</span>
+          )}
+          <span className={`text-green-400 font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
         </div>
         <span className={`ml-2 ${timeInfo.color} ${timeInfo.color === 'text-red-500' && timeInfo.text.includes('s') ? 'animate-pulse' : ''}`}>
           {timeInfo.text}
@@ -246,6 +276,8 @@ export function ManagerColumn({
   leagueSlots,
   activeAuctions = [],
   autoBids = [],
+  userAutoBid,
+  currentAuctionPlayerId,
 }: ManagerColumnProps) {
   const getTeamColor = (position: number) => {
     const colors = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-orange-400', 'text-cyan-400'];
@@ -365,7 +397,17 @@ export function ManagerColumn({
                     case 'assigned':
                       return <AssignedSlot key={index} player={slot.player} role={role} />;
                     case 'in_auction':
-                      return <InAuctionSlot key={index} auction={slot.auction} role={role} autoBids={autoBids} managerUserId={manager.user_id} isLast={index === slots.length - 1} />;
+                      return <InAuctionSlot 
+                        key={index} 
+                        auction={slot.auction} 
+                        role={role} 
+                        autoBids={autoBids} 
+                        managerUserId={manager.user_id} 
+                        isLast={index === slots.length - 1}
+                        userAutoBid={userAutoBid}
+                        currentAuctionPlayerId={currentAuctionPlayerId}
+                        isCurrentUser={isCurrentUser}
+                      />;
                     case 'empty':
                       return <EmptySlot key={index} />;
                     default:

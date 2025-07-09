@@ -112,18 +112,18 @@ export async function GET(
 
     const activeAuctions = activeAuctionsStmt.all(leagueId) as ActiveAuction[];
 
-    // Get auto bids for all active auctions
+    // Get auto bid indicators for all active auctions (without revealing amounts)
     const autoBidsStmt = db.prepare(`
       SELECT 
         a.player_id,
-        ab.user_id,
-        ab.max_amount as max_bid_amount
+        COUNT(ab.user_id) as auto_bid_count
       FROM auto_bids ab
       JOIN auctions a ON ab.auction_id = a.id
       WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1
+      GROUP BY a.player_id
     `);
 
-    const autoBids = autoBidsStmt.all(leagueId) as {player_id: number, user_id: string, max_bid_amount: number}[];
+    const autoBids = autoBidsStmt.all(leagueId) as {player_id: number, auto_bid_count: number}[];
 
     // Get players for each manager
     const playersStmt = db.prepare(`
