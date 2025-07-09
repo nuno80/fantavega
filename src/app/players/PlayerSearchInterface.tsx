@@ -153,7 +153,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
   useEffect(() => {
     if (!isConnected || !socket || !selectedLeagueId) return;
 
-    socket.emit("join-league-room", `league-${selectedLeagueId}`);
+    socket.emit("join-league-room", selectedLeagueId.toString());
 
     // Auto-process expired auctions every 30 seconds
     const processExpiredAuctions = async () => {
@@ -228,7 +228,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     socket.on("auction-closed-notification", handleAuctionClosed);
 
     return () => {
-      socket.emit("leave-league-room", `league-${selectedLeagueId}`);
+      socket.emit("leave-league-room", selectedLeagueId.toString());
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("auction-closed-notification", handleAuctionClosed);
       clearInterval(expiredAuctionsInterval);
