@@ -28,9 +28,9 @@ export function PlayerSearchCard({
       case "P":
         return "bg-yellow-500 text-yellow-900";
       case "D":
-        return "bg-blue-500 text-blue-900";
-      case "C":
         return "bg-green-500 text-green-900";
+      case "C":
+        return "bg-blue-500 text-blue-900";
       case "A":
         return "bg-red-500 text-red-900";
       default:
