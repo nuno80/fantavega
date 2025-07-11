@@ -43,10 +43,16 @@ export async function POST(
     }
 
     const requestBody = await request.json();
-    const { playerId } = requestBody;
+    const { playerId, initialBid } = requestBody;
 
     if (!playerId || isNaN(parseInt(playerId))) {
       return NextResponse.json({ error: "ID giocatore non valido" }, { status: 400 });
+    }
+
+    // Validate initial bid
+    const bidAmount = initialBid ? parseInt(initialBid) : null;
+    if (bidAmount !== null && (isNaN(bidAmount) || bidAmount < 1)) {
+      return NextResponse.json({ error: "Offerta iniziale non valida" }, { status: 400 });
     }
 
     // Verify league exists and is in correct status
@@ -92,12 +98,13 @@ export async function POST(
       return NextResponse.json({ error: "Esiste già un'asta attiva per questo giocatore" }, { status: 400 });
     }
 
-    // Start the auction with minimum bid using admin as initial bidder
+    // Start the auction with specified bid or minimum bid using user as initial bidder
+    const finalBidAmount = bidAmount || league.min_bid;
     const auctionResult = await placeInitialBidAndCreateAuction(
       leagueId,
       playerId,
       user.id,
-      league.min_bid
+      finalBidAmount
     );
 
     return NextResponse.json({

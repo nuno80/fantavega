@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User } from "lucide-react";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
+import { StandardBidModal } from "./StandardBidModal";
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 
 // Extend the Player interface to match PlayerWithAuctionStatus
@@ -56,6 +57,15 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
   // Bid modal state
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<PlayerWithAuctionStatus | null>(null);
+  
+  // Start auction modal state
+  const [isStartAuctionModalOpen, setIsStartAuctionModalOpen] = useState(false);
+  const [selectedPlayerForStartAuction, setSelectedPlayerForStartAuction] = useState<{
+    id: number;
+    name: string;
+    role: string;
+    team: string;
+  } | null>(null);
 
   // Fetch all players with auction status
   useEffect(() => {
@@ -158,52 +168,30 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
     }
   };
 
-  // Handle starting auction
-  const handleStartAuction = async () => {
-    if (!selectedPlayer || !selectedPlayerDetails) return;
+  // Handle starting auction - now opens modal
+  const handleStartAuction = () => {
+    if (!selectedPlayerDetails) return;
+    
+    setSelectedPlayerForStartAuction({
+      id: selectedPlayerDetails.id,
+      name: selectedPlayerDetails.name,
+      role: selectedPlayerDetails.role,
+      team: selectedPlayerDetails.team
+    });
+    setIsStartAuctionModalOpen(true);
+  };
 
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/leagues/${leagueId}/start-auction`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId: parseInt(selectedPlayer) }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        toast.success("Asta avviata con successo!");
-        onStartAuction?.(parseInt(selectedPlayer));
-        // Reset selection after starting auction
-        setSelectedPlayer("");
-        setSelectedPlayerDetails(null);
-        // Refresh players data
-        refreshPlayersData();
-      } else {
-        // Get the error message from response
-        const responseText = await response.text();
-        let error;
-        try {
-          error = responseText ? JSON.parse(responseText) : { error: "Errore sconosciuto" };
-        } catch (parseError) {
-          error = { error: "Errore di comunicazione con il server" };
-        }
-        
-        // Show specific error message
-        if (response.status === 403) {
-          toast.error(error.error || "Non hai i permessi per avviare aste");
-        } else if (response.status === 400) {
-          toast.error(error.error || "Errore nella richiesta");
-        } else if (response.status === 404) {
-          toast.error(error.error || "Risorsa non trovata");
-        } else {
-          toast.error(error.error || "Errore nell'avviare l'asta");
-        }
-      }
-    } catch (error) {
-      toast.error("Errore di connessione");
-    } finally {
-      setIsLoading(false);
+  // Handle successful auction start
+  const handleAuctionStartSuccess = () => {
+    // Reset selection after starting auction
+    setSelectedPlayer("");
+    setSelectedPlayerDetails(null);
+    setSelectedPlayerForStartAuction(null);
+    // Refresh players data
+    refreshPlayersData();
+    // Callback to parent
+    if (selectedPlayerForStartAuction) {
+      onStartAuction?.(selectedPlayerForStartAuction.id);
     }
   };
 
@@ -334,7 +322,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
                   size="sm"
                   className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
                   onClick={handleStartAuction}
-                  disabled={!selectedPlayer || isLoading || selectedPlayerDetails?.auctionStatus !== "no_auction"}
+                  disabled={!selectedPlayer || selectedPlayerDetails?.auctionStatus !== "no_auction"}
                   title="Avvia Asta"
                 >
                   <Gavel className="h-4 w-4" />
@@ -465,7 +453,6 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
                       onClick={handleStartAuction}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                       size="sm"
-                      disabled={isLoading}
                     >
                       <Gavel className="h-4 w-4 mr-2" />
                       Avvia Asta
@@ -515,6 +502,26 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
           leagueId={leagueId}
           userId={userId}
           onBidSuccess={refreshPlayersData}
+        />
+      )}
+
+      {/* Start Auction Modal */}
+      {selectedPlayerForStartAuction && (
+        <StandardBidModal
+          isOpen={isStartAuctionModalOpen}
+          onClose={() => {
+            setIsStartAuctionModalOpen(false);
+            setSelectedPlayerForStartAuction(null);
+          }}
+          playerName={selectedPlayerForStartAuction.name}
+          playerRole={selectedPlayerForStartAuction.role}
+          playerTeam={selectedPlayerForStartAuction.team}
+          playerId={selectedPlayerForStartAuction.id}
+          leagueId={leagueId}
+          currentBid={0}
+          isNewAuction={true}
+          title="Avvia Asta"
+          onBidSuccess={handleAuctionStartSuccess}
         />
       )}
     </div>

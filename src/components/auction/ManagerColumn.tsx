@@ -4,7 +4,7 @@ import { Star, User, Lock, DollarSign, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ResponseActionModal } from "./ResponseActionModal";
-import { BiddingInterface } from "./BiddingInterface";
+import { StandardBidModal } from "./StandardBidModal";
 
 // Type definitions
 interface PlayerInRoster {
@@ -360,13 +360,32 @@ export function ManagerColumn({
   userAuctionStates = [],
   leagueId,
 }: ManagerColumnProps) {
-  const [showBiddingInterface, setShowBiddingInterface] = useState(false);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+  const [showStandardBidModal, setShowStandardBidModal] = useState(false);
+  const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
+    id: number;
+    name: string;
+    role: string;
+    team: string;
+    currentBid: number;
+  } | null>(null);
 
   const handleCounterBid = (playerId: number) => {
     console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
-    setSelectedPlayerId(playerId);
-    setShowBiddingInterface(true);
+    
+    // Trova le informazioni del giocatore
+    const auction = activeAuctions.find(a => a.player_id === playerId);
+    const state = userAuctionStates.find(s => s.player_id === playerId);
+    
+    if (auction || state) {
+      setSelectedPlayerForBid({
+        id: playerId,
+        name: auction?.player_name || state?.player_name || "Giocatore",
+        role: auction?.player_role || "?",
+        team: auction?.player_team || "?",
+        currentBid: auction?.current_highest_bid_amount || state?.current_bid || 0
+      });
+      setShowStandardBidModal(true);
+    }
   };
   const getTeamColor = (position: number) => {
     const colors = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-orange-400', 'text-cyan-400'];
@@ -543,78 +562,29 @@ export function ManagerColumn({
         )}
       </div>
 
-      {/* Bidding Interface Modal */}
-      {showBiddingInterface && selectedPlayerId && leagueId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Fai una nuova offerta</h3>
-            <BiddingInterface
-              currentBid={activeAuctions.find(a => a.player_id === selectedPlayerId)?.current_highest_bid_amount || 0}
-              minBid={(activeAuctions.find(a => a.player_id === selectedPlayerId)?.current_highest_bid_amount || 0) + 1}
-              userBudget={manager.current_budget}
-              lockedCredits={manager.locked_credits}
-              isUserHighestBidder={false}
-              auctionStatus="active"
-              playerId={selectedPlayerId}
-              leagueId={leagueId}
-              playerName={activeAuctions.find(a => a.player_id === selectedPlayerId)?.player_name || "Giocatore"}
-              defaultBidAmount={(activeAuctions.find(a => a.player_id === selectedPlayerId)?.current_highest_bid_amount || 0) + 1}
-              isCounterBid={true}
-              onPlaceBid={async (amount: number, bidType?: "manual" | "quick") => {
-                try {
-                  const response = await fetch(`/api/leagues/${leagueId}/players/${selectedPlayerId}/bids`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ amount, bidType: bidType || "manual" }),
-                  });
-
-                  if (response.ok) {
-                    toast.success("Offerta piazzata con successo!");
-                    setShowBiddingInterface(false);
-                    setSelectedPlayerId(null);
-                    // Refresh page to update all data including timers
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 1000);
-                  } else {
-                    const error = await response.json();
-                    toast.error(error.error || "Errore durante l'offerta");
-                  }
-                } catch (error) {
-                  toast.error("Errore di connessione");
-                }
-              }}
-              onAutoBidSet={async (maxAmount: number) => {
-                try {
-                  const response = await fetch(`/api/leagues/${leagueId}/players/${selectedPlayerId}/auto-bid`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ max_amount: maxAmount }),
-                  });
-
-                  if (response.ok) {
-                    toast.success("Auto-bid impostata!");
-                  } else {
-                    const error = await response.json();
-                    toast.error(error.error || "Errore durante l'impostazione auto-bid");
-                  }
-                } catch (error) {
-                  toast.error("Errore di connessione");
-                }
-              }}
-              existingAutoBid={userAutoBid}
-            />
-            <button
-              onClick={() => {
-                setShowBiddingInterface(false);
-                setSelectedPlayerId(null);
-              }}
-              className="mt-4 w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-            >
-              Annulla
-            </button>
-          </div>
-        </div>
+      {/* Standard Bid Modal */}
+      {selectedPlayerForBid && leagueId && (
+        <StandardBidModal
+          isOpen={showStandardBidModal}
+          onClose={() => {
+            setShowStandardBidModal(false);
+            setSelectedPlayerForBid(null);
+          }}
+          playerName={selectedPlayerForBid.name}
+          playerRole={selectedPlayerForBid.role}
+          playerTeam={selectedPlayerForBid.team}
+          playerId={selectedPlayerForBid.id}
+          leagueId={leagueId}
+          currentBid={selectedPlayerForBid.currentBid}
+          isNewAuction={false}
+          title="Rilancia"
+          onBidSuccess={() => {
+            // Refresh page to update data
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }}
+        />
       )}
     </div>
   );
