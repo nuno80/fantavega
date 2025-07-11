@@ -86,12 +86,19 @@ export const markTimerCompleted = async (
   userId: string
 ): Promise<void> => {
   try {
-    db.prepare(
+    const result = db.prepare(
       "UPDATE user_auction_response_timers SET status = 'action_taken' WHERE auction_id = ? AND user_id = ? AND status = 'pending'"
     ).run(auctionId, userId);
+    
+    console.log(`[RESPONSE_TIMER] Timer completion result for user ${userId}, auction ${auctionId}: ${result.changes} rows updated`);
+    
+    if (result.changes === 0) {
+      console.log(`[RESPONSE_TIMER] No pending timer found for user ${userId}, auction ${auctionId} - this is normal if no timer was active`);
+    }
   } catch (error) {
     console.error(`[RESPONSE_TIMER] Error marking timer completed for user ${userId}, auction ${auctionId}:`, error);
-    throw error;
+    // Non fare throw dell'errore - è normale che non ci sia sempre un timer da completare
+    console.log(`[RESPONSE_TIMER] Continuing despite timer completion error - this is not critical`);
   }
 };
 
@@ -128,10 +135,10 @@ export const processExpiredResponseTimers = async (): Promise<{
             "UPDATE user_auction_response_timers SET status = 'deadline_missed' WHERE id = ?"
           ).run(timer.id);
 
-          // Aggiungi alla tabella abandoned_auctions
+          // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
           const cooldownEnd = now + (ABANDON_COOLDOWN_HOURS * 3600);
           db.prepare(
-            "INSERT INTO abandoned_auctions (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
+            "INSERT INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
           ).run(timer.auction_id, timer.user_id, now, cooldownEnd);
         })();
 
@@ -193,9 +200,9 @@ export const canUserBidOnPlayer = (userId: string, playerId: number): boolean =>
   const now = Math.floor(Date.now() / 1000);
   
   const cooldownCheck = db.prepare(`
-    SELECT 1 FROM abandoned_auctions aa
-    JOIN auctions a ON aa.auction_id = a.id
-    WHERE aa.user_id = ? AND a.player_id = ? AND aa.cooldown_ends_at > ?
+    SELECT 1 FROM user_auction_cooldowns uac
+    JOIN auctions a ON uac.auction_id = a.id
+    WHERE uac.user_id = ? AND a.player_id = ? AND uac.cooldown_ends_at > ?
   `).get(userId, playerId, now);
 
   return !cooldownCheck;

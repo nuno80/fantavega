@@ -3,7 +3,7 @@
 // 1. Importazioni
 import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
-import { createResponseTimer, markTimerCompleted } from "./response-timer.service";
+import { handleBidderChange } from "./auction-states.service";
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
@@ -385,17 +385,19 @@ export async function placeBidOnExistingAuction({
       throw new Error("L'offerta deve essere superiore all'offerta attuale.");
     }
     
-    // Check if user is already highest bidder, but allow if they have an active response timer
+    // Check if user is already highest bidder, but allow if they can counter-bid
     if (previousHighestBidderId === userId) {
-      const activeResponseTimer = db.prepare(
-        "SELECT id FROM user_auction_response_timers WHERE auction_id = ? AND user_id = ? AND status = 'pending'"
-      ).get(auction.id, userId) as { id: number } | undefined;
+      // Con il nuovo sistema di stati, controlliamo se l'utente può fare rilancio
+      const canCounterBid = db.prepare(`
+        SELECT 1 FROM user_auction_response_timers 
+        WHERE auction_id = ? AND user_id = ? AND status = 'pending'
+      `).get(auction.id, userId);
       
-      if (!activeResponseTimer) {
+      if (!canCounterBid) {
         throw new Error("Sei già il miglior offerente.");
       }
       
-      console.log(`[BID_SERVICE] User ${userId} is highest bidder but has active response timer - allowing counter-bid`);
+      console.log(`[BID_SERVICE] User ${userId} is highest bidder but can counter-bid`);
     }
 
     // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
@@ -676,13 +678,13 @@ export async function placeBidOnExistingAuction({
         },
       });
 
-      // Crea timer di risposta per l'utente superato dall'auto-bid
+      // Gestisci cambio stato per l'utente superato dall'auto-bid
       const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
         .get(leagueId, playerId) as { id: number } | undefined;
       
       if (auctionInfo) {
-        console.log(`[BID_SERVICE] Creating response timer for user ${userId} (surpassed by auto-bid), auction ${auctionInfo.id}`);
-        await createResponseTimer(auctionInfo.id, userId);
+        console.log(`[BID_SERVICE] Handling state change for user ${userId} (surpassed by auto-bid), auction ${auctionInfo.id}`);
+        await handleBidderChange(auctionInfo.id, userId, result.autoBidUserId!);
       }
     } else if (result.previousHighestBidderId) {
       // Normal bid surpassed notification
@@ -696,23 +698,22 @@ export async function placeBidOnExistingAuction({
         },
       });
 
-      // Crea timer di risposta per l'utente superato
+      // Gestisci cambio stato per l'utente superato
       const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
         .get(leagueId, playerId) as { id: number } | undefined;
       
       if (auctionInfo) {
-        console.log(`[BID_SERVICE] Creating response timer for user ${result.previousHighestBidderId}, auction ${auctionInfo.id}`);
-        await createResponseTimer(auctionInfo.id, result.previousHighestBidderId);
+        console.log(`[BID_SERVICE] Handling state change for user ${result.previousHighestBidderId}, auction ${auctionInfo.id}`);
+        await handleBidderChange(auctionInfo.id, result.previousHighestBidderId, userId);
       } else {
         console.warn(`[BID_SERVICE] No active auction found for league ${leagueId}, player ${playerId}`);
       }
 
-      // Segna come completato il timer dell'utente che ha fatto l'offerta (se esistente)
-      if (auctionInfo) {
-        console.log(`[BID_SERVICE] Marking timer completed for bidder ${userId}, auction ${auctionInfo.id}`);
-        await markTimerCompleted(auctionInfo.id, userId);
-      }
     }
+
+    // Con il sistema degli stati, non abbiamo più bisogno di gestire timer qui
+    // Lo stato 'miglior_offerta' viene gestito automaticamente dalla query getUserAuctionState
+    console.log(`[BID_SERVICE] User ${userId} is now highest bidder - state will be automatically 'miglior_offerta'`);
   }
   
   const message = result.autoBidActivated 

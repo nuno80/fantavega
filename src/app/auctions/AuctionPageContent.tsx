@@ -49,12 +49,15 @@ interface Manager {
   players: PlayerInRoster[];
 }
 
-interface ResponseTimer {
+interface UserAuctionState {
   auction_id: number;
   player_id: number;
   player_name: string;
-  response_deadline: number;
   current_bid: number;
+  user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
+  response_deadline: number | null;
+  time_remaining: number | null;
+  is_highest_bidder: boolean;
 }
 
 interface PlayerInRoster {
@@ -105,7 +108,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
-  const [responseTimers, setResponseTimers] = useState<ResponseTimer[]>([]);
+  const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
   
   const { socket, isConnected } = useSocket();
   const router = useRouter();
@@ -148,12 +151,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           console.error("Failed to fetch managers");
         }
 
-        // Fetch user's response timers
-        const responseTimersResponse = await fetch(`/api/user/response-timers`);
-        if (responseTimersResponse.ok) {
-          const timersData = await responseTimersResponse.json();
-          console.log("Response timers API response:", timersData);
-          setResponseTimers(timersData.timers || []);
+        // Fetch user's auction states
+        const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${league.id}`);
+        if (auctionStatesResponse.ok) {
+          const statesData = await auctionStatesResponse.json();
+          console.log("Auction states API response:", statesData);
+          setUserAuctionStates(statesData.states || []);
         }
 
         // Get user budget for this league
@@ -369,7 +372,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   autoBids={autoBids}
                   userAutoBid={manager.user_id === userId ? userAutoBid : null}
                   currentAuctionPlayerId={currentAuction?.player_id}
-                  responseTimers={manager.user_id === userId ? responseTimers : []}
+                  userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
                   leagueId={selectedLeagueId ?? undefined}
                 />
               </div>

@@ -89,9 +89,9 @@ export async function POST(request: Request, context: RouteContext) {
           "UPDATE user_auction_response_timers SET status = 'action_taken' WHERE id = ?"
         ).run(responseTimer.id);
 
-        // Aggiungi alla tabella abandoned_auctions
+        // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
         db.prepare(
-          "INSERT INTO abandoned_auctions (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
+          "INSERT INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
         ).run(auction.id, user.id, now, cooldownEnd);
       })();
 

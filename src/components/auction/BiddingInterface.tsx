@@ -26,6 +26,8 @@ interface BiddingInterfaceProps {
     is_active: boolean;
   };
   isLoading?: boolean;
+  defaultBidAmount?: number;
+  isCounterBid?: boolean;
 }
 
 export function BiddingInterface({
@@ -42,12 +44,14 @@ export function BiddingInterface({
   onAutoBidSet,
   existingAutoBid,
   isLoading = false,
+  defaultBidAmount,
+  isCounterBid = false,
 }: BiddingInterfaceProps) {
-  const [bidAmount, setBidAmount] = useState(currentBid + 1);
+  const [bidAmount, setBidAmount] = useState(defaultBidAmount || minBid);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableBudget = userBudget - lockedCredits;
-  const canBid = auctionStatus === "active" && !isUserHighestBidder;
+  const canBid = auctionStatus === "active" && (!isUserHighestBidder || isCounterBid);
   const minValidBid = Math.max(currentBid + 1, minBid);
 
   const handleBidSubmit = async (bidType: "manual" | "quick" = "manual") => {
@@ -206,6 +210,7 @@ export function BiddingInterface({
           playerName={playerName}
           onAutoBidSet={onAutoBidSet}
           existingAutoBid={existingAutoBid}
+          defaultMaxAmount={isCounterBid ? currentBid + 1 : undefined}
         />
 
         {/* Validation Messages */}

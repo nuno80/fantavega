@@ -22,6 +22,7 @@ interface AutoBidModalProps {
     max_amount: number;
     is_active: boolean;
   };
+  defaultMaxAmount?: number;
 }
 
 export function AutoBidModal({
@@ -33,8 +34,11 @@ export function AutoBidModal({
   playerName,
   onAutoBidSet,
   existingAutoBid,
+  defaultMaxAmount,
 }: AutoBidModalProps) {
-  const [maxAmount, setMaxAmount] = useState(existingAutoBid?.max_amount || currentBid + 10);
+  const [maxAmount, setMaxAmount] = useState(
+    existingAutoBid?.max_amount || defaultMaxAmount || currentBid + 10
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 

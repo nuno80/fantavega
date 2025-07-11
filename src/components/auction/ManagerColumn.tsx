@@ -43,12 +43,15 @@ interface ActiveAuction {
   scheduled_end_time: number;
 }
 
-interface ResponseTimer {
+interface UserAuctionState {
   auction_id: number;
   player_id: number;
   player_name: string;
-  response_deadline: number;
   current_bid: number;
+  user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
+  response_deadline: number | null;
+  time_remaining: number | null;
+  is_highest_bidder: boolean;
 }
 
 interface AutoBidIndicator {
@@ -60,7 +63,7 @@ interface AutoBidIndicator {
 type Slot =
   | { type: 'assigned'; player: PlayerInRoster }
   | { type: 'in_auction'; auction: ActiveAuction }
-  | { type: 'response_needed'; timer: ResponseTimer }
+  | { type: 'response_needed'; state: UserAuctionState }
   | { type: 'empty' };
 
 interface ManagerColumnProps {
@@ -76,7 +79,7 @@ interface ManagerColumnProps {
     is_active: boolean;
   } | null;
   currentAuctionPlayerId?: number;
-  responseTimers?: ResponseTimer[];
+  userAuctionStates?: UserAuctionState[];
   leagueId?: number;
 }
 
@@ -200,21 +203,20 @@ function AssignedSlot({ player, role }: { player: PlayerInRoster; role: string }
 }
 
 function ResponseNeededSlot({
-  timer,
+  state,
   role,
   leagueId,
   isLast,
   onCounterBid
 }: {
-  timer: ResponseTimer;
+  state: UserAuctionState;
   role: string;
   leagueId: number;
   isLast: boolean;
   onCounterBid: (playerId: number) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
-  const now = Math.floor(Date.now() / 1000);
-  const timeRemaining = Math.max(0, timer.response_deadline - now);
+  const timeRemaining = state.time_remaining || 0;
   
   const roleColor = getRoleColor(role);
 
@@ -223,12 +225,12 @@ function ResponseNeededSlot({
       <div className={`p-1.5 flex items-center justify-between bg-red-600 bg-opacity-30 border border-red-500 ${isLast ? 'rounded-b-md' : ''}`}>
         <div className="flex items-center min-w-0">
           <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
-          <span className="text-xs truncate text-red-200">{timer.player_name}</span>
+          <span className="text-xs truncate text-red-200">{state.player_name}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-red-200">{timer.current_bid}</span>
+          <span className="text-xs text-red-200">{state.current_bid}</span>
           <button
-            onClick={() => onCounterBid(timer.player_id)}
+            onClick={() => onCounterBid(state.player_id)}
             className="p-1 hover:bg-green-600 rounded transition-colors"
             title="Rilancia"
           >
@@ -247,12 +249,12 @@ function ResponseNeededSlot({
       <ResponseActionModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        playerName={timer.player_name}
-        currentBid={timer.current_bid}
+        playerName={state.player_name}
+        currentBid={state.current_bid}
         timeRemaining={timeRemaining}
         leagueId={leagueId}
-        playerId={timer.player_id}
-        onCounterBid={() => onCounterBid(timer.player_id)}
+        playerId={state.player_id}
+        onCounterBid={() => onCounterBid(state.player_id)}
       />
     </>
   );
@@ -355,7 +357,7 @@ export function ManagerColumn({
   autoBids = [],
   userAutoBid,
   currentAuctionPlayerId,
-  responseTimers = [],
+  userAuctionStates = [],
   leagueId,
 }: ManagerColumnProps) {
   const [showBiddingInterface, setShowBiddingInterface] = useState(false);
@@ -408,27 +410,27 @@ export function ManagerColumn({
     
     const assignedPlayers = manager.players.filter(p => p.role.toUpperCase() === role.toUpperCase());
     const activeAuctionsForRole = activeAuctions.filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id);
-    const responseTimersForRole = responseTimers.filter(t => {
-      // Trova il ruolo del giocatore dal timer
-      const auction = activeAuctions.find(a => a.player_id === t.player_id);
-      return auction?.player_role.toUpperCase() === role.toUpperCase();
+    const statesForRole = userAuctionStates.filter(s => {
+      // Trova il ruolo del giocatore dallo stato
+      const auction = activeAuctions.find(a => a.player_id === s.player_id);
+      return auction?.player_role.toUpperCase() === role.toUpperCase() && s.user_state === 'rilancio_possibile';
     });
     
     const slots: Slot[] = [];
     
     assignedPlayers.forEach(player => slots.push({ type: 'assigned', player }));
     
-    // Add response timers (priority over regular auctions for current user)
+    // Add response needed states (priority over regular auctions for current user)
     if (isCurrentUser) {
-      responseTimersForRole.forEach(timer => {
-        slots.push({ type: 'response_needed', timer });
+      statesForRole.forEach(state => {
+        slots.push({ type: 'response_needed', state });
       });
     }
     
-    // Add auctions for this role (excluding those with response timers for current user)
+    // Add auctions for this role (excluding those with response needed states for current user)
     activeAuctionsForRole.forEach(auction => {
-      const hasResponseTimer = isCurrentUser && responseTimersForRole.some(t => t.player_id === auction.player_id);
-      if (!hasResponseTimer) {
+      const hasResponseState = isCurrentUser && statesForRole.some(s => s.player_id === auction.player_id);
+      if (!hasResponseState) {
         slots.push({ type: 'in_auction', auction });
       }
     });
@@ -517,7 +519,7 @@ export function ManagerColumn({
                     case 'response_needed':
                       return <ResponseNeededSlot
                         key={index}
-                        timer={slot.timer}
+                        state={slot.state}
                         role={role}
                         leagueId={leagueId || parseInt(window.location.pathname.split('/')[2])} // Extract from URL
                         isLast={index === slots.length - 1}
@@ -556,6 +558,8 @@ export function ManagerColumn({
               playerId={selectedPlayerId}
               leagueId={leagueId}
               playerName={activeAuctions.find(a => a.player_id === selectedPlayerId)?.player_name || "Giocatore"}
+              defaultBidAmount={(activeAuctions.find(a => a.player_id === selectedPlayerId)?.current_highest_bid_amount || 0) + 1}
+              isCounterBid={true}
               onPlaceBid={async (amount: number, bidType?: "manual" | "quick") => {
                 try {
                   const response = await fetch(`/api/leagues/${leagueId}/players/${selectedPlayerId}/bids`, {
@@ -568,8 +572,10 @@ export function ManagerColumn({
                     toast.success("Offerta piazzata con successo!");
                     setShowBiddingInterface(false);
                     setSelectedPlayerId(null);
-                    // Refresh page or trigger data reload
-                    window.location.reload();
+                    // Refresh page to update all data including timers
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
                   } else {
                     const error = await response.json();
                     toast.error(error.error || "Errore durante l'offerta");
