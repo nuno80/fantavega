@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
+import { getUserActiveResponseTimers } from "@/lib/db/services/response-timer.service";
 
 interface AuctionPageContentProps {
   userId: string;
@@ -46,6 +47,14 @@ interface Manager {
   firstName?: string;
   lastName?: string;
   players: PlayerInRoster[];
+}
+
+interface ResponseTimer {
+  auction_id: number;
+  player_id: number;
+  player_name: string;
+  response_deadline: number;
+  current_bid: number;
 }
 
 interface PlayerInRoster {
@@ -96,6 +105,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
+  const [responseTimers, setResponseTimers] = useState<ResponseTimer[]>([]);
   
   const { socket, isConnected } = useSocket();
   const router = useRouter();
@@ -136,6 +146,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           setAutoBids(managersData.autoBids || []);
         } else {
           console.error("Failed to fetch managers");
+        }
+
+        // Fetch user's response timers
+        const responseTimersResponse = await fetch(`/api/user/response-timers`);
+        if (responseTimersResponse.ok) {
+          const timersData = await responseTimersResponse.json();
+          console.log("Response timers API response:", timersData);
+          setResponseTimers(timersData.timers || []);
         }
 
         // Get user budget for this league
@@ -351,6 +369,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   autoBids={autoBids}
                   userAutoBid={manager.user_id === userId ? userAutoBid : null}
                   currentAuctionPlayerId={currentAuction?.player_id}
+                  responseTimers={manager.user_id === userId ? responseTimers : []}
                 />
               </div>
             ))

@@ -3,6 +3,7 @@
 // 1. Importazioni
 import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
+import { createResponseTimer, markTimerCompleted } from "./response-timer.service";
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
@@ -674,6 +675,14 @@ export async function placeBidOnExistingAuction({
           autoBidActivated: false,
         },
       });
+
+      // Crea timer di risposta per l'utente superato
+      const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
+        .get(leagueId, playerId) as { id: number } | undefined;
+      
+      if (auctionInfo) {
+        await createResponseTimer(auctionInfo.id, result.previousHighestBidderId);
+      }
     }
   }
   

@@ -1,6 +1,9 @@
 "use client";
 
-import { Star, User, Lock } from "lucide-react";
+import { Star, User, Lock, DollarSign, X } from "lucide-react";
+import { useState } from "react";
+import { ResponseActionModal } from "./ResponseActionModal";
+import { BiddingInterface } from "./BiddingInterface";
 
 // Type definitions
 interface PlayerInRoster {
@@ -39,6 +42,14 @@ interface ActiveAuction {
   scheduled_end_time: number;
 }
 
+interface ResponseTimer {
+  auction_id: number;
+  player_id: number;
+  player_name: string;
+  response_deadline: number;
+  current_bid: number;
+}
+
 interface AutoBidIndicator {
   player_id: number;
   auto_bid_count: number;
@@ -48,6 +59,7 @@ interface AutoBidIndicator {
 type Slot =
   | { type: 'assigned'; player: PlayerInRoster }
   | { type: 'in_auction'; auction: ActiveAuction }
+  | { type: 'response_needed'; timer: ResponseTimer }
   | { type: 'empty' };
 
 interface ManagerColumnProps {
@@ -63,6 +75,7 @@ interface ManagerColumnProps {
     is_active: boolean;
   } | null;
   currentAuctionPlayerId?: number;
+  responseTimers?: ResponseTimer[];
 }
 
 // Helper functions
@@ -184,6 +197,65 @@ function AssignedSlot({ player, role }: { player: PlayerInRoster; role: string }
   );
 }
 
+function ResponseNeededSlot({
+  timer,
+  role,
+  leagueId,
+  isLast,
+  onCounterBid
+}: {
+  timer: ResponseTimer;
+  role: string;
+  leagueId: number;
+  isLast: boolean;
+  onCounterBid: (playerId: number) => void;
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const now = Math.floor(Date.now() / 1000);
+  const timeRemaining = Math.max(0, timer.response_deadline - now);
+  
+  const roleColor = getRoleColor(role);
+
+  return (
+    <>
+      <div className={`p-1.5 flex items-center justify-between bg-red-600 bg-opacity-30 border border-red-500 ${isLast ? 'rounded-b-md' : ''}`}>
+        <div className="flex items-center min-w-0">
+          <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
+          <span className="text-xs truncate text-red-200">{timer.player_name}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-red-200">{timer.current_bid}</span>
+          <button
+            onClick={() => onCounterBid(timer.player_id)}
+            className="p-1 hover:bg-green-600 rounded transition-colors"
+            title="Rilancia"
+          >
+            <DollarSign className="h-3 w-3 text-green-400" />
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="p-1 hover:bg-red-600 rounded transition-colors"
+            title="Abbandona"
+          >
+            <X className="h-3 w-3 text-red-400" />
+          </button>
+        </div>
+      </div>
+      
+      <ResponseActionModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        playerName={timer.player_name}
+        currentBid={timer.current_bid}
+        timeRemaining={timeRemaining}
+        leagueId={leagueId}
+        playerId={timer.player_id}
+        onCounterBid={() => onCounterBid(timer.player_id)}
+      />
+    </>
+  );
+}
+
 function InAuctionSlot({ 
   auction, 
   role, 
@@ -281,7 +353,15 @@ export function ManagerColumn({
   autoBids = [],
   userAutoBid,
   currentAuctionPlayerId,
+  responseTimers = [],
 }: ManagerColumnProps) {
+  const [showBiddingInterface, setShowBiddingInterface] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+
+  const handleCounterBid = (playerId: number) => {
+    setSelectedPlayerId(playerId);
+    setShowBiddingInterface(true);
+  };
   const getTeamColor = (position: number) => {
     const colors = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-orange-400', 'text-cyan-400'];
     return colors[(position - 1) % colors.length];
@@ -324,11 +404,30 @@ export function ManagerColumn({
     
     const assignedPlayers = manager.players.filter(p => p.role.toUpperCase() === role.toUpperCase());
     const activeAuctionsForRole = activeAuctions.filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id);
+    const responseTimersForRole = responseTimers.filter(t => {
+      // Trova il ruolo del giocatore dal timer
+      const auction = activeAuctions.find(a => a.player_id === t.player_id);
+      return auction?.player_role.toUpperCase() === role.toUpperCase();
+    });
     
     const slots: Slot[] = [];
     
     assignedPlayers.forEach(player => slots.push({ type: 'assigned', player }));
-    activeAuctionsForRole.forEach(auction => slots.push({ type: 'in_auction', auction }));
+    
+    // Add response timers (priority over regular auctions for current user)
+    if (isCurrentUser) {
+      responseTimersForRole.forEach(timer => {
+        slots.push({ type: 'response_needed', timer });
+      });
+    }
+    
+    // Add auctions for this role (excluding those with response timers for current user)
+    activeAuctionsForRole.forEach(auction => {
+      const hasResponseTimer = isCurrentUser && responseTimersForRole.some(t => t.player_id === auction.player_id);
+      if (!hasResponseTimer) {
+        slots.push({ type: 'in_auction', auction });
+      }
+    });
     
     while (slots.length < totalSlots) {
       slots.push({ type: 'empty' });
@@ -410,6 +509,15 @@ export function ManagerColumn({
                         userAutoBid={userAutoBid}
                         currentAuctionPlayerId={currentAuctionPlayerId}
                         isCurrentUser={isCurrentUser}
+                      />;
+                    case 'response_needed':
+                      return <ResponseNeededSlot
+                        key={index}
+                        timer={slot.timer}
+                        role={role}
+                        leagueId={parseInt(window.location.pathname.split('/')[2])} // Extract from URL
+                        isLast={index === slots.length - 1}
+                        onCounterBid={handleCounterBid}
                       />;
                     case 'empty':
                       return <EmptySlot key={index} />;
