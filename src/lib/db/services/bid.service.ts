@@ -384,8 +384,19 @@ export async function placeBidOnExistingAuction({
     if (bidAmount <= auction.current_highest_bid_amount) {
       throw new Error("L'offerta deve essere superiore all'offerta attuale.");
     }
-    if (previousHighestBidderId === userId)
-      throw new Error("Sei già il miglior offerente.");
+    
+    // Check if user is already highest bidder, but allow if they have an active response timer
+    if (previousHighestBidderId === userId) {
+      const activeResponseTimer = db.prepare(
+        "SELECT id FROM user_auction_response_timers WHERE auction_id = ? AND user_id = ? AND status = 'pending'"
+      ).get(auction.id, userId) as { id: number } | undefined;
+      
+      if (!activeResponseTimer) {
+        throw new Error("Sei già il miglior offerente.");
+      }
+      
+      console.log(`[BID_SERVICE] User ${userId} is highest bidder but has active response timer - allowing counter-bid`);
+    }
 
     // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
     const player = db
@@ -664,6 +675,15 @@ export async function placeBidOnExistingAuction({
           triggeredBy: userId,
         },
       });
+
+      // Crea timer di risposta per l'utente superato dall'auto-bid
+      const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
+        .get(leagueId, playerId) as { id: number } | undefined;
+      
+      if (auctionInfo) {
+        console.log(`[BID_SERVICE] Creating response timer for user ${userId} (surpassed by auto-bid), auction ${auctionInfo.id}`);
+        await createResponseTimer(auctionInfo.id, userId);
+      }
     } else if (result.previousHighestBidderId) {
       // Normal bid surpassed notification
       await notifySocketServer({
@@ -681,7 +701,16 @@ export async function placeBidOnExistingAuction({
         .get(leagueId, playerId) as { id: number } | undefined;
       
       if (auctionInfo) {
+        console.log(`[BID_SERVICE] Creating response timer for user ${result.previousHighestBidderId}, auction ${auctionInfo.id}`);
         await createResponseTimer(auctionInfo.id, result.previousHighestBidderId);
+      } else {
+        console.warn(`[BID_SERVICE] No active auction found for league ${leagueId}, player ${playerId}`);
+      }
+
+      // Segna come completato il timer dell'utente che ha fatto l'offerta (se esistente)
+      if (auctionInfo) {
+        console.log(`[BID_SERVICE] Marking timer completed for bidder ${userId}, auction ${auctionInfo.id}`);
+        await markTimerCompleted(auctionInfo.id, userId);
       }
     }
   }

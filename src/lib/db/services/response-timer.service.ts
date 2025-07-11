@@ -37,21 +37,26 @@ export const createResponseTimer = async (
   const deadline = now + (RESPONSE_TIME_HOURS * 3600);
 
   try {
+    console.log(`[RESPONSE_TIMER] Creating timer for user ${userId}, auction ${auctionId}, deadline: ${deadline}`);
+
     // Verifica se esiste già un timer pending per questa combinazione
     const existingTimer = db.prepare(
       "SELECT id FROM user_auction_response_timers WHERE auction_id = ? AND user_id = ? AND status = 'pending'"
     ).get(auctionId, userId) as { id: number } | undefined;
 
     if (existingTimer) {
+      console.log(`[RESPONSE_TIMER] Updating existing timer ${existingTimer.id}`);
       // Aggiorna il timer esistente
       db.prepare(
         "UPDATE user_auction_response_timers SET notified_at = ?, response_deadline = ? WHERE id = ?"
       ).run(now, deadline, existingTimer.id);
     } else {
+      console.log(`[RESPONSE_TIMER] Creating new timer`);
       // Crea nuovo timer
-      db.prepare(
+      const result = db.prepare(
         "INSERT INTO user_auction_response_timers (auction_id, user_id, notified_at, response_deadline, status) VALUES (?, ?, ?, ?, 'pending')"
       ).run(auctionId, userId, now, deadline);
+      console.log(`[RESPONSE_TIMER] Created timer with ID: ${result.lastInsertRowid}`);
     }
 
     // Invia notifica Socket.IO
@@ -64,6 +69,8 @@ export const createResponseTimer = async (
         timeRemaining: RESPONSE_TIME_HOURS * 3600
       }
     });
+
+    console.log(`[RESPONSE_TIMER] Timer created successfully for user ${userId}`);
 
   } catch (error) {
     console.error(`[RESPONSE_TIMER] Error creating timer for user ${userId}, auction ${auctionId}:`, error);

@@ -370,6 +370,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   userAutoBid={manager.user_id === userId ? userAutoBid : null}
                   currentAuctionPlayerId={currentAuction?.player_id}
                   responseTimers={manager.user_id === userId ? responseTimers : []}
+                  leagueId={selectedLeagueId ?? undefined}
                 />
               </div>
             ))

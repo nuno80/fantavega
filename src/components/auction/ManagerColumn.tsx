@@ -2,6 +2,7 @@
 
 import { Star, User, Lock, DollarSign, X } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { BiddingInterface } from "./BiddingInterface";
 
@@ -76,6 +77,7 @@ interface ManagerColumnProps {
   } | null;
   currentAuctionPlayerId?: number;
   responseTimers?: ResponseTimer[];
+  leagueId?: number;
 }
 
 // Helper functions
@@ -354,11 +356,13 @@ export function ManagerColumn({
   userAutoBid,
   currentAuctionPlayerId,
   responseTimers = [],
+  leagueId,
 }: ManagerColumnProps) {
   const [showBiddingInterface, setShowBiddingInterface] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
 
   const handleCounterBid = (playerId: number) => {
+    console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
     setSelectedPlayerId(playerId);
     setShowBiddingInterface(true);
   };
@@ -515,7 +519,7 @@ export function ManagerColumn({
                         key={index}
                         timer={slot.timer}
                         role={role}
-                        leagueId={parseInt(window.location.pathname.split('/')[2])} // Extract from URL
+                        leagueId={leagueId || parseInt(window.location.pathname.split('/')[2])} // Extract from URL
                         isLast={index === slots.length - 1}
                         onCounterBid={handleCounterBid}
                       />;
@@ -536,6 +540,76 @@ export function ManagerColumn({
           </div>
         )}
       </div>
+
+      {/* Bidding Interface Modal */}
+      {showBiddingInterface && selectedPlayerId && leagueId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Fai una nuova offerta</h3>
+            <BiddingInterface
+              currentBid={activeAuctions.find(a => a.player_id === selectedPlayerId)?.current_highest_bid_amount || 0}
+              minBid={(activeAuctions.find(a => a.player_id === selectedPlayerId)?.current_highest_bid_amount || 0) + 1}
+              userBudget={manager.current_budget}
+              lockedCredits={manager.locked_credits}
+              isUserHighestBidder={false}
+              auctionStatus="active"
+              playerId={selectedPlayerId}
+              leagueId={leagueId}
+              playerName={activeAuctions.find(a => a.player_id === selectedPlayerId)?.player_name || "Giocatore"}
+              onPlaceBid={async (amount: number, bidType?: "manual" | "quick") => {
+                try {
+                  const response = await fetch(`/api/leagues/${leagueId}/players/${selectedPlayerId}/bids`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ amount, bidType: bidType || "manual" }),
+                  });
+
+                  if (response.ok) {
+                    toast.success("Offerta piazzata con successo!");
+                    setShowBiddingInterface(false);
+                    setSelectedPlayerId(null);
+                    // Refresh page or trigger data reload
+                    window.location.reload();
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || "Errore durante l'offerta");
+                  }
+                } catch (error) {
+                  toast.error("Errore di connessione");
+                }
+              }}
+              onAutoBidSet={async (maxAmount: number) => {
+                try {
+                  const response = await fetch(`/api/leagues/${leagueId}/players/${selectedPlayerId}/auto-bid`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ max_amount: maxAmount }),
+                  });
+
+                  if (response.ok) {
+                    toast.success("Auto-bid impostata!");
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || "Errore durante l'impostazione auto-bid");
+                  }
+                } catch (error) {
+                  toast.error("Errore di connessione");
+                }
+              }}
+              existingAutoBid={userAutoBid}
+            />
+            <button
+              onClick={() => {
+                setShowBiddingInterface(false);
+                setSelectedPlayerId(null);
+              }}
+              className="mt-4 w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
