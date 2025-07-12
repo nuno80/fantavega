@@ -54,6 +54,14 @@ export function ComplianceChecker({
     return `${totalMinutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Determina il colore del timer basato sul tempo rimanente
+  const getTimerColor = (seconds: number) => {
+    if (seconds <= 0) return { bg: 'bg-red-500', text: 'text-white' };
+    if (seconds <= 300) return { bg: 'bg-red-500', text: 'text-white' }; // Sotto 5 minuti: rosso
+    if (seconds <= 1800) return { bg: 'bg-yellow-500', text: 'text-black' }; // Sotto 30 minuti: giallo
+    return { bg: 'bg-green-500', text: 'text-white' }; // Sopra 30 minuti: verde
+  };
+
   // Calcola conformità locale per UI immediata (solo indicativa)
   const calculateLocalCompliance = () => {
     if (!leagueSlots || !managerPlayers) return { isCompliant: true, missingSlots: [] };
@@ -273,12 +281,15 @@ export function ComplianceChecker({
   // Usa solo i dati dell'API per il timer ufficiale
   const displayTimeRemaining = currentTimeRemaining;
   const isCompliant = lastCheckResult?.isNowCompliant ?? localCompliance.isCompliant;
+  
+  // Determina colori del timer
+  const timerColors = displayTimeRemaining !== null ? getTimerColor(displayTimeRemaining) : { bg: 'bg-yellow-500', text: 'text-black' };
 
   return (
     <div className="bg-gray-800 border border-gray-600 rounded p-2 text-xs">
-      {/* Timer sempre visibile se non conforme */}
+      {/* Timer sempre visibile se non conforme con colori dinamici */}
       {!isCompliant && displayTimeRemaining !== null && displayTimeRemaining > 0 && (
-        <div className="flex items-center justify-center gap-1 mb-2 bg-yellow-500 text-black px-2 py-1 rounded">
+        <div className={`flex items-center justify-center gap-1 mb-2 ${timerColors.bg} ${timerColors.text} px-2 py-1 rounded ${displayTimeRemaining <= 300 ? 'animate-pulse' : ''}`}>
           <Timer className="h-3 w-3" />
           <span className="font-mono font-bold">{formatTimeRemaining(displayTimeRemaining)}</span>
         </div>
