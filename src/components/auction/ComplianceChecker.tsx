@@ -139,6 +139,7 @@ export function ComplianceChecker({
       }
 
       const result: ComplianceResult = await response.json();
+      console.log("DEBUG ComplianceChecker API result:", result);
       setLastCheckResult(result);
 
       // Show appropriate toast based on result - SOLO quando si preme manualmente "Verifica"
@@ -201,13 +202,35 @@ export function ComplianceChecker({
 
   // Timer countdown effect con warning notifications
   useEffect(() => {
-    if (!lastCheckResult?.timeRemainingSeconds || lastCheckResult.isNowCompliant) {
+    console.log("DEBUG Timer useEffect:", { 
+      timeRemainingSeconds: lastCheckResult?.timeRemainingSeconds,
+      isNowCompliant: lastCheckResult?.isNowCompliant,
+      lastCheckResult 
+    });
+    
+    // Clear timer only if user is compliant OR if there's no timeRemainingSeconds data at all
+    if (lastCheckResult?.isNowCompliant || (lastCheckResult?.timeRemainingSeconds === undefined && !lastCheckResult?.gracePeriodEndTime)) {
+      console.log("DEBUG Timer: User compliant or no timer data, clearing timer");
       setCurrentTimeRemaining(null);
       setWarningsShown(new Set()); // Reset warnings quando non c'è timer
       return;
     }
+    
+    // If user is not compliant but timeRemainingSeconds is 0, show expired state
+    if (lastCheckResult && !lastCheckResult.isNowCompliant && lastCheckResult.timeRemainingSeconds === 0) {
+      console.log("DEBUG Timer: Grace period expired, showing expired state");
+      setCurrentTimeRemaining(0);
+      return;
+    }
+    
+    // If no timeRemainingSeconds but user is not compliant, don't start timer
+    if (!lastCheckResult?.timeRemainingSeconds) {
+      console.log("DEBUG Timer: No timeRemainingSeconds data available");
+      return;
+    }
 
     // Initialize with the time from API
+    console.log("DEBUG Timer: Starting timer with", lastCheckResult.timeRemainingSeconds, "seconds");
     setCurrentTimeRemaining(lastCheckResult.timeRemainingSeconds);
 
     // Update every second
@@ -322,6 +345,9 @@ export function ComplianceChecker({
   
   // Usa solo i dati dell'API per il timer ufficiale
   const displayTimeRemaining = currentTimeRemaining;
+  
+  // Per il timer, usa priorità API. Se c'è un timer attivo, mostralo sempre
+  const shouldShowTimer = displayTimeRemaining !== null && displayTimeRemaining > 0;
   const isCompliant = lastCheckResult?.isNowCompliant ?? localCompliance.isCompliant;
   
   // Determina colori del timer
@@ -329,8 +355,8 @@ export function ComplianceChecker({
 
   return (
     <div className="bg-gray-800 border border-gray-600 rounded p-2 text-xs">
-      {/* Timer sempre visibile se non conforme con colori dinamici */}
-      {!isCompliant && displayTimeRemaining !== null && displayTimeRemaining > 0 && (
+      {/* Timer sempre visibile se c'è un timer attivo dall'API */}
+      {shouldShowTimer && (
         <div className={`flex items-center justify-center gap-1 mb-2 ${timerColors.bg} ${timerColors.text} px-2 py-1 rounded ${displayTimeRemaining <= 300 ? 'animate-pulse' : ''}`}>
           <Timer className="h-3 w-3" />
           <span className="font-mono font-bold">{formatTimeRemaining(displayTimeRemaining)}</span>
@@ -338,7 +364,7 @@ export function ComplianceChecker({
       )}
       
       {/* Avviso tempo scaduto */}
-      {!isCompliant && displayTimeRemaining === 0 && (
+      {displayTimeRemaining === 0 && lastCheckResult && !lastCheckResult.isNowCompliant && (
         <div className="flex items-center justify-center gap-1 mb-2 bg-red-500 text-white px-2 py-1 rounded">
           <AlertTriangle className="h-3 w-3" />
           <span className="font-bold">Penalità attive</span>
