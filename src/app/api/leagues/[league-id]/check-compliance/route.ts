@@ -94,6 +94,8 @@ export async function POST(
         message: result.message,
         appliedPenaltyAmount: result.appliedPenaltyAmount,
         isNowCompliant: result.isNowCompliant,
+        gracePeriodEndTime: result.gracePeriodEndTime,
+        timeRemainingSeconds: result.timeRemainingSeconds,
       },
       { status: 200 } // 200 OK perché l'operazione di check è stata eseguita
       // Il corpo della risposta indica l'esito specifico.

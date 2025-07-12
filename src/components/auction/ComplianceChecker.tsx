@@ -42,7 +42,6 @@ export function ComplianceChecker({
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheckResult, setLastCheckResult] = useState<ComplianceResult | null>(null);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState<number | null>(null);
-  const [localComplianceTimer, setLocalComplianceTimer] = useState<number | null>(null);
 
   // Format time remaining for display - only minutes and seconds
   const formatTimeRemaining = (seconds: number) => {
@@ -55,7 +54,7 @@ export function ComplianceChecker({
     return `${totalMinutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calcola conformità locale immediatamente
+  // Calcola conformità locale per UI immediata (solo indicativa)
   const calculateLocalCompliance = () => {
     if (!leagueSlots || !managerPlayers) return { isCompliant: true, missingSlots: [] };
     
@@ -186,35 +185,6 @@ export function ComplianceChecker({
     }
   };
 
-  // Calcola conformità locale e avvia timer se necessario
-  useEffect(() => {
-    const localCompliance = calculateLocalCompliance();
-    
-    if (!localCompliance.isCompliant && !localComplianceTimer) {
-      // Avvia timer locale di 1 ora (3600 secondi) per periodo di grazia
-      setLocalComplianceTimer(3600);
-    } else if (localCompliance.isCompliant) {
-      // Se conforme, rimuovi timer locale
-      setLocalComplianceTimer(null);
-    }
-  }, [managerPlayers, leagueSlots, activeAuctions, userId]);
-
-  // Timer countdown per conformità locale
-  useEffect(() => {
-    if (localComplianceTimer === null || localComplianceTimer <= 0) return;
-
-    const interval = setInterval(() => {
-      setLocalComplianceTimer(prev => {
-        if (prev === null || prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [localComplianceTimer]);
 
   // Auto-check compliance on component mount
   useEffect(() => {
@@ -300,8 +270,8 @@ export function ComplianceChecker({
 
   const localCompliance = calculateLocalCompliance();
   
-  // Determina quale timer mostrare: API (priorità) o locale
-  const displayTimeRemaining = currentTimeRemaining !== null ? currentTimeRemaining : localComplianceTimer;
+  // Usa solo i dati dell'API per il timer ufficiale
+  const displayTimeRemaining = currentTimeRemaining;
   const isCompliant = lastCheckResult?.isNowCompliant ?? localCompliance.isCompliant;
 
   return (
