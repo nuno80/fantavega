@@ -29,6 +29,10 @@ interface StandardBidModalProps {
   isNewAuction?: boolean; // true per "Avvia asta", false per rilanci
   onBidSuccess?: () => void;
   title?: string; // Custom title (es. "Rilancia", "Avvia asta", "Fai offerta")
+  existingAutoBid?: {
+    max_amount: number;
+    is_active: boolean;
+  } | null; // Auto-bid esistente dell'utente (solo per rilanci)
 }
 
 interface UserBudgetInfo {
@@ -58,7 +62,8 @@ export function StandardBidModal({
   currentBid = 0,
   isNewAuction = false,
   onBidSuccess,
-  title = "Fai un'offerta"
+  title = "Fai un'offerta",
+  existingAutoBid = null
 }: StandardBidModalProps) {
   const [bidAmount, setBidAmount] = useState(currentBid + 1);
   const [maxAmount, setMaxAmount] = useState(currentBid + 10);
@@ -66,40 +71,61 @@ export function StandardBidModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
   const [isLoadingBudget, setIsLoadingBudget] = useState(true);
+  const [fetchedAutoBid, setFetchedAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
 
-  // Fetch user budget
+  // Fetch user budget and auto-bid data
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchUserBudget = async () => {
+    const fetchData = async () => {
       try {
         setIsLoadingBudget(true);
-        const response = await fetch(`/api/leagues/${leagueId}/budget`);
-        if (response.ok) {
-          const budgetData = await response.json();
+        
+        // Fetch budget
+        const budgetResponse = await fetch(`/api/leagues/${leagueId}/budget`);
+        if (budgetResponse.ok) {
+          const budgetData = await budgetResponse.json();
           setUserBudget(budgetData);
         }
+
+        // Fetch auto-bid only if not provided and not a new auction
+        if (!isNewAuction && !existingAutoBid) {
+          const autoBidResponse = await fetch(`/api/leagues/${leagueId}/players/${playerId}/auto-bid`);
+          if (autoBidResponse.ok) {
+            const autoBidData = await autoBidResponse.json();
+            setFetchedAutoBid(autoBidData.auto_bid);
+          }
+        }
       } catch (error) {
-        console.error("Error fetching user budget:", error);
-        toast.error("Errore nel caricamento del budget");
+        console.error("Error fetching data:", error);
+        toast.error("Errore nel caricamento dei dati");
       } finally {
         setIsLoadingBudget(false);
       }
     };
 
-    fetchUserBudget();
-  }, [isOpen, leagueId]);
+    fetchData();
+  }, [isOpen, leagueId, playerId, isNewAuction, existingAutoBid]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       const initialBid = isNewAuction ? 1 : currentBid + 1;
       setBidAmount(initialBid);
-      setMaxAmount(initialBid + 10);
-      setUseAutoBid(false);
+      
+      // Use existing auto-bid data if available
+      const currentAutoBid = existingAutoBid || fetchedAutoBid;
+      if (currentAutoBid && currentAutoBid.is_active) {
+        setMaxAmount(currentAutoBid.max_amount);
+        setUseAutoBid(true);
+      } else {
+        setMaxAmount(initialBid + 10);
+        setUseAutoBid(false);
+      }
+      
       setIsSubmitting(false);
     }
-  }, [isOpen, currentBid, isNewAuction]);
+  }, [isOpen, currentBid, isNewAuction, existingAutoBid, fetchedAutoBid]);
 
   const availableBudget = userBudget ? userBudget.current_budget - userBudget.locked_credits : 0;
   const minValidBid = isNewAuction ? 1 : currentBid + 1;
@@ -306,17 +332,26 @@ export function StandardBidModal({
 
           {/* Auto-bid Section */}
           <div className="space-y-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="useAutoBid"
-                checked={useAutoBid}
-                onChange={(e) => setUseAutoBid(e.target.checked)}
-                className="rounded"
-              />
-              <Label htmlFor="useAutoBid" className="text-sm font-medium">
-                Abilita Offerta Automatica
-              </Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="useAutoBid"
+                  checked={useAutoBid}
+                  onChange={(e) => setUseAutoBid(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="useAutoBid" className="text-sm font-medium">
+                  Abilita Offerta Automatica
+                </Label>
+              </div>
+              
+              {/* Show existing auto-bid info */}
+              {!isNewAuction && (existingAutoBid || fetchedAutoBid) && (existingAutoBid?.is_active || fetchedAutoBid?.is_active) && (
+                <div className="text-xs text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                  Auto-bid attivo: {(existingAutoBid || fetchedAutoBid)?.max_amount} crediti
+                </div>
+              )}
             </div>
             
             {useAutoBid && (

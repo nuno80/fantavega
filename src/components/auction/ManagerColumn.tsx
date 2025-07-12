@@ -1,7 +1,7 @@
 "use client";
 
 import { Star, User, Lock, DollarSign, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
@@ -269,7 +269,8 @@ function InAuctionSlot({
   isLast, 
   userAutoBid, 
   currentAuctionPlayerId, 
-  isCurrentUser 
+  isCurrentUser,
+  leagueId
 }: { 
   auction: ActiveAuction; 
   role: string; 
@@ -279,17 +280,37 @@ function InAuctionSlot({
   userAutoBid?: { max_amount: number; is_active: boolean } | null;
   currentAuctionPlayerId?: number;
   isCurrentUser: boolean;
+  leagueId?: number;
 }) {
+  const [playerAutoBid, setPlayerAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
+  
   const autoBidIndicator = autoBids.find(ab => ab.player_id === auction.player_id);
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
   const roleTextColor = getRoleTextColor(role);
   
-  // Show user's auto-bid only if this is the current user and current auction
+  // Fetch auto-bid for this specific player if current user
+  useEffect(() => {
+    if (isCurrentUser && leagueId) {
+      const fetchPlayerAutoBid = async () => {
+        try {
+          const response = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`);
+          if (response.ok) {
+            const data = await response.json();
+            setPlayerAutoBid(data.auto_bid);
+          }
+        } catch (error) {
+          console.error("Error fetching player auto-bid:", error);
+        }
+      };
+      fetchPlayerAutoBid();
+    }
+  }, [isCurrentUser, leagueId, auction.player_id]);
+  
+  // Show user's auto-bid for this specific player
   const showUserAutoBid = isCurrentUser && 
-                          userAutoBid && 
-                          userAutoBid.is_active && 
-                          currentAuctionPlayerId === auction.player_id;
+                          playerAutoBid && 
+                          playerAutoBid.is_active;
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -323,7 +344,7 @@ function InAuctionSlot({
       <div className="text-xs flex items-center justify-between">
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
-            <span className="text-blue-400 font-semibold">{userAutoBid.max_amount}</span>
+            <span className="text-blue-400 font-semibold">{playerAutoBid.max_amount}</span>
           )}
           <span className={`text-green-400 font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
         </div>
@@ -552,6 +573,7 @@ export function ManagerColumn({
                         userAutoBid={userAutoBid}
                         currentAuctionPlayerId={currentAuctionPlayerId}
                         isCurrentUser={isCurrentUser}
+                        leagueId={leagueId}
                       />;
                     case 'response_needed':
                       return <ResponseNeededSlot
@@ -596,6 +618,7 @@ export function ManagerColumn({
           currentBid={selectedPlayerForBid.currentBid}
           isNewAuction={false}
           title="Rilancia"
+          existingAutoBid={isCurrentUser && currentAuctionPlayerId === selectedPlayerForBid.id ? userAutoBid : null}
           onBidSuccess={() => {
             // Refresh page to update data
             setTimeout(() => {
