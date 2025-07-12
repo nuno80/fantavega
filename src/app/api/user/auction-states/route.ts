@@ -24,6 +24,25 @@ export async function GET(request: Request) {
 
     console.log(`[USER_AUCTION_STATES] Fetching states for user: ${user.id}, league: ${leagueId}`);
 
+    // RESET RESPONSE TIMERS: Quando l'utente accede alla pagina asta, 
+    // resetta tutti i suoi response timer pending a 1 ora da ora
+    const now = Math.floor(Date.now() / 1000);
+    const newDeadline = now + 3600; // 1 ora da ora
+    
+    const resetResult = db.prepare(`
+      UPDATE user_auction_response_timers 
+      SET response_deadline = ?, notified_at = ?
+      WHERE user_id = ? 
+        AND status = 'pending'
+        AND auction_id IN (
+          SELECT a.id 
+          FROM auctions a 
+          WHERE a.auction_league_id = ? AND a.status = 'active'
+        )
+    `).run(newDeadline, now, user.id, leagueId);
+    
+    console.log(`[USER_AUCTION_STATES] Reset ${resetResult.changes} response timers to 1 hour for user ${user.id}`);
+
     // Ottieni tutti gli stati per l'utente in questa lega
     const userStates = db.prepare(`
       SELECT 
