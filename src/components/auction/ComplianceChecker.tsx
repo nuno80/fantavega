@@ -95,9 +95,11 @@ export function ComplianceChecker({
     };
   };
 
-  const handleCheckCompliance = async () => {
+  const handleCheckCompliance = async (showToasts = true) => {
     if (!leagueId || !userId) {
-      toast.error("Dati mancanti per il controllo di conformità");
+      if (showToasts) {
+        toast.error("Dati mancanti per il controllo di conformità");
+      }
       return;
     }
 
@@ -139,28 +141,20 @@ export function ComplianceChecker({
       const result: ComplianceResult = await response.json();
       setLastCheckResult(result);
 
-      // Show appropriate toast based on result - NO AUTO REFRESH
-      if (result.appliedPenaltyAmount > 0) {
-        toast.error(`Penalità applicata: ${result.appliedPenaltyAmount} crediti`, {
-          description: result.message,
-          duration: 10000,
-        });
-      } else if (result.isNowCompliant) {
-        toast.success("Rosa conforme ai requisiti", {
-          description: result.message,
-          duration: 6000,
-        });
-      } else {
-        // Check if it's grace period or other non-compliant state
-        const isGracePeriod = result.message.includes("grace period") || result.message.includes("within grace");
-        
-        if (isGracePeriod) {
-          toast.warning("Rosa non conforme - Periodo di Grazia", {
-            description: "Hai 1 ora per completare la rosa prima delle penalità. " + result.message,
+      // Show appropriate toast based on result - SOLO quando si preme manualmente "Verifica"
+      if (showToasts) {
+        if (result.appliedPenaltyAmount > 0) {
+          toast.error(`Penalità applicata: ${result.appliedPenaltyAmount} crediti`, {
+            description: result.message,
             duration: 10000,
           });
+        } else if (result.isNowCompliant) {
+          toast.success("Rosa conforme ai requisiti", {
+            description: result.message,
+            duration: 6000,
+          });
         } else {
-          toast.warning("Rosa non conforme", {
+          toast.warning("Rosa non conforme: riempi tutte le slot previste per evitare penalità!", {
             description: result.message,
             duration: 8000,
           });
@@ -178,10 +172,12 @@ export function ComplianceChecker({
         errorMessage
       });
       
-      toast.error("Errore nel controllo di conformità", {
-        description: errorMessage,
-        duration: 8000,
-      });
+      if (showToasts) {
+        toast.error("Errore nel controllo di conformità", {
+          description: errorMessage,
+          duration: 8000,
+        });
+      }
       
       // Set error state for UI display
       setLastCheckResult({
@@ -194,10 +190,10 @@ export function ComplianceChecker({
     }
   };
 
-  // Auto-check compliance on component mount
+  // Auto-check compliance on component mount (SENZA toast)
   useEffect(() => {
     if (leagueId && userId) {
-      handleCheckCompliance().catch(error => {
+      handleCheckCompliance(false).catch(error => {
         console.error("Auto-check failed:", error);
       });
     }
@@ -367,7 +363,7 @@ export function ComplianceChecker({
       {/* Pulsante verifica */}
       <div className="flex items-center gap-1">
         <Button
-          onClick={handleCheckCompliance}
+          onClick={() => handleCheckCompliance(true)}
           disabled={isChecking}
           size="sm"
           variant="outline"
