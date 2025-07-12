@@ -217,16 +217,67 @@ function ResponseNeededSlot({
   onCounterBid: (playerId: number) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
-  const timeRemaining = state.time_remaining || 0;
+  const [currentTimeRemaining, setCurrentTimeRemaining] = useState(state.time_remaining || 0);
   
   const roleColor = getRoleColor(role);
+
+  // Response timer countdown effect
+  useEffect(() => {
+    if (!state.time_remaining || state.time_remaining <= 0) {
+      setCurrentTimeRemaining(0);
+      return;
+    }
+
+    setCurrentTimeRemaining(state.time_remaining);
+
+    const interval = setInterval(() => {
+      setCurrentTimeRemaining(prev => {
+        if (prev <= 0) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [state.time_remaining]);
+
+  // Format response timer (hours and minutes only)
+  const formatResponseTimer = (seconds: number) => {
+    if (seconds <= 0) return "Scaduto";
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  // Get timer color based on remaining time
+  const getTimerColor = (seconds: number) => {
+    if (seconds <= 0) return "text-red-500";
+    if (seconds <= 300) return "text-red-400"; // Under 5 minutes: red
+    if (seconds <= 1800) return "text-yellow-400"; // Under 30 minutes: yellow
+    return "text-green-400"; // Over 30 minutes: green
+  };
 
   return (
     <>
       <div className={`p-1.5 flex items-center justify-between bg-red-600 bg-opacity-30 border border-red-500 ${isLast ? 'rounded-b-md' : ''}`}>
-        <div className="flex items-center min-w-0">
+        <div className="flex items-center min-w-0 flex-1">
           <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
-          <span className="text-xs truncate text-red-200">{state.player_name}</span>
+          <span className="text-xs truncate text-red-200 mr-2">{state.player_name}</span>
+          {/* Response Timer */}
+          {currentTimeRemaining > 0 ? (
+            <span className={`text-xs font-mono font-bold ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? 'animate-pulse' : ''}`}>
+              {formatResponseTimer(currentTimeRemaining)}
+            </span>
+          ) : (
+            <span className="text-xs font-bold text-red-500">Scaduto</span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <span className="text-xs text-red-200">{state.current_bid}</span>
@@ -234,15 +285,17 @@ function ResponseNeededSlot({
             onClick={() => onCounterBid(state.player_id)}
             className="p-1 hover:bg-green-600 rounded transition-colors"
             title="Rilancia"
+            disabled={currentTimeRemaining <= 0}
           >
-            <DollarSign className="h-3 w-3 text-green-400" />
+            <DollarSign className={`h-3 w-3 ${currentTimeRemaining <= 0 ? 'text-gray-500' : 'text-green-400'}`} />
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="p-1 hover:bg-red-600 rounded transition-colors"
             title="Abbandona"
+            disabled={currentTimeRemaining <= 0}
           >
-            <X className="h-3 w-3 text-red-400" />
+            <X className={`h-3 w-3 ${currentTimeRemaining <= 0 ? 'text-gray-500' : 'text-red-400'}`} />
           </button>
         </div>
       </div>
@@ -252,7 +305,7 @@ function ResponseNeededSlot({
         onClose={() => setShowModal(false)}
         playerName={state.player_name}
         currentBid={state.current_bid}
-        timeRemaining={timeRemaining}
+        timeRemaining={currentTimeRemaining}
         leagueId={leagueId}
         playerId={state.player_id}
         onCounterBid={() => onCounterBid(state.player_id)}
