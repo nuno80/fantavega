@@ -48,13 +48,13 @@ export const createResponseTimer = async (
       console.log(`[RESPONSE_TIMER] Updating existing timer ${existingTimer.id}`);
       // Aggiorna il timer esistente
       db.prepare(
-        "UPDATE user_auction_response_timers SET notified_at = ?, response_deadline = ? WHERE id = ?"
+        "UPDATE user_auction_response_timers SET notified_at = ?, response_deadline = ?, last_reset_at = NULL WHERE id = ?"
       ).run(now, deadline, existingTimer.id);
     } else {
       console.log(`[RESPONSE_TIMER] Creating new timer`);
       // Crea nuovo timer
       const result = db.prepare(
-        "INSERT INTO user_auction_response_timers (auction_id, user_id, notified_at, response_deadline, status) VALUES (?, ?, ?, ?, 'pending')"
+        "INSERT INTO user_auction_response_timers (auction_id, user_id, notified_at, response_deadline, status, last_reset_at) VALUES (?, ?, ?, ?, 'pending', NULL)"
       ).run(auctionId, userId, now, deadline);
       console.log(`[RESPONSE_TIMER] Created timer with ID: ${result.lastInsertRowid}`);
     }
