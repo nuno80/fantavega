@@ -3,12 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { ComplianceChecker } from "./ComplianceChecker";
 
 interface BudgetDisplayProps {
   totalBudget: number;
   currentBudget: number;
   lockedCredits: number;
   teamName?: string;
+  leagueId?: number;
+  userId?: string;
+  onBudgetUpdate?: () => void;
 }
 
 export function BudgetDisplay({
@@ -16,6 +20,9 @@ export function BudgetDisplay({
   currentBudget,
   lockedCredits,
   teamName,
+  leagueId,
+  userId,
+  onBudgetUpdate,
 }: BudgetDisplayProps) {
   const availableBudget = currentBudget - lockedCredits;
   const spentBudget = totalBudget - currentBudget;
@@ -113,5 +120,35 @@ export function BudgetDisplay({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Wrapper component that includes ComplianceChecker
+export function BudgetDisplayWithCompliance({
+  totalBudget,
+  currentBudget,
+  lockedCredits,
+  teamName,
+  leagueId,
+  userId,
+  onBudgetUpdate,
+}: BudgetDisplayProps) {
+  return (
+    <div className="space-y-4">
+      <BudgetDisplay
+        totalBudget={totalBudget}
+        currentBudget={currentBudget}
+        lockedCredits={lockedCredits}
+        teamName={teamName}
+      />
+      
+      {leagueId && userId && (
+        <ComplianceChecker
+          leagueId={leagueId}
+          userId={userId}
+          onComplianceChecked={onBudgetUpdate}
+        />
+      )}
+    </div>
   );
 }

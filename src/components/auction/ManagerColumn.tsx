@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
+import { ComplianceChecker } from "./ComplianceChecker";
 
 // Type definitions
 interface PlayerInRoster {
@@ -504,6 +505,23 @@ export function ManagerColumn({
       <div className="w-full bg-gray-600 h-2 rounded-full mb-2">
         <div className={`${getPredominantRoleColor()} h-2 rounded-full transition-all duration-300`} style={{ width: `${Math.min(budgetPercentage, 100)}%` }} />
       </div>
+
+      {/* Compliance Checker - Only for current user */}
+      {isCurrentUser && leagueId && (
+        <div className="mb-2">
+          <ComplianceChecker
+            leagueId={leagueId}
+            userId={manager.user_id}
+            managerPlayers={manager.players}
+            leagueSlots={leagueSlots}
+            activeAuctions={activeAuctions}
+            onComplianceChecked={() => {
+              // Optional callback for when compliance is checked
+              console.log("Compliance check completed for user:", manager.user_id);
+            }}
+          />
+        </div>
+      )}
 
       {/* Slots list */}
       <div className="flex-1 flex flex-col space-y-1 overflow-y-auto scrollbar-hide">

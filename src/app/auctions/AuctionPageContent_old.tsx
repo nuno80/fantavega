@@ -287,7 +287,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       playerName: string;
       newBidAmount: number;
     }) => {
-      toast.warning(`La tua offerta per ${data.playerName} e stata superata!`, {
+      toast.warning(`La tua offerta per ${data.playerName} Ã¨ stata superata!`, {
         description: `Nuova offerta: ${data.newBidAmount} crediti.`,
       });
     };
@@ -312,7 +312,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       amount: number;
       reason: string;
     }) => {
-      toast.error(`Penalita applicata: ${data.amount} crediti`, {
+      toast.error(`Penalità applicata: ${data.amount} crediti`, {
         description: data.reason,
         duration: 8000, // Show longer for important penalty notifications
       });
@@ -418,7 +418,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         </div>
 
         {/* Bottom Panel - Manager Columns */}
-        <div className="flex-1 flex space-x-2 p-2 overflow-x-auto scrollbar-hide min-h-0">
+        <div className="flex-1 flex space-x-2 p-2 overflow-x-auto scrollbar-hide">
           {managers.length > 0 ? (
             managers.map((manager, index) => (
               <div key={manager.user_id} className="flex-1 min-w-0">

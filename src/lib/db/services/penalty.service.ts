@@ -76,6 +76,8 @@ export const processUserComplianceAndPenalties = async (
   appliedPenaltyAmount: number;
   isNowCompliant: boolean;
   message: string;
+  gracePeriodEndTime?: number;
+  timeRemainingSeconds?: number;
 }> => {
   let appliedPenaltyAmount = 0;
   let finalMessage = "Compliance check processed.";
@@ -154,7 +156,31 @@ export const processUserComplianceAndPenalties = async (
       });
     }
     
-    return { appliedPenaltyAmount, isNowCompliant, message: finalMessage };
+    // Calculate timing information for non-compliant users
+    let gracePeriodEndTime: number | undefined;
+    let timeRemainingSeconds: number | undefined;
+    
+    if (!isNowCompliant) {
+      const complianceRecord = db.prepare("SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?")
+        .get(leagueId, userId, getCurrentPhaseIdentifier(
+          (db.prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?").get(leagueId) as any)?.status || "draft_active",
+          (db.prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?").get(leagueId) as any)?.active_auction_roles
+        )) as { compliance_timer_start_at: number | null } | undefined;
+      
+      if (complianceRecord?.compliance_timer_start_at) {
+        gracePeriodEndTime = complianceRecord.compliance_timer_start_at + COMPLIANCE_GRACE_PERIOD_HOURS * 3600;
+        const now = Math.floor(Date.now() / 1000);
+        timeRemainingSeconds = Math.max(0, gracePeriodEndTime - now);
+      }
+    }
+    
+    return { 
+      appliedPenaltyAmount, 
+      isNowCompliant, 
+      message: finalMessage,
+      gracePeriodEndTime,
+      timeRemainingSeconds
+    };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error processing compliance.";
