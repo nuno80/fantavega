@@ -42,6 +42,7 @@ export function ComplianceChecker({
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheckResult, setLastCheckResult] = useState<ComplianceResult | null>(null);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState<number | null>(null);
+  const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
 
   // Format time remaining for display - only minutes and seconds
   const formatTimeRemaining = (seconds: number) => {
@@ -145,7 +146,7 @@ export function ComplianceChecker({
           duration: 10000,
         });
       } else if (result.isNowCompliant) {
-        toast.success("✅ Rosa conforme ai requisiti", {
+        toast.success("Rosa conforme ai requisiti", {
           description: result.message,
           duration: 6000,
         });
@@ -154,12 +155,12 @@ export function ComplianceChecker({
         const isGracePeriod = result.message.includes("grace period") || result.message.includes("within grace");
         
         if (isGracePeriod) {
-          toast.warning("⏰ Rosa non conforme - Periodo di Grazia", {
+          toast.warning("Rosa non conforme - Periodo di Grazia", {
             description: "Hai 1 ora per completare la rosa prima delle penalità. " + result.message,
             duration: 10000,
           });
         } else {
-          toast.warning("⚠️ Rosa non conforme", {
+          toast.warning("Rosa non conforme", {
             description: result.message,
             duration: 8000,
           });
@@ -177,7 +178,7 @@ export function ComplianceChecker({
         errorMessage
       });
       
-      toast.error("❌ Errore nel controllo di conformità", {
+      toast.error("Errore nel controllo di conformità", {
         description: errorMessage,
         duration: 8000,
       });
@@ -193,7 +194,6 @@ export function ComplianceChecker({
     }
   };
 
-
   // Auto-check compliance on component mount
   useEffect(() => {
     if (leagueId && userId) {
@@ -203,10 +203,11 @@ export function ComplianceChecker({
     }
   }, [leagueId, userId]);
 
-  // Timer countdown effect
+  // Timer countdown effect con warning notifications
   useEffect(() => {
     if (!lastCheckResult?.timeRemainingSeconds || lastCheckResult.isNowCompliant) {
       setCurrentTimeRemaining(null);
+      setWarningsShown(new Set()); // Reset warnings quando non c'è timer
       return;
     }
 
@@ -220,7 +221,52 @@ export function ComplianceChecker({
           clearInterval(interval);
           return 0;
         }
-        return prev - 1;
+        
+        const newTime = prev - 1;
+        
+        // Warning a 5 minuti (300 secondi)
+        if (newTime === 300) {
+          setWarningsShown(currentWarnings => {
+            if (!currentWarnings.has(300)) {
+              toast.warning("Attenzione: 5 minuti rimanenti!", {
+                description: "Completa la tua rosa entro 5 minuti per evitare penalità.",
+                duration: 8000,
+              });
+              return new Set(currentWarnings).add(300);
+            }
+            return currentWarnings;
+          });
+        }
+        
+        // Warning a 1 minuto (60 secondi)
+        if (newTime === 60) {
+          setWarningsShown(currentWarnings => {
+            if (!currentWarnings.has(60)) {
+              toast.error("URGENTE: 1 minuto rimanente!", {
+                description: "Completa immediatamente la tua rosa! Penalità in arrivo.",
+                duration: 10000,
+              });
+              return new Set(currentWarnings).add(60);
+            }
+            return currentWarnings;
+          });
+        }
+        
+        // Warning quando scade (0 secondi)
+        if (newTime === 0) {
+          setWarningsShown(currentWarnings => {
+            if (!currentWarnings.has(0)) {
+              toast.error("Periodo di grazia scaduto!", {
+                description: "Penalità attive: 5 crediti ogni ora fino al completamento della rosa.",
+                duration: 12000,
+              });
+              return new Set(currentWarnings).add(0);
+            }
+            return currentWarnings;
+          });
+        }
+        
+        return newTime;
       });
     }, 1000);
 
