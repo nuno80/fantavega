@@ -100,7 +100,7 @@ export async function GET(request: Request) {
         time_remaining: auction.response_deadline ? Math.max(0, auction.response_deadline - Math.floor(Date.now() / 1000)) : null,
         is_highest_bidder: auction.current_highest_bidder_id === user.id
       };
-    });
+    }).filter(state => state.user_state !== 'asta_abbandonata'); // Escludi completamente le aste abbandonate
 
     console.log(`[USER_AUCTION_STATES] Returning ${statesWithDetails.length} auction states:`, statesWithDetails);
 
