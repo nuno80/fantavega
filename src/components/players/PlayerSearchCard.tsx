@@ -302,7 +302,6 @@ export function PlayerSearchCard({
               size="sm"
               disabled
             >
-              <Gavel className="h-4 w-4 mr-2" />
               Non puoi fare offerte ora
             </Button>
           </div>
