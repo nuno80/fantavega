@@ -1,8 +1,8 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-15T12:00:00Z",
-    "task_completed": "Bug Fix - Pulsante Abbandona Asta",
+    "last_update": "2025-01-15T12:30:00Z",
+    "task_completed": "Bug Fix - Liberazione Slot dopo Abbandono Asta",
     "feature_logic": {
       "feature_name": "Sistema Response Timer e Correzioni ComplianceChecker",
       "summary": "Implementa response timer visivo per rilanci con logica 1-ora, correzione timer penalità ComplianceChecker, e miglioramenti notifiche real-time.",
@@ -73,6 +73,31 @@
       "8. Slot liberata permette a Utente1 di riempirla con altri giocatori."
     ],
     "testing_performed": "Verificato che INSERT OR REPLACE funzioni correttamente con test SQL su database reale."
+  },
+  "bugFixSlotLiberation": {
+    "feature_name": "Correzione Liberazione Slot dopo Abbandono Asta",
+    "summary": "Risolve il problema della mancata liberazione dei locked_credits quando un utente abbandona un'asta o scade il timer di risposta.",
+    "problem_identified": "Quando un utente abbandonava un'asta (manualmente o per scadenza timer), i locked_credits non venivano liberati, impedendo l'utilizzo di quei crediti per altre aste.",
+    "solution_implemented": "Aggiunta logica per sbloccare i locked_credits in tutti i punti di abbandono asta, recuperando l'importo dell'ultima offerta dell'utente e sottraendolo dai locked_credits.",
+    "files_modified": [
+      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts - Abbandono manuale",
+      "src/lib/db/services/response-timer.service.ts - Abbandono automatico timer scaduto", 
+      "src/lib/db/services/auction-states.service.ts - Funzione handleAuctionAbandon"
+    ],
+    "logic_implemented": [
+      "1. Recupera l'ultima offerta dell'utente per l'asta specifica",
+      "2. Aggiorna locked_credits sottraendo l'importo dell'offerta",
+      "3. Mantiene tutte le altre logiche esistenti (cooldown, timer, notifiche)",
+      "4. Libera immediatamente la slot per permettere altre aste"
+    ],
+    "user_flow_corrected": [
+      "1. Utente1 fa offerta 10 crediti per Retegui → locked_credits +10",
+      "2. Utente2 rilancia a 15 → Utente1 stato: rilancio_possibile",
+      "3. Utente1 abbandona o timer scade → locked_credits -10 (slot liberata)",
+      "4. Utente1 può immediatamente usare quei 10 crediti per altri giocatori",
+      "5. Cooldown 48h attivo solo per Retegui, non per altri giocatori"
+    ],
+    "testing_performed": "Verificato esistenza tabelle e colonne nel database. Testata logica di recupero offerte e aggiornamento locked_credits."
   },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
   "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",

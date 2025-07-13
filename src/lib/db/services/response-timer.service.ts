@@ -129,11 +129,25 @@ export const processExpiredResponseTimers = async (): Promise<{
 
     for (const timer of expiredTimers) {
       try {
+        // Trova l'offerta dell'utente per sbloccare i crediti
+        const userBid = db.prepare(`
+          SELECT amount FROM bids 
+          WHERE auction_id = ? AND user_id = ? 
+          ORDER BY created_at DESC LIMIT 1
+        `).get(timer.auction_id, timer.user_id) as { amount: number } | undefined;
+
         await db.transaction(() => {
           // Segna il timer come scaduto
           db.prepare(
             "UPDATE user_auction_response_timers SET status = 'deadline_missed' WHERE id = ?"
           ).run(timer.id);
+
+          // Sblocca i crediti dell'utente se aveva fatto un'offerta
+          if (userBid) {
+            db.prepare(
+              "UPDATE league_participants SET locked_credits = locked_credits - ? WHERE auction_league_id = ? AND user_id = ?"
+            ).run(userBid.amount, timer.auction_league_id, timer.user_id);
+          }
 
           // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
           // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono

@@ -83,11 +83,25 @@ export async function POST(request: Request, context: RouteContext) {
       const now = Math.floor(Date.now() / 1000);
       const cooldownEnd = now + (48 * 3600); // 48 ore
 
+      // Trova l'offerta dell'utente per sbloccare i crediti
+      const userBid = db.prepare(`
+        SELECT amount FROM bids 
+        WHERE auction_id = ? AND user_id = ? 
+        ORDER BY created_at DESC LIMIT 1
+      `).get(auction.id, user.id) as { amount: number } | undefined;
+
       db.transaction(() => {
         // Segna il timer come completato
         db.prepare(
           "UPDATE user_auction_response_timers SET status = 'action_taken' WHERE id = ?"
         ).run(responseTimer.id);
+
+        // Sblocca i crediti dell'utente se aveva fatto un'offerta
+        if (userBid) {
+          db.prepare(
+            "UPDATE league_participants SET locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?"
+          ).run(userBid.amount, leagueId, user.id);
+        }
 
         // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
         // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono

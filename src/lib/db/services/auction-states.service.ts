@@ -158,12 +158,33 @@ export const handleAuctionAbandon = async (
     // Imposta stato abbandonato
     await setUserAuctionState(auctionId, userId, 'asta_abbandonata');
     
+    // Trova l'offerta dell'utente per sbloccare i crediti
+    const userBid = db.prepare(`
+      SELECT amount FROM bids 
+      WHERE auction_id = ? AND user_id = ? 
+      ORDER BY created_at DESC LIMIT 1
+    `).get(auctionId, userId) as { amount: number } | undefined;
+
+    // Trova la lega per aggiornare i crediti
+    const auction = db.prepare(`
+      SELECT auction_league_id FROM auctions WHERE id = ?
+    `).get(auctionId) as { auction_league_id: number } | undefined;
+    
     // Rimuovi timer di risposta se esistente
     db.prepare(`
       UPDATE user_auction_response_timers 
       SET status = 'action_taken' 
       WHERE auction_id = ? AND user_id = ? AND status = 'pending'
     `).run(auctionId, userId);
+    
+    // Sblocca i crediti dell'utente se aveva fatto un'offerta
+    if (userBid && auction) {
+      db.prepare(`
+        UPDATE league_participants 
+        SET locked_credits = locked_credits - ? 
+        WHERE league_id = ? AND user_id = ?
+      `).run(userBid.amount, auction.auction_league_id, userId);
+    }
     
     // Crea cooldown 48 ore
     const now = Math.floor(Date.now() / 1000);
