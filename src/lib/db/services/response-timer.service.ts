@@ -222,3 +222,33 @@ export const canUserBidOnPlayer = (userId: string, playerId: number): boolean =>
 
   return !cooldownCheck;
 };
+
+/**
+ * Ottieni informazioni dettagliate sul cooldown di un utente per un giocatore
+ */
+export const getUserCooldownInfo = (userId: string, playerId: number): { canBid: boolean; timeRemaining?: number; message?: string } => {
+  const now = Math.floor(Date.now() / 1000);
+  
+  const cooldown = db.prepare(`
+    SELECT cooldown_ends_at 
+    FROM user_auction_cooldowns uac
+    JOIN auctions a ON uac.auction_id = a.id
+    WHERE uac.user_id = ? AND a.player_id = ? AND uac.cooldown_ends_at > ?
+  `).get(userId, playerId, now) as { cooldown_ends_at: number } | undefined;
+  
+  if (!cooldown) {
+    return { canBid: true };
+  }
+  
+  const timeRemaining = cooldown.cooldown_ends_at - now;
+  const hours = Math.floor(timeRemaining / 3600);
+  const minutes = Math.floor((timeRemaining % 3600) / 60);
+  
+  const message = `Hai abbandonato l'asta per questo giocatore! Riprova tra ${hours}h ${minutes}m`;
+  
+  return { 
+    canBid: false, 
+    timeRemaining,
+    message 
+  };
+};
