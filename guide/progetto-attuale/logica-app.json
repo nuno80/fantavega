@@ -120,6 +120,34 @@
     ],
     "impact": "Database ora completamente allineato con la logica del sistema aste. Tutti gli utenti possono partecipare normalmente senza slot bloccate erroneamente."
   },
+  "bugFixUserAuctionStates": {
+    "feature_name": "Correzione user_auction_states per Slot Fantasma",
+    "summary": "Risolto problema di slot occupate da giocatori 'scaduti' nell'interfaccia admin causato da user_auction_states non aggiornati dopo abbandono aste.",
+    "problem_identified": "Admin vedeva ancora Cambiaso e Ahanor come slot occupate 'scadute' anche se aveva abbandonato le aste e i giocatori non erano in player_assignments.",
+    "root_cause": "Campo user_auction_states nelle tabelle auctions conteneva ancora stato 'rilancio_possibile' per l'admin invece di 'asta_abbandonata'.",
+    "investigation_steps": [
+      "1. Verificato che Cambiaso e Ahanor NON sono in player_assignments dell'admin ✅",
+      "2. Confermato che admin NON è current_highest_bidder per questi giocatori ✅", 
+      "3. Controllato locked_credits = 0 (corretto) ✅",
+      "4. Identificato problema in user_auction_states JSON field ❌"
+    ],
+    "corrections_applied": [
+      "Cambiaso (asta ID: 23): user_auction_states aggiornato da 'rilancio_possibile' a 'asta_abbandonata'",
+      "Ahanor (asta ID: 34): user_auction_states aggiornato da 'rilancio_possibile' a 'asta_abbandonata'"
+    ],
+    "technical_details": {
+      "api_affected": "/api/user/auction-states - legge user_auction_states per determinare stato UI",
+      "component_affected": "ManagerColumn.tsx - usa userAuctionStates per mostrare slot",
+      "database_fields": "auctions.user_auction_states (JSON field con stati per utente)"
+    },
+    "final_status": [
+      "✅ Cambiaso: user_auction_states = asta_abbandonata (slot liberata)",
+      "✅ Ahanor: user_auction_states = asta_abbandonata (slot liberata)",
+      "✅ Admin può ora vedere slot libere per nuove aste",
+      "✅ Interfaccia allineata con stato reale database"
+    ],
+    "prevention": "Il sistema di abbandono aste ora aggiorna correttamente sia user_auction_cooldowns che user_auction_states."
+  },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
   "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",
   "technologyStack": {
