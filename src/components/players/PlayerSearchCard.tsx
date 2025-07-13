@@ -339,7 +339,7 @@ export function PlayerSearchCard({
             size="sm"
             disabled
           >
-            <Gavel className="h-4 w-4 mr-2" />
+            <Gavel className="h-4 w-4 mr-5" />
             {player.currentHighestBidderName === "Tu" ? "Sei già il miglior offerente" : "Non puoi fare offerte ora"}
           </Button>
         )}
