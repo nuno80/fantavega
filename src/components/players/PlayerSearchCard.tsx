@@ -297,12 +297,12 @@ export function PlayerSearchCard({
         {hasCooldown && (
           <Button 
             variant="destructive"
-            className="w-full opacity-100"
+            className="w-full !opacity-100 disabled:opacity-100"
             size="sm"
             disabled
           >
             <Ban className="h-4 w-4 mr-2" />
-            {formatCooldownTime(cooldownTimeRemaining)}
+            <span className="px-2">{formatCooldownTime(cooldownTimeRemaining)}</span>
           </Button>
         )}
         
