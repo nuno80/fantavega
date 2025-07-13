@@ -99,6 +99,27 @@
     ],
     "testing_performed": "Verificato esistenza tabelle e colonne nel database. Testata logica di recupero offerte e aggiornamento locked_credits."
   },
+  "databaseCleanupLockedCredits": {
+    "feature_name": "Pulizia Database - Correzione locked_credits Anomali",
+    "summary": "Risolti problemi di locked_credits non allineati con le aste attive, causati da refusi precedenti all'implementazione del sistema di liberazione automatica.",
+    "problems_identified": [
+      "Admin aveva locked_credits = -10 per aste abbandonate/superate (Ahanor, Cambiaso)",
+      "User sgrshdgfgh aveva locked_credits = 84 ma offerte attive per 87 crediti",
+      "Discrepanze causate da sistema liberazione crediti non ancora implementato"
+    ],
+    "corrections_applied": [
+      "Admin: locked_credits da -10 a 0 (slot liberate)",
+      "sgrshdgfgh: locked_credits da 84 a 87 (allineamento con 6 aste attive)",
+      "Verificato che altri utenti non abbiano problemi simili"
+    ],
+    "final_status": [
+      "✅ Team Admin: 381 budget, 0 locked (slot completamente liberate)",
+      "✅ sgrshdgfgh: 455 budget, 87 locked (6 aste attive: Caprile:1, Calhanoglu:1, Billing:1, Cristante:1, Cambiaso:81, Ahanor:2)",
+      "✅ real madrid: 500 budget, 0 locked (nessun problema)",
+      "✅ real betis: 500 budget, 0 locked (nessun problema)"
+    ],
+    "impact": "Database ora completamente allineato con la logica del sistema aste. Tutti gli utenti possono partecipare normalmente senza slot bloccate erroneamente."
+  },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
   "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",
   "technologyStack": {
