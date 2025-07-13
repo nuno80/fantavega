@@ -148,6 +148,38 @@
     ],
     "prevention": "Il sistema di abbandono aste ora aggiorna correttamente sia user_auction_cooldowns che user_auction_states."
   },
+  "bugFixCooldownValidation": {
+    "feature_name": "Implementazione Validazione Cooldown 48h",
+    "summary": "Aggiunta validazione cooldown di 48 ore nelle API di bidding per impedire offerte su giocatori abbandonati.",
+    "problem_identified": "Admin riusciva a fare offerte su Ahanor (3 crediti) nonostante avesse abbandonato l'asta e dovesse avere cooldown 48h attivo.",
+    "root_cause": "Funzione canUserBidOnPlayer esisteva ma non veniva mai chiamata nelle API di bidding (placeBidOnExistingAuction e placeInitialBidAndCreateAuction).",
+    "investigation_findings": [
+      "✅ Cooldown correttamente registrato in user_auction_cooldowns",
+      "✅ Cooldown attivo: 46.4 ore rimanenti (fino al 15/07 05:26:25)",
+      "❌ Validazione cooldown mancante nelle API di bidding",
+      "❌ Admin riuscito a fare offerta 1h22min dopo abbandono"
+    ],
+    "solution_implemented": [
+      "Aggiunto import canUserBidOnPlayer in bid.service.ts",
+      "Aggiunta validazione cooldown in placeBidOnExistingAuction (offerte su aste esistenti)",
+      "Aggiunta validazione cooldown in placeInitialBidAndCreateAuction (nuove aste)",
+      "Messaggi di errore chiari per utente quando cooldown attivo"
+    ],
+    "technical_details": {
+      "function_used": "canUserBidOnPlayer(userId, playerId) from response-timer.service.ts",
+      "validation_logic": "Controlla user_auction_cooldowns JOIN auctions WHERE cooldown_ends_at > now()",
+      "error_messages": [
+        "Offerte esistenti: 'Non puoi fare offerte per questo giocatore. Hai un cooldown attivo di 48 ore dopo aver abbandonato l'asta.'",
+        "Nuove aste: 'Non puoi avviare un'asta per questo giocatore. Hai un cooldown attivo di 48 ore dopo aver abbandonato l'asta.'"
+      ]
+    },
+    "testing_performed": [
+      "✅ Verificato cooldown attivo per admin su Ahanor (46.4h rimanenti)",
+      "✅ Query SQL conferma: 'COOLDOWN_ACTIVE - Cannot bid'",
+      "✅ Validazione implementata in entrambe le funzioni di bidding"
+    ],
+    "impact": "Sistema di cooldown ora completamente funzionale. Utenti non possono più aggirare il cooldown di 48 ore dopo aver abbandonato un'asta."
+  },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
   "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",
   "technologyStack": {

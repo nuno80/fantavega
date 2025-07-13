@@ -4,6 +4,7 @@
 import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 import { handleBidderChange } from "./auction-states.service";
+import { canUserBidOnPlayer } from "./response-timer.service";
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
@@ -246,6 +247,11 @@ export const placeInitialBidAndCreateAuction = async (
         `Giocatore ${playerIdParam} già assegnato in questa lega.`
       );
 
+    // Check if user is in cooldown for this player (48h after abandoning)
+    if (!canUserBidOnPlayer(bidderUserIdParam, playerIdParam)) {
+      throw new Error("Non puoi avviare un'asta per questo giocatore. Hai un cooldown attivo di 48 ore dopo aver abbandonato l'asta.");
+    }
+
     const existingAuctionStmt = db.prepare(
       "SELECT id, scheduled_end_time, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
     );
@@ -368,6 +374,11 @@ export async function placeBidOnExistingAuction({
     const now = Math.floor(Date.now() / 1000);
     if (auction.scheduled_end_time <= now) {
       throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
+    }
+
+    // Check if user is in cooldown for this player (48h after abandoning)
+    if (!canUserBidOnPlayer(userId, playerId)) {
+      throw new Error("Non puoi fare offerte per questo giocatore. Hai un cooldown attivo di 48 ore dopo aver abbandonato l'asta.");
     }
 
     const league = db
