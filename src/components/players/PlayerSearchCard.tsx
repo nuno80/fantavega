@@ -107,7 +107,7 @@ export function PlayerSearchCard({
   const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
-    <Card className={`h-full flex flex-col relative ${hasCooldown ? 'opacity-75' : ''}`}>
+    <Card className={`h-full flex flex-col relative ${hasCooldown ? '' : ''}`}>
       {/* Badge Cooldown */}
       {hasCooldown && (
         <div className="absolute top-2 right-2 z-10">
@@ -122,7 +122,7 @@ export function PlayerSearchCard({
       {hasCooldown && (
         <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-10">
           <div className="text-xs text-destructive font-medium bg-white px-3 py-1 rounded-full shadow-md border border-destructive">
-            Non puoi fare offerte
+            Offerte bloccate
           </div>
         </div>
       )}
@@ -310,7 +310,7 @@ export function PlayerSearchCard({
             disabled
           >
             <Ban className="h-4 w-4 mr-2" />
-            Cooldown {formatCooldownTime(cooldownTimeRemaining)}
+            {formatCooldownTime(cooldownTimeRemaining)}
           </Button>
         )}
         
