@@ -297,7 +297,7 @@ export function PlayerSearchCard({
         {hasCooldown && (
           <Button 
             variant="destructive"
-            className="w-full"
+            className="w-full opacity-100"
             size="sm"
             disabled
           >
