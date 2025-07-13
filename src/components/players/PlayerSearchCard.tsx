@@ -108,15 +108,6 @@ export function PlayerSearchCard({
 
   return (
     <Card className="h-full flex flex-col relative">
-      {/* Badge Cooldown */}
-      {hasCooldown && (
-        <div className="absolute top-2 right-2 z-10">
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <Ban className="h-3 w-3" />
-            {formatCooldownTime(cooldownTimeRemaining)}
-          </Badge>
-        </div>
-      )}
       
       
       <CardHeader className="pb-3">
