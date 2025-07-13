@@ -136,9 +136,10 @@ export const processExpiredResponseTimers = async (): Promise<{
           ).run(timer.id);
 
           // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
+          // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
           const cooldownEnd = now + (ABANDON_COOLDOWN_HOURS * 3600);
           db.prepare(
-            "INSERT INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
+            "INSERT OR REPLACE INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
           ).run(timer.auction_id, timer.user_id, now, cooldownEnd);
         })();
 

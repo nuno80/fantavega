@@ -169,8 +169,9 @@ export const handleAuctionAbandon = async (
     const now = Math.floor(Date.now() / 1000);
     const cooldownEnd = now + (48 * 3600);
     
+    // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
     db.prepare(`
-      INSERT INTO user_auction_cooldowns 
+      INSERT OR REPLACE INTO user_auction_cooldowns 
       (auction_id, user_id, abandoned_at, cooldown_ends_at) 
       VALUES (?, ?, ?, ?)
     `).run(auctionId, userId, now, cooldownEnd);

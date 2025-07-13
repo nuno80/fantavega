@@ -1,21 +1,21 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2024-12-25T14:30:00Z",
-    "task_completed": "9.4 - Enhanced notifications and system fixes",
+    "last_update": "2025-01-15T12:00:00Z",
+    "task_completed": "Bug Fix - Pulsante Abbandona Asta",
     "feature_logic": {
-      "feature_name": "Sistema Auto-Bid e Correzioni Avanzate",
-      "summary": "Implementa sistema auto-bid con logica eBay, correzioni per aste scadute, miglioramenti notifiche Socket.IO, standardizzazione colori ruoli e pulizia database duplicati.",
-      "architectural_pattern": "Sistema auto-bid con priorità temporale, processamento automatico aste scadute, Socket.IO per notifiche real-time, pattern di validazione multi-livello per integrità dati.",
+      "feature_name": "Sistema Response Timer e Correzioni ComplianceChecker",
+      "summary": "Implementa response timer visivo per rilanci con logica 1-ora, correzione timer penalità ComplianceChecker, e miglioramenti notifiche real-time.",
+      "architectural_pattern": "Response timer server-side con reset intelligente, ComplianceChecker con gestione stati scaduti, Socket.IO per notifiche real-time, pattern di validazione temporale per timer sovrapposti.",
       "user_flow": [
-        "1. L'utente imposta auto-bid tramite QuickBidModal o AutoBidModal con importo massimo.",
-        "2. Quando altri utenti fanno offerte, il sistema attiva automaticamente l'auto-bid se può coprire l'offerta.",
-        "3. L'auto-bid segue logica eBay: priorità temporale per importi uguali, counter-bid intelligente.",
-        "4. Le aste scadute vengono processate automaticamente ogni 30 secondi.",
-        "5. Socket.IO invia notifiche real-time per auto-bid attivate e aste concluse.",
-        "6. L'interfaccia mostra auto-bid solo al proprietario per privacy.",
-        "7. Giocatori assegnati mostrano icona lucchetto invece del ruolo.",
-        "8. Colori ruoli consistenti: P=giallo, D=verde, C=blu, A=rosso."
+        "1. Quando l'utente viene superato in un'asta, appare slot rossa 'response_needed' con timer visivo.",
+        "2. Al primo accesso alla pagina asta, response timer parte da 59:59 minuti.",
+        "3. Timer si aggiorna ogni secondo con colori: verde (>30min), giallo (5-30min), rosso (<5min).",
+        "4. Timer si resetta a 1 ora solo quando qualcun altro rilancia, non ad ogni ricarica pagina.",
+        "5. Dopo 1 ora, se nessuna azione, asta viene abbandonata automaticamente dal server.",
+        "6. ComplianceChecker mostra correttamente 'Penalità attive' quando grace period scade.",
+        "7. Pulsanti rilancio/abbandono si disabilitano quando response timer scade.",
+        "8. Sistema usa campo last_reset_at per evitare reset inappropriati del timer."
       ],
       "core_components_interaction": {
         "src/app/players/page.tsx": "Pagina Server Component che gestisce autenticazione e carica l'interfaccia ricerca giocatori.",
@@ -51,6 +51,28 @@
         }
       ]
     }
+  },
+  "bugFixAbandonButton": {
+    "feature_name": "Correzione Bug Pulsante Abbandona Asta",
+    "summary": "Risolve il problema del pulsante 'abbandona asta' che non funzionava a causa di un vincolo UNIQUE nel database che impediva abbandoni multipli della stessa asta.",
+    "problem_identified": "La tabella user_auction_cooldowns ha vincolo UNIQUE(auction_id, user_id) che causava errore SQL quando un utente tentava di abbandonare la stessa asta più volte.",
+    "solution_implemented": "Sostituito INSERT con INSERT OR REPLACE in tutti i punti del codice che inseriscono record in user_auction_cooldowns.",
+    "files_modified": [
+      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+      "src/lib/db/services/response-timer.service.ts", 
+      "src/lib/db/services/auction-states.service.ts"
+    ],
+    "user_flow_corrected": [
+      "1. Utente1 fa offerta per 'Retegui' a 10 crediti → stato: miglior_offerta (verde).",
+      "2. Utente2 rilancia 'Retegui' a 15 crediti → Utente1 stato: rilancio_possibile (rosso).",
+      "3. Utente1 accede alla pagina auction → timer 1 ora parte per decidere rilancio/abbandono.",
+      "4. Utente1 clicca 'Abbandona' → cooldown 48h per Retegui + slot liberata immediatamente.",
+      "5. Sistema registra abbandono in user_auction_cooldowns senza errori di vincolo UNIQUE.",
+      "6. Timer response marcato come 'action_taken' e stato cambiato a 'asta_abbandonata'.",
+      "7. Notifiche real-time inviate a utente e lega per informare dell'abbandono.",
+      "8. Slot liberata permette a Utente1 di riempirla con altri giocatori."
+    ],
+    "testing_performed": "Verificato che INSERT OR REPLACE funzioni correttamente con test SQL su database reale."
   },
   "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
   "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",

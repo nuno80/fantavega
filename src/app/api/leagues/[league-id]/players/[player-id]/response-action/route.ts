@@ -90,8 +90,9 @@ export async function POST(request: Request, context: RouteContext) {
         ).run(responseTimer.id);
 
         // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
+        // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
         db.prepare(
-          "INSERT INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
+          "INSERT OR REPLACE INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
         ).run(auction.id, user.id, now, cooldownEnd);
       })();
 
