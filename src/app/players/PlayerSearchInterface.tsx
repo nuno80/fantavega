@@ -112,7 +112,12 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         
         if (leagues.length === 0) {
           // Se l'utente non ha leghe, carica solo i dati base dei giocatori
-          const playersResponse = await fetch(`/api/players`);
+          const playersResponse = await fetch(`/api/players`, {
+            credentials: 'include', // Include cookies per autenticazione Clerk
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
           if (!playersResponse.ok) throw new Error("Failed to fetch players");
           
           const playersData = await playersResponse.json();
