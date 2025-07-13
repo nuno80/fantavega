@@ -199,7 +199,9 @@ export async function POST(request: Request, context: RouteContext) {
         error.message.startsWith("Slot full, you cannot bid") ||
         error.message.includes("is less than the minimum bid") ||
         error.message.includes("is not a participant") || // Cambiato da "is not a manager" se il controllo è sulla partecipazione
-        error.message.includes("is not a manager") // Mantenuto se c'è un controllo specifico sul ruolo manager per fare offerte
+        error.message.includes("is not a manager") || // Mantenuto se c'è un controllo specifico sul ruolo manager per fare offerte
+        error.message.includes("Hai abbandonato l'asta per questo giocatore") || // Cooldown message
+        error.message.includes("Riprova tra") // Cooldown time remaining
       ) {
         statusCode = 400;
       } else if (error.message.includes("active auction already exists")) {
