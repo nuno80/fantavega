@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
 
 export async function GET(
   request: NextRequest,
@@ -115,15 +116,22 @@ export async function GET(
       return acc;
     }, {});
 
-    // Calculate time remaining for active auctions and add user's auto-bid info only
+    // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = (playersWithStatus as any[]).map((player) => ({
-      ...player,
-      timeRemaining: player.scheduled_end_time 
-        ? Math.max(0, player.scheduled_end_time - now)
-        : undefined,
-      userAutoBid: userAutoBidsByPlayer[player.id] || null,
-    }));
+    const processedPlayers = (playersWithStatus as any[]).map((player) => {
+      const cooldownInfo = getUserCooldownInfo(user.id, player.id);
+      return {
+        ...player,
+        timeRemaining: player.scheduled_end_time 
+          ? Math.max(0, player.scheduled_end_time - now)
+          : undefined,
+        userAutoBid: userAutoBidsByPlayer[player.id] || null,
+        cooldownInfo: cooldownInfo.canBid ? null : {
+          timeRemaining: cooldownInfo.timeRemaining,
+          message: cooldownInfo.message
+        }
+      };
+    });
 
     return NextResponse.json(processedPlayers);
   } catch (error) {
