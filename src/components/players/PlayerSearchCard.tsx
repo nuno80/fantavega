@@ -3,8 +3,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Clock, Gavel, User, Users, Shield, Timer, TrendingUp } from "lucide-react";
+import { Clock, Gavel, User, Users, Shield, Timer, TrendingUp, Ban } from "lucide-react";
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
+import { useState, useEffect } from "react";
 
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
@@ -23,6 +24,31 @@ export function PlayerSearchCard({
   userId,
   onTogglePlayerIcon,
 }: PlayerSearchCardProps) {
+  const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState<number | null>(
+    player.cooldownInfo?.timeRemaining || null
+  );
+
+  // Aggiorna il timer ogni minuto
+  useEffect(() => {
+    if (!player.cooldownInfo?.timeRemaining) return;
+
+    setCooldownTimeRemaining(player.cooldownInfo.timeRemaining);
+
+    const interval = setInterval(() => {
+      setCooldownTimeRemaining(prev => {
+        if (prev === null || prev <= 60) return null; // Se meno di 1 minuto, rimuovi cooldown
+        return prev - 60; // Sottrai 1 minuto
+      });
+    }, 60000); // Aggiorna ogni minuto
+
+    return () => clearInterval(interval);
+  }, [player.cooldownInfo?.timeRemaining]);
+
+  const formatCooldownTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  };
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case "P":
@@ -76,11 +102,22 @@ export function PlayerSearchCard({
     return `${minutes}m`;
   };
 
-  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser;
+  const hasCooldown = cooldownTimeRemaining !== null && cooldownTimeRemaining > 0;
+  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser && !hasCooldown;
   const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className={`h-full flex flex-col relative ${hasCooldown ? 'opacity-75' : ''}`}>
+      {/* Badge Cooldown */}
+      {hasCooldown && (
+        <div className="absolute top-2 right-2 z-10">
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <Ban className="h-3 w-3" />
+            {formatCooldownTime(cooldownTimeRemaining)}
+          </Badge>
+        </div>
+      )}
+      
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -96,6 +133,12 @@ export function PlayerSearchCard({
             </div>
             <h3 className="font-semibold text-lg leading-tight">{player.name}</h3>
             <p className="text-sm text-muted-foreground">{player.team}</p>
+            {/* Messaggio Cooldown */}
+            {hasCooldown && (
+              <div className="text-xs text-destructive font-medium">
+                Non puoi fare offerte
+              </div>
+            )}
           </div>
           
           {/* Player Avatar */}
@@ -256,7 +299,19 @@ export function PlayerSearchCard({
       </CardContent>
 
       <CardFooter className="pt-3">
-        {canBid && (
+        {hasCooldown && (
+          <Button 
+            variant="destructive"
+            className="w-full"
+            size="sm"
+            disabled
+          >
+            <Ban className="h-4 w-4 mr-2" />
+            Cooldown {formatCooldownTime(cooldownTimeRemaining)}
+          </Button>
+        )}
+        
+        {canBid && !hasCooldown && (
           <Button 
             onClick={() => onBidOnPlayer(player)}
             className="w-full"

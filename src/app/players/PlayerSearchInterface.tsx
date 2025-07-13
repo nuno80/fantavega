@@ -39,6 +39,10 @@ export interface PlayerWithAuctionStatus extends Player {
   assignedToTeam?: string;
   canStartAuction?: boolean;
   currentHighestBidderName?: string;
+  cooldownInfo?: {
+    timeRemaining: number;
+    message: string;
+  };
   autoBids?: Array<{
     userId: string;
     username: string;

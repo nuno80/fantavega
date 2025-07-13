@@ -2,12 +2,14 @@
 // API Route per listare e filtrare i giocatori.
 // 1. Importazioni
 import { type NextRequest, NextResponse } from "next/server";
+import { currentUser } from "@clerk/nextjs/server";
 
 import {
   type GetPlayersOptions,
   type GetPlayersResult,
   getPlayers,
 } from "@/lib/db/services/player.service";
+import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
 
 // 2. Funzione GET per Recuperare i Giocatori
 export async function GET(request: NextRequest) {
@@ -96,6 +98,26 @@ export async function GET(request: NextRequest) {
 
     // 2.2. Chiamata al Servizio
     const result: GetPlayersResult = await getPlayers(options);
+
+    // 2.3. Aggiungere informazioni sui cooldown per l'utente corrente
+    const user = await currentUser();
+    if (user?.id) {
+      const playersWithCooldown = result.players.map(player => {
+        const cooldownInfo = getUserCooldownInfo(user.id, player.id);
+        return {
+          ...player,
+          cooldownInfo: cooldownInfo.canBid ? null : {
+            timeRemaining: cooldownInfo.timeRemaining,
+            message: cooldownInfo.message
+          }
+        };
+      });
+      
+      return NextResponse.json({
+        ...result,
+        players: playersWithCooldown
+      }, { status: 200 });
+    }
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
