@@ -1,11 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
+import {
+  Ban,
+  Clock,
+  Gavel,
+  Shield,
+  Timer,
+  TrendingUp,
+  User,
+  Users,
+} from "lucide-react";
+
+import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Clock, Gavel, User, Users, Shield, Timer, TrendingUp, Ban } from "lucide-react";
-import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
-import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
@@ -13,7 +29,11 @@ interface PlayerSearchCardProps {
   onStartAuction: (playerId: number) => void;
   userRole: string;
   userId: string;
-  onTogglePlayerIcon?: (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => void;
+  onTogglePlayerIcon?: (
+    playerId: number,
+    iconType: "isStarter" | "isFavorite" | "integrityValue" | "hasFmv",
+    value: boolean | number
+  ) => void;
 }
 
 export function PlayerSearchCard({
@@ -24,9 +44,9 @@ export function PlayerSearchCard({
   userId,
   onTogglePlayerIcon,
 }: PlayerSearchCardProps) {
-  const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState<number | null>(
-    player.cooldownInfo?.timeRemaining || null
-  );
+  const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState<
+    number | null
+  >(player.cooldownInfo?.timeRemaining || null);
 
   // Aggiorna il timer ogni minuto
   useEffect(() => {
@@ -35,7 +55,7 @@ export function PlayerSearchCard({
     setCooldownTimeRemaining(player.cooldownInfo.timeRemaining);
 
     const interval = setInterval(() => {
-      setCooldownTimeRemaining(prev => {
+      setCooldownTimeRemaining((prev) => {
         if (prev === null || prev <= 60) return null; // Se meno di 1 minuto, rimuovi cooldown
         return prev - 60; // Sottrai 1 minuto
       });
@@ -69,21 +89,21 @@ export function PlayerSearchCard({
       case "active_auction":
         return (
           <Badge className="bg-orange-500 text-orange-900">
-            <Clock className="h-3 w-3 mr-1" />
+            <Clock className="mr-1 h-3 w-3" />
             Asta Attiva
           </Badge>
         );
       case "assigned":
         return (
           <Badge className="bg-gray-500 text-gray-900">
-            <Users className="h-3 w-3 mr-1" />
+            <Users className="mr-1 h-3 w-3" />
             Assegnato
           </Badge>
         );
       default:
         return (
           <Badge variant="outline">
-            <User className="h-3 w-3 mr-1" />
+            <User className="mr-1 h-3 w-3" />
             Disponibile
           </Badge>
         );
@@ -92,28 +112,31 @@ export function PlayerSearchCard({
 
   const formatTimeRemaining = (seconds?: number) => {
     if (!seconds) return null;
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
     return `${minutes}m`;
   };
 
-  const hasCooldown = cooldownTimeRemaining !== null && cooldownTimeRemaining > 0;
-  const canBid = (player.auctionStatus === "active_auction" || player.auctionStatus === "no_auction") && !player.isAssignedToUser && !hasCooldown;
+  const hasCooldown =
+    cooldownTimeRemaining !== null && cooldownTimeRemaining > 0;
+  const canBid =
+    (player.auctionStatus === "active_auction" ||
+      player.auctionStatus === "no_auction") &&
+    !player.isAssignedToUser &&
+    !hasCooldown;
   const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
-    <Card className="h-full flex flex-col relative">
-      
-      
+    <Card className="relative flex h-full flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="mb-1 flex items-center gap-2">
               <Badge className={getRoleBadgeColor(player.role)}>
                 {player.role}
               </Badge>
@@ -123,61 +146,119 @@ export function PlayerSearchCard({
                 </Badge>
               )}
             </div>
-            <h3 className="font-semibold text-lg leading-tight">{player.name}</h3>
+            <h3 className="text-lg font-semibold leading-tight">
+              {player.name}
+            </h3>
             <p className="text-sm text-muted-foreground">{player.team}</p>
           </div>
-          
+
           {/* Player Avatar */}
-          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <User className="h-6 w-6 text-muted-foreground" />
           </div>
         </div>
-        
+
         {getStatusBadge()}
       </CardHeader>
 
       <CardContent className="flex-1 space-y-3">
         {/* Player Icons Grid */}
-        <div className="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+        <div className="mb-3 grid grid-cols-4 gap-2 text-center text-xs">
           <div>
             <div
-              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.isStarter ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
-              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'isStarter', !player.isStarter)}
-              title={player.isStarter ? "Rimuovi come titolare" : "Segna come titolare"}
+              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.isStarter ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
+              onClick={() =>
+                onTogglePlayerIcon &&
+                onTogglePlayerIcon(player.id, "isStarter", !player.isStarter)
+              }
+              title={
+                player.isStarter
+                  ? "Rimuovi come titolare"
+                  : "Segna come titolare"
+              }
             >
-              <Shield className={`h-4 w-4 ${player.isStarter ? 'text-purple-400' : 'text-gray-400'}`} />
+              <Shield
+                className={`h-4 w-4 ${player.isStarter ? "text-purple-400" : "text-gray-400"}`}
+              />
             </div>
-            <p className={player.isStarter ? 'text-purple-400' : 'text-gray-400'}>Titolare</p>
+            <p
+              className={player.isStarter ? "text-purple-400" : "text-gray-400"}
+            >
+              Titolare
+            </p>
           </div>
           <div>
             <div
-              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.isFavorite ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
-              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'isFavorite', !player.isFavorite)}
-              title={player.isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.isFavorite ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
+              onClick={() =>
+                onTogglePlayerIcon &&
+                onTogglePlayerIcon(player.id, "isFavorite", !player.isFavorite)
+              }
+              title={
+                player.isFavorite
+                  ? "Rimuovi dai preferiti"
+                  : "Aggiungi ai preferiti"
+              }
             >
-              <div className={`h-4 w-4 ${player.isFavorite ? 'text-purple-400' : 'text-gray-400'}`}>⚽</div>
+              <div
+                className={`h-4 w-4 ${player.isFavorite ? "text-purple-400" : "text-gray-400"}`}
+              >
+                ⚽
+              </div>
             </div>
-            <p className={player.isFavorite ? 'text-purple-400' : 'text-gray-400'}>Preferito</p>
+            <p
+              className={
+                player.isFavorite ? "text-purple-400" : "text-gray-400"
+              }
+            >
+              Preferito
+            </p>
           </div>
           <div>
             <div
-              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.integrityValue ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
-              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'integrityValue', player.integrityValue ? 0 : 1)}
-              title={player.integrityValue ? "Rimuovi integrità" : "Segna come integro"}
+              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.integrityValue ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
+              onClick={() =>
+                onTogglePlayerIcon &&
+                onTogglePlayerIcon(
+                  player.id,
+                  "integrityValue",
+                  player.integrityValue ? 0 : 1
+                )
+              }
+              title={
+                player.integrityValue
+                  ? "Rimuovi integrità"
+                  : "Segna come integro"
+              }
             >
-              <TrendingUp className={`h-4 w-4 ${player.integrityValue ? 'text-purple-400' : 'text-gray-400'}`} />
+              <TrendingUp
+                className={`h-4 w-4 ${player.integrityValue ? "text-purple-400" : "text-gray-400"}`}
+              />
             </div>
-            <p className={player.integrityValue ? 'text-purple-400' : 'text-gray-400'}>Integrità</p>
+            <p
+              className={
+                player.integrityValue ? "text-purple-400" : "text-gray-400"
+              }
+            >
+              Integrità
+            </p>
           </div>
           <div>
             <div
-              className={`bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-1 ${player.hasFmv ? 'border-2 border-purple-400' : ''} cursor-pointer hover:bg-gray-600 transition-colors`}
-              onClick={() => onTogglePlayerIcon && onTogglePlayerIcon(player.id, 'hasFmv', !player.hasFmv)}
+              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.hasFmv ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
+              onClick={() =>
+                onTogglePlayerIcon &&
+                onTogglePlayerIcon(player.id, "hasFmv", !player.hasFmv)
+              }
               title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
             >
-              <Timer className={`h-4 w-4 ${player.hasFmv ? 'text-purple-400' : 'text-gray-400'}`} />
+              <Timer
+                className={`h-4 w-4 ${player.hasFmv ? "text-purple-400" : "text-gray-400"}`}
+              />
             </div>
-            <p className={player.hasFmv ? 'text-purple-400' : 'text-gray-400'}>FMV</p>
+            <p className={player.hasFmv ? "text-purple-400" : "text-gray-400"}>
+              FMV
+            </p>
           </div>
         </div>
 
@@ -197,15 +278,18 @@ export function PlayerSearchCard({
           </div>
           <div>
             <span className="text-muted-foreground">Diff:</span>
-            <span className={`ml-1 font-medium ${player.diff > 0 ? 'text-green-600' : player.diff < 0 ? 'text-red-600' : ''}`}>
-              {player.diff > 0 ? '+' : ''}{player.diff}
+            <span
+              className={`ml-1 font-medium ${player.diff > 0 ? "text-green-600" : player.diff < 0 ? "text-red-600" : ""}`}
+            >
+              {player.diff > 0 ? "+" : ""}
+              {player.diff}
             </span>
           </div>
         </div>
 
         {/* Auction Info */}
         {player.auctionStatus === "active_auction" && (
-          <div className="space-y-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+          <div className="space-y-3 rounded-lg bg-orange-50 p-3 dark:bg-orange-950/20">
             {/* Current Bid Info */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -214,19 +298,23 @@ export function PlayerSearchCard({
                   {player.currentBid || 0} crediti
                 </span>
               </div>
-              
+
               {player.currentHighestBidderName && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Miglior offerente:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Miglior offerente:
+                  </span>
                   <span className="text-sm font-medium text-orange-700">
                     {player.currentHighestBidderName}
                   </span>
                 </div>
               )}
-              
+
               {player.timeRemaining && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Tempo rimanente:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Tempo rimanente:
+                  </span>
                   <span className="text-sm font-medium text-orange-600">
                     {formatTimeRemaining(player.timeRemaining)}
                   </span>
@@ -236,17 +324,26 @@ export function PlayerSearchCard({
 
             {/* Auto-bid Info */}
             {player.autoBids && player.autoBids.length > 0 && (
-              <div className="border-t border-orange-200 dark:border-orange-800 pt-2">
-                <div className="text-xs font-medium text-orange-700 mb-1">Auto-offerte attive:</div>
+              <div className="border-t border-orange-200 pt-2 dark:border-orange-800">
+                <div className="mb-1 text-xs font-medium text-orange-700">
+                  Auto-offerte attive:
+                </div>
                 <div className="space-y-1">
                   {player.autoBids.map((autoBid, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs">
-                      <span className={`${autoBid.userId === userId ? 'font-semibold text-blue-600' : 'text-muted-foreground'}`}>
+                    <div
+                      key={index}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <span
+                        className={`${autoBid.userId === userId ? "font-semibold text-blue-600" : "text-muted-foreground"}`}
+                      >
                         {autoBid.username}
-                        {autoBid.userId === userId && ' (Tu)'}
+                        {autoBid.userId === userId && " (Tu)"}
                       </span>
                       <span className="font-medium">
-                        {autoBid.userId === userId ? `Max: ${autoBid.maxAmount}` : 'Auto-bid attiva'}
+                        {autoBid.userId === userId
+                          ? `Max: ${autoBid.maxAmount}`
+                          : "Auto-bid attiva"}
                       </span>
                     </div>
                   ))}
@@ -256,11 +353,15 @@ export function PlayerSearchCard({
 
             {/* User's Auto-bid Status */}
             {player.userAutoBid && (
-              <div className="border-t border-blue-200 dark:border-blue-800 pt-2 bg-blue-50 dark:bg-blue-950/30 -mx-3 px-3 pb-2 rounded-b-lg">
-                <div className="text-xs font-medium text-blue-700 mb-1">La tua auto-offerta:</div>
+              <div className="-mx-3 rounded-b-lg border-t border-blue-200 bg-blue-50 px-3 pb-2 pt-2 dark:border-blue-800 dark:bg-blue-950/30">
+                <div className="mb-1 text-xs font-medium text-blue-700">
+                  La tua auto-offerta:
+                </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-blue-600">Prezzo massimo:</span>
-                  <span className="font-bold text-blue-700">{player.userAutoBid.maxAmount} crediti</span>
+                  <span className="font-bold text-blue-700">
+                    {player.userAutoBid.maxAmount} crediti
+                  </span>
                 </div>
               </div>
             )}
@@ -269,15 +370,17 @@ export function PlayerSearchCard({
 
         {/* Assignment Info */}
         {player.auctionStatus === "assigned" && player.assignedToTeam && (
-          <div className="p-3 bg-gray-50 dark:bg-gray-950/20 rounded-lg">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-950/20">
             <div className="text-sm">
               <span className="text-muted-foreground">Assegnato a:</span>
               <span className="ml-1 font-medium">{player.assignedToTeam}</span>
             </div>
             {player.currentBid && (
-              <div className="text-sm mt-1">
+              <div className="mt-1 text-sm">
                 <span className="text-muted-foreground">Prezzo:</span>
-                <span className="ml-1 font-medium">{player.currentBid} crediti</span>
+                <span className="ml-1 font-medium">
+                  {player.currentBid} crediti
+                </span>
               </div>
             )}
           </div>
@@ -286,71 +389,50 @@ export function PlayerSearchCard({
 
       <CardFooter className="pt-3">
         {hasCooldown && (
-          <div className="flex gap-2 w-full">
-            <Button 
+          <div className="flex w-full gap-2">
+            <Button
               variant="destructive"
-              className="!opacity-100 disabled:opacity-100 py-3 px-4"
+              className="px-4 py-3 !opacity-100 disabled:opacity-100"
               size="sm"
               disabled
             >
-              <Ban className="h-4 w-4 mr-2" />
+              <Ban className="mr-2 h-4 w-4" />
               {formatCooldownTime(cooldownTimeRemaining)}
             </Button>
-            <Button 
+            <Button
               variant="outline"
-              className="flex-1 py-3 px-4"
+              className="flex-1 px-4 py-3"
               size="sm"
               disabled
             >
+              <Gavel className="mr-2 h-4 w-4" />
               Non puoi fare offerte ora
             </Button>
           </div>
         )}
-        
+
         {canBid && !hasCooldown && (
-          <Button 
+          <Button
             onClick={() => onBidOnPlayer(player)}
             className="w-full"
             size="sm"
           >
-            <Gavel className="h-4 w-4 mr-2" />
+            <Gavel className="mr-2 h-4 w-4" />
             Fai Offerta
           </Button>
         )}
-        
+
         {player.auctionStatus === "assigned" && (
-          <Button 
-            variant="secondary"
-            className="w-full"
-            size="sm"
-            disabled
-          >
-            <Users className="h-4 w-4 mr-2" />
+          <Button variant="secondary" className="w-full" size="sm" disabled>
+            <Users className="mr-2 h-4 w-4" />
             Già Assegnato
           </Button>
         )}
-        
+
         {!canBid && player.auctionStatus === "no_auction" && (
-          <Button
-            variant="outline"
-            className="w-full"
-            size="sm"
-            disabled
-          >
-            <User className="h-4 w-4 mr-2" />
+          <Button variant="outline" className="w-full" size="sm" disabled>
+            <User className="mr-2 h-4 w-4" />
             Non disponibile per asta
-          </Button>
-        )}
-        
-        {!canBid && player.auctionStatus === "active_auction" && !player.isAssignedToUser && !player.canStartAuction && (
-          <Button
-            variant="outline"
-            className="w-full"
-            size="sm"
-            disabled
-          >
-            <Gavel className="h-4 w-4 mr-5" />
-            {player.currentHighestBidderName === "Tu" ? "Sei già il miglior offerente" : "Non puoi fare offerte ora"}
           </Button>
         )}
       </CardFooter>
