@@ -162,7 +162,7 @@ export const handleAuctionAbandon = async (
     const userBid = db.prepare(`
       SELECT amount FROM bids 
       WHERE auction_id = ? AND user_id = ? 
-      ORDER BY created_at DESC LIMIT 1
+      ORDER BY bid_time DESC LIMIT 1
     `).get(auctionId, userId) as { amount: number } | undefined;
 
     // Trova la lega per aggiornare i crediti

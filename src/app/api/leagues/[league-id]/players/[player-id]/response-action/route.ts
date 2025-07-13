@@ -87,7 +87,7 @@ export async function POST(request: Request, context: RouteContext) {
       const userBid = db.prepare(`
         SELECT amount FROM bids 
         WHERE auction_id = ? AND user_id = ? 
-        ORDER BY created_at DESC LIMIT 1
+        ORDER BY bid_time DESC LIMIT 1
       `).get(auction.id, user.id) as { amount: number } | undefined;
 
       db.transaction(() => {

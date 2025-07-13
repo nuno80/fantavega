@@ -133,7 +133,7 @@ export const processExpiredResponseTimers = async (): Promise<{
         const userBid = db.prepare(`
           SELECT amount FROM bids 
           WHERE auction_id = ? AND user_id = ? 
-          ORDER BY created_at DESC LIMIT 1
+          ORDER BY bid_time DESC LIMIT 1
         `).get(timer.auction_id, timer.user_id) as { amount: number } | undefined;
 
         await db.transaction(() => {
