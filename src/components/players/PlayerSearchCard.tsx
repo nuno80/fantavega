@@ -110,12 +110,18 @@ export function PlayerSearchCard({
     <Card className={`h-full flex flex-col relative ${hasCooldown ? 'opacity-75' : ''}`}>
       {/* Badge Cooldown */}
       {hasCooldown && (
-        <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
+        <div className="absolute top-2 right-2 z-10">
           <Badge variant="destructive" className="flex items-center gap-1">
             <Ban className="h-3 w-3" />
             {formatCooldownTime(cooldownTimeRemaining)}
           </Badge>
-          <div className="text-xs text-destructive font-medium bg-white px-2 py-1 rounded shadow-sm border">
+        </div>
+      )}
+      
+      {/* Messaggio Cooldown Centrato in Basso */}
+      {hasCooldown && (
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-10">
+          <div className="text-xs text-destructive font-medium bg-white px-3 py-1 rounded-full shadow-md border border-destructive">
             Non puoi fare offerte
           </div>
         </div>
