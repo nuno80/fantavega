@@ -1,8 +1,8 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-15T12:30:00Z",
-    "task_completed": "Bug Fix - Liberazione Slot dopo Abbandono Asta",
+    "last_update": "2025-01-15T15:30:00Z",
+    "task_completed": "Feature Completa - Sistema Timer Cooldown UI",
     "feature_logic": {
       "feature_name": "Sistema Response Timer e Correzioni ComplianceChecker",
       "summary": "Implementa response timer visivo per rilanci con logica 1-ora, correzione timer penalità ComplianceChecker, e miglioramenti notifiche real-time.",
@@ -147,6 +147,66 @@
       "✅ Interfaccia allineata con stato reale database"
     ],
     "prevention": "Il sistema di abbandono aste ora aggiorna correttamente sia user_auction_cooldowns che user_auction_states."
+  },
+  "featureTimerCooldownUI": {
+    "feature_name": "Sistema Timer Cooldown UI Completo",
+    "summary": "Implementazione completa del timer cooldown visivo nella pagina players con due pulsanti separati e design ottimizzato.",
+    "user_story": "Come utente che ha abbandonato un'asta, voglio vedere chiaramente quando potrò fare nuove offerte per quel giocatore, con timer dinamico e interfaccia intuitiva.",
+    "implementation_phases": [
+      "1. Estensione API /api/players con getUserCooldownInfo per includere dati cooldown",
+      "2. Aggiornamento interface PlayerWithAuctionStatus con cooldownInfo",
+      "3. Modifica PlayerSearchCard per mostrare timer cooldown dinamico",
+      "4. Ottimizzazione design con due pulsanti separati e spacing perfetto"
+    ],
+    "technical_architecture": {
+      "backend_apis": [
+        "/api/players - Include cooldown info per utenti senza leghe",
+        "/api/leagues/[league-id]/players-with-status - Include cooldown info per utenti con leghe"
+      ],
+      "frontend_components": [
+        "PlayerSearchCard - Timer dinamico con useEffect ogni minuto",
+        "Due pulsanti separati: timer (destructive) + messaggio (outline)"
+      ],
+      "data_flow": "getUserCooldownInfo(userId, playerId) → API → Frontend → Card con Timer Live"
+    },
+    "ui_design_final": {
+      "layout": "Due pulsanti affiancati nel footer della card",
+      "pulsante_timer": {
+        "contenuto": "🚫 47h 31m",
+        "variant": "destructive (rosso)",
+        "dimensione": "compatto",
+        "icona_spacing": "mr-1 (ridotto per compattezza)"
+      },
+      "pulsante_messaggio": {
+        "contenuto": "Non puoi fare offerte ora",
+        "variant": "outline (bordo)",
+        "dimensione": "flex-1 (espanso)",
+        "icona": "nessuna (evita duplicazioni)"
+      },
+      "spacing": "gap-2 tra pulsanti, py-3 px-4 padding interno",
+      "visibilita": "opacity-100 forzata per nitidezza completa"
+    },
+    "user_experience": [
+      "Timer dinamico che si aggiorna ogni minuto automaticamente",
+      "Informazioni cooldown visibili immediatamente nella ricerca giocatori",
+      "Design pulito senza duplicazioni o ridondanze",
+      "Feedback visivo chiaro su quando poter fare nuove offerte",
+      "Layout responsive e professionale"
+    ],
+    "testing_performed": [
+      "✅ Timer cooldown appare correttamente su Ahanor (46h+ rimanenti)",
+      "✅ Due pulsanti separati con spacing ottimale",
+      "✅ Aggiornamento automatico ogni minuto",
+      "✅ Design nitido senza opacità",
+      "✅ Funziona sia per utenti con che senza leghe"
+    ],
+    "integration_with_existing": {
+      "cooldown_backend": "Integrato con sistema esistente getUserCooldownInfo",
+      "api_bidding": "Coerente con messaggi di errore nelle API di offerte",
+      "auction_page": "Complementare al sistema di abbandono aste",
+      "database": "Utilizza user_auction_cooldowns esistente"
+    },
+    "impact": "Sistema cooldown ora completamente visibile e user-friendly. Utenti possono vedere immediatamente quando potranno fare offerte sui giocatori abbandonati, migliorando significativamente l'esperienza utente."
   },
   "bugFixCooldownValidation": {
     "feature_name": "Implementazione Validazione Cooldown 48h",
