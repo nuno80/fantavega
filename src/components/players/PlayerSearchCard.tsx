@@ -293,7 +293,7 @@ export function PlayerSearchCard({
             disabled
           >
             <Ban className="h-4 w-4 mr-2" />
-            <span>{formatCooldownTime(cooldownTimeRemaining)}</span>
+            <span className="mr-5">{formatCooldownTime(cooldownTimeRemaining)}</span>
           </Button>
         )}
         
