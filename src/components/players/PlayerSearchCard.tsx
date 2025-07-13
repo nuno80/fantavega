@@ -107,7 +107,7 @@ export function PlayerSearchCard({
   const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
 
   return (
-    <Card className={`h-full flex flex-col relative ${hasCooldown ? '' : ''}`}>
+    <Card className="h-full flex flex-col relative">
       {/* Badge Cooldown */}
       {hasCooldown && (
         <div className="absolute top-2 right-2 z-10">
@@ -118,14 +118,6 @@ export function PlayerSearchCard({
         </div>
       )}
       
-      {/* Messaggio Cooldown Centrato in Basso */}
-      {hasCooldown && (
-        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="text-xs text-destructive font-medium bg-white px-3 py-1 rounded-full shadow-md border border-destructive">
-            Offerte bloccate
-          </div>
-        </div>
-      )}
       
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
