@@ -286,15 +286,26 @@ export function PlayerSearchCard({
 
       <CardFooter className="pt-3">
         {hasCooldown && (
-          <Button 
-            variant="destructive"
-            className="w-full !opacity-100 disabled:opacity-100 py-3 px-4"
-            size="sm"
-            disabled
-          >
-            <Ban className="h-4 w-4 mr-2" />
-            <span className="mr-5">{formatCooldownTime(cooldownTimeRemaining)}</span>
-          </Button>
+          <div className="flex gap-2 w-full">
+            <Button 
+              variant="destructive"
+              className="!opacity-100 disabled:opacity-100 py-3 px-4"
+              size="sm"
+              disabled
+            >
+              <Ban className="h-4 w-4 mr-2" />
+              {formatCooldownTime(cooldownTimeRemaining)}
+            </Button>
+            <Button 
+              variant="outline"
+              className="flex-1 py-3 px-4"
+              size="sm"
+              disabled
+            >
+              <Gavel className="h-4 w-4 mr-2" />
+              Non puoi fare offerte ora
+            </Button>
+          </div>
         )}
         
         {canBid && !hasCooldown && (
