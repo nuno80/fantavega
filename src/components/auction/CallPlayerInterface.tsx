@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User } from "lucide-react";
+import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User, Heart } from "lucide-react";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
 import { StandardBidModal } from "./StandardBidModal";
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
@@ -36,6 +36,11 @@ interface PlayerWithStatus extends Player {
   currentHighestBidderName?: string;
   timeRemaining?: number;
   status?: string;
+  // User preferences
+  isStarter?: boolean;
+  isFavorite?: boolean;
+  integrityValue?: number;
+  hasFmv?: boolean;
 }
 
 interface CallPlayerInterfaceProps {
@@ -53,6 +58,14 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
   const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<PlayerWithStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  // Preference filters state
+  const [preferenceFilters, setPreferenceFilters] = useState({
+    isStarter: false,
+    isFavorite: false,
+    hasIntegrity: false,
+    hasFmv: false
+  });
   
   // Bid modal state
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
@@ -87,7 +100,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
     }
   }, [leagueId]);
 
-  // Filter players based on role and search term
+  // Filter players based on role, search term, and preferences
   useEffect(() => {
     let filtered = players;
 
@@ -110,8 +123,22 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
       setIsDropdownOpen(false);
     }
 
+    // Filter by preferences (AND logic - all active filters must match)
+    if (preferenceFilters.isStarter) {
+      filtered = filtered.filter(player => player.isStarter);
+    }
+    if (preferenceFilters.isFavorite) {
+      filtered = filtered.filter(player => player.isFavorite);
+    }
+    if (preferenceFilters.hasIntegrity) {
+      filtered = filtered.filter(player => player.integrityValue && player.integrityValue > 0);
+    }
+    if (preferenceFilters.hasFmv) {
+      filtered = filtered.filter(player => player.hasFmv);
+    }
+
     setFilteredPlayers(filtered);
-  }, [players, selectedRole, searchTerm]);
+  }, [players, selectedRole, searchTerm, preferenceFilters]);
 
   // Handle player selection
   const handlePlayerSelect = (playerId: string) => {
@@ -285,6 +312,69 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
                     {role.label}
                   </Button>
                 ))}
+                
+                {/* Preference Filter Icons */}
+                <div className="flex space-x-1 ml-2">
+                  {/* Titolare */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`p-2 h-8 w-8 ${
+                      preferenceFilters.isStarter 
+                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
+                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
+                    }`}
+                    onClick={() => setPreferenceFilters(prev => ({ ...prev, isStarter: !prev.isStarter }))}
+                    title="Filtra per Titolari"
+                  >
+                    <Shield className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Preferito */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`p-2 h-8 w-8 ${
+                      preferenceFilters.isFavorite 
+                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
+                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
+                    }`}
+                    onClick={() => setPreferenceFilters(prev => ({ ...prev, isFavorite: !prev.isFavorite }))}
+                    title="Filtra per Preferiti"
+                  >
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Integrita */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`p-2 h-8 w-8 ${
+                      preferenceFilters.hasIntegrity 
+                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
+                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
+                    }`}
+                    onClick={() => setPreferenceFilters(prev => ({ ...prev, hasIntegrity: !prev.hasIntegrity }))}
+                    title="Filtra per Integrita"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* FMV */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`p-2 h-8 w-8 ${
+                      preferenceFilters.hasFmv 
+                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
+                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
+                    }`}
+                    onClick={() => setPreferenceFilters(prev => ({ ...prev, hasFmv: !prev.hasFmv }))}
+                    title="Filtra per FMV"
+                  >
+                    <Timer className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Player Selection */}
