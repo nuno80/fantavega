@@ -368,19 +368,19 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     try {
       if (!selectedLeagueId) return;
 
-      const response = await fetch(`/api/players/${playerId}/toggle-icon`, {
+      // Usa il nuovo endpoint per le preferenze
+      const response = await fetch(`/api/leagues/${selectedLeagueId}/players/${playerId}/preferences`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           iconType,
-          value,
-          leagueId: selectedLeagueId
+          value
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || error.message || "Errore nell'aggiornare l'icona");
+        throw new Error(error.error || error.message || "Errore nell'aggiornare la preferenza");
       }
 
       // Aggiorna lo stato locale del giocatore
@@ -396,7 +396,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       toast.success("Preferenza salvata con successo!");
       
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Errore nell'aggiornare l'icona");
+      toast.error(error instanceof Error ? error.message : "Errore nell'aggiornare la preferenza");
     }
   };
 
@@ -431,6 +431,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         onTogglePlayerIcon={handleTogglePlayerIcon}
         userRole={userRole}
         userId={userId}
+        leagueId={selectedLeagueId || undefined}
       />
 
       {selectedPlayer && (

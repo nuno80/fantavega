@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ error: "Non autorizzato per questa lega" }, { status: 403 });
     }
 
-    // Get all players with their auction status
+    // Get all players with their auction status and user preferences
     const playersWithStatus = db
       .prepare(
         `SELECT 
@@ -50,6 +50,12 @@ export async function GET(
           (p.current_quotation_mantra - p.initial_quotation_mantra) as diffM,
           p.fvm,
           p.fvm_mantra as fvmM,
+          
+          -- User preferences
+          COALESCE(upp.is_starter, 0) as isStarter,
+          COALESCE(upp.is_favorite, 0) as isFavorite,
+          COALESCE(upp.integrity_value, 0) as integrityValue,
+          COALESCE(upp.has_fmv, 0) as hasFmv,
           
           -- Auction status
           CASE 
@@ -81,9 +87,10 @@ export async function GET(
          LEFT JOIN player_assignments pa ON p.id = pa.player_id AND pa.auction_league_id = ?
          LEFT JOIN users u ON pa.user_id = u.id
          LEFT JOIN users u_bidder ON a.current_highest_bidder_id = u_bidder.id
+         LEFT JOIN user_player_preferences upp ON p.id = upp.player_id AND upp.user_id = ? AND upp.league_id = ?
          ORDER BY p.name ASC`
       )
-      .all(user.id, leagueId, leagueId);
+      .all(user.id, leagueId, leagueId, user.id, leagueId);
 
     // Get only the current user's auto-bid information for active auctions
     const userAutoBidsData = db

@@ -10,6 +10,7 @@ interface PlayerSearchResultsProps {
   onTogglePlayerIcon?: (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => void;
   userRole: string;
   userId: string;
+  leagueId?: number;
 }
 
 export function PlayerSearchResults({
@@ -19,6 +20,7 @@ export function PlayerSearchResults({
   onTogglePlayerIcon,
   userRole,
   userId,
+  leagueId,
 }: PlayerSearchResultsProps) {
   if (players.length === 0) {
     return (
@@ -50,6 +52,7 @@ export function PlayerSearchResults({
             onTogglePlayerIcon={onTogglePlayerIcon}
             userRole={userRole}
             userId={userId}
+            leagueId={leagueId}
           />
         ))}
       </div>

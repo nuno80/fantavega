@@ -34,6 +34,7 @@ interface PlayerSearchCardProps {
     iconType: "isStarter" | "isFavorite" | "integrityValue" | "hasFmv",
     value: boolean | number
   ) => void;
+  leagueId?: number;
 }
 
 export function PlayerSearchCard({
@@ -43,10 +44,51 @@ export function PlayerSearchCard({
   userRole,
   userId,
   onTogglePlayerIcon,
+  leagueId,
 }: PlayerSearchCardProps) {
   const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState<
     number | null
   >(player.cooldownInfo?.timeRemaining || null);
+
+  // Funzione per gestire il toggle delle preferenze
+  const handleTogglePreference = async (
+    iconType: "isStarter" | "isFavorite" | "integrityValue" | "hasFmv",
+    value: boolean | number
+  ) => {
+    if (!leagueId) {
+      console.error("League ID is required for player preferences");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/leagues/${leagueId}/players/${player.id}/preferences`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            iconType,
+            value,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Error updating preference:", error);
+        return;
+      }
+
+      // Se c'è un callback esterno, chiamalo per aggiornare lo stato del parent
+      if (onTogglePlayerIcon) {
+        onTogglePlayerIcon(player.id, iconType, value);
+      }
+    } catch (error) {
+      console.error("Error updating player preference:", error);
+    }
+  };
 
   // Aggiorna il timer ogni minuto
   useEffect(() => {
@@ -168,8 +210,7 @@ export function PlayerSearchCard({
             <div
               className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.isStarter ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
               onClick={() =>
-                onTogglePlayerIcon &&
-                onTogglePlayerIcon(player.id, "isStarter", !player.isStarter)
+                handleTogglePreference("isStarter", !player.isStarter)
               }
               title={
                 player.isStarter
@@ -191,8 +232,7 @@ export function PlayerSearchCard({
             <div
               className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.isFavorite ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
               onClick={() =>
-                onTogglePlayerIcon &&
-                onTogglePlayerIcon(player.id, "isFavorite", !player.isFavorite)
+                handleTogglePreference("isFavorite", !player.isFavorite)
               }
               title={
                 player.isFavorite
@@ -218,9 +258,7 @@ export function PlayerSearchCard({
             <div
               className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.integrityValue ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
               onClick={() =>
-                onTogglePlayerIcon &&
-                onTogglePlayerIcon(
-                  player.id,
+                handleTogglePreference(
                   "integrityValue",
                   player.integrityValue ? 0 : 1
                 )
@@ -247,8 +285,7 @@ export function PlayerSearchCard({
             <div
               className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.hasFmv ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
               onClick={() =>
-                onTogglePlayerIcon &&
-                onTogglePlayerIcon(player.id, "hasFmv", !player.hasFmv)
+                handleTogglePreference("hasFmv", !player.hasFmv)
               }
               title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
             >
