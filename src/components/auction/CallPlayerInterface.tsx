@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User, Heart } from "lucide-react";
+import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User, Heart, Dumbbell } from "lucide-react";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
 import { StandardBidModal } from "./StandardBidModal";
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
@@ -357,7 +357,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
                     onClick={() => setPreferenceFilters(prev => ({ ...prev, hasIntegrity: !prev.hasIntegrity }))}
                     title="Filtra per Integrita"
                   >
-                    <Timer className="h-4 w-4" />
+                    <Dumbbell className="h-4 w-4" />
                   </Button>
                   
                   {/* FMV */}

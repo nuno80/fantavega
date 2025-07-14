@@ -11,6 +11,7 @@ import {
   TrendingUp,
   User,
   Users,
+  Dumbbell,
 } from "lucide-react";
 
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
@@ -269,7 +270,7 @@ export function PlayerSearchCard({
                   : "Segna come integro"
               }
             >
-              <Timer
+              <Dumbbell
                 className={`h-4 w-4 ${player.integrityValue ? "text-purple-400" : "text-gray-400"}`}
               />
             </div>
