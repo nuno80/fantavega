@@ -4,26 +4,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { authorizeLeagueAccess } from "@/lib/auth/authorization";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ "league-id": string }> }
 ) {
   try {
-    const user = await currentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
-    }
-
     const resolvedParams = await params;
     const leagueId = parseInt(resolvedParams["league-id"]);
     
-    if (isNaN(leagueId)) {
-      return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
+    // Use centralized authorization check to prevent IDOR
+    const authResult = await authorizeLeagueAccess(leagueId);
+    if (!authResult.authorized) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
+    
+    const user = authResult.user;
 
     // Get user's budget information for this league
+    // Authorization already verified above, so this should always return data
     const budgetInfo = db
       .prepare(
         `SELECT 
@@ -38,9 +38,11 @@ export async function GET(
       .get(leagueId, user.id);
 
     if (!budgetInfo) {
+      // This should not happen due to authorization check above
+      console.error(`Budget info not found for user ${user.id} in league ${leagueId} despite authorization check`);
       return NextResponse.json(
-        { error: "Utente non partecipa a questa lega" },
-        { status: 404 }
+        { error: "Errore interno: dati budget non trovati" },
+        { status: 500 }
       );
     }
 

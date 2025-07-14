@@ -392,26 +392,32 @@
       "subtasks": [
         {
           "id": "14.1",
-          "title": "Implement rate limiting",
-          "description": "Add rate limiting to API endpoints to prevent abuse",
-          "status": "pending"
+          "title": "Fix IDOR vulnerabilities (Insecure Direct Object Reference)",
+          "description": "Implement authorization checks at resource level to prevent users from accessing/modifying resources they don't own",
+          "status": "in_progress"
         },
         {
           "id": "14.2",
-          "title": "Enhanced error handling",
-          "description": "Improve error handling to prevent information disclosure in production",
+          "title": "Secure file upload handling",
+          "description": "Implement strict file validation, size limits, and secure processing for Excel uploads",
           "status": "pending"
         },
         {
           "id": "14.3",
-          "title": "Security audit logging",
-          "description": "Implement audit logging for sensitive operations",
+          "title": "Data minimization and privacy protection",
+          "description": "Review and fix API endpoints to return only necessary data, prevent sensitive data exposure",
           "status": "pending"
         },
         {
           "id": "14.4",
-          "title": "Input sanitization improvements",
-          "description": "Enhance input validation and sanitization across all endpoints",
+          "title": "Role management consistency and validation",
+          "description": "Standardize role checking and add proper validation for role assignments",
+          "status": "pending"
+        },
+        {
+          "id": "14.5",
+          "title": "Rate limiting and audit logging",
+          "description": "Implement rate limiting for API endpoints and audit logging for sensitive operations",
           "status": "pending"
         }
       ]

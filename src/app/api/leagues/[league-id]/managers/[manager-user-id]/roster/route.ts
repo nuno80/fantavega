@@ -6,6 +6,7 @@ import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
 import { getManagerRoster } from "@/lib/db/services/auction-league.service";
+import { authorizeLeagueAccess, checkUserDataAccess } from "@/lib/auth/authorization";
 
 // 2. Interfaccia per il Contesto della Rotta (MODIFICATA)
 interface RouteContext {
@@ -74,10 +75,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       `[API MANAGER_ROSTER GET] User ${authenticatedUserId} requesting roster for manager ${managerUserIdFromParams} in league ${leagueIdNum}.`
     );
 
-    if (
-      authenticatedUserId !== managerUserIdFromParams &&
-      authenticatedUserRole !== "admin"
-    ) {
+    // Use centralized authorization check for user data access
+    const hasDataAccess = await checkUserDataAccess(
+      authenticatedUserId, 
+      managerUserIdFromParams, 
+      leagueIdNum
+    );
+    
+    if (!hasDataAccess) {
       console.warn(
         `[API MANAGER_ROSTER GET] Forbidden: User ${authenticatedUserId} cannot view roster of ${managerUserIdFromParams}.`
       );

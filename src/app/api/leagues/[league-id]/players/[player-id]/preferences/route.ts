@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { authorizeLeagueAccess } from "@/lib/auth/authorization";
 
 export async function POST(
   req: NextRequest,
@@ -11,31 +12,18 @@ export async function POST(
   const playerId = parseInt(params_resolved["player-id"]);
 
   try {
-    const user = await currentUser();
+    // Use centralized authorization check to prevent IDOR
+    const authResult = await authorizeLeagueAccess(leagueId);
+    if (!authResult.authorized) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    }
     
-    if (!user) {
-      return NextResponse.json(
-        { error: "Non sei autenticato" },
-        { status: 401 }
-      );
-    }
-
-    // Verifica che l'utente appartenga alla lega
-    const participantCheck = db
-      .prepare("SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?")
-      .get(user.id, leagueId);
-
-    if (!participantCheck) {
-      return NextResponse.json(
-        { error: "Non appartieni a questa lega" },
-        { status: 403 }
-      );
-    }
+    const user = authResult.user;
 
     // Validazione parametri
-    if (isNaN(leagueId) || isNaN(playerId)) {
+    if (isNaN(playerId) || playerId <= 0) {
       return NextResponse.json(
-        { error: "Parametri non validi" },
+        { error: "ID giocatore non valido" },
         { status: 400 }
       );
     }
