@@ -10,7 +10,7 @@ import {
 import { db } from "@/lib/db";
 
 // 2. Definizione dei Tipi
-export interface UserLeagueInfo { id: number; name: string; status: string; }
+export interface UserLeagueInfo { id: number; name: string; status: string; min_bid: number; }
 export interface UserWithLeagueDetails {
   id: string;
   primaryEmail: string | undefined;
@@ -78,4 +78,18 @@ export async function getEligibleUsersForLeague(leagueId: number): Promise<Eligi
   eligibleUsers.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
   return eligibleUsers;
+}
+
+// 6. Funzione per ottenere le leghe di un singolo utente
+export async function getUserLeagues(userId: string): Promise<UserLeagueInfo[]> {
+  if (!userId) return [];
+  try {
+    const getLeaguesForUserStmt = db.prepare(
+      `SELECT al.id, al.name, al.status, al.min_bid FROM auction_leagues al JOIN league_participants lp ON al.id = lp.league_id WHERE lp.user_id = ?`
+    );
+    return getLeaguesForUserStmt.all(userId) as UserLeagueInfo[];
+  } catch (error) {
+    console.error(`Failed to get leagues for user ${userId}:`, error);
+    return [];
+  }
 }

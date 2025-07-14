@@ -282,3 +282,61 @@ export const processExpiredResponseStates = async (): Promise<{
     throw error;
   }
 };
+
+/**
+ * Ottiene tutti gli stati delle aste per un utente in una specifica lega.
+ */
+export const getAllUserAuctionStatesForLeague = (userId: string, leagueId: number): { states: any[] } => {
+  try {
+    const activeAuctions = db.prepare(`
+      SELECT 
+        a.id as auction_id,
+        a.player_id,
+        p.name as player_name,
+        a.current_highest_bid as current_bid,
+        a.current_highest_bidder_id,
+        a.user_auction_states,
+        urt.response_deadline
+      FROM auctions a
+      JOIN players p ON a.player_id = p.id
+      LEFT JOIN user_auction_response_timers urt ON a.id = urt.auction_id AND urt.user_id = ? AND urt.status = 'pending'
+      WHERE a.auction_league_id = ? AND a.status = 'active'
+    `).all(userId, leagueId) as { 
+      auction_id: number; 
+      player_id: number;
+      player_name: string;
+      current_bid: number;
+      current_highest_bidder_id: string;
+      user_auction_states: string;
+      response_deadline: number | null;
+    }[];
+
+    const states = activeAuctions.map(auction => {
+      const isHighestBidder = auction.current_highest_bidder_id === userId;
+      let userState: UserAuctionState = 'miglior_offerta';
+
+      if (!isHighestBidder) {
+        const parsedStates: UserAuctionStates = auction.user_auction_states ? JSON.parse(auction.user_auction_states) : {};
+        userState = parsedStates[userId] || 'rilancio_possibile'; // Default to rilancio_possibile if not the highest bidder
+      }
+      
+      const timeRemaining = auction.response_deadline ? Math.max(0, auction.response_deadline - Math.floor(Date.now() / 1000)) : null;
+
+      return {
+        auction_id: auction.auction_id,
+        player_id: auction.player_id,
+        player_name: auction.player_name,
+        current_bid: auction.current_bid,
+        user_state: userState,
+        response_deadline: auction.response_deadline,
+        time_remaining: timeRemaining,
+        is_highest_bidder: isHighestBidder,
+      };
+    });
+
+    return { states };
+  } catch (error) {
+    console.error(`[AUCTION_STATES] Error getting all states for user ${userId} in league ${leagueId}:`, error);
+    return { states: [] };
+  }
+};

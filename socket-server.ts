@@ -1,8 +1,9 @@
-// socket-server.ts v.1.1
-// Server Socket.IO che gestisce le stanze per le leghe e per i singoli utenti.
+// socket-server.ts v.1.2
+// Aggiunto un processo in background per la gestione automatica delle aste scadute.
 // 1. Importazioni
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
+import { processExpiredAuctionsAndAssignPlayers } from "./src/lib/db/services/bid.service";
 
 // 2. Costanti di Configurazione
 const SOCKET_PORT = 3001;
@@ -101,3 +102,29 @@ httpServer.listen(SOCKET_PORT, () => {
     `🟢 Server Socket.IO in esecuzione su http://localhost:${SOCKET_PORT}`
   );
 });
+
+// 7. Processo in Background per Aste Scadute
+const AUCTION_PROCESSING_INTERVAL = 15000; // 15 secondi
+
+setInterval(async () => {
+  try {
+    // console.log("[Background Job] Controllo aste scadute...");
+    const result = await processExpiredAuctionsAndAssignPlayers();
+    if (result.processedCount > 0) {
+      console.log(
+        `[Background Job] ✅ Processate ${result.processedCount} aste scadute.`
+      );
+    }
+    if (result.failedCount > 0) {
+      console.error(
+        `[Background Job] ❌ Fallite ${result.failedCount} aste. Errori:`,
+        result.errors
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[Background Job] Errore critico durante il processo di controllo delle aste:",
+      error
+    );
+  }
+}, AUCTION_PROCESSING_INTERVAL);

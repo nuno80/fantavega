@@ -1166,3 +1166,123 @@ export async function updateParticipantTeamName(
     return { success: false, message: errorMessage };
   }
 }
+
+// Funzione per ottenere tutti i dati dei manager per la pagina asta
+interface LeagueSlots {
+  slots_P: number;
+  slots_D: number;
+  slots_C: number;
+  slots_A: number;
+}
+interface ActiveAuction {
+  player_id: number;
+  player_name: string;
+  player_role: string;
+  player_team: string;
+  current_highest_bidder_id: string | null;
+  current_highest_bid_amount: number;
+  scheduled_end_time: number;
+  status: string;
+}
+interface AutoBidIndicator {
+  player_id: number;
+  auto_bid_count: number;
+}
+interface PlayerInRoster {
+  id: number;
+  name: string;
+  role: string;
+  team: string;
+  assignment_price: number;
+}
+interface AssignmentQueryResult extends PlayerInRoster {
+  user_id: string;
+}
+interface Manager {
+  user_id: string;
+  manager_team_name: string;
+  current_budget: number;
+  locked_credits: number;
+  total_budget: number;
+  firstName?: string;
+  lastName?: string;
+  players: PlayerInRoster[];
+}
+
+export async function getLeagueManagersAndData(leagueId: number): Promise<{
+  managers: Manager[];
+  leagueSlots: LeagueSlots | null;
+  activeAuctions: ActiveAuction[];
+  autoBids: AutoBidIndicator[];
+}> {
+  // 1. Get league slots
+  const leagueSlotsStmt = db.prepare(
+    `SELECT slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
+  );
+  const leagueSlots = leagueSlotsStmt.get(leagueId) as LeagueSlots | null;
+
+  // 2. Get all participants
+  const participants = await getLeagueParticipants(leagueId);
+
+  // 3. Get all player assignments for the league in one go
+  const assignmentsStmt = db.prepare(`
+    SELECT pa.user_id, p.id, p.name, p.role, p.team, pa.purchase_price as assignment_price
+    FROM player_assignments pa
+    JOIN players p ON pa.player_id = p.id
+    WHERE pa.auction_league_id = ?
+  `);
+  const allAssignments = assignmentsStmt.all(leagueId) as AssignmentQueryResult[];
+  
+  const assignmentsByManager = allAssignments.reduce((acc, assignment) => {
+    if (!acc[assignment.user_id]) {
+      acc[assignment.user_id] = [];
+    }
+    acc[assignment.user_id].push(assignment);
+    return acc;
+  }, {} as Record<string, AssignmentQueryResult[]>);
+
+  // 4. Map participants to the final Manager structure
+  const managers: Manager[] = participants.map(p => ({
+    user_id: p.user_id,
+    manager_team_name: p.manager_team_name || 'N/A',
+    current_budget: p.current_budget,
+    locked_credits: p.locked_credits,
+    total_budget: p.current_budget + p.locked_credits,
+    firstName: p.user_full_name?.split(' ')[0],
+    lastName: p.user_full_name?.split(' ')[1],
+    players: assignmentsByManager[p.user_id] || [],
+  }));
+
+  // 5. Get all active auctions
+  const activeAuctionsStmt = db.prepare(`
+    SELECT 
+      a.player_id,
+      p.name as player_name,
+      p.role as player_role,
+      p.team as player_team,
+      a.current_highest_bidder_id,
+      a.current_highest_bid as current_highest_bid_amount,
+      a.scheduled_end_time,
+      a.status
+    FROM auctions a
+    JOIN players p ON a.player_id = p.id
+    WHERE a.auction_league_id = ? AND a.status = 'active'
+  `);
+  const activeAuctions = activeAuctionsStmt.all(leagueId) as ActiveAuction[];
+
+  // 6. Get all auto-bids
+  const autoBidsStmt = db.prepare(`
+    SELECT player_id, COUNT(*) as auto_bid_count
+    FROM auto_bids
+    WHERE auction_league_id = ? AND is_active = 1
+    GROUP BY player_id
+  `);
+  const autoBids = autoBidsStmt.all(leagueId) as AutoBidIndicator[];
+
+  return {
+    managers,
+    leagueSlots,
+    activeAuctions,
+    autoBids,
+  };
+}

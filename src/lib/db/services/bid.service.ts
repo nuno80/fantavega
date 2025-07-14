@@ -58,7 +58,9 @@ export interface AuctionStatusDetails {
   status: string;
   created_at: number;
   updated_at: number;
-  player_name?: string;
+  player_name: string;
+  player_role: string;
+  player_team: string;
   current_highest_bidder_username?: string;
   bid_history?: BidRecord[];
   time_remaining_seconds?: number;
@@ -879,4 +881,69 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
     }
   }
   return { processedCount, failedCount, errors };
+};
+
+/**
+ * Ottiene l'asta attiva corrente per una lega.
+ */
+export const getCurrentAuction = async (leagueId: number): Promise<AuctionStatusDetails | null> => {
+  const auctionStmt = db.prepare(
+    `SELECT a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id, a.status, a.created_at, a.updated_at, p.name AS player_name, p.role as player_role, p.team as player_team, u.username AS current_highest_bidder_username 
+     FROM auctions a 
+     JOIN players p ON a.player_id = p.id 
+     LEFT JOIN users u ON a.current_highest_bidder_id = u.id 
+     WHERE a.auction_league_id = ? AND a.status = 'active' 
+     ORDER BY a.updated_at DESC 
+     LIMIT 1`
+  );
+  const auctionData = auctionStmt.get(leagueId) as any;
+  if (!auctionData) return null;
+
+  const timeRemainingSeconds = Math.max(0, auctionData.scheduled_end_time - Math.floor(Date.now() / 1000));
+
+  return {
+    ...auctionData,
+    player_name: auctionData.player_name,
+    player_role: auctionData.player_role,
+    player_team: auctionData.player_team,
+    current_highest_bid_amount: auctionData.current_highest_bid_amount,
+    time_remaining: timeRemainingSeconds,
+  };
+};
+
+/**
+ * Ottiene la cronologia delle offerte per un giocatore in un'asta.
+ */
+export const getBidsForPlayer = async (leagueId: number, playerId: number): Promise<BidRecord[]> => {
+  const auction = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'sold') ORDER BY start_time DESC LIMIT 1").get(leagueId, playerId) as { id: number } | undefined;
+  if (!auction) return [];
+
+  const bidsStmt = db.prepare(
+    `SELECT b.id, b.auction_id, b.user_id, b.amount, b.bid_time, b.bid_type, u.username as bidder_username 
+     FROM bids b 
+     JOIN users u ON b.user_id = u.id 
+     WHERE b.auction_id = ? 
+     ORDER BY b.bid_time DESC`
+  );
+  return bidsStmt.all(auction.id) as BidRecord[];
+};
+
+/**
+ * Ottiene l'auto-offerta di un utente per un giocatore.
+ */
+export const getUserAutoBidForPlayer = async (userId: string, leagueId: number, playerId: number): Promise<{ max_amount: number; is_active: boolean } | null> => {
+  const auction = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'").get(leagueId, playerId) as { id: number } | undefined;
+  if (!auction) return null;
+
+  const autoBidStmt = db.prepare(
+    "SELECT max_amount, is_active FROM auto_bids WHERE auction_id = ? AND user_id = ?"
+  );
+  const autoBid = autoBidStmt.get(auction.id, userId) as { max_amount: number; is_active: number } | undefined;
+
+  if (!autoBid) return null;
+
+  return {
+    max_amount: autoBid.max_amount,
+    is_active: !!autoBid.is_active,
+  };
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +54,6 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedPlayer, setSelectedPlayer] = useState<string>("");
   const [players, setPlayers] = useState<PlayerWithStatus[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<PlayerWithStatus[]>([]);
   const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<PlayerWithStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -88,7 +87,6 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
         if (response.ok) {
           const data = await response.json();
           setPlayers(data);
-          setFilteredPlayers(data);
         }
       } catch (error) {
         console.error("Error fetching players:", error);
@@ -100,8 +98,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
     }
   }, [leagueId]);
 
-  // Filter players based on role, search term, and preferences
-  useEffect(() => {
+  const filteredPlayers = useMemo(() => {
     let filtered = players;
 
     // Filter by role
@@ -116,11 +113,6 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
         player.name.toLowerCase().includes(term) ||
         player.team.toLowerCase().includes(term)
       );
-      // Auto-open dropdown when typing
-      setIsDropdownOpen(true);
-    } else {
-      // Close dropdown when search is empty
-      setIsDropdownOpen(false);
     }
 
     // Filter by preferences (AND logic - all active filters must match)
@@ -137,8 +129,17 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
       filtered = filtered.filter(player => player.hasFmv);
     }
 
-    setFilteredPlayers(filtered);
+    return filtered;
   }, [players, selectedRole, searchTerm, preferenceFilters]);
+
+  // Auto-open/close dropdown based on search term
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      setIsDropdownOpen(true);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  }, [searchTerm]);
 
   // Handle player selection
   const handlePlayerSelect = (playerId: string) => {
@@ -188,7 +189,6 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
       if (response.ok) {
         const data = await response.json();
         setPlayers(data);
-        setFilteredPlayers(data);
       }
     } catch (error) {
       console.error("Error refreshing players:", error);

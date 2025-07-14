@@ -85,3 +85,36 @@ export const getBudgetTransactionHistory = async (
     );
   }
 };
+
+/**
+ * Recupera il budget corrente e i crediti bloccati per un utente in una lega.
+ */
+export const getUserBudgetForLeague = async (
+  userId: string,
+  leagueId: number
+): Promise<{ current_budget: number; locked_credits: number; team_name?: string; total_budget: number; } | null> => {
+  console.log(
+    `[SERVICE BUDGET] Getting budget for user ${userId} in league ${leagueId}`
+  );
+  try {
+    const stmt = db.prepare(
+      `SELECT current_budget, locked_credits, manager_team_name 
+       FROM league_participants 
+       WHERE user_id = ? AND league_id = ?`
+    );
+    const budgetData = stmt.get(userId, leagueId) as { current_budget: number; locked_credits: number; manager_team_name?: string; } | undefined;
+
+    if (!budgetData) {
+      return null;
+    }
+
+    return {
+      ...budgetData,
+      team_name: budgetData.manager_team_name,
+      total_budget: budgetData.current_budget + budgetData.locked_credits,
+    };
+  } catch (error) {
+    console.error(`[SERVICE BUDGET] Error getting budget for user ${userId} in league ${leagueId}:`, error);
+    throw new Error("Failed to retrieve user budget.");
+  }
+};

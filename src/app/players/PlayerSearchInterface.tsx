@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
@@ -77,7 +77,6 @@ interface PlayerSearchInterfaceProps {
 
 export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfaceProps) {
   const [players, setPlayers] = useState<PlayerWithAuctionStatus[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<PlayerWithAuctionStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithAuctionStatus | null>(null);
@@ -128,7 +127,6 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
           }));
           
           setPlayers(adaptedPlayers);
-          setFilteredPlayers(adaptedPlayers);
           toast.info("Stai visualizzando i giocatori in modalità sola lettura perché non sei iscritto a nessuna lega");
           return;
         }
@@ -145,7 +143,6 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         console.log("Players data loaded:", playersData.slice(0, 3)); // Debug: mostra i primi 3 giocatori
         console.log("Active auctions found:", playersData.filter((p: {auctionStatus: string}) => p.auctionStatus === 'active_auction').length);
         setPlayers(playersData);
-        setFilteredPlayers(playersData);
 
       } catch (error) {
         console.error("Error fetching players:", error);
@@ -244,8 +241,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     };
   }, [socket, isConnected, selectedLeagueId]);
 
-  // Filter players based on current filters
-  useEffect(() => {
+  const filteredPlayers = useMemo(() => {
     let filtered = [...players];
 
     // Search term filter
@@ -312,7 +308,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       filtered = filtered.filter(player => player.hasFmv);
     }
 
-    setFilteredPlayers(filtered);
+    return filtered;
   }, [players, filters]);
 
   const handleBidOnPlayer = (player: PlayerWithAuctionStatus) => {
@@ -328,7 +324,6 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       if (playersResponse.ok) {
         const playersData = await playersResponse.json();
         setPlayers(playersData);
-        setFilteredPlayers(playersData);
       }
     } catch (error) {
       console.error("Error refreshing players data:", error);

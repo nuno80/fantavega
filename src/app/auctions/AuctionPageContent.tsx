@@ -5,23 +5,30 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
-import { AuctionPlayerCard } from "@/components/auction/AuctionPlayerCard";
-import { BiddingInterface } from "@/components/auction/BiddingInterface";
-import { AuctionTimer } from "@/components/auction/AuctionTimer";
-import { BidHistory } from "@/components/auction/BidHistory";
-import { BudgetDisplayWithCompliance } from "@/components/auction/BudgetDisplay";
-import { AuctionLayout } from "@/components/auction/AuctionLayout";
 import { ManagerColumn } from "@/components/auction/ManagerColumn";
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/contexts/SocketContext";
-import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
-import { getUserActiveResponseTimers } from "@/lib/db/services/response-timer.service";
+import type { BidRecord } from "@/lib/db/services/bid.service";
+
+// Define the type for the initial data passed from the server component
+export type InitialAuctionData = {
+  leagues: LeagueInfo[];
+  leagueInfo: LeagueInfo;
+  managers: Manager[];
+  leagueSlots: LeagueSlots | null;
+  activeAuctions: ActiveAuction[];
+  autoBids: AutoBidIndicator[];
+  userAuctionStates: UserAuctionState[];
+  userBudget: UserBudgetInfo | null;
+  currentAuction: ActiveAuction | null;
+  bidHistory: BidRecord[];
+  userAutoBid: { max_amount: number; is_active: boolean } | null;
+};
 
 interface AuctionPageContentProps {
   userId: string;
+  initialData: InitialAuctionData;
 }
 
 interface UserBudgetInfo {
@@ -94,21 +101,21 @@ interface AutoBidIndicator {
   auto_bid_count: number;
 }
 
-export function AuctionPageContent({ userId }: AuctionPageContentProps) {
-  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(null);
-  const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
-  const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
-  const [managers, setManagers] = useState<Manager[]>([]);
-  const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
-  const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
-  const [autoBids, setAutoBids] = useState<AutoBidIndicator[]>([]);
-  const [bidHistory, setBidHistory] = useState<Array<{id: number; amount: number; user_id: string; created_at: string; [key: string]: unknown}>>([]);
-  const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
+export function AuctionPageContent({ userId, initialData }: AuctionPageContentProps) {
+  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(initialData.currentAuction);
+  const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(initialData.userBudget);
+  const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(initialData.leagueInfo);
+  const [managers, setManagers] = useState<Manager[]>(initialData.managers);
+  const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(initialData.leagueSlots);
+  const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>(initialData.activeAuctions);
+  const [autoBids, setAutoBids] = useState<AutoBidIndicator[]>(initialData.autoBids);
+  const [bidHistory, setBidHistory] = useState<BidRecord[]>(initialData.bidHistory);
+  const [leagues, setLeagues] = useState<LeagueInfo[]>(initialData.leagues);
   const [showLeagueSelector, setShowLeagueSelector] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
-  const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
-  const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
+  const [isLoading, setIsLoading] = useState(false); // Data is pre-loaded
+  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(initialData.leagueInfo.id);
+  const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(initialData.userAutoBid);
+  const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>(initialData.userAuctionStates);
   
   const { socket, isConnected } = useSocket();
   const router = useRouter();
@@ -138,92 +145,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   };
 
-  // Fetch user's leagues and current auction
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // First, get user's leagues
-        const leaguesResponse = await fetch("/api/user/leagues");
-        if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
-        
-        const leagues = await leaguesResponse.json();
-        
-        if (leagues.length === 0) {
-          toast.error("Non sei iscritto a nessuna lega");
-          return;
-        }
-
-        // For now, use the first league (in a real app, user might select)
-        const league = leagues[0];
-        setSelectedLeagueId(league.id);
-        setLeagueInfo(league);
-        setLeagues(leagues);
-
-        // Get ALL MANAGERS for this league - THIS IS THE KEY!
-        console.log("Fetching managers for league:", league.id);
-        const managersResponse = await fetch(`/api/leagues/${league.id}/managers`);
-        if (managersResponse.ok) {
-          const managersData = await managersResponse.json();
-          console.log("Managers API response:", managersData);
-          setManagers(managersData.managers || []);
-          console.log("Set managers:", managersData.managers?.length);
-          setLeagueSlots(managersData.leagueSlots || null);
-          setActiveAuctions(managersData.activeAuctions || []);
-          setAutoBids(managersData.autoBids || []);
-        } else {
-          console.error("Failed to fetch managers");
-        }
-
-        // Fetch user's auction states
-        const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${league.id}`);
-        if (auctionStatesResponse.ok) {
-          const statesData = await auctionStatesResponse.json();
-          console.log("Auction states API response:", statesData);
-          setUserAuctionStates(statesData.states || []);
-        }
-
-        // Get user budget for this league
-        const budgetResponse = await fetch(`/api/leagues/${league.id}/budget`);
-        if (budgetResponse.ok) {
-          const budget = await budgetResponse.json();
-          setUserBudget(budget);
-        }
-
-        // Get current active auction for this league
-        const auctionResponse = await fetch(`/api/leagues/${league.id}/current-auction`);
-        if (auctionResponse.ok) {
-          const auction = await auctionResponse.json();
-          setCurrentAuction(auction);
-          
-          // If there's a current auction, fetch bid history and user's auto-bid
-          if (auction?.player_id) {
-            const bidsResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/bids`);
-            if (bidsResponse.ok) {
-              const bidsData = await bidsResponse.json();
-              setBidHistory(bidsData.bids || []);
-            }
-            
-            // Fetch user's auto-bid for this player
-            const autoBidResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/auto-bid`);
-            if (autoBidResponse.ok) {
-              const autoBidData = await autoBidResponse.json();
-              setUserAutoBid(autoBidData.auto_bid);
-            }
-          }
-        }
-
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        toast.error("Errore nel caricamento dei dati");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchInitialData();
-  }, [userId]);
+  // The initial data is now passed as props, so the initial useEffect is no longer needed.
+  // We keep the socket connection logic and other client-side effects.
 
   // Socket.IO real-time updates
   useEffect(() => {
@@ -232,33 +155,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     // Join league room
     socket.emit("join-league-room", selectedLeagueId.toString());
 
-    // Auto-process expired auctions every 30 seconds
-    const processExpiredAuctions = async () => {
-      try {
-        const response = await fetch(`/api/leagues/${selectedLeagueId}/process-expired-auctions`, {
-          method: "POST",
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.processedCount > 0) {
-            console.log(`Processed ${result.processedCount} expired auctions`);
-            // Refresh current auction data
-            const auctionResponse = await fetch(`/api/leagues/${selectedLeagueId}/current-auction`);
-            if (auctionResponse.ok) {
-              const auction = await auctionResponse.json();
-              setCurrentAuction(auction);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error processing expired auctions:", error);
-      }
-    };
-
-    // Process expired auctions immediately and then every 30 seconds
-    processExpiredAuctions();
-    const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
+    // The server now handles expired auction processing automatically.
+    // The client will receive 'auction-closed-notification' events when auctions are processed.
 
     // Handle auction updates
     const handleAuctionUpdate = (data: {
@@ -353,7 +251,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
-      clearInterval(expiredAuctionsInterval);
     };
   }, [socket, isConnected, selectedLeagueId, currentAuction]);
 
@@ -411,8 +308,11 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
             leagueId={selectedLeagueId || 0}
             userId={userId}
             onStartAuction={(playerId) => {
-              // Refresh the page or update state when auction starts
-              window.location.reload();
+              // TODO: Implement a state refresh instead of a full page reload
+              // For now, we can fetch the current auction again
+              if (selectedLeagueId) {
+                fetchCurrentAuction(selectedLeagueId);
+              }
             }}
           />
         </div>
