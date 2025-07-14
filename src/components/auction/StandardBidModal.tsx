@@ -141,7 +141,7 @@ export function StandardBidModal({
     setIsSubmitting(true);
     try {
       let endpoint: string;
-      let body: any;
+      let body: Record<string, unknown>;
 
       if (isNewAuction) {
         // Avvia nuova asta
@@ -378,7 +378,7 @@ export function StandardBidModal({
           {/* Validation Messages */}
           {bidAmount < minValidBid && bidAmount > 0 && (
             <p className="text-sm text-destructive">
-              L'offerta deve essere almeno {minValidBid} crediti
+              L&apos;offerta deve essere almeno {minValidBid} crediti
             </p>
           )}
           {bidAmount > availableBudget && (
@@ -388,7 +388,7 @@ export function StandardBidModal({
           )}
           {useAutoBid && maxAmount <= bidAmount && (
             <p className="text-sm text-destructive">
-              Il prezzo massimo deve essere superiore all'offerta attuale
+              Il prezzo massimo deve essere superiore all&apos;offerta attuale
             </p>
           )}
         </div>

@@ -53,7 +53,7 @@ export default async function AdminLeaguesPage() {
           <CardHeader>
             <CardTitle>Tutte le Leghe</CardTitle>
             <CardDescription>
-              Visualizza e gestisci tutte le leghe d'asta create nel sistema.
+              Visualizza e gestisci tutte le leghe d&apos;asta create nel sistema.
             </CardDescription>
           </CardHeader>
           <CardContent>

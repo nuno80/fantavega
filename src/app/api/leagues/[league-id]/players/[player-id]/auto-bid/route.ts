@@ -45,7 +45,11 @@ export async function POST(
     // Check if user is participant in the league
     const participant = db
       .prepare("SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?")
-      .get(leagueId, user.id);
+      .get(leagueId, user.id) as {
+        user_id: string;
+        current_budget: number;
+        locked_credits: number;
+      } | undefined;
 
     if (!participant) {
       return NextResponse.json({ error: "Non sei un partecipante di questa lega" }, { status: 403 });
@@ -54,7 +58,11 @@ export async function POST(
     // Check if auction exists and is active
     const auction = db
       .prepare("SELECT id, current_highest_bid_amount, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
-      .get(leagueId, playerId);
+      .get(leagueId, playerId) as {
+        id: number;
+        current_highest_bid_amount: number;
+        status: string;
+      } | undefined;
 
     if (!auction) {
       return NextResponse.json({ error: "Asta non trovata o non attiva" }, { status: 404 });
@@ -147,7 +155,9 @@ export async function GET(
     // Get auction
     const auction = db
       .prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
-      .get(leagueId, playerId);
+      .get(leagueId, playerId) as {
+        id: number;
+      } | undefined;
 
     if (!auction) {
       return NextResponse.json({ auto_bid: null });

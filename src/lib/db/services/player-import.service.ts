@@ -80,7 +80,7 @@ export const processPlayersExcel = async (
     }
 
     console.log(`[SERVICE PLAYER_IMPORT] Parsing sheet "${sheetName}"...`);
-    const sheetDataAsArray: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+    const sheetDataAsArray: unknown[][] = XLSX.utils.sheet_to_json(worksheet, {
       header: 1,
       raw: false, // Tenta di convertire i tipi, ma verificheremo comunque
       defval: null,
@@ -121,7 +121,7 @@ export const processPlayersExcel = async (
 
     const jsonDataObjects = dataRowsOnly
       .map((rowArray, rowIndex) => {
-        const rowObject: { [key: string]: any } = {};
+        const rowObject: Record<string, unknown> = {};
         if (
           !rowArray ||
           rowArray.length === 0 ||
@@ -139,7 +139,7 @@ export const processPlayersExcel = async (
         });
         return rowObject;
       })
-      .filter((row) => row !== null) as any[];
+      .filter((row) => row !== null) as unknown as PlayerExcelData[];
 
     if (jsonDataObjects.length === 0) {
       result.message = `No valid data objects could be constructed from sheet "${sheetName}".`;
@@ -188,12 +188,12 @@ export const processPlayersExcel = async (
             last_updated_from_source: Math.floor(Date.now() / 1000),
           });
           result.successfullyUpsertedRows++;
-        } catch (dbError: any) {
+        } catch (dbError: unknown) {
           console.error(
-            `[SERVICE PLAYER_IMPORT] DB Error for player ID ${playerDataToUpsert.id}: ${dbError.message}`
+            `[SERVICE PLAYER_IMPORT] DB Error for player ID ${playerDataToUpsert.id}: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`
           );
           result.errors.push(
-            `DB Error for player ID ${playerDataToUpsert.id} (${playerDataToUpsert.name}): ${dbError.message}`
+            `DB Error for player ID ${playerDataToUpsert.id} (${playerDataToUpsert.name}): ${dbError instanceof Error ? dbError.message : 'Unknown error'}`
           );
           result.failedDbOperationsRows++;
         }
@@ -204,14 +204,15 @@ export const processPlayersExcel = async (
       result.processedRows++;
       const excelRowNumber = result.processedRows + 2; // +2 per riga titolo e riga header
 
-      const idVal = row["Id"];
-      const roleVal = row["R"];
-      const nameVal = row["Nome"];
-      const teamVal = row["Squadra"];
-      const qtAVal = row["Qt.A"];
-      const qtIVal = row["Qt.I"];
+      const rowRecord = row as unknown as Record<string, unknown>;
+      const idVal = rowRecord["Id"];
+      const roleVal = rowRecord["R"];
+      const nameVal = rowRecord["Nome"];
+      const teamVal = rowRecord["Squadra"];
+      const qtAVal = rowRecord["Qt.A"];
+      const qtIVal = rowRecord["Qt.I"];
 
-      const id = parseInt(idVal, 10);
+      const id = parseInt(String(idVal), 10);
       if (isNaN(id) || id <= 0) {
         result.errors.push(
           `Row ${excelRowNumber}: Invalid or missing 'Id' ('${idVal}')`
@@ -245,8 +246,8 @@ export const processPlayersExcel = async (
         continue;
       }
 
-      const current_quotation = parseFloat(qtAVal);
-      const initial_quotation = parseFloat(qtIVal);
+      const current_quotation = parseFloat(String(qtAVal));
+      const initial_quotation = parseFloat(String(qtIVal));
       if (isNaN(current_quotation) || isNaN(initial_quotation)) {
         result.errors.push(
           `Row ${excelRowNumber} (ID ${id}): Invalid numeric value for 'Qt.A' ('${qtAVal}') or 'Qt.I' ('${qtIVal}')`
@@ -256,7 +257,7 @@ export const processPlayersExcel = async (
       }
 
       // Funzione helper per parsare valori numerici opzionali o null
-      const parseOptionalFloat = (value: any): number | null => {
+      const parseOptionalFloat = (value: unknown): number | null => {
         if (
           value === null ||
           value === undefined ||
@@ -270,15 +271,15 @@ export const processPlayersExcel = async (
       const playerData: PlayerExcelData = {
         id: id,
         role: role,
-        role_mantra: row["RM"]?.toString().trim() || null,
+        role_mantra: rowRecord["RM"]?.toString().trim() || null,
         name: sanitizePlayerName(name),
         team: team.trim(),
         current_quotation: current_quotation,
         initial_quotation: initial_quotation,
-        current_quotation_mantra: parseOptionalFloat(row["Qt.A M"]),
-        initial_quotation_mantra: parseOptionalFloat(row["Qt.I M"]),
-        fvm: parseOptionalFloat(row["FVM"]),
-        fvm_mantra: parseOptionalFloat(row["FVM M"]),
+        current_quotation_mantra: parseOptionalFloat(rowRecord["Qt.A M"]),
+        initial_quotation_mantra: parseOptionalFloat(rowRecord["Qt.I M"]),
+        fvm: parseOptionalFloat(rowRecord["FVM"]),
+        fvm_mantra: parseOptionalFloat(rowRecord["FVM M"]),
       };
 
       processDbRow(playerData); // Esegue l'UPSERT dentro la sua transazione
@@ -294,14 +295,14 @@ export const processPlayersExcel = async (
       result.success = false;
       result.message = `Processed ${jsonDataObjects.length} rows. Successful Upserts: ${result.successfullyUpsertedRows}, Validation Failures: ${result.failedValidationRows}, DB Operation Failures: ${result.failedDbOperationsRows}. Check errors array.`;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       "[SERVICE PLAYER_IMPORT] General error processing Excel file:",
       error
     );
     result.message = "Failed to process Excel file due to a critical error.";
     result.errors.push(
-      error.message || "Unknown error during Excel processing."
+      error instanceof Error ? error.message : "Unknown error during Excel processing."
     );
     result.success = false; // Assicura che success sia false in caso di eccezione generale
   }

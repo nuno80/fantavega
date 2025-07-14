@@ -56,7 +56,7 @@ export function BiddingInterface({
 
   const handleBidSubmit = async (bidType: "manual" | "quick" = "manual") => {
     if (bidAmount <= currentBid) {
-      toast.error("L'offerta deve essere superiore all'offerta attuale");
+      toast.error("L&apos;offerta deve essere superiore all&apos;offerta attuale");
       return;
     }
 
@@ -216,7 +216,7 @@ export function BiddingInterface({
         {/* Validation Messages */}
         {bidAmount <= currentBid && (
           <p className="text-sm text-destructive">
-            L'offerta deve essere superiore a {currentBid} crediti
+            L&apos;offerta deve essere superiore a {currentBid} crediti
           </p>
         )}
         {bidAmount > availableBudget && (

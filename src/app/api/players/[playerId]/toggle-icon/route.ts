@@ -4,10 +4,10 @@ import { updatePlayer } from "@/lib/db/services/player.service";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { playerId: string } }
+  { params }: { params: Promise<{ playerId: string }> }
 ) {
-  // In Next.js 14+, params deve essere atteso
-  const params_resolved = await Promise.resolve(params);
+  // In Next.js 15, params è una Promise
+  const params_resolved = await params;
   const playerIdParam = params_resolved.playerId;
   try {
     const user = await currentUser();
@@ -48,7 +48,7 @@ export async function POST(
     }
 
     // Prepara i dati per l'aggiornamento
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     
     switch (iconType) {
       case 'isStarter':

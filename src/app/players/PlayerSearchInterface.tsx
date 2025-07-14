@@ -143,7 +143,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         
         const playersData = await playersResponse.json();
         console.log("Players data loaded:", playersData.slice(0, 3)); // Debug: mostra i primi 3 giocatori
-        console.log("Active auctions found:", playersData.filter((p: any) => p.auctionStatus === 'active_auction').length);
+        console.log("Active auctions found:", playersData.filter((p: {auctionStatus: string}) => p.auctionStatus === 'active_auction').length);
         setPlayers(playersData);
         setFilteredPlayers(playersData);
 

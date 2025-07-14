@@ -7,7 +7,6 @@ import { currentUser } from "@clerk/nextjs/server";
 
 import {
   type AuctionCreationResult,
-  type ExistingAuctionBidResult,
   getAuctionStatusForPlayer,
   placeBidOnExistingAuction,
   placeInitialBidAndCreateAuction,
@@ -104,7 +103,7 @@ export async function POST(request: Request, context: RouteContext) {
       playerIdNum
     );
 
-    let result: AuctionCreationResult | ExistingAuctionBidResult;
+    let result: AuctionCreationResult | {message: string};
     let httpStatus = 201;
 
     if (

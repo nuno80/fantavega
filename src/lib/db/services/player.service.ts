@@ -122,7 +122,7 @@ export const getPlayers = async (
     countQueryParams.push(searchTeam);
   }
   if (whereClauses.length > 0) {
-    const whereString = " WHERE " + whereClauses.join(" AND ");
+    const whereString = ` WHERE ${whereClauses.join(" AND ")}`;
     baseQuery += whereString;
     countQuery += whereString;
   }
@@ -226,19 +226,19 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
       newPlayer.id
     );
     return newPlayer;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       "[SERVICE PLAYER] Error creating player:",
-      error.message,
+      error instanceof Error ? error.message : "Unknown error",
       error
     );
     if (
-      error.code === "SQLITE_CONSTRAINT_PRIMARYKEY" ||
-      error.message.includes("UNIQUE constraint failed: players.id")
+      (error && typeof error === 'object' && 'code' in error && error.code === "SQLITE_CONSTRAINT_PRIMARYKEY") ||
+      (error instanceof Error && error.message.includes("UNIQUE constraint failed: players.id"))
     ) {
       throw new Error(`Player with ID ${playerData.id} already exists.`);
     }
-    throw new Error(`Failed to create player: ${error.message}`);
+    throw new Error(`Failed to create player: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };
 
@@ -256,7 +256,7 @@ export const updatePlayer = (
   const now = Math.floor(Date.now() / 1000);
 
   const setClauses: string[] = [];
-  const params: any = { id: playerId, updated_at: now };
+  const params: Record<string, unknown> = { id: playerId, updated_at: now };
 
   // Costruisci dinamicamente la parte SET della query
   Object.keys(playerData).forEach((keyStr) => {
@@ -309,13 +309,13 @@ export const updatePlayer = (
     }
     console.log("[SERVICE PLAYER] Player updated successfully:", updatedPlayer);
     return updatedPlayer;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[SERVICE PLAYER] Error updating player ID ${playerId}:`,
-      error.message,
+      error instanceof Error ? error.message : "Unknown error",
       error
     );
-    throw new Error(`Failed to update player: ${error.message}`);
+    throw new Error(`Failed to update player: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };
 
@@ -355,17 +355,17 @@ export const deletePlayer = (
         message: "Player not found or already deleted.",
       };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[SERVICE PLAYER] Error deleting player ID ${playerId}:`,
-      error.message,
+      error instanceof Error ? error.message : "Unknown error",
       error
     );
-    if (error.code === "SQLITE_CONSTRAINT_FOREIGNKEY") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === "SQLITE_CONSTRAINT_FOREIGNKEY") {
       throw new Error(
         `Failed to delete player ID ${playerId}: It is still referenced in other tables (e.g., active auctions, assignments). Please resolve these dependencies first.`
       );
     }
-    throw new Error(`Failed to delete player: ${error.message}`);
+    throw new Error(`Failed to delete player: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };

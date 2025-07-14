@@ -51,7 +51,16 @@ export async function GET(
          ORDER BY a.created_at DESC
          LIMIT 1`
       )
-      .get(leagueId);
+      .get(leagueId) as {
+        id: number;
+        player_id: number;
+        current_highest_bid_amount: number;
+        current_highest_bidder_id: string | null;
+        scheduled_end_time: number;
+        status: string;
+        player_name: string;
+        player_role: string;
+      } | undefined;
 
     if (!activeAuction) {
       return NextResponse.json(null); // No active auction

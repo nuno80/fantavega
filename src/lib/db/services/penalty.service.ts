@@ -163,8 +163,8 @@ export const processUserComplianceAndPenalties = async (
     if (!isNowCompliant) {
       const complianceRecord = db.prepare("SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?")
         .get(leagueId, userId, getCurrentPhaseIdentifier(
-          (db.prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?").get(leagueId) as any)?.status || "draft_active",
-          (db.prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?").get(leagueId) as any)?.active_auction_roles
+          (db.prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?").get(leagueId) as {status: string; active_auction_roles: string} | undefined)?.status || "draft_active",
+          (db.prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?").get(leagueId) as {status: string; active_auction_roles: string} | undefined)?.active_auction_roles || null
         )) as { compliance_timer_start_at: number | null } | undefined;
       
       if (complianceRecord?.compliance_timer_start_at) {

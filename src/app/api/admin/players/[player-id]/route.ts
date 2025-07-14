@@ -12,15 +12,15 @@ import {
 } from "@/lib/db/services/player.service";
 
 interface RouteContext {
-  params: {
-    // Accesso diretto ai params, non Promise qui
+  params: Promise<{
     "player-id": string;
-  };
+  }>;
 }
 
 // PUT per aggiornare un giocatore
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const playerIdStr = context.params["player-id"];
+  const resolvedParams = await context.params;
+  const playerIdStr = resolvedParams["player-id"];
   console.log(
     `[API ADMIN_PLAYERS PUT] Request to update player ID: ${playerIdStr}`
   );
@@ -81,7 +81,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 // DELETE per eliminare un giocatore
 export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const playerIdStr = context.params["player-id"];
+  const resolvedParams = await context.params;
+  const playerIdStr = resolvedParams["player-id"];
   console.log(
     `[API ADMIN_PLAYERS DELETE] Request to delete player ID: ${playerIdStr}`
   );

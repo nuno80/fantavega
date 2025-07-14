@@ -51,7 +51,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const body = (await request.json()) as { userIdToAdd?: string }; // userIdToAdd è opzionale per il check
+    const body = (await request.json()) as { userIdToAdd?: string; teamName?: string }; // userIdToAdd è opzionale per il check
     const participantUserIdToAdd = body.userIdToAdd;
 
     if (!participantUserIdToAdd || typeof participantUserIdToAdd !== "string") {
@@ -107,7 +107,8 @@ export async function POST(request: Request, context: RouteContext) {
     const result = await addParticipantToLeague(
       leagueIdNum, // 1° parametro: leagueId
       adminIdentifiedId, // 2° parametro: adminUserId (l'admin che fa la chiamata)
-      participantUserIdToAdd // 3° parametro: participantUserId (l'utente da aggiungere)
+      participantUserIdToAdd, // 3° parametro: participantUserId (l'utente da aggiungere)
+      body.teamName || "Squadra Senza Nome" // 4° parametro: teamName
     );
 
     // 3.4. Gestione della Risposta del Servizio

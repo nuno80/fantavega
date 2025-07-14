@@ -101,11 +101,11 @@ export function RemoveParticipant({
             <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
             <AlertDialogDescription>
               Questa azione è irreversibile. Verranno rimosse tutte le offerte,
-              i giocatori assegnati e la cronologia del budget per l'utente{" "}
+              i giocatori assegnati e la cronologia del budget per l&apos;utente{" "}
               <span className="font-bold">
                 {participantUsername || participantUserId}
               </span>
-              . Questa operazione è permessa solo prima dell'inizio dell'asta.
+              . Questa operazione è permessa solo prima dell&apos;inizio dell&apos;asta.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -180,7 +180,7 @@ export function QuickBidModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gavel className="h-5 w-5" />
-            Fai un'offerta
+            Fai un&apos;offerta
           </DialogTitle>
           <DialogDescription>
             Piazza la tua offerta per questo giocatore
@@ -321,7 +321,7 @@ export function QuickBidModal({
           {/* Validation Messages */}
           {bidAmount < minValidBid && bidAmount > 0 && (
             <p className="text-sm text-destructive">
-              L'offerta deve essere almeno {minValidBid} crediti
+              L&apos;offerta deve essere almeno {minValidBid} crediti
             </p>
           )}
           {bidAmount > availableBudget && (
@@ -331,7 +331,7 @@ export function QuickBidModal({
           )}
           {useAutoBid && maxAmount <= bidAmount && (
             <p className="text-sm text-destructive">
-              Il prezzo massimo deve essere superiore all'offerta attuale
+              Il prezzo massimo deve essere superiore all&apos;offerta attuale
             </p>
           )}
         </div>

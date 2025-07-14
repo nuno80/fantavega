@@ -5,7 +5,7 @@ const SOCKET_SERVER_URL = "http://localhost:3001/api/emit";
 interface EmitParams {
   room: string; // Es: 'league-1'
   event: string; // Es: 'auction-update'
-  data?: any;
+  data?: unknown;
 }
 
 export async function notifySocketServer(params: EmitParams) {

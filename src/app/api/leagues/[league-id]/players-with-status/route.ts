@@ -108,7 +108,7 @@ export async function GET(
       [key: number]: UserAutoBid;
     }
 
-    const userAutoBidsByPlayer = (userAutoBidsData as any[]).reduce((acc: UserAutoBidsByPlayer, autoBid) => {
+    const userAutoBidsByPlayer = (userAutoBidsData as Array<{player_id: number; max_amount: number; is_active: number}>).reduce((acc: UserAutoBidsByPlayer, autoBid) => {
       acc[autoBid.player_id] = {
         maxAmount: autoBid.max_amount,
         isActive: autoBid.is_active === 1
@@ -118,7 +118,7 @@ export async function GET(
 
     // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = (playersWithStatus as any[]).map((player) => {
+    const processedPlayers = (playersWithStatus as Array<{id: number; scheduled_end_time?: number; [key: string]: unknown}>).map((player) => {
       const cooldownInfo = getUserCooldownInfo(user.id, player.id);
       return {
         ...player,

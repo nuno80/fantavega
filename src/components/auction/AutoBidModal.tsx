@@ -47,7 +47,7 @@ export function AutoBidModal({
 
   const handleSubmit = async () => {
     if (maxAmount <= currentBid) {
-      toast.error("Il prezzo massimo deve essere superiore all'offerta attuale");
+      toast.error("Il prezzo massimo deve essere superiore all&apos;offerta attuale");
       return;
     }
 
@@ -120,7 +120,7 @@ export function AutoBidModal({
 
           {/* Auto-bid explanation */}
           <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg text-sm">
-            <p className="font-medium mb-1">Come funziona l'auto-offerta:</p>
+            <p className="font-medium mb-1">Come funziona l&apos;auto-offerta:</p>
             <ul className="text-xs space-y-1 text-muted-foreground">
               <li>• Il sistema rilancerà automaticamente fino al tuo prezzo massimo</li>
               <li>• Rilanci di +1 credito quando qualcuno ti supera</li>

@@ -58,7 +58,12 @@ export async function POST(
     // Verify league exists and is in correct status
     const league = db
       .prepare("SELECT id, status, min_bid, timer_duration_minutes FROM auction_leagues WHERE id = ?")
-      .get(leagueId);
+      .get(leagueId) as {
+        id: number;
+        status: string;
+        min_bid: number;
+        timer_duration_minutes: number;
+      } | undefined;
 
     if (!league) {
       return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
@@ -74,7 +79,10 @@ export async function POST(
     // Check if player exists and is not already assigned or in auction
     const player = db
       .prepare("SELECT id, name FROM players WHERE id = ?")
-      .get(playerId);
+      .get(playerId) as {
+        id: number;
+        name: string;
+      } | undefined;
 
     if (!player) {
       return NextResponse.json({ error: "Giocatore non trovato" }, { status: 404 });

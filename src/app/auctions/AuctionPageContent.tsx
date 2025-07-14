@@ -102,7 +102,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBidIndicator[]>([]);
-  const [bidHistory, setBidHistory] = useState<any[]>([]);
+  const [bidHistory, setBidHistory] = useState<Array<{id: number; amount: number; user_id: string; created_at: string; [key: string]: unknown}>>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [showLeagueSelector, setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

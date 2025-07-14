@@ -6,11 +6,12 @@ import { auth } from "@clerk/nextjs/server";
 import { Navbar } from "@/components/navbar";
 
 // Rendi la funzione componente async
-export default async function NoAccessPage({ searchParams }: { searchParams: { reason?: string } }) {
+export default async function NoAccessPage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
   // Usa await per risolvere la Promise restituita da auth()
   const authData = await auth();
   const userId = authData?.userId; // Accedi a userId dopo await
-  const reason = searchParams.reason;
+  const resolvedSearchParams = await searchParams;
+  const reason = resolvedSearchParams.reason;
 
   return (
     <div style={{ padding: "2rem" }}>

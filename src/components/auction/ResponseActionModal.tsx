@@ -130,7 +130,7 @@ export function ResponseActionModal({
 
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3 rounded-lg">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Attenzione:</strong> Hai 1 ora per decidere. Se non agisci, l'asta verrà abbandonata automaticamente 
+              <strong>Attenzione:</strong> Hai 1 ora per decidere. Se non agisci, l&apos;asta verrà abbandonata automaticamente 
               e non potrai fare offerte per questo giocatore per 48 ore.
             </p>
           </div>

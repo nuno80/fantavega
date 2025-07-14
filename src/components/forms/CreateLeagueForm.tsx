@@ -29,7 +29,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type FormState, createLeague } from "@/lib/actions/league.actions";
+import { createLeague } from "@/lib/actions/league.actions";
+
+// Define FormState type locally
+type FormState = {
+  success: boolean;
+  message: string;
+  errors?: {
+    name?: string[];
+    description?: string[];
+    max_participants?: string[];
+    initial_budget?: string[];
+    min_bid?: string[];
+    timer_duration_minutes?: string[];
+    slots_P?: string[];
+    slots_D?: string[];
+    slots_C?: string[];
+    slots_A?: string[];
+  };
+};
 
 // src/components/forms/CreateLeagueForm.tsx v.1.2
 // Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
@@ -49,7 +67,7 @@ export function CreateLeagueForm() {
   const initialState: FormState = { success: false, message: "" };
   const [state, formAction] = useActionState(createLeague, initialState);
 
-  const [minBidRule, setMinBidRule] = useState<"fixed" | "player_quotation">(
+  const [minBidRule, setMinBidRule] = useState<"fixed" | "percentage">(
     "fixed"
   );
 
@@ -68,7 +86,7 @@ export function CreateLeagueForm() {
       <CardHeader>
         <CardTitle>Crea una Nuova Lega</CardTitle>
         <CardDescription>
-          Inserisci i dettagli per configurare la tua nuova lega d'asta.
+          Inserisci i dettagli per configurare la tua nuova lega d&apos;asta.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -143,7 +161,7 @@ export function CreateLeagueForm() {
               <Select
                 name="min_bid_rule"
                 defaultValue="fixed"
-                onValueChange={(value) => setMinBidRule(value as any)}
+                onValueChange={(value) => setMinBidRule(value as "fixed" | "percentage")}
               >
                 <SelectTrigger>
                   <SelectValue />
