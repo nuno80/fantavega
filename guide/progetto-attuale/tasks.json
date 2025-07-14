@@ -244,7 +244,7 @@
       "id": "9",
       "title": "User Interface Development",
       "description": "Implement responsive UI components for all system features, ensuring a consistent and intuitive user experience.",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "subtasks": [
@@ -292,7 +292,7 @@
         {
           "id": "10.4",
           "title": "Perform security testing",
-          "status": "pending"
+          "status": "completed"
         }
       ]
     },
@@ -307,7 +307,7 @@
         {
           "id": "11.1",
           "title": "Finalize Docker configuration",
-          "status": "pending"
+          "status": "completed"
         },
         { "id": "11.2", "title": "Set up CI/CD pipeline", "status": "pending" },
         {

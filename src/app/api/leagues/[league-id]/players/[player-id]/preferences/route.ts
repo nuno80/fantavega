@@ -68,22 +68,74 @@ export async function POST(
     };
 
     const column = columnMap[iconType];
-    
-    // Converti il valore per SQLite (boolean -> number)
-    let sqliteValue: number | string;
-    if (typeof value === 'boolean') {
-      sqliteValue = value ? 1 : 0;
-    } else {
-      sqliteValue = value as number;
+    if (!column) {
+      return NextResponse.json(
+        { error: "Tipo di preferenza non valido" },
+        { status: 400 }
+      );
     }
     
-    // Upsert della preferenza
-    const upsertStmt = db.prepare(`
-      INSERT INTO user_player_preferences (user_id, player_id, league_id, ${column}, updated_at)
-      VALUES (?, ?, ?, ?, strftime('%s', 'now'))
-      ON CONFLICT(user_id, player_id, league_id) 
-      DO UPDATE SET ${column} = excluded.${column}, updated_at = excluded.updated_at
-    `);
+    // Converti il valore per SQLite (boolean -> number)
+    let sqliteValue: number;
+    if (typeof value === 'boolean') {
+      sqliteValue = value ? 1 : 0;
+    } else if (typeof value === 'number') {
+      // Validazione range per integrity_value
+      if (iconType === 'integrityValue' && (value < 0 || value > 10)) {
+        return NextResponse.json(
+          { error: "Valore integrita deve essere tra 0 e 10" },
+          { status: 400 }
+        );
+      }
+      sqliteValue = value;
+    } else {
+      return NextResponse.json(
+        { error: "Tipo di valore non valido" },
+        { status: 400 }
+      );
+    }
+    
+    // Upsert sicuro senza interpolazione dinamica - evita SQL injection
+    let upsertStmt;
+    switch (iconType) {
+      case 'isStarter':
+        upsertStmt = db.prepare(`
+          INSERT INTO user_player_preferences (user_id, player_id, league_id, is_starter, updated_at)
+          VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+          ON CONFLICT(user_id, player_id, league_id) 
+          DO UPDATE SET is_starter = excluded.is_starter, updated_at = excluded.updated_at
+        `);
+        break;
+      case 'isFavorite':
+        upsertStmt = db.prepare(`
+          INSERT INTO user_player_preferences (user_id, player_id, league_id, is_favorite, updated_at)
+          VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+          ON CONFLICT(user_id, player_id, league_id) 
+          DO UPDATE SET is_favorite = excluded.is_favorite, updated_at = excluded.updated_at
+        `);
+        break;
+      case 'integrityValue':
+        upsertStmt = db.prepare(`
+          INSERT INTO user_player_preferences (user_id, player_id, league_id, integrity_value, updated_at)
+          VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+          ON CONFLICT(user_id, player_id, league_id) 
+          DO UPDATE SET integrity_value = excluded.integrity_value, updated_at = excluded.updated_at
+        `);
+        break;
+      case 'hasFmv':
+        upsertStmt = db.prepare(`
+          INSERT INTO user_player_preferences (user_id, player_id, league_id, has_fmv, updated_at)
+          VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+          ON CONFLICT(user_id, player_id, league_id) 
+          DO UPDATE SET has_fmv = excluded.has_fmv, updated_at = excluded.updated_at
+        `);
+        break;
+      default:
+        return NextResponse.json(
+          { error: "Tipo di preferenza non supportato" },
+          { status: 400 }
+        );
+    }
 
     upsertStmt.run(user.id, playerId, leagueId, sqliteValue);
 

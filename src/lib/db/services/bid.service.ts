@@ -827,7 +827,19 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
           newBalance,
           now
         );
-        const col = `players_${auction.player_role}_acquired`;
+        // Mapping sicuro per evitare SQL injection
+        const validRoleColumns: Record<string, string> = {
+          'P': 'players_P_acquired',
+          'D': 'players_D_acquired', 
+          'C': 'players_C_acquired',
+          'A': 'players_A_acquired'
+        };
+        
+        const col = validRoleColumns[auction.player_role];
+        if (!col) {
+          throw new Error(`Invalid player role: ${auction.player_role}`);
+        }
+        
         db.prepare(
           `UPDATE league_participants SET ${col} = ${col} + 1, updated_at = ? WHERE league_id = ? AND user_id = ?`
         ).run(
