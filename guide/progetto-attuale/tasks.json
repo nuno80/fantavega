@@ -394,7 +394,7 @@
           "id": "14.1",
           "title": "Fix IDOR vulnerabilities (Insecure Direct Object Reference)",
           "description": "Implement authorization checks at resource level to prevent users from accessing/modifying resources they don't own",
-          "status": "in_progress"
+          "status": "completed"
         },
         {
           "id": "14.2",
