@@ -269,7 +269,7 @@ export function PlayerSearchCard({
                   : "Segna come integro"
               }
             >
-              <TrendingUp
+              <Timer
                 className={`h-4 w-4 ${player.integrityValue ? "text-purple-400" : "text-gray-400"}`}
               />
             </div>
@@ -289,7 +289,7 @@ export function PlayerSearchCard({
               }
               title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
             >
-              <Timer
+              <TrendingUp
                 className={`h-4 w-4 ${player.hasFmv ? "text-purple-400" : "text-gray-400"}`}
               />
             </div>

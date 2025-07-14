@@ -357,7 +357,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
                     onClick={() => setPreferenceFilters(prev => ({ ...prev, hasIntegrity: !prev.hasIntegrity }))}
                     title="Filtra per Integrita"
                   >
-                    <TrendingUp className="h-4 w-4" />
+                    <Timer className="h-4 w-4" />
                   </Button>
                   
                   {/* FMV */}
@@ -372,7 +372,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
                     onClick={() => setPreferenceFilters(prev => ({ ...prev, hasFmv: !prev.hasFmv }))}
                     title="Filtra per FMV"
                   >
-                    <Timer className="h-4 w-4" />
+                    <TrendingUp className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
