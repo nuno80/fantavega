@@ -6,9 +6,9 @@
 
 ## Sommario Esecutivo
 
-L'applicazione Fantavega presenta una solida base di sicurezza, in particolare per quanto riguarda l'autenticazione, l'autorizzazione a livello di route e la prevenzione di SQL injection. L'uso di Clerk per l'autenticazione e di statement preparati per le query al database sono pratiche eccellenti.
+L'applicazione Fantavega presenta una solida base di sicurezza. L'uso di Clerk per l'autenticazione, di statement preparati per le query al database e l'implementazione di controlli di autorizzazione a livello di risorsa (IDOR) sono pratiche eccellenti.
 
-Tuttavia, sono state identificate alcune aree di rischio che richiedono attenzione. Le vulnerabilità più significative riguardano la **mancanza di controlli di autorizzazione a livello di risorsa (IDOR)**, la **gestione dei file caricati** e la **potenziale esposizione di dati sensibili**.
+La vulnerabilità critica di tipo IDOR è stata **risolta**. Le restanti aree di rischio che richiedono attenzione riguardano principalmente la **gestione dei file caricati** e la **potenziale esposizione di dati sensibili**.
 
 Di seguito sono elencate le vulnerabilità riscontrate, classificate per livello di rischio, con le relative raccomandazioni.
 
@@ -16,13 +16,14 @@ Di seguito sono elencate le vulnerabilità riscontrate, classificate per livello
 
 ## Vulnerabilità Identificate
 
-### 🔴 Alto Rischio
+### ✅ Rischio Risolto
 
 #### 1. Mancanza di Autorizzazione a Livello di Risorsa (IDOR - Insecure Direct Object Reference)
 
-- **Descrizione**: Il middleware protegge le route, ma non impedisce a un utente autenticato di accedere o modificare risorse che non gli appartengono. Ad esempio, un utente `manager` potrebbe essere in grado di visualizzare o modificare i dati di una lega a cui non partecipa, semplicemente manipolando l'ID della lega nell'URL di una richiesta API.
-- **Impatto**: Accesso e modifica non autorizzati di dati, violazione della privacy degli utenti.
-- **Raccomandazione**: Implementare controlli di autorizzazione in ogni endpoint API che accede a dati specifici di una lega o di un utente. Prima di eseguire qualsiasi operazione, verificare che l'utente autenticato (`currentUserId`) abbia i permessi necessari per accedere alla risorsa richiesta (es. `league_id`).
+- **Stato**: **RISOLTO**
+- **Descrizione Precedente**: Il middleware proteggeva le route, ma non impediva a un utente autenticato di accedere o modificare risorse che non gli appartenevano.
+- **Azione Correttiva**: È stata implementata una logica di autorizzazione centralizzata in `src/lib/auth/authorization.ts`. Le funzioni, come `authorizeLeagueAccess`, vengono ora utilizzate negli endpoint API per verificare che l'utente autenticato abbia i permessi necessari per accedere alla risorsa richiesta prima di eseguire qualsiasi operazione.
+- **Verifica**: L'analisi dell'endpoint `src/app/api/leagues/[league-id]/budget/route.ts` conferma l'uso corretto della nuova logica di autorizzazione, mitigando efficacemente il rischio IDOR.
 
 ### 🟠 Medio Rischio
 
