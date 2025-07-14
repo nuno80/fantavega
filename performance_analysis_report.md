@@ -23,10 +23,11 @@ Ho analizzato le pagine **Auction** e **Players** con i relativi componenti per 
 
 ### 🚨 **CRITICI**
 
-#### 1. **Multiple API Calls in Sequence (Auction Page)**
+#### 1. **[RISOLTO] Multiple API Calls in Sequence (Auction Page)**
 
 **File**: `AuctionPageContent.tsx:141-225`
-**Problema**: 7+ chiamate API sequenziali al caricamento iniziale
+**Stato**: **RISOLTO**. Le chiamate API sono state spostate lato server (`/app/auctions/page.tsx`) e vengono eseguite in parallelo prima del rendering della pagina.
+**Problema Originale**: 7+ chiamate API sequenziali al caricamento iniziale
 
 ```typescript
 // Chiamate sequenziali che bloccano il rendering
@@ -42,10 +43,11 @@ const auctionResponse = await fetch(
 
 **Impatto**: Tempo di caricamento 2-5 secondi, UX bloccante
 
-#### 2. **Polling Every 30 Seconds (Auction Page)**
+#### 2. **[RISOLTO] Polling Every 30 Seconds (Auction Page)**
 
 **File**: `AuctionPageContent.tsx:258-260`
-**Problema**: Polling automatico per aste scadute
+**Stato**: **RISOLTO**. Il polling dal client è stato rimosso. Un processo in background nel `socket-server.ts` ora gestisce le aste scadute in modo centralizzato ed efficiente.
+**Problema Originale**: Polling automatico per aste scadute
 
 ```typescript
 const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
@@ -53,10 +55,11 @@ const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
 
 **Impatto**: Carico server costante, consumo batteria mobile
 
-#### 3. **Full Page Reload on Auction Start**
+#### 3. **[RISOLTO] Full Page Reload on Auction Start**
 
 **File**: `AuctionPageContent.tsx:414`
-**Problema**: Reload completo invece di aggiornamento stato
+**Stato**: **RISOLTO**. La chiamata `window.location.reload()` è stata rimossa e sostituita con un aggiornamento dello stato tramite fetch dei dati dell'asta corrente.
+**Problema Originale**: Reload completo invece di aggiornamento stato
 
 ```typescript
 window.location.reload(); // MOLTO INEFFICIENTE
@@ -66,10 +69,11 @@ window.location.reload(); // MOLTO INEFFICIENTE
 
 ### ⚠️ **MEDI**
 
-#### 4. **Re-fetch Players on Every Filter Change**
+#### 4. **[RISOLTO] Re-fetch Players on Every Filter Change**
 
 **File**: `PlayerSearchInterface.tsx:326` & `CallPlayerInterface.tsx:186`
-**Problema**: Nuova chiamata API ad ogni cambio filtro
+**Stato**: **RISOLTO**. La logica di filtraggio è stata ottimizzata utilizzando il hook `useMemo`. I dati dei giocatori vengono caricati una sola volta e il filtraggio avviene lato client in modo efficiente, senza nuove chiamate API.
+**Problema Originale**: Nuova chiamata API ad ogni cambio filtro
 **Impatto**: Latenza inutile, carico server
 
 #### 5. **Large State Objects Without Memoization**
@@ -252,17 +256,17 @@ const { data, error } = useSWR(`/api/leagues/${id}/players`, fetcher, {
 
 ## 🎯 **Piano di Implementazione Suggerito**
 
-### **Fase 1 (1-2 giorni)** - Quick Wins
+### **Fase 1 (COMPLETATA)** - Quick Wins
 
-1. Parallelizzare API calls in AuctionPageContent
-2. Rimuovere `window.location.reload()`
-3. Implementare client-side filtering base
+1. ✅ Parallelizzare API calls in AuctionPageContent (Spostato a SSR in Fase 2)
+2. ✅ Rimuovere `window.location.reload()`
+3. ✅ Implementare client-side filtering base (Ottimizzato con `useMemo`)
 
-### **Fase 2 (3-5 giorni)** - Ottimizzazioni Core
+### **Fase 2 (IN CORSO)** - Ottimizzazioni Core
 
-1. Server-side data fetching
-2. Sostituire polling con WebSocket
-3. State management con useReducer
+1. ✅ Server-side data fetching
+2. ✅ Sostituire polling con WebSocket
+3. ⏳ State management con useReducer (Da fare)
 
 ### **Fase 3 (1-2 settimane)** - Ottimizzazioni Avanzate
 
