@@ -347,6 +347,74 @@
           "status": "pending"
         }
       ]
+    },
+    {
+      "id": "13",
+      "title": "Performance Optimization",
+      "description": "Implement performance improvements based on analysis report to enhance application speed and user experience.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": ["9"],
+      "subtasks": [
+        {
+          "id": "13.1",
+          "title": "Implement Quick Wins optimizations",
+          "description": "Parallelize API calls, remove window.location.reload, implement client-side filtering",
+          "status": "pending"
+        },
+        {
+          "id": "13.2", 
+          "title": "Core performance optimizations",
+          "description": "Server-side data fetching, WebSocket events, state management with useReducer",
+          "status": "pending"
+        },
+        {
+          "id": "13.3",
+          "title": "Advanced performance optimizations", 
+          "description": "Virtual scrolling, lazy loading, strategic caching",
+          "status": "pending"
+        },
+        {
+          "id": "13.4",
+          "title": "Performance monitoring and metrics",
+          "description": "Implement performance monitoring and validate improvements",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "title": "Security Hardening",
+      "description": "Implement additional security measures and monitoring based on security analysis recommendations.",
+      "status": "pending", 
+      "priority": "medium",
+      "dependencies": ["10"],
+      "subtasks": [
+        {
+          "id": "14.1",
+          "title": "Implement rate limiting",
+          "description": "Add rate limiting to API endpoints to prevent abuse",
+          "status": "pending"
+        },
+        {
+          "id": "14.2",
+          "title": "Enhanced error handling",
+          "description": "Improve error handling to prevent information disclosure in production",
+          "status": "pending"
+        },
+        {
+          "id": "14.3",
+          "title": "Security audit logging",
+          "description": "Implement audit logging for sensitive operations",
+          "status": "pending"
+        },
+        {
+          "id": "14.4",
+          "title": "Input sanitization improvements",
+          "description": "Enhance input validation and sanitization across all endpoints",
+          "status": "pending"
+        }
+      ]
     }
   ]
 }
