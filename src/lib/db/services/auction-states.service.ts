@@ -293,7 +293,7 @@ export const getAllUserAuctionStatesForLeague = (userId: string, leagueId: numbe
         a.id as auction_id,
         a.player_id,
         p.name as player_name,
-        a.current_highest_bid as current_bid,
+        a.current_highest_bid_amount as current_bid,
         a.current_highest_bidder_id,
         a.user_auction_states,
         urt.response_deadline

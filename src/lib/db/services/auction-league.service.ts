@@ -1261,7 +1261,7 @@ export async function getLeagueManagersAndData(leagueId: number): Promise<{
       p.role as player_role,
       p.team as player_team,
       a.current_highest_bidder_id,
-      a.current_highest_bid as current_highest_bid_amount,
+      a.current_highest_bid_amount,
       a.scheduled_end_time,
       a.status
     FROM auctions a
@@ -1272,10 +1272,11 @@ export async function getLeagueManagersAndData(leagueId: number): Promise<{
 
   // 6. Get all auto-bids
   const autoBidsStmt = db.prepare(`
-    SELECT player_id, COUNT(*) as auto_bid_count
-    FROM auto_bids
-    WHERE auction_league_id = ? AND is_active = 1
-    GROUP BY player_id
+    SELECT a.player_id, COUNT(*) as auto_bid_count
+    FROM auto_bids ab
+    JOIN auctions a ON ab.auction_id = a.id
+    WHERE a.auction_league_id = ? AND ab.is_active = 1
+    GROUP BY a.player_id
   `);
   const autoBids = autoBidsStmt.all(leagueId) as AutoBidIndicator[];
 

@@ -40,6 +40,9 @@ const nextConfig = {
         ...(config.externals || []), // Mantiene qualsiasi externals preesistente
         {
           'better-sqlite3': 'commonjs better-sqlite3',
+          'ws': 'commonjs ws',
+          'socket.io': 'commonjs socket.io',
+          'socket.io-client': 'commonjs socket.io-client',
         }
       ];
     }
@@ -54,9 +57,9 @@ const nextConfig = {
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
-          // Vendor chunk per librerie esterne
+          // Vendor chunk per librerie esterne (escludendo WebSocket)
           vendor: {
-            test: /[\\/]node_modules[\\/]/,
+            test: /[\\/]node_modules[\\/](?!(ws|socket\.io))/,
             name: 'vendors',
             chunks: 'all',
             priority: 10,
