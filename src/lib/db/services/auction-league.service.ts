@@ -1269,6 +1269,7 @@ export async function getLeagueManagersAndData(leagueId: number): Promise<{
     WHERE a.auction_league_id = ? AND a.status = 'active'
   `);
   const activeAuctions = activeAuctionsStmt.all(leagueId) as ActiveAuction[];
+  
 
   // 6. Get all auto-bids
   const autoBidsStmt = db.prepare(`

@@ -154,7 +154,7 @@ export function PlayerSearchCard({
   };
 
   const formatTimeRemaining = (seconds?: number) => {
-    if (!seconds) return null;
+    if (!seconds || seconds <= 0) return "Scaduto";
 
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -348,12 +348,12 @@ export function PlayerSearchCard({
                 </div>
               )}
 
-              {player.timeRemaining && (
+              {player.timeRemaining !== undefined && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     Tempo rimanente:
                   </span>
-                  <span className="text-sm font-medium text-orange-600">
+                  <span className={`text-sm font-medium ${player.timeRemaining <= 0 ? 'text-red-600' : 'text-orange-600'}`}>
                     {formatTimeRemaining(player.timeRemaining)}
                   </span>
                 </div>

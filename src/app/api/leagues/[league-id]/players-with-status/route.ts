@@ -125,6 +125,7 @@ export async function GET(
 
     // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
+    
     const processedPlayers = (playersWithStatus as Array<{id: number; scheduled_end_time?: number; [key: string]: unknown}>).map((player) => {
       const cooldownInfo = getUserCooldownInfo(user.id, player.id);
       return {

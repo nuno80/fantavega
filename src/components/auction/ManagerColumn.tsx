@@ -136,6 +136,7 @@ const formatTimeRemaining = (endTime: number) => {
   const now = Math.floor(Date.now() / 1000);
   const remaining = Math.max(0, endTime - now);
 
+
   if (remaining === 0) return { text: "Scaduto", color: "text-red-500" };
 
   const hours = Math.floor(remaining / 3600);
