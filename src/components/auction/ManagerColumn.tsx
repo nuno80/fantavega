@@ -3,8 +3,7 @@
 import { Star, User, Lock, DollarSign, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ResponseActionModal } from "./ResponseActionModal";
-import { StandardBidModal } from "./StandardBidModal";
+import { LazyResponseActionModal, LazyStandardBidModal } from "./LazyModals";
 import { ComplianceChecker } from "./ComplianceChecker";
 
 // Type definitions
@@ -300,7 +299,7 @@ function ResponseNeededSlot({
         </div>
       </div>
       
-      <ResponseActionModal
+      <LazyResponseActionModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         playerName={state.player_name}
@@ -657,7 +656,7 @@ export function ManagerColumn({
 
       {/* Standard Bid Modal */}
       {selectedPlayerForBid && leagueId && (
-        <StandardBidModal
+        <LazyStandardBidModal
           isOpen={showStandardBidModal}
           onClose={() => {
             setShowStandardBidModal(false);

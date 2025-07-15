@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 // <-- NUOVA IMPORTAZIONE
 import { SocketProvider } from "@/contexts/SocketContext";
+import { SWRProvider } from "@/contexts/SWRProvider";
 
 import "./globals.css";
 
@@ -50,10 +51,13 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {/* 5. Aggiunta del SocketProvider intorno ai children */}
-            <SocketProvider>{children}</SocketProvider>
+            {/* 5. Aggiunta del SWRProvider per caching intelligente */}
+            <SWRProvider>
+              {/* 6. Aggiunta del SocketProvider intorno ai children */}
+              <SocketProvider>{children}</SocketProvider>
+            </SWRProvider>
 
-            {/* 6. Aggiunta del Toaster per le notifiche */}
+            {/* 7. Aggiunta del Toaster per le notifiche */}
             <Toaster position="top-right" richColors />
           </ThemeProvider>
         </body>

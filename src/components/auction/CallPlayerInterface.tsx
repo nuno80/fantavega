@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User, Heart, Dumbbell } from "lucide-react";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
-import { StandardBidModal } from "./StandardBidModal";
+import { LazyStandardBidModal } from "./LazyModals";
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 
 // Extend the Player interface to match PlayerWithAuctionStatus
@@ -597,7 +597,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
 
       {/* Start Auction Modal */}
       {selectedPlayerForStartAuction && (
-        <StandardBidModal
+        <LazyStandardBidModal
           isOpen={isStartAuctionModalOpen}
           onClose={() => {
             setIsStartAuctionModalOpen(false);

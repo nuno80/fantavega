@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
 import { PlayerAdvancedFilters } from "@/components/players/PlayerAdvancedFilters";
-import { PlayerSearchResults } from "@/components/players/PlayerSearchResults";
+import { VirtualizedPlayerSearchResults } from "@/components/players/VirtualizedPlayerSearchResults";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
 import { useSocket } from "@/contexts/SocketContext";
 
@@ -419,7 +419,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         availableTeams={Array.from(new Set(players.map(p => p.team))).sort()}
       />
 
-      <PlayerSearchResults
+      <VirtualizedPlayerSearchResults
         players={filteredPlayers}
         onBidOnPlayer={handleBidOnPlayer}
         onStartAuction={handleStartAuction}
@@ -427,6 +427,9 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         userRole={userRole}
         userId={userId}
         leagueId={selectedLeagueId || undefined}
+        height={600}
+        itemHeight={220}
+        columnsPerRow={4}
       />
 
       {selectedPlayer && (
