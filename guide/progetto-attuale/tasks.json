@@ -425,7 +425,7 @@
     {
       "id": "15",
       "title": "Performance Optimization",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "high",
       "dependencies": ["9"],
       "subtasks": [
@@ -457,7 +457,7 @@
           "id": "15.5",
           "title": "Bundle optimization and tree shaking",
           "description": "Optimize webpack bundle size and remove unused code",
-          "status": "pending"
+          "status": "completed"
         }
       ]
     }

@@ -8,6 +8,7 @@
     "dev:next": "next dev",
     "dev:socket": "tsx watch socket-server.ts",
     "build": "next build",
+    "build:analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier src/ --write",
@@ -16,7 +17,10 @@
     "db:backup": "pnpm exec tsx src/lib/db/backup.ts",
     "db:migrate": "pnpm exec tsx src/lib/db/migrate.ts",
     "db:reset": "pnpm exec tsx src/lib/db/reset.ts",
-    "db:apply-changes": "pnpm exec tsx src/lib/db/apply-changes.ts"
+    "db:apply-changes": "pnpm exec tsx src/lib/db/apply-changes.ts",
+    "analyze:bundle": "node scripts/analyze-bundle.js",
+    "optimize:imports": "node scripts/optimize-imports.js",
+    "optimize:restore": "node scripts/optimize-imports.js --restore"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.23.1",
@@ -52,6 +56,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.4.1",
     "@trivago/prettier-plugin-sort-imports": "^5.2.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/fs-extra": "^11.0.4",
@@ -68,7 +73,8 @@
     "prettier-plugin-tailwindcss": "^0.6.9",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "webpack-bundle-analyzer": "^4.10.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

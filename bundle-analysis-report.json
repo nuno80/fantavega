@@ -1,0 +1,981 @@
+{
+  "timestamp": "2025-07-15T18:52:54.496Z",
+  "summary": {
+    "largeFiles": 0,
+    "duplicateImports": 102,
+    "potentialIssues": 73
+  },
+  "details": {
+    "unusedImports": [
+      {
+        "file": "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardDescription,\n  CardHeader,\n  CardTitle,\n}"
+      },
+      {
+        "file": "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "import": "import {\n  Table,\n  TableBody,\n  TableCell,\n  TableHead,\n  TableHeader,\n  TableRow,\n}"
+      },
+      {
+        "file": "src/app/admin/leagues/page.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardDescription,\n  CardHeader,\n  CardTitle,\n}"
+      },
+      {
+        "file": "src/app/admin/leagues/page.tsx",
+        "import": "import {\n  Table,\n  TableBody,\n  TableCell,\n  TableHead,\n  TableHeader,\n  TableRow,\n}"
+      },
+      {
+        "file": "src/app/admin/users/page.tsx",
+        "import": "import {\n  Select,\n  SelectContent,\n  SelectItem,\n  SelectTrigger,\n  SelectValue,\n}"
+      },
+      {
+        "file": "src/app/admin/users/page.tsx",
+        "import": "import {\n  Table,\n  TableBody,\n  TableCell,\n  TableHead,\n  TableHeader,\n  TableRow,\n}"
+      },
+      {
+        "file": "src/app/api/admin/leagues/[league-id]/participants/route.ts",
+        "import": "import {\n  addParticipantToLeague,\n  getLeagueParticipants,\n}"
+      },
+      {
+        "file": "src/app/api/admin/leagues/route.ts",
+        "import": "import {\n  type CreateAuctionLeagueData,\n  createAuctionLeague,\n  // Assicurati che questo tipo sia definito/importato\n  getAuctionLeaguesByAdmin, // Questa è la funzione che ci serve per GET\n}"
+      },
+      {
+        "file": "src/app/api/admin/players/[player-id]/route.ts",
+        "import": "import {\n  type UpdatePlayerData,\n  deletePlayer,\n  updatePlayer,\n}"
+      },
+      {
+        "file": "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts",
+        "import": "import {\n  type AuctionCreationResult,\n  getAuctionStatusForPlayer,\n  placeBidOnExistingAuction,\n  placeInitialBidAndCreateAuction,\n}"
+      },
+      {
+        "file": "src/app/api/players/route.ts",
+        "import": "import {\n  type GetPlayersOptions,\n  type GetPlayersResult,\n  getPlayers,\n}"
+      },
+      {
+        "file": "src/app/auctions/page.tsx",
+        "import": "import * as leagueService from"
+      },
+      {
+        "file": "src/app/auctions/page.tsx",
+        "import": "import * as budgetService from"
+      },
+      {
+        "file": "src/app/auctions/page.tsx",
+        "import": "import * as auctionStateService from"
+      },
+      {
+        "file": "src/app/auctions/page.tsx",
+        "import": "import * as bidService from"
+      },
+      {
+        "file": "src/app/auctions/page.tsx",
+        "import": "import * as userService from"
+      },
+      {
+        "file": "src/app/dashboard/page.tsx",
+        "import": "import {\n  Database,\n  FileUp,\n  Landmark,\n  LayoutGrid,\n  Trophy,\n  Users,\n  Users2,\n}"
+      },
+      {
+        "file": "src/components/admin/EditTeamName.tsx",
+        "import": "import {\n  type UpdateTeamNameFormState,\n  updateTeamNameAction,\n}"
+      },
+      {
+        "file": "src/components/admin/LeagueActiveRolesManager.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardDescription,\n  CardHeader,\n  CardTitle,\n}"
+      },
+      {
+        "file": "src/components/admin/LeagueActiveRolesManager.tsx",
+        "import": "import {\n  type UpdateActiveRolesFormState,\n  updateActiveRolesAction,\n}"
+      },
+      {
+        "file": "src/components/admin/LeagueStatusManager.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardDescription,\n  CardHeader,\n  CardTitle,\n}"
+      },
+      {
+        "file": "src/components/admin/LeagueStatusManager.tsx",
+        "import": "import {\n  Select,\n  SelectContent,\n  SelectItem,\n  SelectTrigger,\n  SelectValue,\n}"
+      },
+      {
+        "file": "src/components/admin/LeagueStatusManager.tsx",
+        "import": "import {\n  type UpdateStatusFormState,\n  updateLeagueStatusAction,\n}"
+      },
+      {
+        "file": "src/components/admin/PlayerImportForm.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardDescription,\n  CardHeader,\n  CardTitle,\n}"
+      },
+      {
+        "file": "src/components/admin/RemoveParticipant.tsx",
+        "import": "import {\n  AlertDialog,\n  AlertDialogAction,\n  AlertDialogCancel,\n  AlertDialogContent,\n  AlertDialogDescription,\n  AlertDialogFooter,\n  AlertDialogHeader,\n  AlertDialogTitle,\n  AlertDialogTrigger,\n}"
+      },
+      {
+        "file": "src/components/admin/RemoveParticipant.tsx",
+        "import": "import {\n  type RemoveParticipantFormState,\n  removeParticipantAction,\n}"
+      },
+      {
+        "file": "src/components/auction/AutoBidModal.tsx",
+        "import": "import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger }"
+      },
+      {
+        "file": "src/components/auction/CallPlayerInterface.tsx",
+        "import": "import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue }"
+      },
+      {
+        "file": "src/components/auction/CallPlayerInterface.tsx",
+        "import": "import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User, Heart, Dumbbell }"
+      },
+      {
+        "file": "src/components/auction/ComplianceChecker.tsx",
+        "import": "import { AlertTriangle, CheckCircle, Clock, RefreshCw, Timer }"
+      },
+      {
+        "file": "src/components/auction/ResponseActionModal.tsx",
+        "import": "import {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogHeader,\n  DialogTitle,\n}"
+      },
+      {
+        "file": "src/components/auction/StandardBidModal.tsx",
+        "import": "import {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogFooter,\n  DialogHeader,\n  DialogTitle,\n}"
+      },
+      {
+        "file": "src/components/forms/AddParticipantForm.tsx",
+        "import": "import {\n  Dialog,\n  DialogClose,\n  DialogContent,\n  DialogDescription,\n  DialogFooter,\n  DialogHeader,\n  DialogTitle,\n  DialogTrigger,\n}"
+      },
+      {
+        "file": "src/components/forms/AddParticipantForm.tsx",
+        "import": "import {\n  Select,\n  SelectContent,\n  SelectItem,\n  SelectTrigger,\n  SelectValue,\n}"
+      },
+      {
+        "file": "src/components/forms/AddParticipantForm.tsx",
+        "import": "import {\n  type AddParticipantFormState,\n  addParticipantAction,\n}"
+      },
+      {
+        "file": "src/components/forms/CreateLeagueForm.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardDescription,\n  CardHeader,\n  CardTitle,\n}"
+      },
+      {
+        "file": "src/components/forms/CreateLeagueForm.tsx",
+        "import": "import {\n  Select,\n  SelectContent,\n  SelectItem,\n  SelectTrigger,\n  SelectValue,\n}"
+      },
+      {
+        "file": "src/components/mode-toggle.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/mode-toggle.tsx",
+        "import": "import {\n  DropdownMenu,\n  DropdownMenuContent,\n  DropdownMenuItem,\n  DropdownMenuTrigger,\n}"
+      },
+      {
+        "file": "src/components/navbar.tsx",
+        "import": "import {\n  SignInButton,\n  SignUpButton,\n  SignedIn,\n  SignedOut,\n  UserButton,\n  useAuth, // Importa useAuth\n}"
+      },
+      {
+        "file": "src/components/players/PlayerAdvancedFilters.tsx",
+        "import": "import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue }"
+      },
+      {
+        "file": "src/components/players/PlayerSearchCard.tsx",
+        "import": "import {\n  Ban,\n  Clock,\n  Gavel,\n  Shield,\n  Timer,\n  TrendingUp,\n  User,\n  Users,\n  Dumbbell,\n}"
+      },
+      {
+        "file": "src/components/players/PlayerSearchCard.tsx",
+        "import": "import {\n  Card,\n  CardContent,\n  CardFooter,\n  CardHeader,\n}"
+      },
+      {
+        "file": "src/components/players/QuickBidModal.tsx",
+        "import": "import {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogFooter,\n  DialogHeader,\n  DialogTitle,\n}"
+      },
+      {
+        "file": "src/components/theme-provider.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/theme-toggle.tsx",
+        "import": "import {\n  DropdownMenu,\n  DropdownMenuContent,\n  DropdownMenuItem,\n  DropdownMenuTrigger,\n}"
+      },
+      {
+        "file": "src/components/ui/alert-dialog.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/alert-dialog.tsx",
+        "import": "import * as AlertDialogPrimitive from"
+      },
+      {
+        "file": "src/components/ui/badge.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/button.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/card.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/checkbox.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/checkbox.tsx",
+        "import": "import * as CheckboxPrimitive from"
+      },
+      {
+        "file": "src/components/ui/dialog.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/dialog.tsx",
+        "import": "import * as DialogPrimitive from"
+      },
+      {
+        "file": "src/components/ui/dropdown-menu.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/dropdown-menu.tsx",
+        "import": "import * as DropdownMenuPrimitive from"
+      },
+      {
+        "file": "src/components/ui/input.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/label.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/label.tsx",
+        "import": "import * as LabelPrimitive from"
+      },
+      {
+        "file": "src/components/ui/popover.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/popover.tsx",
+        "import": "import * as PopoverPrimitive from"
+      },
+      {
+        "file": "src/components/ui/progress.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/progress.tsx",
+        "import": "import * as ProgressPrimitive from"
+      },
+      {
+        "file": "src/components/ui/scroll-area.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/scroll-area.tsx",
+        "import": "import * as ScrollAreaPrimitive from"
+      },
+      {
+        "file": "src/components/ui/select.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/components/ui/select.tsx",
+        "import": "import * as SelectPrimitive from"
+      },
+      {
+        "file": "src/components/ui/table.tsx",
+        "import": "import * as React from"
+      },
+      {
+        "file": "src/contexts/SocketContext.tsx",
+        "import": "import {\n  ReactNode,\n  createContext,\n  useContext,\n  useEffect,\n  useState,\n}"
+      },
+      {
+        "file": "src/lib/actions/league.actions.ts",
+        "import": "import {\n  addParticipantToLeague,\n  removeParticipantFromLeague,\n  updateLeagueStatus,\n  updateParticipantTeamName,\n}"
+      },
+      {
+        "file": "src/lib/db/services/player-import.service.ts",
+        "import": "import * as XLSX from"
+      },
+      {
+        "file": "src/lib/db/services/user.service.ts",
+        "import": "import {\n  type EmailAddress,\n  type User,\n  clerkClient,\n}"
+      }
+    ],
+    "largeFiles": [],
+    "duplicateImports": {
+      "@/components/navbar": [
+        "src/app/about/page.tsx",
+        "src/app/admin/db-management/page.tsx",
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "src/app/admin/leagues/create/page.tsx",
+        "src/app/admin/leagues/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auctions/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/devi-autenticarti/page.tsx",
+        "src/app/features/page.tsx",
+        "src/app/no-access/page.tsx",
+        "src/app/page.tsx",
+        "src/app/players/page.tsx",
+        "src/app/pricing/page.tsx",
+        "src/app/user-dashboard/page.tsx"
+      ],
+      "@/components/admin/PlayerImportForm": [
+        "src/app/admin/db-management/page.tsx"
+      ],
+      "next/navigation": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/auctions/page.tsx",
+        "src/app/players/page.tsx",
+        "src/lib/actions/league.actions.ts"
+      ],
+      "lucide-react": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "src/app/admin/leagues/page.tsx",
+        "src/app/pricing/page.tsx",
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/PlayerImportForm.tsx",
+        "src/components/admin/RemoveParticipant.tsx",
+        "src/components/auction/AuctionLayout.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ComplianceChecker.tsx",
+        "src/components/auction/ManagerColumn.tsx",
+        "src/components/auction/ResponseActionModal.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/mode-toggle.tsx",
+        "src/components/navbar.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx",
+        "src/components/players/PlayerSearchBar.tsx",
+        "src/components/players/QuickBidModal.tsx",
+        "src/components/theme-toggle.tsx",
+        "src/components/ui/checkbox.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/select.tsx"
+      ],
+      "@/components/admin/EditTeamName": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx"
+      ],
+      "@/components/admin/LeagueActiveRolesManager": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx"
+      ],
+      "@/components/admin/LeagueStatusManager": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx"
+      ],
+      "@/components/admin/RemoveParticipant": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx"
+      ],
+      "@/components/forms/AddParticipantForm": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx"
+      ],
+      "@/components/ui/badge": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "src/app/admin/leagues/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/components/auction/AuctionPlayerCard.tsx",
+        "src/components/auction/AuctionTimer.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BidHistory.tsx",
+        "src/components/auction/BudgetDisplay.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ComplianceChecker.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx",
+        "src/components/players/PlayerSearchCard.tsx",
+        "src/components/players/QuickBidModal.tsx"
+      ],
+      "@/lib/db/services/auction-league.service": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "src/app/admin/leagues/page.tsx",
+        "src/app/api/admin/leagues/[league-id]/participants/[participant-user-id]/route.ts",
+        "src/app/api/leagues/[league-id]/managers/[manager-user-id]/roster/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/assignment/route.ts",
+        "src/app/auctions/page.tsx"
+      ],
+      "@/lib/db/services/user.service": [
+        "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+        "src/app/admin/users/page.tsx",
+        "src/app/api/admin/get-users/route.ts",
+        "src/app/auctions/page.tsx",
+        "src/components/forms/AddParticipantForm.tsx"
+      ],
+      "@/components/forms/CreateLeagueForm": [
+        "src/app/admin/leagues/create/page.tsx"
+      ],
+      "next/link": [
+        "src/app/admin/leagues/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/no-access/page.tsx",
+        "src/components/navbar.tsx"
+      ],
+      "@/components/ui/button": [
+        "src/app/admin/leagues/page.tsx",
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/pricing/page.tsx",
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/LeagueActiveRolesManager.tsx",
+        "src/components/admin/LeagueStatusManager.tsx",
+        "src/components/admin/PlayerImportForm.tsx",
+        "src/components/admin/RemoveParticipant.tsx",
+        "src/components/auction/AuctionLayout.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BiddingInterface.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ComplianceChecker.tsx",
+        "src/components/auction/ResponseActionModal.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/forms/CreateLeagueForm.tsx",
+        "src/components/mode-toggle.tsx",
+        "src/components/navbar.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx",
+        "src/components/players/PlayerSearchCard.tsx",
+        "src/components/players/QuickBidModal.tsx",
+        "src/components/theme-toggle.tsx",
+        "src/components/ui/alert-dialog.tsx"
+      ],
+      "react": [
+        "src/app/admin/users/page.tsx",
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/auctions/page.tsx",
+        "src/app/devi-autenticarti/page.tsx",
+        "src/app/players/PlayerSearchInterface.tsx",
+        "src/app/players/page.tsx",
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/LeagueActiveRolesManager.tsx",
+        "src/components/admin/LeagueStatusManager.tsx",
+        "src/components/admin/PlayerImportForm.tsx",
+        "src/components/admin/RemoveParticipant.tsx",
+        "src/components/auction/AuctionLayout.tsx",
+        "src/components/auction/AuctionRealtimeDisplay.tsx",
+        "src/components/auction/AuctionTimer.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BiddingInterface.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ComplianceChecker.tsx",
+        "src/components/auction/LazyModals.tsx",
+        "src/components/auction/ManagerColumn.tsx",
+        "src/components/auction/ResponseActionModal.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/forms/CreateLeagueForm.tsx",
+        "src/components/mode-toggle.tsx",
+        "src/components/navbar.tsx",
+        "src/components/players/PlayerSearchCard.tsx",
+        "src/components/players/QuickBidModal.tsx",
+        "src/components/players/VirtualizedPlayerSearchResults.tsx",
+        "src/components/theme-provider.tsx",
+        "src/components/ui/alert-dialog.tsx",
+        "src/components/ui/badge.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/card.tsx",
+        "src/components/ui/checkbox.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/input.tsx",
+        "src/components/ui/label.tsx",
+        "src/components/ui/popover.tsx",
+        "src/components/ui/progress.tsx",
+        "src/components/ui/scroll-area.tsx",
+        "src/components/ui/select.tsx",
+        "src/components/ui/table.tsx",
+        "src/contexts/SWRProvider.tsx",
+        "src/hooks/use-mobile.ts",
+        "src/hooks/useApiCache.ts",
+        "src/hooks/useAuctionReducer.ts"
+      ],
+      "sonner": [
+        "src/app/admin/users/page.tsx",
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/players/PlayerSearchInterface.tsx",
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/LeagueActiveRolesManager.tsx",
+        "src/components/admin/LeagueStatusManager.tsx",
+        "src/components/admin/PlayerImportForm.tsx",
+        "src/components/admin/RemoveParticipant.tsx",
+        "src/components/auction/AuctionRealtimeDisplay.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BiddingInterface.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ComplianceChecker.tsx",
+        "src/components/auction/ManagerColumn.tsx",
+        "src/components/auction/ResponseActionModal.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/forms/CreateLeagueForm.tsx",
+        "src/components/players/QuickBidModal.tsx",
+        "src/components/ui/sonner.tsx"
+      ],
+      "next/server": [
+        "src/app/api/admin/dashboard-stats/route.ts",
+        "src/app/api/admin/get-users/route.ts",
+        "src/app/api/admin/leagues/[league-id]/participants/[participant-user-id]/route.ts",
+        "src/app/api/admin/leagues/[league-id]/participants/route.ts",
+        "src/app/api/admin/leagues/[league-id]/route.ts",
+        "src/app/api/admin/leagues/route.ts",
+        "src/app/api/admin/players/[player-id]/route.ts",
+        "src/app/api/admin/players/route.ts",
+        "src/app/api/admin/players/upload-excel/route.ts",
+        "src/app/api/admin/set-user-role/route.ts",
+        "src/app/api/admin/tasks/process-auctions/route.ts",
+        "src/app/api/admin/tasks/process-response-timers/route.ts",
+        "src/app/api/admin/tasks/schedule-response-timers/route.ts",
+        "src/app/api/leagues/[league-id]/budget/route.ts",
+        "src/app/api/leagues/[league-id]/budget-history/route.ts",
+        "src/app/api/leagues/[league-id]/check-compliance/route.ts",
+        "src/app/api/leagues/[league-id]/current-auction/route.ts",
+        "src/app/api/leagues/[league-id]/managers/[manager-user-id]/roster/route.ts",
+        "src/app/api/leagues/[league-id]/managers/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/assignment/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/auto-bid/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/preferences/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+        "src/app/api/leagues/[league-id]/players-with-status/route.ts",
+        "src/app/api/leagues/[league-id]/process-expired-auctions/route.ts",
+        "src/app/api/leagues/[league-id]/start-auction/route.ts",
+        "src/app/api/players/[playerId]/toggle-icon/route.ts",
+        "src/app/api/players/route.ts",
+        "src/app/api/user/auction-states/route.ts",
+        "src/app/api/user/leagues/route.ts",
+        "src/middleware.tsx"
+      ],
+      "@/lib/db/services/admin.service": [
+        "src/app/api/admin/dashboard-stats/route.ts"
+      ],
+      "@clerk/nextjs/server": [
+        "src/app/api/admin/dashboard-stats/route.ts",
+        "src/app/api/admin/get-users/route.ts",
+        "src/app/api/admin/leagues/[league-id]/participants/[participant-user-id]/route.ts",
+        "src/app/api/admin/leagues/[league-id]/participants/route.ts",
+        "src/app/api/admin/leagues/route.ts",
+        "src/app/api/admin/players/[player-id]/route.ts",
+        "src/app/api/admin/players/route.ts",
+        "src/app/api/admin/players/upload-excel/route.ts",
+        "src/app/api/admin/set-user-role/route.ts",
+        "src/app/api/admin/tasks/process-auctions/route.ts",
+        "src/app/api/admin/tasks/process-response-timers/route.ts",
+        "src/app/api/leagues/[league-id]/budget/route.ts",
+        "src/app/api/leagues/[league-id]/budget-history/route.ts",
+        "src/app/api/leagues/[league-id]/check-compliance/route.ts",
+        "src/app/api/leagues/[league-id]/current-auction/route.ts",
+        "src/app/api/leagues/[league-id]/managers/[manager-user-id]/roster/route.ts",
+        "src/app/api/leagues/[league-id]/managers/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/assignment/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/auto-bid/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/preferences/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+        "src/app/api/leagues/[league-id]/players-with-status/route.ts",
+        "src/app/api/leagues/[league-id]/process-expired-auctions/route.ts",
+        "src/app/api/leagues/[league-id]/start-auction/route.ts",
+        "src/app/api/players/[playerId]/toggle-icon/route.ts",
+        "src/app/api/players/route.ts",
+        "src/app/api/user/auction-states/route.ts",
+        "src/app/api/user/leagues/route.ts",
+        "src/app/auctions/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/no-access/page.tsx",
+        "src/app/players/page.tsx",
+        "src/lib/actions/league.actions.ts",
+        "src/lib/auth/authorization.ts",
+        "src/lib/db/services/auction-league.service.ts",
+        "src/middleware.tsx"
+      ],
+      "@/lib/db": [
+        "src/app/api/admin/leagues/[league-id]/participants/route.ts",
+        "src/app/api/leagues/[league-id]/budget/route.ts",
+        "src/app/api/leagues/[league-id]/budget-history/route.ts",
+        "src/app/api/leagues/[league-id]/check-compliance/route.ts",
+        "src/app/api/leagues/[league-id]/current-auction/route.ts",
+        "src/app/api/leagues/[league-id]/managers/[manager-user-id]/roster/route.ts",
+        "src/app/api/leagues/[league-id]/managers/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/assignment/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/auto-bid/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/preferences/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+        "src/app/api/leagues/[league-id]/players-with-status/route.ts",
+        "src/app/api/leagues/[league-id]/start-auction/route.ts",
+        "src/app/api/user/auction-states/route.ts",
+        "src/app/api/user/leagues/route.ts",
+        "src/lib/actions/league.actions.ts",
+        "src/lib/auth/authorization.ts",
+        "src/lib/db/apply-changes.ts",
+        "src/lib/db/backup.ts",
+        "src/lib/db/migrate.ts",
+        "src/lib/db/reset.ts",
+        "src/lib/db/services/admin.service.ts",
+        "src/lib/db/services/auction-league.service.ts",
+        "src/lib/db/services/auction-states.service.ts",
+        "src/lib/db/services/bid.service.ts",
+        "src/lib/db/services/budget.service.ts",
+        "src/lib/db/services/penalty.service.ts",
+        "src/lib/db/services/player-import.service.ts",
+        "src/lib/db/services/player.service.ts",
+        "src/lib/db/services/response-timer.service.ts",
+        "src/lib/db/services/user.service.ts"
+      ],
+      "@/lib/db/services/bid.service": [
+        "src/app/api/admin/tasks/process-auctions/route.ts",
+        "src/app/api/leagues/[league-id]/current-auction/route.ts",
+        "src/app/api/leagues/[league-id]/process-expired-auctions/route.ts",
+        "src/app/api/leagues/[league-id]/start-auction/route.ts",
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/auctions/page.tsx",
+        "src/app/auctions/page.tsx",
+        "src/components/auction/AuctionRealtimeDisplay.tsx",
+        "src/components/auction/BidHistory.tsx",
+        "src/hooks/useAuctionReducer.ts"
+      ],
+      "@/lib/db/services/response-timer.service": [
+        "src/app/api/admin/tasks/process-response-timers/route.ts",
+        "src/app/api/admin/tasks/schedule-response-timers/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+        "src/app/api/leagues/[league-id]/players-with-status/route.ts",
+        "src/app/api/players/route.ts",
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/lib/auth/authorization": [
+        "src/app/api/leagues/[league-id]/budget/route.ts",
+        "src/app/api/leagues/[league-id]/managers/[manager-user-id]/roster/route.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/preferences/route.ts"
+      ],
+      "@/lib/db/services/budget.service": [
+        "src/app/api/leagues/[league-id]/budget-history/route.ts",
+        "src/app/auctions/page.tsx"
+      ],
+      "@/lib/db/services/penalty.service": [
+        "src/app/api/leagues/[league-id]/check-compliance/route.ts"
+      ],
+      "@/lib/socket-emitter": [
+        "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+        "src/lib/db/services/auction-states.service.ts",
+        "src/lib/db/services/bid.service.ts",
+        "src/lib/db/services/penalty.service.ts",
+        "src/lib/db/services/response-timer.service.ts"
+      ],
+      "@/lib/db/services/player.service": [
+        "src/app/api/players/[playerId]/toggle-icon/route.ts"
+      ],
+      "@/lib/db/services/auction-states.service": [
+        "src/app/api/user/auction-states/route.ts",
+        "src/app/auctions/page.tsx"
+      ],
+      "next": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/layout.tsx"
+      ],
+      "@/components/auction/ManagerColumn": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/auction/CallPlayerInterface": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/contexts/SocketContext": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/app/layout.tsx",
+        "src/app/players/PlayerSearchInterface.tsx",
+        "src/components/auction/AuctionRealtimeDisplay.tsx"
+      ],
+      "@/hooks/useAuctionReducer": [
+        "src/app/auctions/AuctionPageContent.tsx"
+      ],
+      "@/components/auction/AuctionPlayerCard": [
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/auction/BiddingInterface": [
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/auction/AuctionTimer": [
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/auction/BidHistory": [
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/auction/BudgetDisplay": [
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/auction/AuctionLayout": [
+        "src/app/auctions/AuctionPageContent_old.tsx"
+      ],
+      "@/components/ui/card": [
+        "src/app/auctions/AuctionPageContent_old.tsx",
+        "src/components/auction/AuctionPlayerCard.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BidHistory.tsx",
+        "src/components/auction/BiddingInterface.tsx",
+        "src/components/auction/BudgetDisplay.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ComplianceChecker.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx"
+      ],
+      "./AuctionPageContent": [
+        "src/app/auctions/page.tsx"
+      ],
+      "next/font/google": [
+        "src/app/layout.tsx"
+      ],
+      "@clerk/nextjs": [
+        "src/app/layout.tsx",
+        "src/contexts/SocketContext.tsx"
+      ],
+      "@/components/theme-provider": [
+        "src/app/layout.tsx"
+      ],
+      "@/components/ui/sonner": [
+        "src/app/layout.tsx"
+      ],
+      "@/contexts/SWRProvider": [
+        "src/app/layout.tsx"
+      ],
+      "@/components/players/PlayerSearchBar": [
+        "src/app/players/PlayerSearchInterface.tsx"
+      ],
+      "@/components/players/PlayerAdvancedFilters": [
+        "src/app/players/PlayerSearchInterface.tsx"
+      ],
+      "@/components/players/VirtualizedPlayerSearchResults": [
+        "src/app/players/PlayerSearchInterface.tsx"
+      ],
+      "@/components/players/QuickBidModal": [
+        "src/app/players/PlayerSearchInterface.tsx",
+        "src/components/auction/CallPlayerInterface.tsx"
+      ],
+      "./PlayerSearchInterface": [
+        "src/app/players/page.tsx"
+      ],
+      "react-dom": [
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/LeagueActiveRolesManager.tsx",
+        "src/components/admin/LeagueStatusManager.tsx",
+        "src/components/admin/RemoveParticipant.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/forms/CreateLeagueForm.tsx"
+      ],
+      "@/components/ui/input": [
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/PlayerImportForm.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BiddingInterface.tsx",
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/forms/CreateLeagueForm.tsx",
+        "src/components/players/PlayerSearchBar.tsx",
+        "src/components/players/QuickBidModal.tsx"
+      ],
+      "@/components/ui/label": [
+        "src/components/admin/EditTeamName.tsx",
+        "src/components/admin/LeagueActiveRolesManager.tsx",
+        "src/components/admin/PlayerImportForm.tsx",
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/BiddingInterface.tsx",
+        "src/components/auction/StandardBidModal.tsx",
+        "src/components/forms/AddParticipantForm.tsx",
+        "src/components/forms/CreateLeagueForm.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx",
+        "src/components/players/QuickBidModal.tsx"
+      ],
+      "@/components/ui/checkbox": [
+        "src/components/admin/LeagueActiveRolesManager.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx"
+      ],
+      "@/components/ui/progress": [
+        "src/components/auction/AuctionTimer.tsx",
+        "src/components/auction/BudgetDisplay.tsx"
+      ],
+      "@/components/ui/dialog": [
+        "src/components/auction/AutoBidModal.tsx",
+        "src/components/auction/LazyModals.tsx"
+      ],
+      "@/components/ui/scroll-area": [
+        "src/components/auction/BidHistory.tsx"
+      ],
+      "./AutoBidModal": [
+        "src/components/auction/BiddingInterface.tsx"
+      ],
+      "./ComplianceChecker": [
+        "src/components/auction/BudgetDisplay.tsx",
+        "src/components/auction/ManagerColumn.tsx"
+      ],
+      "@/components/ui/select": [
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx"
+      ],
+      "./LazyModals": [
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/auction/ManagerColumn.tsx"
+      ],
+      "@/app/players/PlayerSearchInterface": [
+        "src/components/auction/CallPlayerInterface.tsx",
+        "src/components/players/PlayerAdvancedFilters.tsx",
+        "src/components/players/PlayerSearchCard.tsx",
+        "src/components/players/PlayerSearchResults.tsx",
+        "src/components/players/QuickBidModal.tsx",
+        "src/components/players/VirtualizedPlayerSearchResults.tsx"
+      ],
+      "@/components/ui/skeleton": [
+        "src/components/auction/LazyModals.tsx"
+      ],
+      "@/lib/actions/league.actions": [
+        "src/components/forms/CreateLeagueForm.tsx"
+      ],
+      "next-themes": [
+        "src/components/mode-toggle.tsx",
+        "src/components/theme-provider.tsx",
+        "src/components/theme-toggle.tsx",
+        "src/components/ui/sonner.tsx"
+      ],
+      "@/components/mode-toggle": [
+        "src/components/navbar.tsx"
+      ],
+      "@/hooks/use-mobile": [
+        "src/components/navbar.tsx"
+      ],
+      "./PlayerSearchCard": [
+        "src/components/players/PlayerSearchResults.tsx",
+        "src/components/players/VirtualizedPlayerSearchResults.tsx"
+      ],
+      "react-window": [
+        "src/components/players/VirtualizedPlayerSearchResults.tsx"
+      ],
+      "@radix-ui/react-alert-dialog": [
+        "src/components/ui/alert-dialog.tsx"
+      ],
+      "@/lib/utils": [
+        "src/components/ui/alert-dialog.tsx",
+        "src/components/ui/badge.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/card.tsx",
+        "src/components/ui/checkbox.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/input.tsx",
+        "src/components/ui/label.tsx",
+        "src/components/ui/popover.tsx",
+        "src/components/ui/progress.tsx",
+        "src/components/ui/scroll-area.tsx",
+        "src/components/ui/select.tsx",
+        "src/components/ui/table.tsx"
+      ],
+      "class-variance-authority": [
+        "src/components/ui/badge.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/label.tsx"
+      ],
+      "@radix-ui/react-slot": [
+        "src/components/ui/button.tsx"
+      ],
+      "@radix-ui/react-checkbox": [
+        "src/components/ui/checkbox.tsx"
+      ],
+      "@radix-ui/react-dialog": [
+        "src/components/ui/dialog.tsx"
+      ],
+      "@radix-ui/react-dropdown-menu": [
+        "src/components/ui/dropdown-menu.tsx"
+      ],
+      "@radix-ui/react-label": [
+        "src/components/ui/label.tsx"
+      ],
+      "@radix-ui/react-popover": [
+        "src/components/ui/popover.tsx"
+      ],
+      "@radix-ui/react-progress": [
+        "src/components/ui/progress.tsx"
+      ],
+      "@radix-ui/react-scroll-area": [
+        "src/components/ui/scroll-area.tsx"
+      ],
+      "@radix-ui/react-select": [
+        "src/components/ui/select.tsx"
+      ],
+      "swr": [
+        "src/contexts/SWRProvider.tsx",
+        "src/hooks/useApiCache.ts"
+      ],
+      "socket.io-client": [
+        "src/contexts/SocketContext.tsx"
+      ],
+      "next/cache": [
+        "src/lib/actions/league.actions.ts"
+      ],
+      "@/lib/validators/league.validators": [
+        "src/lib/actions/league.actions.ts"
+      ],
+      "fs": [
+        "src/lib/db/apply-changes.ts",
+        "src/lib/db/index.ts",
+        "src/lib/db/utils.ts"
+      ],
+      "path": [
+        "src/lib/db/apply-changes.ts",
+        "src/lib/db/backup-utils.ts",
+        "src/lib/db/index.ts",
+        "src/lib/db/migrate.ts",
+        "src/lib/db/reset.ts"
+      ],
+      "./backup-utils": [
+        "src/lib/db/apply-changes.ts",
+        "src/lib/db/backup.ts",
+        "src/lib/db/reset.ts"
+      ],
+      "date-fns": [
+        "src/lib/db/backup-utils.ts"
+      ],
+      "fs-extra": [
+        "src/lib/db/backup-utils.ts",
+        "src/lib/db/reset.ts"
+      ],
+      "better-sqlite3": [
+        "src/lib/db/index.ts",
+        "src/lib/db/utils.ts"
+      ],
+      "./utils": [
+        "src/lib/db/migrate.ts"
+      ],
+      "./index": [
+        "src/lib/db/seed.ts"
+      ],
+      "./auction-states.service": [
+        "src/lib/db/services/bid.service.ts"
+      ],
+      "./response-timer.service": [
+        "src/lib/db/services/bid.service.ts"
+      ],
+      "./auction-league.service": [
+        "src/lib/db/services/penalty.service.ts"
+      ],
+      "xlsx": [
+        "src/lib/db/services/player-import.service.ts"
+      ],
+      "clsx": [
+        "src/lib/utils.ts"
+      ],
+      "tailwind-merge": [
+        "src/lib/utils.ts"
+      ],
+      "zod": [
+        "src/lib/validators/league.validators.ts"
+      ]
+    }
+  },
+  "recommendations": [
+    "Implementare lazy loading per componenti grandi",
+    "Utilizzare dynamic imports per route non critiche",
+    "Ottimizzare import di librerie esterne (es. lucide-react)",
+    "Considerare code splitting per componenti auction",
+    "Verificare utilizzo effettivo di tutte le dipendenze"
+  ]
+}

@@ -6,23 +6,21 @@ import Link from "next/link";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+  Badge,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui";
 import { getLeaguesForAdminList } from "@/lib/db/services/auction-league.service";
 
 // 2. Componente Pagina (Server Component)
