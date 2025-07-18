@@ -57,7 +57,7 @@ export function LeagueActiveRolesManager({
     setSelectedRoles(currentActiveRoles ? currentActiveRoles.split(",") : []);
   }, [currentActiveRoles]);
   useEffect(() => {
-    if (state.message) {
+    if (state && state.message) {
       if (state.success) {
         toast.success("Successo!", { description: state.message });
       } else {

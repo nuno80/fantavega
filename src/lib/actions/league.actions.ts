@@ -81,21 +81,8 @@ export async function createLeague(
         "participants_joining"
       );
       const id = leagueResult.lastInsertRowid as number;
-      const participantStmt = db.prepare(
-        `INSERT INTO league_participants (league_id, user_id, current_budget) VALUES (?, ?, ?)`
-      );
-      participantStmt.run(id, userId, initial_budget_per_manager);
-      const transactionStmt = db.prepare(
-        `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, ?, ?, ?, ?)`
-      );
-      transactionStmt.run(
-        id,
-        userId,
-        "initial_allocation",
-        initial_budget_per_manager,
-        initial_budget_per_manager,
-        "Allocazione budget iniziale"
-      );
+      // Rimosso: L'admin non viene più aggiunto automaticamente come partecipante
+      // Potrà essere aggiunto manualmente dalla dashboard se necessario
       return id;
     });
     newLeagueId = transaction();
@@ -244,12 +231,8 @@ export async function removeParticipantAction(
   if (!leagueId || !participantUserId) {
     return { success: false, message: "Dati mancanti." };
   }
-  if (adminUserId === participantUserId) {
-    return {
-      success: false,
-      message: "Non puoi rimuovere te stesso dalla lega.",
-    };
-  }
+  // Rimosso il controllo che impediva all'admin di rimuovere se stesso
+  // Ora l'admin può essere aggiunto/rimosso come qualsiasi altro partecipante
   try {
     const result = await removeParticipantFromLeague(
       leagueId,
@@ -270,7 +253,70 @@ export async function removeParticipantAction(
   }
 }
 
-// 7. Action: Aggiornare i Ruoli Attivi dell'Asta
+// 7. Action: Eliminare una Lega
+export type DeleteLeagueFormState = { success: boolean; message: string };
+export async function deleteLeagueAction(
+  prevState: DeleteLeagueFormState,
+  formData: FormData
+): Promise<DeleteLeagueFormState> {
+  const { userId: adminUserId } = await auth();
+  if (!adminUserId) {
+    return { success: false, message: "Azione non autorizzata." };
+  }
+
+  const leagueId = Number(formData.get("leagueId"));
+  const confirmationText = formData.get("confirmationText") as string;
+
+  if (!leagueId) {
+    return { success: false, message: "ID lega mancante." };
+  }
+
+  // Verifica che l'utente abbia digitato "ELIMINA" per confermare
+  if (confirmationText !== "ELIMINA") {
+    return { 
+      success: false, 
+      message: "Devi digitare 'ELIMINA' per confermare l'eliminazione." 
+    };
+  }
+
+  try {
+    // Verifica che l'admin sia il creatore della lega
+    const leagueCheck = db.prepare(
+      `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`
+    ).get(leagueId) as { admin_creator_id: string; name: string } | undefined;
+
+    if (!leagueCheck) {
+      return { success: false, message: "Lega non trovata." };
+    }
+
+    if (leagueCheck.admin_creator_id !== adminUserId) {
+      return { 
+        success: false, 
+        message: "Solo il creatore della lega può eliminarla." 
+      };
+    }
+
+    // Elimina la lega (le foreign key CASCADE elimineranno automaticamente i dati correlati)
+    const deleteResult = db.prepare(
+      `DELETE FROM auction_leagues WHERE id = ?`
+    ).run(leagueId);
+
+    if (deleteResult.changes === 0) {
+      return { success: false, message: "Errore durante l'eliminazione." };
+    }
+
+    revalidatePath("/admin/leagues");
+    return { 
+      success: true, 
+      message: `Lega "${leagueCheck.name}" eliminata con successo.` 
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Errore sconosciuto.";
+    return { success: false, message: `Errore durante l'eliminazione: ${errorMessage}` };
+  }
+}
+
+// 8. Action: Aggiornare i Ruoli Attivi dell'Asta
 export type UpdateActiveRolesFormState = { success: boolean; message: string };
 export async function updateActiveRolesAction(
   prevState: UpdateActiveRolesFormState,

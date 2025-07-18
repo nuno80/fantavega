@@ -16,6 +16,7 @@ export default async function AuctionsPage() {
   }
 
   // Verifica se l'utente partecipa ad almeno una lega
+  let hasLeagues = false;
   try {
     // Utilizziamo il servizio DB direttamente per verificare la partecipazione
     const { db } = await import("@/lib/db");
@@ -26,22 +27,23 @@ export default async function AuctionsPage() {
       )
       .get(user.id);
     
-    if (!userLeagues) {
-      // L'utente è registrato ma non partecipa a nessuna lega
-      redirect("/no-access?reason=no-league");
-    }
+    hasLeagues = !!userLeagues;
   } catch (error) {
     console.error("Errore nel verificare la partecipazione alle leghe:", error);
-    redirect("/no-access");
+    hasLeagues = false;
   }
 
   return (
     <div className="flex flex-col h-screen bg-background">
       <Navbar />
       <div className="flex-1 overflow-y-auto">
-        <Suspense fallback={<AuctionPageSkeleton />}>
-          <AuctionPageContent userId={user.id} />
-        </Suspense>
+        {hasLeagues ? (
+          <Suspense fallback={<AuctionPageSkeleton />}>
+            <AuctionPageContent userId={user.id} />
+          </Suspense>
+        ) : (
+          <NoLeagueMessage />
+        )}
       </div>
     </div>
   );
@@ -59,8 +61,56 @@ function AuctionPageSkeleton() {
         </div>
         {/* Bottom Panel Skeleton */}
         <div className="space-y-6">
+
           <div className="h-96 bg-muted animate-pulse rounded-lg" />
           <div className="h-64 bg-muted animate-pulse rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NoLeagueMessage() {
+  return (
+    <div className="container px-4 py-6">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="max-w-md mx-auto">
+          <div className="mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 919.288 0M15 7a3 3 0 11-6 0 3 3 0 616 0zm6 3a2 2 0 11-4 0 2 2 0 414 0zM7 10a2 2 0 11-4 0 2 2 0 414 0z"
+                />
+              </svg>
+            </div>
+          </div>
+          
+          <h2 className="text-2xl font-bold text-foreground mb-3">
+            Accesso Limitato
+          </h2>
+          
+          <p className="text-muted-foreground mb-6 leading-relaxed">
+            Questa pagina puo essere visualizzata solo da utenti iscritti a una lega. 
+            Contatta un amministratore per essere aggiunto a una lega esistente.
+          </p>
+          
+          <div className="space-y-3">
+            <a
+              href="/dashboard"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+            >
+              Torna alla Dashboard
+            </a>
+          </div>
         </div>
       </div>
     </div>

@@ -68,7 +68,7 @@ export function RemoveParticipant({
   );
 
   useEffect(() => {
-    if (state.message) {
+    if (state && state.message) {
       if (state.success) {
         toast.success(state.message);
       } else {

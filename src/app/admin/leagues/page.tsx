@@ -1,11 +1,13 @@
-// src/app/admin/leagues/page.tsx v.1.0
+// src/app/admin/leagues/page.tsx v.1.1
 // Pagina per visualizzare e gestire tutte le leghe create.
 // 1. Importazioni
 import Link from "next/link";
+import { currentUser } from "@clerk/nextjs/server";
 
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
+import { DeleteLeague } from "@/components/admin/DeleteLeague";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +30,7 @@ import { getLeaguesForAdminList } from "@/lib/db/services/auction-league.service
 // 2. Componente Pagina (Server Component)
 export default async function AdminLeaguesPage() {
   // 2.1. Recupero dati diretto
+  const user = await currentUser();
   const leagues = await getLeaguesForAdminList();
 
   // 2.2. JSX per la visualizzazione
@@ -64,7 +67,7 @@ export default async function AdminLeaguesPage() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead className="text-center">Partecipanti</TableHead>
-                  <TableHead className="text-right">Azione</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -93,11 +96,22 @@ export default async function AdminLeaguesPage() {
                         {league.participantCount}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link href={`/admin/leagues/${league.id}/dashboard`}>
-                          <Button variant="outline" size="icon">
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/admin/leagues/${league.id}/dashboard`}>
+                            <Button variant="outline" size="sm">
+                              <ArrowRight className="h-4 w-4 mr-1" />
+                              Gestisci
+                            </Button>
+                          </Link>
+                          {user && (
+                            <DeleteLeague
+                              leagueId={league.id}
+                              leagueName={league.name}
+                              participantCount={league.participantCount}
+                              isCreator={league.adminCreatorId === user.id}
+                            />
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

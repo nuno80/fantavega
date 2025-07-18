@@ -1104,6 +1104,7 @@ export interface LeagueForAdminList {
   status: string;
   leagueType: string;
   participantCount: number;
+  adminCreatorId: string;
 }
 
 // 7.2. Funzione per recuperare tutte le leghe per la vista admin
@@ -1117,6 +1118,7 @@ export async function getLeaguesForAdminList(): Promise<LeagueForAdminList[]> {
         al.name,
         al.status,
         al.league_type as leagueType,
+        al.admin_creator_id as adminCreatorId,
         (SELECT COUNT(*) FROM league_participants lp WHERE lp.league_id = al.id) as participantCount
       FROM
         auction_leagues al

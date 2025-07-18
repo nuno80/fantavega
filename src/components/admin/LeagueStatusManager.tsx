@@ -70,7 +70,7 @@ export function LeagueStatusManager({
   ];
 
   useEffect(() => {
-    if (state.message) {
+    if (state && state.message) {
       if (state.success) {
         toast.success("Successo!", { description: state.message });
       } else {

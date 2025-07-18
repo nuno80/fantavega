@@ -58,7 +58,7 @@ export function EditTeamName({
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (state.message) {
+    if (state && state.message) {
       if (state.success) {
         toast.success(state.message);
         setIsOpen(false); // Chiudi il popover in caso di successo

@@ -70,7 +70,7 @@ export function AddParticipantForm({
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (state.message) {
+    if (state && state.message) {
       if (state.success) {
         toast.success("Successo!", { description: state.message });
         formRef.current?.reset();
@@ -108,13 +108,26 @@ export function AddParticipantForm({
                 </SelectTrigger>
                 <SelectContent>
                   {eligibleUsers.map((user) => {
-                    // Costruisce un nome leggibile, con fallback
-                    const displayName =
-                      [user.lastName, user.firstName]
+                    // Costruisce un nome leggibile, con fallback migliorato
+                    let displayName = "";
+                    
+                    // Prova prima nome e cognome
+                    if (user.firstName || user.lastName) {
+                      displayName = [user.firstName, user.lastName]
                         .filter(Boolean)
-                        .join(" ") ||
-                      user.username ||
-                      user.id;
+                        .join(" ");
+                    }
+                    
+                    // Se non ha nome/cognome, usa username
+                    if (!displayName && user.username) {
+                      displayName = user.username;
+                    }
+                    
+                    // Ultimo fallback: mostra ID ma in formato piu leggibile
+                    if (!displayName) {
+                      displayName = `Utente ${user.id.slice(-8)}`;
+                    }
+                    
                     return (
                       <SelectItem key={user.id} value={user.id}>
                         {displayName}

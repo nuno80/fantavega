@@ -1,5 +1,6 @@
--- database/schema.sql v.1.2
--- Schema completo del database con ottimizzazioni degli indici e tabella per compliance penalità.
+-- database/schema.sql v.1.3
+-- Schema completo del database con ottimizzazioni degli indici, tabella per compliance penalità,
+-- preferenze utente per giocatori e aggiornamenti timer di risposta.
 
 -- Tabella Utenti (estende informazioni da Clerk)
 CREATE TABLE IF NOT EXISTS users (
@@ -217,10 +218,36 @@ CREATE TABLE IF NOT EXISTS user_auction_response_timers (
     notified_at INTEGER DEFAULT (strftime('%s', 'now')), 
     response_deadline INTEGER NOT NULL, 
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'action_taken', 'deadline_missed')),
+    last_reset_at INTEGER DEFAULT NULL,
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(auction_id, user_id, status)
+    UNIQUE(auction_id, user_id)
 );
+
+-- Tabella Preferenze Utente per Giocatori (per lega)
+CREATE TABLE IF NOT EXISTS user_player_preferences (
+    user_id TEXT NOT NULL,
+    player_id INTEGER NOT NULL,
+    league_id INTEGER NOT NULL,
+    is_starter BOOLEAN DEFAULT FALSE,
+    is_favorite BOOLEAN DEFAULT FALSE,
+    integrity_value INTEGER DEFAULT 0,
+    has_fmv BOOLEAN DEFAULT FALSE,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+    
+    PRIMARY KEY (user_id, player_id, league_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+    FOREIGN KEY (league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE
+);
+
+-- Indici per performance delle preferenze utente
+CREATE INDEX IF NOT EXISTS idx_user_player_preferences_user_league 
+ON user_player_preferences(user_id, league_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_player_preferences_player_league 
+ON user_player_preferences(player_id, league_id);
 
 -- NUOVA TABELLA: Per Tracciare lo Stato di Conformità dell'Utente ai Requisiti di Rosa per Lega/Fase
 CREATE TABLE IF NOT EXISTS user_league_compliance_status (
