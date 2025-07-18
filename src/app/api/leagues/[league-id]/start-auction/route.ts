@@ -57,12 +57,13 @@ export async function POST(
 
     // Verify league exists and is in correct status
     const league = db
-      .prepare("SELECT id, status, min_bid, timer_duration_minutes FROM auction_leagues WHERE id = ?")
+      .prepare("SELECT id, status, min_bid, timer_duration_minutes, config_json FROM auction_leagues WHERE id = ?")
       .get(leagueId) as {
         id: number;
         status: string;
         min_bid: number;
         timer_duration_minutes: number;
+        config_json: string;
       } | undefined;
 
     if (!league) {
@@ -78,10 +79,11 @@ export async function POST(
 
     // Check if player exists and is not already assigned or in auction
     const player = db
-      .prepare("SELECT id, name FROM players WHERE id = ?")
+      .prepare("SELECT id, name, current_quotation FROM players WHERE id = ?")
       .get(playerId) as {
         id: number;
         name: string;
+        current_quotation: number;
       } | undefined;
 
     if (!player) {
@@ -106,8 +108,21 @@ export async function POST(
       return NextResponse.json({ error: "Esiste già un'asta attiva per questo giocatore" }, { status: 400 });
     }
 
-    // Start the auction with specified bid or minimum bid using user as initial bidder
-    const finalBidAmount = bidAmount || league.min_bid;
+    // Determine the minimum bid based on league configuration
+    let minimumBid = league.min_bid; // Default fallback
+    
+    try {
+      const config = JSON.parse(league.config_json);
+      if (config.min_bid_rule === "player_quotation" && player.current_quotation > 0) {
+        minimumBid = player.current_quotation;
+      }
+    } catch (error) {
+      console.error("Error parsing league config_json:", error);
+      // Use default min_bid if config parsing fails
+    }
+    
+    // Start the auction with specified bid or calculated minimum bid using user as initial bidder
+    const finalBidAmount = bidAmount || minimumBid;
     const auctionResult = await placeInitialBidAndCreateAuction(
       leagueId,
       playerId,
