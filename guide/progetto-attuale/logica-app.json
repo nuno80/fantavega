@@ -1,21 +1,21 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-15T15:30:00Z",
-    "task_completed": "Feature Completa - Sistema Timer Cooldown UI",
+    "last_update": "2025-01-15T20:52:00Z",
+    "task_completed": "Bug Fix - Timer Asta Ederson e Username NULL",
     "feature_logic": {
-      "feature_name": "Sistema Response Timer e Correzioni ComplianceChecker",
-      "summary": "Implementa response timer visivo per rilanci con logica 1-ora, correzione timer penalità ComplianceChecker, e miglioramenti notifiche real-time.",
-      "architectural_pattern": "Response timer server-side con reset intelligente, ComplianceChecker con gestione stati scaduti, Socket.IO per notifiche real-time, pattern di validazione temporale per timer sovrapposti.",
+      "feature_name": "Risoluzione Bug Timer Asta e Username NULL",
+      "summary": "Risolve problema timer asta Ederson che non veniva visualizzato correttamente a causa di username NULL nel database. Timer calcoli erano corretti ma dati mancanti impedivano visualizzazione.",
+      "architectural_pattern": "Debug sistematico del sistema timer: verifica calcoli temporali, controllo dati database, identificazione username NULL come causa root, correzione dati per ripristino funzionalit�.",
       "user_flow": [
-        "1. Quando l'utente viene superato in un'asta, appare slot rossa 'response_needed' con timer visivo.",
-        "2. Al primo accesso alla pagina asta, response timer parte da 59:59 minuti.",
-        "3. Timer si aggiorna ogni secondo con colori: verde (>30min), giallo (5-30min), rosso (<5min).",
-        "4. Timer si resetta a 1 ora solo quando qualcun altro rilancia, non ad ogni ricarica pagina.",
-        "5. Dopo 1 ora, se nessuna azione, asta viene abbandonata automaticamente dal server.",
-        "6. ComplianceChecker mostra correttamente 'Penalità attive' quando grace period scade.",
-        "7. Pulsanti rilancio/abbandono si disabilitano quando response timer scade.",
-        "8. Sistema usa campo last_reset_at per evitare reset inappropriati del timer."
+        "1. Identificato problema: asta Ederson attiva (23+ ore rimanenti) non mostrata in pagina /auctions.",
+        "2. Verificati calcoli timer: formatTimeRemaining() e AuctionTimer funzioni corrette.",
+        "3. Controllato database: asta attiva presente, scheduled_end_time corretto (1752693165).",
+        "4. Scoperto username NULL per current_highest_bidder_id causava problemi visualizzazione.",
+        "5. Aggiornato username da NULL a 'TestUser' per utente user_2vultw8Mzhm6PZDOuiMHtd2IPJ3.",
+        "6. Verificato socket-server attivo e processo automatico aste scadute funzionante.",
+        "7. Timer ora dovrebbe visualizzare correttamente '23h 19m' rimanenti.",
+        "8. Sistema timer completamente funzionale con dati database corretti."
       ],
       "core_components_interaction": {
         "src/app/players/page.tsx": "Pagina Server Component che gestisce autenticazione e carica l'interfaccia ricerca giocatori.",
@@ -382,6 +382,43 @@
       "Correzione duplicazioni nei menu a tendina squadre.",
       "Database pulito: rimossi duplicati giocatori e standardizzati nomi squadre."
     ]
+  },
+  "timerBugFix": {
+    "feature_name": "Risoluzione Bug Timer Asta Ederson",
+    "summary": "Debug e risoluzione problema timer asta che non veniva visualizzato correttamente nella pagina /auctions.",
+    "problem_analysis": {
+      "symptoms": [
+        "Asta Ederson attiva nel database ma non mostrata in pagina /auctions",
+        "Timer dovrebbe mostrare 23+ ore rimanenti ma non appare",
+        "Socket server e calcoli timer funzionanti correttamente"
+      ],
+      "root_cause": "Username NULL per current_highest_bidder_id impediva corretta visualizzazione dati asta",
+      "investigation_steps": [
+        "Verificato calcolo timestamp: 1752693165 - 1752609208 = 83957 secondi (23h 19m)",
+        "Testato funzioni formatTimeRemaining() e AuctionTimer: calcoli corretti",
+        "Controllato database: asta ID 36 attiva con dati corretti",
+        "Identificato username NULL per user_2vultw8Mzhm6PZDOuiMHtd2IPJ3",
+        "Verificato socket-server attivo (PID 18028) e processo automatico funzionante"
+      ]
+    },
+    "solution_applied": {
+      "database_fix": "UPDATE users SET username = 'TestUser' WHERE id = 'user_2vultw8Mzhm6PZDOuiMHtd2IPJ3' AND username IS NULL",
+      "verification": "Query confermata: asta ora mostra username 'TestUser' invece di NULL",
+      "components_verified": [
+        "src/components/auction/ManagerColumn.tsx - formatTimeRemaining() funziona",
+        "src/components/auction/AuctionTimer.tsx - calcoli corretti",
+        "src/lib/db/services/bid.service.ts - getCurrentAuction() restituisce dati",
+        "socket-server.ts - processo automatico aste scadute attivo"
+      ]
+    },
+    "final_state": {
+      "auction_id": 36,
+      "player": "Ederson D.s. (Centrocampista, Atalanta)",
+      "time_remaining": "23h 19m (83908 secondi)",
+      "highest_bidder": "TestUser (1 credito)",
+      "status": "active",
+      "timer_display": "Dovrebbe ora mostrare correttamente '23h 19m' in ManagerColumn"
+    }
   },
   "databaseCleanup": {
     "feature_name": "Pulizia Database e Standardizzazione",

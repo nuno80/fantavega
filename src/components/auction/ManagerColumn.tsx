@@ -83,6 +83,14 @@ interface ManagerColumnProps {
   leagueId?: number;
 }
 
+const useIsMounted = () => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  return mounted;
+};
+
 // Helper functions
 const getRoleColor = (role: string) => {
   switch (role.toUpperCase()) {
@@ -336,9 +344,20 @@ function InAuctionSlot({
   leagueId?: number;
 }) {
   const [playerAutoBid, setPlayerAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
+  const [timeInfo, setTimeInfo] = useState({ text: "...", color: "text-white" });
+  const isMounted = useIsMounted();
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const updateTimer = () => {
+      setTimeInfo(formatTimeRemaining(auction.scheduled_end_time));
+    };
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [auction.scheduled_end_time, isMounted]);
   
   const autoBidIndicator = autoBids.find(ab => ab.player_id === auction.player_id);
-  const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
   const roleTextColor = getRoleTextColor(role);
   
@@ -401,7 +420,7 @@ function InAuctionSlot({
           )}
           <span className={`text-green-400 font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
         </div>
-        <span className={`ml-2 ${timeInfo.color} ${timeInfo.color === 'text-red-500' && timeInfo.text.includes('s') ? 'animate-pulse' : ''}`}>
+        <span suppressHydrationWarning className={`ml-2 ${timeInfo.color} ${timeInfo.color === 'text-red-500' && timeInfo.text.includes('s') ? 'animate-pulse' : ''}`}>
           {timeInfo.text}
         </span>
       </div>
@@ -524,6 +543,12 @@ export function ManagerColumn({
     // Add auctions for this role (excluding those with response needed states for current user)
     activeAuctionsForRole.forEach(auction => {
       const hasResponseState = isCurrentUser && statesForRole.some(s => s.player_id === auction.player_id);
+      
+      // Debug per Ederson
+      if (auction.player_name.includes('Ederson')) {
+        console.log(`[DEBUG EDERSON SLOT] role: ${role}, isCurrentUser: ${isCurrentUser}, hasResponseState: ${hasResponseState}, statesForRole:`, statesForRole);
+      }
+      
       if (!hasResponseState) {
         slots.push({ type: 'in_auction', auction });
       }

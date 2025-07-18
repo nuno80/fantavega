@@ -2,6 +2,13 @@
 // Aggiunta l'importazione mancante di clerkClient.
 // 1. Importazioni
 import { clerkClient } from "@clerk/nextjs/server";
+import {
+  ActiveAuction,
+  AutoBidIndicator,
+  LeagueSlots,
+  Manager,
+  PlayerInRoster,
+} from "@/types/auction";
 
 import { db } from "@/lib/db";
 
@@ -1168,45 +1175,8 @@ export async function updateParticipantTeamName(
 }
 
 // Funzione per ottenere tutti i dati dei manager per la pagina asta
-interface LeagueSlots {
-  slots_P: number;
-  slots_D: number;
-  slots_C: number;
-  slots_A: number;
-}
-interface ActiveAuction {
-  player_id: number;
-  player_name: string;
-  player_role: string;
-  player_team: string;
-  current_highest_bidder_id: string | null;
-  current_highest_bid_amount: number;
-  scheduled_end_time: number;
-  status: string;
-}
-interface AutoBidIndicator {
-  player_id: number;
-  auto_bid_count: number;
-}
-interface PlayerInRoster {
-  id: number;
-  name: string;
-  role: string;
-  team: string;
-  assignment_price: number;
-}
 interface AssignmentQueryResult extends PlayerInRoster {
   user_id: string;
-}
-interface Manager {
-  user_id: string;
-  manager_team_name: string;
-  current_budget: number;
-  locked_credits: number;
-  total_budget: number;
-  firstName?: string;
-  lastName?: string;
-  players: PlayerInRoster[];
 }
 
 export async function getLeagueManagersAndData(leagueId: number): Promise<{
@@ -1256,14 +1226,19 @@ export async function getLeagueManagersAndData(leagueId: number): Promise<{
   // 5. Get all active auctions
   const activeAuctionsStmt = db.prepare(`
     SELECT 
+      a.id,
+      a.auction_league_id as league_id,
       a.player_id,
       p.name as player_name,
       p.role as player_role,
       p.team as player_team,
       a.current_highest_bidder_id,
       a.current_highest_bid_amount,
+      a.start_time,
       a.scheduled_end_time,
-      a.status
+      a.status,
+      a.created_at,
+      a.updated_at
     FROM auctions a
     JOIN players p ON a.player_id = p.id
     WHERE a.auction_league_id = ? AND a.status = 'active'

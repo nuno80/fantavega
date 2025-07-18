@@ -907,7 +907,7 @@ export const getCurrentAuction = async (leagueId: number): Promise<AuctionStatus
     player_role: auctionData.player_role,
     player_team: auctionData.player_team,
     current_highest_bid_amount: auctionData.current_highest_bid_amount,
-    time_remaining: timeRemainingSeconds,
+    time_remaining_seconds: timeRemainingSeconds,
   };
 };
 

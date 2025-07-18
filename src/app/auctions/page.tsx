@@ -6,7 +6,8 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 import { Navbar } from "@/components/navbar";
-import { AuctionPageContent, type InitialAuctionData } from "./AuctionPageContent";
+import { AuctionPageContent } from "./AuctionPageContent";
+import type { InitialAuctionData } from "../../types/auction";
 import * as leagueService from "@/lib/db/services/auction-league.service";
 import * as budgetService from "@/lib/db/services/budget.service";
 import * as auctionStateService from "@/lib/db/services/auction-states.service";
@@ -32,6 +33,19 @@ async function getAuctionPageData(userId: string): Promise<InitialAuctionData> {
     budgetService.getUserBudgetForLeague(userId, league.id),
     bidService.getCurrentAuction(league.id),
   ]);
+
+  // DEBUG: Log del caricamento dati server-side
+  console.log("=== SERVER-SIDE DEBUG ===");
+  console.log("League ID:", league.id);
+  console.log("User ID:", userId);
+  console.log("currentAuction from server:", currentAuction);
+  console.log("currentAuction type:", typeof currentAuction);
+  console.log("currentAuction null?", currentAuction === null);
+  if (currentAuction) {
+    console.log("currentAuction.player_name:", currentAuction.player_name);
+    console.log("currentAuction.time_remaining_seconds:", currentAuction.time_remaining_seconds);
+  }
+  console.log("=== END SERVER DEBUG ===");
 
   let bidHistory: BidRecord[] = [];
   let userAutoBid = null;
