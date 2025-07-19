@@ -21,7 +21,11 @@ const isAdminRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/api/admin/(.*)",
 ]);
-const isAuthenticatedRoute = createRouteMatcher(["/features(.*)"]);
+const isAuthenticatedRoute = createRouteMatcher([
+  "/features(.*)",
+  "/api/user/(.*)",
+  "/api/leagues/(.*)"
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims } = await auth();

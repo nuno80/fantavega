@@ -3,13 +3,16 @@
 
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { getUsersWithPendingResponse } from "@/lib/db/services/auction-states.service";
 import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
+    console.log('[USER_AUCTION_STATES] Starting API call...');
+    
     // Autenticazione
     const user = await currentUser();
+    console.log('[USER_AUCTION_STATES] User check:', user?.id ? 'authenticated' : 'not authenticated');
+    
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -17,6 +20,7 @@ export async function GET(request: Request) {
     // Ottieni leagueId dalla query string
     const url = new URL(request.url);
     const leagueId = url.searchParams.get('leagueId');
+    console.log('[USER_AUCTION_STATES] LeagueId from query:', leagueId);
     
     if (!leagueId) {
       return NextResponse.json({ error: "leagueId required" }, { status: 400 });
@@ -25,8 +29,6 @@ export async function GET(request: Request) {
     console.log(`[USER_AUCTION_STATES] Fetching states for user: ${user.id}, league: ${leagueId}`);
 
     // RESET RESPONSE TIMERS: Solo se non sono stati resettati di recente
-    // Resetta solo i timer che non hanno last_reset_at o che sono stati creati/aggiornati 
-    // dopo l'ultimo reset (significa che c'è stato un nuovo rilancio)
     const now = Math.floor(Date.now() / 1000);
     const newDeadline = now + 3600; // 1 ora da ora
     
@@ -56,51 +58,36 @@ export async function GET(request: Request) {
         p.name as player_name,
         a.current_highest_bidder_id,
         a.current_highest_bid_amount,
-        a.user_auction_states,
         urt.response_deadline
       FROM auctions a
       JOIN players p ON a.player_id = p.id
       LEFT JOIN user_auction_response_timers urt ON a.id = urt.auction_id AND urt.user_id = ? AND urt.status = 'pending'
       WHERE a.auction_league_id = ? 
         AND a.status = 'active'
-        AND (a.current_highest_bidder_id = ? OR a.user_auction_states LIKE '%"${user.id}"%')
+        AND a.current_highest_bidder_id = ?
     `).all(user.id, leagueId, user.id) as Array<{
       auction_id: number;
       player_id: number;
       player_name: string;
       current_highest_bidder_id: string;
       current_highest_bid_amount: number;
-      user_auction_states: string;
       response_deadline: number | null;
     }>;
 
     const statesWithDetails = userStates.map(auction => {
-      let userState = 'miglior_offerta'; // Default
-      
-      // Se sei il miglior offerente, sei sempre in stato 'miglior_offerta'
-      if (auction.current_highest_bidder_id === user.id) {
-        userState = 'miglior_offerta';
-      } else {
-        // Altrimenti controlla gli stati salvati
-        try {
-          const states = auction.user_auction_states ? JSON.parse(auction.user_auction_states) : {};
-          userState = states[user.id] || 'miglior_offerta';
-        } catch (e) {
-          userState = 'miglior_offerta';
-        }
-      }
-
+      // Dato che la query ora filtra solo per current_highest_bidder_id = user.id,
+      // tutti i risultati sono aste dove l'utente è il miglior offerente
       return {
         auction_id: auction.auction_id,
         player_id: auction.player_id,
         player_name: auction.player_name,
         current_bid: auction.current_highest_bid_amount,
-        user_state: userState,
+        user_state: 'miglior_offerta',
         response_deadline: auction.response_deadline,
         time_remaining: auction.response_deadline ? Math.max(0, auction.response_deadline - Math.floor(Date.now() / 1000)) : null,
-        is_highest_bidder: auction.current_highest_bidder_id === user.id
+        is_highest_bidder: true
       };
-    }).filter(state => state.user_state !== 'asta_abbandonata'); // Escludi completamente le aste abbandonate
+    });
 
     console.log(`[USER_AUCTION_STATES] Returning ${statesWithDetails.length} auction states:`, statesWithDetails);
 

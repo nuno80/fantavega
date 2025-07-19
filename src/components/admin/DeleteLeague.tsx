@@ -3,9 +3,8 @@
 
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Trash2, AlertTriangle } from "lucide-react";
-import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
 // Componenti UI
@@ -45,11 +44,10 @@ interface DeleteLeagueProps {
   isCreator: boolean;
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ isPending }: { isPending: boolean }) {
   return (
-    <Button type="submit" variant="destructive" disabled={pending}>
-      {pending ? "Eliminando..." : "Elimina Definitivamente"}
+    <Button type="submit" variant="destructive" disabled={isPending}>
+      {isPending ? "Eliminando..." : "Elimina Definitivamente"}
     </Button>
   );
 }
@@ -60,24 +58,34 @@ export function DeleteLeague({
   participantCount,
   isCreator,
 }: DeleteLeagueProps) {
-  const initialState: DeleteLeagueFormState = { success: false, message: "" };
-  const [state, formAction] = useActionState(deleteLeagueAction, initialState);
+  const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
-  useEffect(() => {
-    if (state && state.message) {
-      if (state.success) {
-        toast.success("Successo!", { description: state.message });
-        setIsDialogOpen(false);
-        setShowFinalConfirm(false);
-        setConfirmationText("");
-      } else {
-        toast.error("Errore", { description: state.message });
+  const handleSubmit = async (formData: FormData) => {
+    startTransition(async () => {
+      try {
+        const result = await deleteLeagueAction(
+          { success: false, message: "" },
+          formData
+        );
+        
+        if (result.success) {
+          toast.success("Successo!", { description: result.message });
+          setIsDialogOpen(false);
+          setShowFinalConfirm(false);
+          setConfirmationText("");
+        } else {
+          toast.error("Errore", { description: result.message });
+        }
+      } catch (error) {
+        toast.error("Errore", { 
+          description: "Si è verificato un errore durante l'eliminazione" 
+        });
       }
-    }
-  }, [state]);
+    });
+  };
 
   // Solo il creatore può eliminare la lega
   if (!isCreator) {
@@ -148,7 +156,7 @@ export function DeleteLeague({
           </div>
         ) : (
           // Seconda fase: Conferma finale con digitazione
-          <form action={formAction} className="space-y-4 py-4">
+          <form action={handleSubmit} className="space-y-4 py-4">
             <input type="hidden" name="leagueId" value={leagueId} />
             <input type="hidden" name="confirmationText" value={confirmationText} />
 
@@ -172,7 +180,7 @@ export function DeleteLeague({
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Annulla
               </Button>
-              <SubmitButton />
+              <SubmitButton isPending={isPending} />
             </DialogFooter>
           </form>
         )}
