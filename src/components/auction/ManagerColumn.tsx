@@ -516,12 +516,10 @@ export function ManagerColumn({
     
     assignedPlayers.forEach(player => slots.push({ type: 'assigned', player }));
     
-    // Add response needed states (priority over regular auctions for current user)
-    if (isCurrentUser) {
-      statesForRole.forEach(state => {
-        slots.push({ type: 'response_needed', state });
-      });
-    }
+    // Add response needed states (priority over regular auctions)
+    statesForRole.forEach(state => {
+      slots.push({ type: 'response_needed', state });
+    });
     
     // Add auctions for this role (excluding those with response needed states for current user)
     activeAuctionsForRole.forEach(auction => {

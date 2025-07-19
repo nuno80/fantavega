@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
+INSERT OR IGNORE INTO users (id, email, role) VALUES ('user_2vJ5o9wgDIZM6wtwEx8XW36PrOe', 'nuno.80.al@gmail.com', 'admin');
+
 -- Tabella Giocatori (dal file Excel e dati applicativi)
 CREATE TABLE IF NOT EXISTS players (
     id INTEGER PRIMARY KEY,

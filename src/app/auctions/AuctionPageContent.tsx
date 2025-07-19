@@ -246,8 +246,27 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   useEffect(() => {
     if (!isConnected || !socket || !selectedLeagueId) return;
 
+    const leagueIdString = selectedLeagueId.toString();
+
     // Join league room
-    socket.emit("join-league-room", selectedLeagueId.toString());
+    socket.emit("join-league-room", leagueIdString);
+
+    // Immediately fetch user auction states on connection
+    const fetchUserAuctionStates = async () => {
+      try {
+        const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${selectedLeagueId}`);
+        if (auctionStatesResponse.ok) {
+          const statesData = await auctionStatesResponse.json();
+          setUserAuctionStates(statesData.states || []);
+        } else {
+          console.error("Failed to fetch auction states on connection");
+        }
+      } catch (error) {
+        console.error("Error fetching auction states on connection:", error);
+      }
+    };
+
+    fetchUserAuctionStates();
 
     // Auto-process expired auctions every 30 seconds
     const processExpiredAuctions = async () => {

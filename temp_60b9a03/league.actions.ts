@@ -34,33 +34,20 @@ export async function createLeague(
   prevState: CreateLeagueFormState,
   formData: FormData
 ): Promise<CreateLeagueFormState> {
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
   if (!userId) {
     return { success: false, message: "Utente non autenticato." };
   }
-
-  // Check if the user has the 'admin' role
-  const isAdmin = sessionClaims?.metadata?.role === "admin";
-  if (!isAdmin) {
-    return { success: false, message: "Non sei autorizzato a creare leghe." };
-  }
-
   const data = Object.fromEntries(formData.entries());
-  console.log("[createLeague] Dati ricevuti dal form:", data);
-
   const validated = CreateLeagueSchema.safeParse(data);
   if (!validated.success) {
-    console.log(
-      "[createLeague] Errore di validazione:",
-      validated.error.flatten().fieldErrors
-    );
     return {
       success: false,
       message: "Errore di validazione.",
       errors: validated.error.flatten().fieldErrors,
     };
   }
-
+  let newLeagueId: number;
   try {
     const {
       name,
@@ -74,26 +61,12 @@ export async function createLeague(
       min_bid_rule,
       min_bid,
     } = validated.data;
-
     const config_json = JSON.stringify({ min_bid_rule: min_bid_rule });
-
-    let newLeagueId: number;
-    
     const transaction = db.transaction(() => {
-      let fields = [
-        "name",
-        "league_type",
-        "initial_budget_per_manager",
-        "admin_creator_id",
-        "slots_P",
-        "slots_D",
-        "slots_C",
-        "slots_A",
-        "timer_duration_minutes",
-        "config_json",
-        "status",
-      ];
-      let values = [
+      const leagueStmt = db.prepare(
+        `INSERT INTO auction_leagues (name, league_type, initial_budget_per_manager, admin_creator_id, slots_P, slots_D, slots_C, slots_A, timer_duration_minutes, min_bid, config_json, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      const leagueResult = leagueStmt.run(
         name,
         league_type,
         initial_budget_per_manager,
@@ -103,40 +76,17 @@ export async function createLeague(
         slots_C,
         slots_A,
         timer_duration_minutes,
+        min_bid_rule === "fixed" ? min_bid : 1,
         config_json,
-        "participants_joining",
-      ];
-
-      if (min_bid_rule === "fixed") {
-        if (min_bid === undefined) {
-          throw new Error("Min bid is required for fixed bid rule");
-        }
-        fields.push("min_bid");
-        values.push(min_bid.toString());
-      }
-
-      const leagueStmt = db.prepare(
-        `INSERT INTO auction_leagues (${fields.join(", ")}) VALUES (${fields
-          .map(() => "?")
-          .join(", ")})`
+        "participants_joining"
       );
-
-      console.log("[createLeague] Query SQL:", leagueStmt.source);
-      console.log("[createLeague] Valori:", values);
-      
-      const leagueResult = leagueStmt.run(...values);
       const id = leagueResult.lastInsertRowid as number;
+      // Rimosso: L'admin non viene più aggiunto automaticamente come partecipante
+      // Potrà essere aggiunto manualmente dalla dashboard se necessario
       return id;
     });
     newLeagueId = transaction();
-    console.log("[createLeague] Lega creata con ID:", newLeagueId);
-    revalidatePath("/admin/leagues");
-    return { 
-      success: true, 
-      message: `Lega creata con successo.` 
-    };
   } catch (error) {
-    console.error("[createLeague] Errore durante la creazione della lega:", error);
     if (
       error instanceof Error &&
       error.message.includes("UNIQUE constraint failed")
@@ -146,14 +96,14 @@ export async function createLeague(
         message: "Errore: Esiste già una lega con questo nome.",
         errors: { name: ["Questo nome è già in uso."] },
       };
-    } else {
-      console.error("[createLeague] Errore Dettagliato:", error);
-      return {
-        success: false,
-        message: "Errore imprevisto durante la creazione.",
-      };
     }
+    return {
+      success: false,
+      message: "Errore imprevisto durante la creazione.",
+    };
   }
+  revalidatePath("/admin/leagues");
+  redirect(`/admin/leagues/${newLeagueId}/dashboard`);
 }
 
 // 3. Action: Aggiungere un Partecipante

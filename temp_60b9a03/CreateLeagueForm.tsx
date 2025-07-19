@@ -86,7 +86,7 @@ export function CreateLeagueForm() {
       <CardHeader>
         <CardTitle>Crea una Nuova Lega</CardTitle>
         <CardDescription>
-          Inserisci i dettagli per configurare la tua nuova lega d'asta.
+          Inserisci i dettagli per configurare la tua nuova lega d&apos;asta.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -182,9 +182,8 @@ export function CreateLeagueForm() {
                   name="min_bid"
                   type="number"
                   defaultValue="1"
-                  required
                 />
-                 {state.errors?.min_bid && (
+                {state.errors?.min_bid && (
                   <p className="mt-1 text-sm text-red-500">
                     {state.errors.min_bid[0]}
                   </p>
