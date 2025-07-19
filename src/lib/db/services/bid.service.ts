@@ -194,27 +194,41 @@ export const placeInitialBidAndCreateAuction = async (
   const result = db.transaction(() => {
     const now = Math.floor(Date.now() / 1000);
     const leagueStmt = db.prepare(
-      "SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
+      "SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A, config_json FROM auction_leagues WHERE id = ?"
     );
     const league = leagueStmt.get(leagueIdParam) as
-      | LeagueForBidding
+      | (LeagueForBidding & { config_json: string })
       | undefined;
     if (!league) throw new Error(`Lega con ID ${leagueIdParam} non trovata.`);
     if (league.status !== "draft_active" && league.status !== "repair_active")
       throw new Error(
         `Le offerte non sono attive per la lega (status: ${league.status}).`
       );
-    if (bidAmountParam < league.min_bid)
-      throw new Error(
-        `L'offerta è inferiore all'offerta minima di ${league.min_bid}.`
-      );
 
-    const playerStmt = db.prepare("SELECT id, role FROM players WHERE id = ?");
+    const playerStmt = db.prepare("SELECT id, role, name, current_quotation FROM players WHERE id = ?");
     const player = playerStmt.get(playerIdParam) as
-      | PlayerForBidding
+      | (PlayerForBidding & { current_quotation: number })
       | undefined;
     if (!player)
       throw new Error(`Giocatore con ID ${playerIdParam} non trovato.`);
+
+    // Determine the minimum bid based on league configuration
+    let minimumBid = league.min_bid; // Default fallback
+    
+    try {
+      const config = JSON.parse(league.config_json);
+      if (config.min_bid_rule === "player_quotation" && player.current_quotation > 0) {
+        minimumBid = player.current_quotation;
+      }
+    } catch (error) {
+      console.error("Error parsing league config_json:", error);
+      // Use default min_bid if config parsing fails
+    }
+    
+    if (bidAmountParam < minimumBid)
+      throw new Error(
+        `L'offerta è inferiore all'offerta minima di ${minimumBid} crediti.`
+      );
 
     // Check if player role is in active auction roles
     if (league.active_auction_roles) {

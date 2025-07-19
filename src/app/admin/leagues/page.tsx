@@ -7,7 +7,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
-import { DeleteLeague } from "@/components/admin/DeleteLeague";
+// import { DeleteLeague } from "@/components/admin/DeleteLeague";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,14 +103,7 @@ export default async function AdminLeaguesPage() {
                               Gestisci
                             </Button>
                           </Link>
-                          {user && (
-                            <DeleteLeague
-                              leagueId={league.id}
-                              leagueName={league.name}
-                              participantCount={league.participantCount}
-                              isCreator={league.adminCreatorId === user.id}
-                            />
-                          )}
+                          {/* DeleteLeague temporaneamente disabilitato - problema React 19 */}
                         </div>
                       </TableCell>
                     </TableRow>

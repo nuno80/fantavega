@@ -33,6 +33,7 @@ interface StandardBidModalProps {
     max_amount: number;
     is_active: boolean;
   } | null; // Auto-bid esistente dell'utente (solo per rilanci)
+  playerQtA?: number; // QtA del giocatore per nuove aste
 }
 
 interface UserBudgetInfo {
@@ -63,7 +64,8 @@ export function StandardBidModal({
   isNewAuction = false,
   onBidSuccess,
   title = "Fai un'offerta",
-  existingAutoBid = null
+  existingAutoBid = null,
+  playerQtA = 1
 }: StandardBidModalProps) {
   const [bidAmount, setBidAmount] = useState(currentBid + 1);
   const [maxAmount, setMaxAmount] = useState(currentBid + 10);
@@ -110,7 +112,7 @@ export function StandardBidModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      const initialBid = isNewAuction ? 1 : currentBid + 1;
+      const initialBid = isNewAuction ? playerQtA : currentBid + 1;
       setBidAmount(initialBid);
       
       // Use existing auto-bid data if available
@@ -125,14 +127,15 @@ export function StandardBidModal({
       
       setIsSubmitting(false);
     }
-  }, [isOpen, currentBid, isNewAuction, existingAutoBid, fetchedAutoBid]);
+  }, [isOpen, currentBid, isNewAuction, existingAutoBid, fetchedAutoBid, playerQtA]);
 
   const availableBudget = userBudget ? userBudget.current_budget - userBudget.locked_credits : 0;
-  const minValidBid = isNewAuction ? 1 : currentBid + 1;
+  const minValidBid = isNewAuction ? playerQtA : currentBid + 1;
   const canSubmitBid = bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
-    setBidAmount(currentBid + increment);
+    const baseAmount = isNewAuction ? playerQtA : currentBid;
+    setBidAmount(baseAmount + increment);
   };
 
   const handleSubmitBid = async () => {
@@ -285,7 +288,7 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(1)}
-                disabled={currentBid + 1 > availableBudget}
+                disabled={(isNewAuction ? playerQtA : currentBid) + 1 > availableBudget}
               >
                 +1
               </Button>
@@ -293,7 +296,7 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(5)}
-                disabled={currentBid + 5 > availableBudget}
+                disabled={(isNewAuction ? playerQtA : currentBid) + 5 > availableBudget}
               >
                 +5
               </Button>
@@ -301,7 +304,7 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(10)}
-                disabled={currentBid + 10 > availableBudget}
+                disabled={(isNewAuction ? playerQtA : currentBid) + 10 > availableBudget}
               >
                 +10
               </Button>
@@ -309,7 +312,7 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(20)}
-                disabled={currentBid + 20 > availableBudget}
+                disabled={(isNewAuction ? playerQtA : currentBid) + 20 > availableBudget}
               >
                 +20
               </Button>

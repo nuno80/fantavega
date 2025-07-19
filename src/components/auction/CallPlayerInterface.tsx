@@ -78,6 +78,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
     name: string;
     role: string;
     team: string;
+    qtA: number;
   } | null>(null);
 
   // Fetch all players with auction status
@@ -203,7 +204,8 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
       id: selectedPlayerDetails.id,
       name: selectedPlayerDetails.name,
       role: selectedPlayerDetails.role,
-      team: selectedPlayerDetails.team
+      team: selectedPlayerDetails.team,
+      qtA: selectedPlayerDetails.qtA
     });
     setIsStartAuctionModalOpen(true);
   };
@@ -612,6 +614,7 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
           isNewAuction={true}
           title="Avvia Asta"
           onBidSuccess={handleAuctionStartSuccess}
+          playerQtA={selectedPlayerForStartAuction.qtA}
         />
       )}
     </div>

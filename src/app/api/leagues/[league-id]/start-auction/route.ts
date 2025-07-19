@@ -44,6 +44,9 @@ export async function POST(
 
     const requestBody = await request.json();
     const { playerId, initialBid } = requestBody;
+    
+    console.log(`[START_AUCTION] Request body:`, requestBody);
+    console.log(`[START_AUCTION] playerId: ${playerId}, initialBid: ${initialBid}`);
 
     if (!playerId || isNaN(parseInt(playerId))) {
       return NextResponse.json({ error: "ID giocatore non valido" }, { status: 400 });
@@ -51,6 +54,7 @@ export async function POST(
 
     // Validate initial bid
     const bidAmount = initialBid ? parseInt(initialBid) : null;
+    console.log(`[START_AUCTION] Parsed bidAmount: ${bidAmount}`);
     if (bidAmount !== null && (isNaN(bidAmount) || bidAmount < 1)) {
       return NextResponse.json({ error: "Offerta iniziale non valida" }, { status: 400 });
     }
@@ -111,18 +115,28 @@ export async function POST(
     // Determine the minimum bid based on league configuration
     let minimumBid = league.min_bid; // Default fallback
     
+    console.log(`[START_AUCTION] Player: ${player.name}, QtA: ${player.current_quotation}`);
+    console.log(`[START_AUCTION] League config: ${league.config_json}`);
+    console.log(`[START_AUCTION] Initial minimumBid: ${minimumBid}`);
+    
     try {
       const config = JSON.parse(league.config_json);
+      console.log(`[START_AUCTION] Config parsed:`, config);
       if (config.min_bid_rule === "player_quotation" && player.current_quotation > 0) {
         minimumBid = player.current_quotation;
+        console.log(`[START_AUCTION] Using player quotation as minimumBid: ${minimumBid}`);
       }
     } catch (error) {
       console.error("Error parsing league config_json:", error);
       // Use default min_bid if config parsing fails
     }
     
+    console.log(`[START_AUCTION] bidAmount from request: ${bidAmount}`);
+    console.log(`[START_AUCTION] Final minimumBid: ${minimumBid}`);
+    
     // Start the auction with specified bid or calculated minimum bid using user as initial bidder
     const finalBidAmount = bidAmount || minimumBid;
+    console.log(`[START_AUCTION] Final bid amount: ${finalBidAmount}`);
     const auctionResult = await placeInitialBidAndCreateAuction(
       leagueId,
       playerId,

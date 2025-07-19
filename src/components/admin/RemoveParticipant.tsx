@@ -4,10 +4,9 @@
 "use client";
 
 // 1. Importazioni
-import { useActionState, useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Trash2 } from "lucide-react";
-import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
 // Componenti UI
@@ -39,15 +38,14 @@ interface RemoveParticipantProps {
 }
 
 // 3. Componente per il bottone di submit
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ isPending }: { isPending: boolean }) {
   return (
     <AlertDialogAction
       type="submit"
-      disabled={pending}
+      disabled={isPending}
       className="bg-red-600 hover:bg-red-700"
     >
-      {pending ? "Rimozione..." : "Sì, rimuovi"}
+      {isPending ? "Rimozione..." : "Sì, rimuovi"}
     </AlertDialogAction>
   );
 }
@@ -58,24 +56,28 @@ export function RemoveParticipant({
   participantUserId,
   participantUsername,
 }: RemoveParticipantProps) {
-  const initialState: RemoveParticipantFormState = {
-    success: false,
-    message: "",
-  };
-  const [state, formAction] = useActionState(
-    removeParticipantAction,
-    initialState
-  );
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (state && state.message) {
-      if (state.success) {
-        toast.success(state.message);
-      } else {
-        toast.error("Errore", { description: state.message });
+  const handleSubmit = async (formData: FormData) => {
+    startTransition(async () => {
+      try {
+        const result = await removeParticipantAction(
+          { success: false, message: "" },
+          formData
+        );
+        
+        if (result.success) {
+          toast.success(result.message);
+        } else {
+          toast.error("Errore", { description: result.message });
+        }
+      } catch (error) {
+        toast.error("Errore", { 
+          description: "Si è verificato un errore durante la rimozione" 
+        });
       }
-    }
-  }, [state]);
+    });
+  };
 
   return (
     <AlertDialog>
@@ -90,7 +92,7 @@ export function RemoveParticipant({
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
-        <form action={formAction}>
+        <form action={handleSubmit}>
           <input type="hidden" name="leagueId" value={leagueId} />
           <input
             type="hidden"
@@ -110,7 +112,7 @@ export function RemoveParticipant({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <SubmitButton />
+            <SubmitButton isPending={isPending} />
           </AlertDialogFooter>
         </form>
       </AlertDialogContent>

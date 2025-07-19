@@ -71,9 +71,28 @@ export function QuickBidModal({
 
   // Set initial bid amount when player changes
   useEffect(() => {
+    console.log('[QuickBidModal] Player data:', {
+      name: player?.name,
+      currentBid: player?.currentBid,
+      qtA: player?.qtA,
+      auctionStatus: player?.auctionStatus
+    });
+    
     if (player?.currentBid) {
+      // Asta attiva: offerta attuale + 1
+      console.log('[QuickBidModal] Using currentBid + 1:', player.currentBid + 1);
       setBidAmount(player.currentBid + 1);
-      setMaxAmount(player.currentBid + 10); // Default max amount
+      setMaxAmount(player.currentBid + 10);
+    } else if (player?.qtA) {
+      // Nessuna asta attiva: usa QtA come valore di default
+      console.log('[QuickBidModal] Using qtA:', player.qtA);
+      setBidAmount(player.qtA);
+      setMaxAmount(player.qtA + 10);
+    } else {
+      // Fallback: 1 credito
+      console.log('[QuickBidModal] Using fallback: 1');
+      setBidAmount(1);
+      setMaxAmount(10);
     }
   }, [player]);
 
@@ -101,11 +120,15 @@ export function QuickBidModal({
   };
 
   const availableBudget = userBudget ? userBudget.current_budget - userBudget.locked_credits : 0;
-  const minValidBid = (player.currentBid || 0) + 1;
+  // Calcola l'offerta minima valida
+  const minValidBid = player.currentBid 
+    ? player.currentBid + 1  // Asta attiva: offerta attuale + 1
+    : player.qtA || 1;       // Nessuna asta: QtA o 1 come fallback
   const canSubmitBid = bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
-    setBidAmount((player.currentBid || 0) + increment);
+    const baseAmount = player.currentBid || player.qtA || 0;
+    setBidAmount(baseAmount + increment);
   };
 
   const handleSubmitBid = async () => {
@@ -253,7 +276,7 @@ export function QuickBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(5)}
-                disabled={(player.currentBid || 0) + 5 > availableBudget}
+                disabled={(player.currentBid || player.qtA || 0) + 5 > availableBudget}
               >
                 +5
               </Button>
@@ -261,7 +284,7 @@ export function QuickBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(10)}
-                disabled={(player.currentBid || 0) + 10 > availableBudget}
+                disabled={(player.currentBid || player.qtA || 0) + 10 > availableBudget}
               >
                 +10
               </Button>
