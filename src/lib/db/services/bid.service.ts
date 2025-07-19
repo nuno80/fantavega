@@ -369,7 +369,9 @@ export async function placeBidOnExistingAuction({
   bidAmount,
   bidType = "manual",
 }: PlaceBidParams) {
+  console.log(`[BID_SERVICE] placeBidOnExistingAuction called for user ${userId}, player ${playerId}, amount ${bidAmount}`);
   const transaction = db.transaction(() => {
+    console.log(`[BID_SERVICE] Transaction started.`);
     // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
     const auction = db
       .prepare(
@@ -383,17 +385,23 @@ export async function placeBidOnExistingAuction({
           scheduled_end_time: number;
         }
       | undefined;
-    if (!auction) throw new Error("Asta non trovata o non più attiva.");
+    if (!auction) {
+      console.error(`[BID_SERVICE] Auction not found or not active for league ${leagueId}, player ${playerId}`);
+      throw new Error("Asta non trovata o non più attiva.");
+    }
+    console.log(`[BID_SERVICE] Auction found: ${JSON.stringify(auction)}`);
     
     // Check if auction has expired
     const now = Math.floor(Date.now() / 1000);
     if (auction.scheduled_end_time <= now) {
+      console.error(`[BID_SERVICE] Auction expired: ${auction.id}`);
       throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
     }
 
     // Check if user is in cooldown for this player (48h after abandoning)
     const cooldownInfo = getUserCooldownInfo(userId, playerId);
     if (!cooldownInfo.canBid) {
+      console.error(`[BID_SERVICE] User ${userId} in cooldown for player ${playerId}: ${cooldownInfo.message}`);
       throw new Error(cooldownInfo.message || "Non puoi fare offerte per questo giocatore. Hai un cooldown attivo.");
     }
 
@@ -402,13 +410,19 @@ export async function placeBidOnExistingAuction({
         `SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
       )
       .get(leagueId) as LeagueForBidding | undefined;
-    if (!league) throw new Error("Lega non trovata.");
+    if (!league) {
+      console.error(`[BID_SERVICE] League not found: ${leagueId}`);
+      throw new Error("Lega non trovata.");
+    }
+    console.log(`[BID_SERVICE] League info: ${JSON.stringify(league)}`);
 
     // Ottieni l'ID del miglior offerente attuale prima di qualsiasi controllo
     const previousHighestBidderId = auction.current_highest_bidder_id;
+    console.log(`[BID_SERVICE] Previous highest bidder: ${previousHighestBidderId}`);
 
     // First, process the user's bid normally if it's valid
     if (bidAmount <= auction.current_highest_bid_amount) {
+      console.error(`[BID_SERVICE] Bid amount ${bidAmount} not higher than current ${auction.current_highest_bid_amount}`);
       throw new Error("L'offerta deve essere superiore all'offerta attuale.");
     }
     
@@ -421,6 +435,7 @@ export async function placeBidOnExistingAuction({
       `).get(auction.id, userId);
       
       if (!canCounterBid) {
+        console.error(`[BID_SERVICE] User ${userId} is already highest bidder and cannot counter-bid.`);
         throw new Error("Sei già il miglior offerente.");
       }
       
@@ -431,7 +446,11 @@ export async function placeBidOnExistingAuction({
     const player = db
       .prepare(`SELECT id, role FROM players WHERE id = ?`)
       .get(playerId) as PlayerForBidding | undefined;
-    if (!player) throw new Error(`Giocatore con ID ${playerId} non trovato.`);
+    if (!player) {
+      console.error(`[BID_SERVICE] Player not found: ${playerId}`);
+      throw new Error(`Giocatore con ID ${playerId} non trovato.`);
+    }
+    console.log(`[BID_SERVICE] Player info: ${JSON.stringify(player)}`);
 
     // Check if player role is in active auction roles
     if (league.active_auction_roles) {
@@ -440,6 +459,7 @@ export async function placeBidOnExistingAuction({
         : league.active_auction_roles.split(",").map(r => r.trim().toUpperCase());
       
       if (!activeRoles.includes(player.role.toUpperCase())) {
+        console.error(`[BID_SERVICE] Player role ${player.role} not in active roles: ${league.active_auction_roles}`);
         throw new Error(`Le aste per il ruolo ${player.role} non sono attualmente attive. Ruoli attivi: ${league.active_auction_roles}`);
       }
     }
@@ -448,10 +468,21 @@ export async function placeBidOnExistingAuction({
         `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
       )
       .get(leagueId, userId) as ParticipantForBidding | undefined;
-    if (!participant)
+    if (!participant) {
+      console.error(`[BID_SERVICE] Participant ${userId} not found for league ${leagueId}`);
       throw new Error(
-        `Utente ${userId} non è un partecipante della lega ${leagueId}.`
+        `Operazione non autorizzata: non fai parte di questa lega`
       );
+    }
+    console.log(`[BID_SERVICE] Participant info: ${JSON.stringify(participant)}`);
+
+    // Add this validation before slot/budget checks
+    if (participant.user_id !== userId) {
+      console.error(`[BID_SERVICE] User ${userId} attempting to bid for another team`);
+      throw new Error("Non sei autorizzato a gestire questa squadra");
+    }
+
+    console.log(`[BID_SERVICE] Calling checkSlotsAndBudgetOrThrow...`);
     checkSlotsAndBudgetOrThrow(
       league,
       player,
@@ -461,9 +492,11 @@ export async function placeBidOnExistingAuction({
       false,
       playerId
     );
+    console.log(`[BID_SERVICE] checkSlotsAndBudgetOrThrow passed.`);
 
     // --- Blocco 3: Gestione Crediti Bloccati ---
     if (previousHighestBidderId) {
+      console.log(`[BID_SERVICE] Previous highest bidder exists: ${previousHighestBidderId}. Decrementing locked credits.`);
       const previousBid = db
         .prepare(
           `SELECT amount FROM bids WHERE auction_id = ? AND user_id = ? ORDER BY amount DESC LIMIT 1`
@@ -477,9 +510,13 @@ export async function placeBidOnExistingAuction({
           leagueId,
           previousHighestBidderId
         );
+        console.log(`[BID_SERVICE] Decremented ${previousBid.amount} locked credits for ${previousHighestBidderId}`);
+      } else {
+        console.warn(`[BID_SERVICE] No previous bid found for previous highest bidder ${previousHighestBidderId} in auction ${auction.id}`);
       }
     }
     incrementLockedCreditsStmt.run(bidAmount, leagueId, userId);
+    console.log(`[BID_SERVICE] Incremented ${bidAmount} locked credits for ${userId}`);
 
     // --- Blocco 4: Aggiornamento Asta e Inserimento Nuova Offerta ---
     const newScheduledEndTime =
@@ -487,11 +524,14 @@ export async function placeBidOnExistingAuction({
     db.prepare(
       `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
     ).run(bidAmount, userId, newScheduledEndTime, auction.id);
+    console.log(`[BID_SERVICE] Auction ${auction.id} updated with new bid ${bidAmount} by ${userId}`);
     db.prepare(
       `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
     ).run(auction.id, userId, bidAmount, bidType);
+    console.log(`[BID_SERVICE] New bid record inserted for auction ${auction.id}`);
 
     // --- Blocco 5: Check for Auto-Bid Activation (eBay Logic) ---
+    console.log(`[BID_SERVICE] Checking for auto-bid activation...`);
     // After user's bid is processed, check if any auto-bids should activate
     
     // First, check if the current bidder also has an auto-bid for this auction
@@ -502,6 +542,7 @@ export async function placeBidOnExistingAuction({
          WHERE ab.auction_id = ? AND ab.user_id = ? AND ab.is_active = TRUE`
       )
       .get(auction.id, userId) as {max_amount: number, created_at: number} | undefined;
+    console.log(`[BID_SERVICE] Current bidder auto-bid: ${JSON.stringify(currentBidderAutoBid)}`);
     
     // Get all other active auto-bids for this auction (excluding current bidder)
     const competingAutoBids = db
@@ -513,13 +554,15 @@ export async function placeBidOnExistingAuction({
          ORDER BY ab.created_at ASC`
       )
       .all(auction.id, userId) as Array<{user_id: string, max_amount: number, created_at: number, username: string}>;
-    
+    console.log(`[BID_SERVICE] Competing auto-bids: ${JSON.stringify(competingAutoBids)}`);
+
     if (competingAutoBids.length > 0) {
       // Find the auto-bid that should win based on eBay logic
       let winningAutoBid = null;
       let finalBidAmount = bidAmount;
       
       if (currentBidderAutoBid) {
+        console.log(`[BID_SERVICE] Auto-bid vs Auto-bid scenario.`);
         // Case: Auto-bid vs Auto-bid
         // Find the highest auto-bid, with time priority for ties
         const allAutoBids = [
@@ -542,6 +585,7 @@ export async function placeBidOnExistingAuction({
         
         const winner = allAutoBids[0];
         const secondHighest = allAutoBids[1];
+        console.log(`[BID_SERVICE] Auto-bid winner: ${JSON.stringify(winner)}, Second highest: ${JSON.stringify(secondHighest)}`);
         
         if (winner.user_id !== userId) {
           // Competing auto-bid wins
@@ -553,6 +597,7 @@ export async function placeBidOnExistingAuction({
             // No second bidder, set to current bid + 1
             finalBidAmount = bidAmount + 1;
           }
+          console.log(`[BID_SERVICE] Competing auto-bid wins. Final bid amount: ${finalBidAmount}`);
         } else {
           // Current user's auto-bid wins
           if (secondHighest) {
@@ -560,6 +605,7 @@ export async function placeBidOnExistingAuction({
             finalBidAmount = Math.min(secondHighest.max_amount + 1, currentBidderAutoBid.max_amount);
             // Current user already has the winning bid, just update the amount
             if (finalBidAmount > bidAmount) {
+              console.log(`[BID_SERVICE] Current user's auto-bid wins. Updating bid amount to ${finalBidAmount}`);
               // Update the current bid to the calculated amount
               db.prepare(
                 `UPDATE auctions SET current_highest_bid_amount = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
@@ -575,12 +621,15 @@ export async function placeBidOnExistingAuction({
               // Update locked credits
               const creditDifference = finalBidAmount - bidAmount;
               incrementLockedCreditsStmt.run(creditDifference, leagueId, userId);
+              console.log(`[BID_SERVICE] Locked credits updated by ${creditDifference} for ${userId}`);
             }
           }
           // Current user keeps the bid, no auto-bid activation needed
           winningAutoBid = null;
+          console.log(`[BID_SERVICE] Current user keeps the bid. No auto-bid activated.`);
         }
       } else {
+        console.log(`[BID_SERVICE] Manual bid vs Auto-bid scenario.`);
         // Case: Manual bid vs Auto-bid
         // Find the earliest auto-bid that can beat the current bid
         const eligibleAutoBids = competingAutoBids.filter(ab => ab.max_amount > bidAmount);
@@ -588,12 +637,15 @@ export async function placeBidOnExistingAuction({
         if (eligibleAutoBids.length > 0) {
           winningAutoBid = eligibleAutoBids[0]; // First come, first serve
           finalBidAmount = bidAmount + 1; // Beat manual bid by 1
+          console.log(`[BID_SERVICE] Eligible auto-bid found. Winning auto-bid: ${JSON.stringify(winningAutoBid)}, Final bid amount: ${finalBidAmount}`);
+        } else {
+          console.log(`[BID_SERVICE] No eligible auto-bids found.`);
         }
       }
       
       // Process the winning auto-bid if there is one
       if (winningAutoBid && winningAutoBid.user_id !== userId) {
-        console.log(`Auto-bid activation: User ${winningAutoBid.user_id} winning with ${finalBidAmount} against ${userId}'s bid of ${bidAmount}`);
+        console.log(`[BID_SERVICE] Processing winning auto-bid for user ${winningAutoBid.user_id}`);
         
         // Validate auto-bidder's budget and slots
         const autoBidder = db
@@ -604,6 +656,7 @@ export async function placeBidOnExistingAuction({
         
         if (autoBidder) {
           try {
+            console.log(`[BID_SERVICE] Validating auto-bidder's budget and slots...`);
             checkSlotsAndBudgetOrThrow(
               league,
               player,
@@ -613,24 +666,29 @@ export async function placeBidOnExistingAuction({
               false,
               playerId
             );
+            console.log(`[BID_SERVICE] Auto-bidder budget and slots valid.`);
             
             // Process auto-bid
             // First unlock credits from the user who just bid
             decrementLockedCreditsStmt.run(bidAmount, leagueId, userId);
+            console.log(`[BID_SERVICE] Decremented ${bidAmount} locked credits for original bidder ${userId}`);
             
             // Lock credits for auto-bidder
             incrementLockedCreditsStmt.run(finalBidAmount, leagueId, winningAutoBid.user_id);
+            console.log(`[BID_SERVICE] Incremented ${finalBidAmount} locked credits for auto-bidder ${winningAutoBid.user_id}`);
             
             // Update auction with auto-bid
             const autoBidScheduledEndTime = Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
             db.prepare(
               `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
             ).run(finalBidAmount, winningAutoBid.user_id, autoBidScheduledEndTime, auction.id);
+            console.log(`[BID_SERVICE] Auction ${auction.id} updated by auto-bid to ${finalBidAmount} by ${winningAutoBid.user_id}`);
             
             // Insert auto-bid record
             db.prepare(
               `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), 'auto')`
             ).run(auction.id, winningAutoBid.user_id, finalBidAmount);
+            console.log(`[BID_SERVICE] Auto-bid record inserted for auction ${auction.id}`);
             
             return {
               success: true,
@@ -646,12 +704,17 @@ export async function placeBidOnExistingAuction({
             };
           } catch (error) {
             // Auto-bid failed (budget/slots), continue with original bid
-            console.log(`Auto-bid failed for user ${winningAutoBid.user_id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.log(`[BID_SERVICE] Auto-bid failed for user ${winningAutoBid.user_id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
+        } else {
+          console.warn(`[BID_SERVICE] Auto-bidder participant not found: ${winningAutoBid.user_id}`);
         }
       }
+    } else {
+      console.log(`[BID_SERVICE] No competing auto-bids found.`);
     }
 
+    console.log(`[BID_SERVICE] Returning success for manual bid.`);
     return {
       success: true,
       previousHighestBidderId,
@@ -663,11 +726,13 @@ export async function placeBidOnExistingAuction({
   });
 
   const result = transaction();
+  console.log(`[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`);
 
   // --- Blocco 6: Invio Notifiche Socket.IO ---
   if (result.success) {
     const finalBidAmount = result.autoBidActivated ? result.autoBidAmount : bidAmount;
     const finalBidderId = result.autoBidActivated ? result.autoBidUserId : userId;
+    console.log(`[BID_SERVICE] Notifying socket server for auction-update. Final bid: ${finalBidAmount}, Final bidder: ${finalBidderId}`);
     
     await notifySocketServer({
       room: `league-${leagueId}`,
@@ -682,6 +747,7 @@ export async function placeBidOnExistingAuction({
     });
     
     if (result.autoBidActivated) {
+      console.log(`[BID_SERVICE] Notifying original bidder (${userId}) of bid surpassed by auto-bid.`);
       // Notify the original bidder that their bid was immediately countered by auto-bid
       await notifySocketServer({
         room: `user-${userId}`,
@@ -694,6 +760,7 @@ export async function placeBidOnExistingAuction({
         },
       });
       
+      console.log(`[BID_SERVICE] Notifying auto-bidder (${result.autoBidUserId}) of auto-bid activation.`);
       // Notify the auto-bidder that their auto-bid was activated
       await notifySocketServer({
         room: `user-${result.autoBidUserId}`,
@@ -714,6 +781,7 @@ export async function placeBidOnExistingAuction({
         await handleBidderChange(auctionInfo.id, userId, result.autoBidUserId!);
       }
     } else if (result.previousHighestBidderId) {
+      console.log(`[BID_SERVICE] Notifying previous highest bidder (${result.previousHighestBidderId}) of bid surpassed.`);
       // Normal bid surpassed notification
       await notifySocketServer({
         room: `user-${result.previousHighestBidderId}`,

@@ -209,13 +209,15 @@ function ResponseNeededSlot({
   role,
   leagueId,
   isLast,
-  onCounterBid
+  onCounterBid,
+  isCurrentUser // Add this prop
 }: {
   state: UserAuctionState;
   role: string;
   leagueId: number;
   isLast: boolean;
   onCounterBid: (playerId: number) => void;
+  isCurrentUser: boolean; // Add this prop
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(state.time_remaining || 0);
@@ -286,17 +288,17 @@ function ResponseNeededSlot({
             onClick={() => onCounterBid(state.player_id)}
             className="p-1 hover:bg-green-600 rounded transition-colors"
             title="Rilancia"
-            disabled={currentTimeRemaining <= 0}
+            disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
           >
-            <DollarSign className={`h-3 w-3 ${currentTimeRemaining <= 0 ? 'text-gray-500' : 'text-green-400'}`} />
+            <DollarSign className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? 'text-gray-500' : 'text-green-400'}`} />
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="p-1 hover:bg-red-600 rounded transition-colors"
             title="Abbandona"
-            disabled={currentTimeRemaining <= 0}
+            disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
           >
-            <X className={`h-3 w-3 ${currentTimeRemaining <= 0 ? 'text-gray-500' : 'text-red-400'}`} />
+            <X className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? 'text-gray-500' : 'text-red-400'}`} />
           </button>
         </div>
       </div>
@@ -636,6 +638,7 @@ export function ManagerColumn({
                         leagueId={leagueId || parseInt(window.location.pathname.split('/')[2])} // Extract from URL
                         isLast={index === slots.length - 1}
                         onCounterBid={handleCounterBid}
+                        isCurrentUser={isCurrentUser} // Pass isCurrentUser prop
                       />;
                     case 'empty':
                       return <EmptySlot key={index} />;
@@ -673,6 +676,12 @@ export function ManagerColumn({
           title="Rilancia"
           existingAutoBid={isCurrentUser && currentAuctionPlayerId === selectedPlayerForBid.id ? userAutoBid : null}
           onBidSuccess={async (amount, bidType) => {
+            if (!isCurrentUser) {
+              toast.error("Non sei autorizzato a gestire questa squadra.");
+              setShowStandardBidModal(false);
+              setSelectedPlayerForBid(null);
+              return;
+            }
             await handlePlaceBid(amount, bidType);
             setShowStandardBidModal(false);
             setSelectedPlayerForBid(null);

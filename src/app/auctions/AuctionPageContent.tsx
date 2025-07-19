@@ -52,6 +52,7 @@ interface Manager {
 interface UserAuctionState {
   auction_id: number;
   player_id: number;
+  user_id: string; // Added field
   player_name: string;
   current_bid: number;
   user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
@@ -119,7 +120,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       // Fetch all data in parallel for speed
       const [managersResponse, auctionStatesResponse, budgetResponse, auctionResponse] = await Promise.all([
         fetch(`/api/leagues/${leagueId}/managers`),
-        fetch(`/api/user/auction-states?leagueId=${leagueId}`),
+        fetch(`/api/auction-states?leagueId=${leagueId}`), // Changed endpoint
         fetch(`/api/leagues/${leagueId}/budget`),
         fetch(`/api/leagues/${leagueId}/current-auction`)
       ]);
@@ -408,36 +409,77 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     if (!currentAuction || !selectedLeagueId) return;
 
     try {
+      // Add validation for minimum bid amount
+      if (amount < (currentAuction.min_bid || 0)) {
+        throw new Error(`L'offerta deve essere almeno ${currentAuction.min_bid} crediti`);
+      }
+
       const response = await fetch(
         `/api/leagues/${selectedLeagueId}/players/${currentAuction.player_id}/bids`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: amount, bid_type: bidType }),
+          body: JSON.stringify({ 
+            amount: amount, 
+            bid_type: bidType,
+            user_id: userId  // Ensure user context is sent
+          }),
         }
       );
 
+      let responseData: any;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        // If response is not JSON, try to get raw text
+        const textError = await response.text();
+        console.error('JSON parsing error or non-JSON response:', {
+          status: response.status,
+          text: textError,
+          jsonError: jsonError,
+          bidData: { amount, bidType }
+        });
+        throw new Error(`Errore dal server: ${textError || 'Risposta non valida'}`);
+      }
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Errore nel piazzare l'offerta");
+        // Handle specific error cases
+        const errorMessage = responseData.error || responseData.message || "Errore sconosciuto";
+        console.error('Bid Error Details:', {
+          status: response.status,
+          response: response, // Log the full response object
+          responseData: responseData, // Log the parsed response data
+          error: errorMessage,
+          bidData: { amount, bidType }
+        });
+        throw new Error(errorMessage);
       }
 
-      // Update budget after successful bid
-      const budgetResponse = await fetch(`/api/leagues/${selectedLeagueId}/budget`);
-      if (budgetResponse.ok) {
-        const budget = await budgetResponse.json();
-        setUserBudget(budget);
-      }
-
-      // The socket event will trigger a full data refresh, so no need to manually refresh here.
-      // This prevents race conditions and ensures a single source of truth for UI updates.
+      // Immediate local state update for better UX
+      setUserBudget(prev => prev ? {
+        ...prev,
+        locked_credits: prev.locked_credits + amount
+      } : null);
 
     } catch (error) {
-      // Even if bid fails, refresh all data to ensure UI is in sync with the server state
+      // Log full error context
+      const finalErrorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Bid Failure:', {
+        error: error, // Log the raw error object
+        errorMessage: finalErrorMessage, // Log the error message or string representation
+        currentAuction: currentAuction?.player_id,
+        userId,
+        amount
+      });
+      
+      // More specific error messages
+      toast.error(`Errore nell'offerta: ${finalErrorMessage}`);
+      
+      // Refresh all data to ensure consistency
       if (selectedLeagueId) {
         await fetchLeagueData(selectedLeagueId);
       }
-      throw error; // Re-throw to be handled by BiddingInterface
+      throw error;
     }
   };
 
@@ -488,7 +530,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   autoBids={autoBids}
                   userAutoBid={manager.user_id === userId ? userAutoBid : null}
                   currentAuctionPlayerId={currentAuction?.player_id}
-                  userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
+                  userAuctionStates={userAuctionStates.filter(state => 
+                    state.user_id === manager.user_id
+                  )}
                   leagueId={selectedLeagueId ?? undefined}
                   handlePlaceBid={handlePlaceBid}
                 />

@@ -214,6 +214,7 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
+    console.error(`[API BIDS POST] Returning error to client: Status ${statusCode}, Message: "${clientErrorMessage}"`);
     return NextResponse.json(
       { error: clientErrorMessage },
       { status: statusCode }
