@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +21,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  type DeleteLeagueFormState,
+  deleteLeagueAction,
+} from "@/lib/actions/league.actions";
 
 interface DeleteLeagueProps {
   leagueId: number;
@@ -29,16 +44,48 @@ interface DeleteLeagueProps {
   isCreator: boolean;
 }
 
+function SubmitButton({ isPending }: { isPending: boolean }) {
+  return (
+    <Button type="submit" variant="destructive" disabled={isPending}>
+      {isPending ? "Eliminando..." : "Elimina Definitivamente"}
+    </Button>
+  );
+}
+
 export function DeleteLeague({
   leagueId,
   leagueName,
   participantCount,
   isCreator,
 }: DeleteLeagueProps) {
+  const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (formData: FormData) => {
+    startTransition(async () => {
+      try {
+        const result = await deleteLeagueAction(
+          { success: false, message: "" },
+          formData
+        );
+        
+        if (result.success) {
+          toast.success("Successo!", { description: result.message });
+          setIsDialogOpen(false);
+          setShowFinalConfirm(false);
+          setConfirmationText("");
+        } else {
+          toast.error("Errore", { description: result.message });
+        }
+      } catch (error) {
+        toast.error("Errore", { 
+          description: "Si è verificato un errore durante l'eliminazione" 
+        });
+      }
+    });
+  };
 
   // Solo il creatore può eliminare la lega
   if (!isCreator) {
@@ -52,43 +99,6 @@ export function DeleteLeague({
   const handleCancel = () => {
     setShowFinalConfirm(false);
     setConfirmationText("");
-  };
-
-  const handleDelete = async () => {
-    if (confirmationText !== "ELIMINA") {
-      toast.error("Errore", { description: "Devi digitare esattamente 'ELIMINA'" });
-      return;
-    }
-
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch(`/api/admin/leagues/${leagueId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        toast.success("Successo!", { description: result.message });
-        setIsDialogOpen(false);
-        setShowFinalConfirm(false);
-        setConfirmationText("");
-        // Ricarica la pagina per aggiornare la lista
-        window.location.reload();
-      } else {
-        toast.error("Errore", { description: result.message || "Errore durante l'eliminazione" });
-      }
-    } catch (error) {
-      toast.error("Errore", { 
-        description: "Si è verificato un errore durante l'eliminazione" 
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const isConfirmationValid = confirmationText === "ELIMINA";
@@ -146,7 +156,10 @@ export function DeleteLeague({
           </div>
         ) : (
           // Seconda fase: Conferma finale con digitazione
-          <div className="space-y-4 py-4">
+          <form action={handleSubmit} className="space-y-4 py-4">
+            <input type="hidden" name="leagueId" value={leagueId} />
+            <input type="hidden" name="confirmationText" value={confirmationText} />
+
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
               <p className="text-sm font-medium text-destructive mb-3">
                 Per confermare l'eliminazione, digita esattamente: <code className="bg-background px-1 rounded">ELIMINA</code>
@@ -167,16 +180,9 @@ export function DeleteLeague({
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Annulla
               </Button>
-              <Button 
-                type="button" 
-                variant="destructive" 
-                onClick={handleDelete}
-                disabled={!isConfirmationValid || isLoading}
-              >
-                {isLoading ? "Eliminando..." : "Elimina Definitivamente"}
-              </Button>
+              <SubmitButton isPending={isPending} />
             </DialogFooter>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>
