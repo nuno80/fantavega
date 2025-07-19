@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS auctions (
     scheduled_end_time INTEGER NOT NULL, 
     current_highest_bid_amount INTEGER DEFAULT 0,
     current_highest_bidder_id TEXT,
+    user_auction_states TEXT, -- JSON string to store user-specific states
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'closing', 'sold', 'not_sold', 'cancelled')),
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),

@@ -82,6 +82,7 @@ interface ManagerColumnProps {
   currentAuctionPlayerId?: number;
   userAuctionStates?: UserAuctionState[];
   leagueId?: number;
+  handlePlaceBid: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
 }
 
 // Helper functions
@@ -434,6 +435,7 @@ export function ManagerColumn({
   currentAuctionPlayerId,
   userAuctionStates = [],
   leagueId,
+  handlePlaceBid,
 }: ManagerColumnProps) {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -672,11 +674,10 @@ export function ManagerColumn({
           isNewAuction={false}
           title="Rilancia"
           existingAutoBid={isCurrentUser && currentAuctionPlayerId === selectedPlayerForBid.id ? userAutoBid : null}
-          onBidSuccess={() => {
-            // Refresh page to update data
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
+          onBidSuccess={async (amount, bidType) => {
+            await handlePlaceBid(amount, bidType);
+            setShowStandardBidModal(false);
+            setSelectedPlayerForBid(null);
           }}
         />
       )}

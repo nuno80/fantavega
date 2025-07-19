@@ -1,38 +1,37 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-15T15:30:00Z",
-    "task_completed": "Feature Completa - Sistema Timer Cooldown UI",
+    "last_update": "2025-01-19T08:15:00Z",
+    "task_completed": "Bug Fix - Sistema Aggiornamento UI Real-time Aste",
     "feature_logic": {
-      "feature_name": "Sistema Response Timer e Correzioni ComplianceChecker",
-      "summary": "Implementa response timer visivo per rilanci con logica 1-ora, correzione timer penalitÃ  ComplianceChecker, e miglioramenti notifiche real-time.",
-      "architectural_pattern": "Response timer server-side con reset intelligente, ComplianceChecker con gestione stati scaduti, Socket.IO per notifiche real-time, pattern di validazione temporale per timer sovrapposti.",
+      "feature_name": "Fix Sincronizzazione UI Aste con Refresh Automatico",
+      "summary": "Risolve problema di sincronizzazione UI dove utenti tentavano offerte duplicate perchŽ l'interfaccia non si aggiornava dopo offerte riuscite. Implementa refresh automatico dei dati asta dopo ogni tentativo di offerta.",
+      "architectural_pattern": "Pattern di refresh automatico con fallback: dopo ogni tentativo di offerta (riuscito o fallito), l'UI ricarica automaticamente i dati dell'asta corrente e la cronologia offerte per garantire sincronizzazione con il database.",
       "user_flow": [
-        "1. Quando l'utente viene superato in un'asta, appare slot rossa 'response_needed' con timer visivo.",
-        "2. Al primo accesso alla pagina asta, response timer parte da 59:59 minuti.",
-        "3. Timer si aggiorna ogni secondo con colori: verde (>30min), giallo (5-30min), rosso (<5min).",
-        "4. Timer si resetta a 1 ora solo quando qualcun altro rilancia, non ad ogni ricarica pagina.",
-        "5. Dopo 1 ora, se nessuna azione, asta viene abbandonata automaticamente dal server.",
-        "6. ComplianceChecker mostra correttamente 'PenalitÃ  attive' quando grace period scade.",
-        "7. Pulsanti rilancio/abbandono si disabilitano quando response timer scade.",
-        "8. Sistema usa campo last_reset_at per evitare reset inappropriati del timer."
+        "1. Utente tenta di fare un'offerta tramite BiddingInterface o StandardBidModal.",
+        "2. Sistema invia richiesta POST a /api/leagues/[league-id]/players/[player-id]/bids.",
+        "3. Se offerta riesce: aggiorna budget utente e chiama refreshCurrentAuctionData().",
+        "4. Se offerta fallisce: mostra errore ma chiama comunque refreshCurrentAuctionData().",
+        "5. refreshCurrentAuctionData() ricarica dati asta corrente e cronologia offerte.",
+        "6. UI si aggiorna con i dati pi recenti dal database, prevenendo stati inconsistenti.",
+        "7. Sistema WebSocket continua a funzionare per aggiornamenti real-time da altri utenti.",
+        "8. Logging migliorato nel socket server per debugging futuro."
       ],
       "core_components_interaction": {
-        "src/app/players/page.tsx": "Pagina Server Component che gestisce autenticazione e carica l'interfaccia ricerca giocatori.",
-        "src/app/players/PlayerSearchInterface.tsx": "Componente Client principale che orchestra ricerca, filtri e gestisce stato real-time.",
-        "src/components/players/PlayerSearchBar.tsx": "Barra di ricerca per nome giocatore e squadra con icona.",
-        "src/components/players/PlayerAdvancedFilters.tsx": "Filtri avanzati per ruolo, stato asta, tempo rimanente, squadra con contatori attivi.",
-        "src/components/players/PlayerSearchResults.tsx": "Griglia responsive di risultati con gestione stati vuoti.",
-        "src/components/players/PlayerSearchCard.tsx": "Card giocatore con stats, stato asta, timer e azioni (bid/start auction).",
-        "src/components/players/QuickBidModal.tsx": "Modal per offerte rapide con validazione budget e offerte quick (+1,+5,+10).",
-        "src/app/api/user/leagues/route.ts": "API per recuperare leghe utente con budget e team info.",
-        "src/app/api/leagues/[league-id]/players-with-status/route.ts": "API per giocatori con stato asta, assignment e timer real-time."
+        "src/app/auctions/AuctionPageContent.tsx": "Componente Client principale che gestisce l'interfaccia asta con nuovo sistema di refresh automatico.",
+        "handlePlaceBid()": "Funzione che gestisce offerte con refresh automatico dei dati asta dopo ogni tentativo (riuscito o fallito).",
+        "refreshCurrentAuctionData()": "Nuova funzione helper che ricarica dati asta corrente e cronologia offerte per sincronizzazione UI.",
+        "src/components/auction/BiddingInterface.tsx": "Interfaccia offerte che chiama handlePlaceBid() e beneficia del refresh automatico.",
+        "src/components/auction/StandardBidModal.tsx": "Modal offerte che utilizza la stessa logica di refresh per mantenere UI sincronizzata.",
+        "socket-server.ts": "Server Socket.IO con logging migliorato per debugging eventi auction-update.",
+        "src/lib/db/services/bid.service.ts": "Servizio offerte che invia notifiche WebSocket solo quando offerte riescono.",
+        "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts": "API endpoint per offerte che ora beneficia del refresh automatico UI."
       },
       "database_interactions": [
         {
           "table": "auctions",
-          "operation": "SELECT",
-          "description": "Recupera dettagli asta attiva per la lega."
+          "operation": "SELECT + UPDATE",
+          "description": "Recupera e aggiorna dati asta corrente dopo ogni tentativo di offerta."
         },
         {
           "table": "bids",
@@ -392,6 +391,21 @@
       "560 giocatori totali dopo pulizia (vs ~570 con duplicati).",
       "20 squadre uniche con nomi completi standardizzati.",
       "Eliminazione confusione nei menu a tendina e filtri."
+    ]
+  },
+  "uiSyncFix": {
+    "feature_name": "Fix Sincronizzazione UI Aste con Refresh Automatico",
+    "summary": "Risolve problema di sincronizzazione UI dove utenti tentavano offerte duplicate perchŽ l'interfaccia non si aggiornava dopo offerte riuscite.",
+    "root_cause": "UI non si aggiornava dopo offerte riuscite, causando tentativi di offerte duplicate. Sistema WebSocket funzionava ma eventi auction-update non venivano inviati quando offerte fallivano, lasciando UI in stato inconsistente.",
+    "solution_implemented": [
+      "Aggiunta funzione refreshCurrentAuctionData() per refresh automatico dati asta.",
+      "Modificata handlePlaceBid() per chiamare refresh dopo ogni tentativo (riuscito o fallito).",
+      "Migliorato logging socket server per debugging eventi auction-update.",
+      "Garantita sincronizzazione UI con database indipendentemente da successo/fallimento offerte."
+    ],
+    "files_modified": [
+      "src/app/auctions/AuctionPageContent.tsx: Aggiunta refreshCurrentAuctionData() e modificata handlePlaceBid()",
+      "socket-server.ts: Migliorato logging con JSON.stringify per debugging eventi"
     ]
   }
 }

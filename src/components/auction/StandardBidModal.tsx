@@ -27,7 +27,7 @@ interface StandardBidModalProps {
   leagueId: number;
   currentBid?: number;
   isNewAuction?: boolean; // true per "Avvia asta", false per rilanci
-  onBidSuccess?: () => void;
+  onBidSuccess?: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
   title?: string; // Custom title (es. "Rilancia", "Avvia asta", "Fai offerta")
   existingAutoBid?: {
     max_amount: number;
@@ -205,9 +205,9 @@ export function StandardBidModal({
 
       onClose();
       
-      // Trigger refresh
+      // Trigger refresh with bid details
       if (onBidSuccess) {
-        onBidSuccess();
+        onBidSuccess(bidAmount, isNewAuction ? "manual" : "manual"); // Assuming manual for new auctions
       }
 
     } catch (error) {

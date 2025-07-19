@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -47,12 +47,19 @@ export function BiddingInterface({
   defaultBidAmount,
   isCounterBid = false,
 }: BiddingInterfaceProps) {
-  const [bidAmount, setBidAmount] = useState(defaultBidAmount || minBid);
+  const minValidBid = Math.max(currentBid + 1, minBid);
+  const [bidAmount, setBidAmount] = useState(defaultBidAmount || minValidBid);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const newMinValidBid = Math.max(currentBid + 1, minBid);
+    if (newMinValidBid > bidAmount) {
+      setBidAmount(newMinValidBid);
+    }
+  }, [currentBid, minBid]);
 
   const availableBudget = userBudget - lockedCredits;
   const canBid = auctionStatus === "active" && (!isUserHighestBidder || isCounterBid);
-  const minValidBid = Math.max(currentBid + 1, minBid);
 
   const handleBidSubmit = async (bidType: "manual" | "quick" = "manual") => {
     if (bidAmount <= currentBid) {

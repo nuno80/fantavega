@@ -21,7 +21,8 @@ const httpServer = createServer((req, res) => {
         if (room && event) {
           io.to(room).emit(event, data);
           console.log(
-            `[HTTP->Socket] Emitted event '${event}' to room '${room}'`
+            `[HTTP->Socket] Emitted event '${event}' to room '${room}' with data:`, 
+            JSON.stringify(data, null, 2)
           );
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ success: true }));
