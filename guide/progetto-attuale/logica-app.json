@@ -5,23 +5,26 @@
     "task_completed": "Bug Fix - Auto-Bid Calculation Logic Complete Rewrite",
     "feature_logic": {
       "feature_name": "Fix Auto-Bid Calculation Logic - eBay-Style Implementation",
-      "summary": "Risolve completamente il bug critico nel calcolo degli auto-bid. Implementa la logica 'serie di rilanci manuali automatici' conforme agli standard eBay. Il problema principale era che il sistema usava importi auto-bid invece di offerte manuali per i calcoli, causando prezzi finali errati.",
+      "summary": "Implementa un timer di risposta asincrono e specifico per utente. Quando un utente viene superato, un timer personale si attiva, dandogli un tempo limitato per rispondere. La mancata risposta comporta una penalità di cooldown, impedendo offerte future sullo stesso giocatore per un periodo di tempo.",
       "architectural_pattern": "Pattern 'Serie di Rilanci Manuali Automatici': implementa la logica eBay dove ogni auto-bid e trattato come una sequenza di rilanci manuali automatici. Questo semplifica enormemente la logica e garantisce risultati corretti in tutti gli scenari.",
       "user_flow": [
-        "1. Utente con auto-bid attivo fa un'offerta manuale su un giocatore.",
-        "2. Sistema rileva auto-bid competitivi di altri utenti per lo stesso giocatore.",
-        "3. Sistema simula una 'battaglia di rilanci automatici' tra tutti gli auto-bid.",
-        "4. Logica: chi ha auto-bid piu alto vince, pagando max del secondo + 1.",
-        "5. In caso di parita, vince chi ha fatto l'offerta iniziale al suo importo massimo.",
-        "6. Sistema aggiorna asta con vincitore e prezzo finale corretto.",
-        "7. Notifiche real-time inviate a tutti i partecipanti interessati."
+        "1. UserB supera l'offerta di UserA per un giocatore.",
+        "2. Il server chiama `createResponseTimer` per UserA, creando un record 'pending' in `user_auction_response_timers` senza una scadenza immediata.",
+        "3. UserA effettua il login o accede a una pagina che recupera i suoi stati d'asta. L'endpoint `/api/user/auction-states/route.ts` invoca `activateTimersForUser`.",
+        "4. `activateTimersForUser` calcola la scadenza (es. 1 ora dal login) per i timer pendenti di UserA, aggiorna il DB e invia una notifica Socket.IO (`response-timer-started`).",
+        "5. L'UI di UserA visualizza il countdown basato sulla scadenza appena attivata.",
+        "6. CASO A: UserA rilancia prima della scadenza. `markTimerCompleted` imposta lo stato del timer su 'action_taken'. Nessuna penalità.",
+        "7. CASO B: UserA non agisce. Un processo di background (`processExpiredResponseTimers`) rileva il timer scaduto.",
+        "8. Il timer di UserA viene impostato su 'deadline_missed', i suoi crediti vengono sbloccati e viene aggiunto un record di penalità in `user_auction_cooldowns`.",
+        "9. UserA riceve una notifica di abbandono e non può più offrire per quel giocatore per un periodo di tempo (es. 48 ore)."
       ],
       "core_components_interaction": {
-        "src/lib/db/services/bid.service.ts": "Servizio principale completamente riscritto con logica 'serie di rilanci automatici'. Linee 577-645 implementano la nuova logica eBay-style.",
-        "placeBidOnExistingAuction()": "Funzione principale che gestisce auto-bid vs auto-bid con logica semplificata: trova auto-bid piu alto, calcola prezzo finale come max_perdente + 1.",
-        "Auto-bid Competition Logic": "Sistema confronta auto-bid massimi, determina vincitore, calcola prezzo finale. In parita vince primo offerente al suo massimo.",
-        "Credit Management": "Gestione corretta dei crediti bloccati usando effectiveBidAmount per sbloccare e finalBidAmount per bloccare al vincitore.",
-        "Real-time Notifications": "Notifiche Socket.IO per aggiornamenti asta, offerte superate, e attivazioni auto-bid con dati corretti."
+        "src/lib/db/services/response-timer.service.ts": "Servizio dedicato che gestisce l'intero ciclo di vita dei timer di risposta asincroni.",
+        "src/lib/db/services/bid.service.ts": "Orchestra la logica delle offerte, invocando `createResponseTimer` e `markTimerCompleted` nei momenti appropriati.",
+        "createResponseTimer()": "Crea o aggiorna un timer di risposta per un utente superato.",
+        "markTimerCompleted()": "Annulla un timer pendente quando l'utente effettua un controrilancio.",
+        "processExpiredResponseTimers()": "Processo in background che gestisce i timer scaduti, sblocca i crediti e applica le penalità di cooldown.",
+        "canUserBidOnPlayer()": "Verifica se un utente è in cooldown per un giocatore specifico prima di consentire un'offerta."
       },
       "database_interactions": [
         {
@@ -37,10 +40,22 @@
       ],
       "real_time_features": [
         {
-          "event": "error_handling",
-          "trigger": "Errore durante operazioni di offerta",
-          "data": "Error details con null safety",
-          "ui_response": "Toast error message invece di crash applicazione"
+          "event": "response-timer-started",
+          "trigger": "L'utente superato effettua il login o accede a una pagina che attiva i suoi timer pendenti.",
+          "data": "{ auctionId, deadline, timeRemaining }",
+          "ui_response": "Informa il client dell'utente superato che un timer di risposta è stato attivato, fornendo la scadenza per avviare il countdown."
+        },
+        {
+          "event": "auction-auto-abandoned",
+          "trigger": "Scadenza di un timer di risposta",
+          "data": "{ playerName, cooldownHours, reason }",
+          "ui_response": "Notifica all'utente che ha abbandonato automaticamente l'asta e che è stato messo in cooldown."
+        },
+        {
+          "event": "user-abandoned-auction",
+          "trigger": "Scadenza di un timer di risposta",
+          "data": "{ userId, playerId, playerName, reason }",
+          "ui_response": "Informa l'intera lega che un utente ha abbandonato un'asta per timeout."
         }
       ]
     },

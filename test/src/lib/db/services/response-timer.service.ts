@@ -27,17 +27,17 @@ const RESPONSE_TIME_HOURS = 1;
 const ABANDON_COOLDOWN_HOURS = 48;
 
 /**
- * Crea un timer di risposta PENDENTE quando un utente viene superato.
- * Il timer non ha una scadenza finché non viene attivato.
+ * Crea un timer di risposta quando un utente viene superato in un'asta
  */
 export const createResponseTimer = async (
   auctionId: number,
   userId: string
 ): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
+  const deadline = now + (RESPONSE_TIME_HOURS * 3600);
 
   try {
-    console.log(`[RESPONSE_TIMER] Creating PENDING timer for user ${userId}, auction ${auctionId}`);
+    console.log(`[RESPONSE_TIMER] Creating timer for user ${userId}, auction ${auctionId}, deadline: ${deadline}`);
 
     // Verifica se esiste già un timer pending per questa combinazione
     const existingTimer = db.prepare(
@@ -45,75 +45,36 @@ export const createResponseTimer = async (
     ).get(auctionId, userId) as { id: number } | undefined;
 
     if (existingTimer) {
-      console.log(`[RESPONSE_TIMER] Resetting existing pending timer ${existingTimer.id}`);
-      // Resetta il timer esistente, annullando la scadenza precedente se presente
+      console.log(`[RESPONSE_TIMER] Updating existing timer ${existingTimer.id}`);
+      // Aggiorna il timer esistente
       db.prepare(
-        "UPDATE user_auction_response_timers SET notified_at = ?, response_deadline = NULL, last_reset_at = NULL WHERE id = ?"
-      ).run(now, existingTimer.id);
+        "UPDATE user_auction_response_timers SET notified_at = ?, response_deadline = ?, last_reset_at = NULL WHERE id = ?"
+      ).run(now, deadline, existingTimer.id);
     } else {
-      console.log(`[RESPONSE_TIMER] Creating new pending timer`);
-      // Crea un nuovo timer senza scadenza (response_deadline IS NULL)
+      console.log(`[RESPONSE_TIMER] Creating new timer`);
+      // Crea nuovo timer
       const result = db.prepare(
-        "INSERT INTO user_auction_response_timers (auction_id, user_id, notified_at, response_deadline, status, last_reset_at) VALUES (?, ?, ?, NULL, 'pending', NULL)"
-      ).run(auctionId, userId, now);
-      console.log(`[RESPONSE_TIMER] Created pending timer with ID: ${result.lastInsertRowid}`);
+        "INSERT INTO user_auction_response_timers (auction_id, user_id, notified_at, response_deadline, status, last_reset_at) VALUES (?, ?, ?, ?, 'pending', NULL)"
+      ).run(auctionId, userId, now, deadline);
+      console.log(`[RESPONSE_TIMER] Created timer with ID: ${result.lastInsertRowid}`);
     }
 
-    // La notifica Socket.IO verrà inviata solo all'attivazione del timer.
-    console.log(`[RESPONSE_TIMER] Pending timer created successfully for user ${userId}`);
+    // Invia notifica Socket.IO
+    await notifySocketServer({
+      room: `user-${userId}`,
+      event: 'response-timer-started',
+      data: {
+        auctionId,
+        deadline,
+        timeRemaining: RESPONSE_TIME_HOURS * 3600
+      }
+    });
+
+    console.log(`[RESPONSE_TIMER] Timer created successfully for user ${userId}`);
 
   } catch (error) {
-    console.error(`[RESPONSE_TIMER] Error creating pending timer for user ${userId}, auction ${auctionId}:`, error);
+    console.error(`[RESPONSE_TIMER] Error creating timer for user ${userId}, auction ${auctionId}:`, error);
     throw error;
-  }
-};
-
-/**
- * Attiva i timer di risposta pendenti per un utente, di solito al login o alla prima interazione.
- * Imposta la scadenza e notifica il client per avviare il countdown.
- */
-export const activateTimersForUser = async (userId: string): Promise<void> => {
-  const now = Math.floor(Date.now() / 1000);
-  const deadline = now + (RESPONSE_TIME_HOURS * 3600);
-
-  try {
-    // Trova tutti i timer pendenti per l'utente che non sono ancora stati attivati (deadline is NULL)
-    const pendingTimers = db.prepare(`
-      SELECT id, auction_id 
-      FROM user_auction_response_timers 
-      WHERE user_id = ? AND status = 'pending' AND response_deadline IS NULL
-    `).all(userId) as Array<{ id: number, auction_id: number }>;
-
-    if (pendingTimers.length === 0) {
-      return; // Nessun timer da attivare
-    }
-
-    console.log(`[RESPONSE_TIMER] Activating ${pendingTimers.length} timers for user ${userId}`);
-
-    const updateStmt = db.prepare(
-      "UPDATE user_auction_response_timers SET response_deadline = ? WHERE id = ?"
-    );
-
-    for (const timer of pendingTimers) {
-      db.transaction(() => {
-        updateStmt.run(deadline, timer.id);
-      })();
-
-      // Invia notifica Socket.IO per ogni timer attivato
-      await notifySocketServer({
-        room: `user-${userId}`,
-        event: 'response-timer-started',
-        data: {
-          auctionId: timer.auction_id,
-          deadline,
-          timeRemaining: RESPONSE_TIME_HOURS * 3600
-        }
-      });
-       console.log(`[RESPONSE_TIMER] Activated timer ID ${timer.id} for user ${userId}, auction ${timer.auction_id}`);
-    }
-  } catch (error) {
-    console.error(`[RESPONSE_TIMER] Error activating timers for user ${userId}:`, error);
-    // Non rilanciare l'errore per non bloccare il login o altre operazioni critiche del client
   }
 };
 
@@ -162,7 +123,6 @@ export const processExpiredResponseTimers = async (): Promise<{
       JOIN auctions a ON urt.auction_id = a.id
       JOIN players p ON a.player_id = p.id
       WHERE urt.status = 'pending' 
-        AND urt.response_deadline IS NOT NULL
         AND urt.response_deadline <= ?
         AND a.status = 'active'
     `).all(now) as Array<ResponseTimer & AuctionInfo>;
