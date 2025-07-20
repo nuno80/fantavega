@@ -25,6 +25,7 @@ export interface PlayerForBidding {
   id: number;
   role: string;
   name?: string;
+  team?: string;
 }
 
 export interface ParticipantForBidding {
@@ -62,6 +63,7 @@ export interface AuctionStatusDetails {
   current_highest_bidder_username?: string;
   bid_history?: BidRecord[];
   time_remaining_seconds?: number;
+  player?: PlayerForBidding;
 }
 
 export interface AuctionCreationResult {
@@ -823,12 +825,29 @@ export const getAuctionStatusForPlayer = async (
   playerIdParam: number
 ): Promise<AuctionStatusDetails | null> => {
   const auctionStmt = db.prepare(
-    `SELECT a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id, a.status, a.created_at, a.updated_at, p.name AS player_name, u.username AS current_highest_bidder_username FROM auctions a JOIN players p ON a.player_id = p.id LEFT JOIN users u ON a.current_highest_bidder_id = u.id WHERE a.auction_league_id = ? AND a.player_id = ? ORDER BY CASE a.status WHEN 'active' THEN 1 WHEN 'closing' THEN 2 ELSE 3 END, a.updated_at DESC LIMIT 1`
+    `SELECT 
+      a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, 
+      a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id, 
+      a.status, a.created_at, a.updated_at, 
+      p.id as p_id, p.name AS player_name, p.role as player_role, p.team as player_team,
+      u.username AS current_highest_bidder_username 
+     FROM auctions a 
+     JOIN players p ON a.player_id = p.id 
+     LEFT JOIN users u ON a.current_highest_bidder_id = u.id 
+     WHERE a.auction_league_id = ? AND a.player_id = ? 
+     ORDER BY CASE a.status WHEN 'active' THEN 1 WHEN 'closing' THEN 2 ELSE 3 END, a.updated_at DESC 
+     LIMIT 1`
   );
   const auctionData = auctionStmt.get(leagueIdParam, playerIdParam) as
-    | (Omit<AuctionStatusDetails, "bid_history" | "time_remaining_seconds"> & {
+    | (Omit<
+        AuctionStatusDetails,
+        "bid_history" | "time_remaining_seconds" | "player"
+      > & {
         player_name: string;
         current_highest_bidder_username: string | null;
+        p_id: number;
+        player_role: string;
+        player_team: string;
       })
     | undefined;
   if (!auctionData) return null;
@@ -846,8 +865,16 @@ export const getAuctionStatusForPlayer = async (
         )
       : undefined;
 
+  const { p_id, player_role, player_team, ...restOfAuctionData } = auctionData;
+
   return {
-    ...auctionData,
+    ...restOfAuctionData,
+    player: {
+      id: p_id,
+      role: player_role,
+      name: auctionData.player_name,
+      team: player_team,
+    },
     bid_history: bidHistory.reverse(),
     time_remaining_seconds: timeRemainingSeconds,
   };

@@ -538,9 +538,13 @@ export function ManagerColumn({
     return slots;
   };
 
-  const spentBudget = manager.total_budget - manager.current_budget + manager.locked_credits;
-  const budgetPercentage = (spentBudget / manager.total_budget) * 100;
-  const availableBudget = manager.current_budget - manager.locked_credits;
+  const totalBudget = manager?.total_budget || 0;
+  const currentBudget = manager?.current_budget || 0;
+  const lockedCredits = manager?.locked_credits || 0;
+  
+  const spentBudget = totalBudget - currentBudget + lockedCredits;
+  const budgetPercentage = totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
+  const availableBudget = currentBudget - lockedCredits;
 
   return (
     <div className="bg-gray-800 rounded-lg p-2 flex flex-col h-full border-2 border-gray-700">
@@ -682,7 +686,7 @@ export function ManagerColumn({
               setSelectedPlayerForBid(null);
               return;
             }
-            await handlePlaceBid(amount, bidType);
+            await handlePlaceBid(amount, bidType || "manual");
             setShowStandardBidModal(false);
             setSelectedPlayerForBid(null);
           }}

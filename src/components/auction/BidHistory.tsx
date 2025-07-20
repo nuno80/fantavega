@@ -32,7 +32,7 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
     }
   };
 
-  if (bids.length === 0) {
+  if (!bids || bids.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -55,7 +55,7 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
       <CardContent>
         <ScrollArea className="h-64">
           <div className="space-y-3">
-            {bids.map((bid, index) => (
+            {(bids || []).map((bid, index) => (
               <div
                 key={bid.id}
                 className={`flex items-center justify-between p-3 rounded-lg border ${

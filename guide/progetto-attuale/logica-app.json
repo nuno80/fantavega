@@ -1,411 +1,89 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-19T08:15:00Z",
-    "task_completed": "Bug Fix - Sistema Aggiornamento UI Real-time Aste",
+    "last_update": "2025-01-20T07:45:00Z",
+    "task_completed": "Bug Fix - Sistema Rilanci con Auto-bid Sync",
     "feature_logic": {
-      "feature_name": "Fix Sincronizzazione UI Aste con Refresh Automatico",
-      "summary": "Risolve problema di sincronizzazione UI dove utenti tentavano offerte duplicate perch� l'interfaccia non si aggiornava dopo offerte riuscite. Implementa refresh automatico dei dati asta dopo ogni tentativo di offerta.",
-      "architectural_pattern": "Pattern di refresh automatico con fallback: dopo ogni tentativo di offerta (riuscito o fallito), l'UI ricarica automaticamente i dati dell'asta corrente e la cronologia offerte per garantire sincronizzazione con il database.",
+      "feature_name": "Fix Sistema Rilanci con Auto-bid Sync e Error Recovery",
+      "summary": "Risolve problema critico di sincronizzazione UI durante rilanci con auto-bid attivi. Quando auto-bid si attivano automaticamente, l'interfaccia utente non si aggiornava, causando errori 'offerta deve essere superiore' quando utenti tentavano rilanci con dati obsoleti.",
+      "architectural_pattern": "Pattern di Error Recovery con Refresh Intelligente: rileva errori di sincronizzazione auto-bid, forza refresh immediato dei dati asta, e implementa gestione eventi socket migliorata per aggiornamenti real-time.",
       "user_flow": [
-        "1. Utente tenta di fare un'offerta tramite BiddingInterface o StandardBidModal.",
-        "2. Sistema invia richiesta POST a /api/leagues/[league-id]/players/[player-id]/bids.",
-        "3. Se offerta riesce: aggiorna budget utente e chiama refreshCurrentAuctionData().",
-        "4. Se offerta fallisce: mostra errore ma chiama comunque refreshCurrentAuctionData().",
-        "5. refreshCurrentAuctionData() ricarica dati asta corrente e cronologia offerte.",
-        "6. UI si aggiorna con i dati pi� recenti dal database, prevenendo stati inconsistenti.",
-        "7. Sistema WebSocket continua a funzionare per aggiornamenti real-time da altri utenti.",
-        "8. Logging migliorato nel socket server per debugging futuro."
+        "1. Team Red punta Butez a 10 crediti con auto-bid a 20 crediti.",
+        "2. Team Fede rilancia a 11 crediti - auto-bid di Team Red si attiva automaticamente a 12 crediti.",
+        "3. Team Fede imposta auto-bid a 25 e rilancia a 13 - sistema calcola offerta finale a 21 crediti (20+1).",
+        "4. Team Fede tenta nuovo rilancio a 13 crediti ma UI mostra dati obsoleti.",
+        "5. Sistema rileva errore 'superiore all'offerta attuale' e attiva error recovery.",
+        "6. refreshCurrentAuctionData() forza aggiornamento immediato di asta, budget e manager.",
+        "7. handleAuctionUpdate() gestisce eventi socket con toast notification per auto-bid.",
+        "8. UI sincronizzata mostra 21 crediti come offerta attuale, prevenendo errori futuri."
       ],
       "core_components_interaction": {
-        "src/app/auctions/AuctionPageContent.tsx": "Componente Client principale che gestisce l'interfaccia asta con nuovo sistema di refresh automatico.",
-        "handlePlaceBid()": "Funzione che gestisce offerte con refresh automatico dei dati asta dopo ogni tentativo (riuscito o fallito).",
-        "refreshCurrentAuctionData()": "Nuova funzione helper che ricarica dati asta corrente e cronologia offerte per sincronizzazione UI.",
-        "src/components/auction/BiddingInterface.tsx": "Interfaccia offerte che chiama handlePlaceBid() e beneficia del refresh automatico.",
-        "src/components/auction/StandardBidModal.tsx": "Modal offerte che utilizza la stessa logica di refresh per mantenere UI sincronizzata.",
-        "socket-server.ts": "Server Socket.IO con logging migliorato per debugging eventi auction-update.",
-        "src/lib/db/services/bid.service.ts": "Servizio offerte che invia notifiche WebSocket solo quando offerte riescono.",
-        "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts": "API endpoint per offerte che ora beneficia del refresh automatico UI."
+        "src/app/auctions/AuctionPageContent.tsx": "Componente principale con error recovery per auto-bid sync. Gestisce handlePlaceBid() migliorato e handleAuctionUpdate() per eventi socket.",
+        "handlePlaceBid()": "Funzione con detection errori auto-bid sync. Se rileva 'superiore all'offerta attuale', forza refreshCurrentAuctionData() e mostra messaggio specifico.",
+        "refreshCurrentAuctionData()": "Helper function che aggiorna asta, budget e manager simultaneamente per sincronizzazione completa UI.",
+        "handleAuctionUpdate()": "Nuovo listener socket per eventi auction-update con toast notification per auto-bid attivati e refresh immediato.",
+        "src/components/auction/ManagerColumn.tsx": "Aggiornato per passare bidType correttamente a handlePlaceBid().",
+        "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts": "API con gestione errore specifico 'L'offerta deve essere superiore all'offerta attuale' come status 400 invece di 500.",
+        "src/lib/db/services/bid.service.ts": "Servizio auto-bid con logica eBay che invia eventi auction-update con flag autoBidActivated per UI sync."
       },
       "database_interactions": [
         {
           "table": "auctions",
           "operation": "SELECT + UPDATE",
-          "description": "Recupera e aggiorna dati asta corrente dopo ogni tentativo di offerta."
+          "description": "Recupera e aggiorna dati asta corrente durante rilanci e auto-bid."
+        },
+        {
+          "table": "auto_bids", 
+          "operation": "SELECT",
+          "description": "Controlla auto-bid attivi per logica eBay durante rilanci."
         },
         {
           "table": "bids",
-          "operation": "INSERT",
-          "description": "Inserisce nuove offerte degli utenti."
+          "operation": "INSERT + SELECT",
+          "description": "Inserisce nuove offerte e recupera cronologia per UI sync."
         },
         {
           "table": "league_participants",
           "operation": "UPDATE",
-          "description": "Aggiorna budget e crediti bloccati dopo le offerte."
+          "description": "Aggiorna locked_credits durante cambio di miglior offerente."
+        }
+      ],
+      "real_time_features": [
+        {
+          "event": "auction-update",
+          "trigger": "Auto-bid activation o rilancio manuale",
+          "data": "playerId, newPrice, highestBidderId, autoBidActivated flag",
+          "ui_response": "Toast notification + refresh immediato dati asta"
         },
         {
-          "table": "budget_transactions",
-          "operation": "INSERT",
-          "description": "Registra transazioni budget per audit trail."
+          "event": "bid-surpassed-notification", 
+          "trigger": "Utente superato da auto-bid",
+          "data": "playerName, newBidAmount, autoBidActivated flag",
+          "ui_response": "Notifica personalizzata + cambio stato rilancio_possibile"
         }
       ]
-    }
-  },
-  "bugFixAbandonButton": {
-    "feature_name": "Correzione Bug Pulsante Abbandona Asta",
-    "summary": "Risolve il problema del pulsante 'abbandona asta' che non funzionava a causa di un vincolo UNIQUE nel database che impediva abbandoni multipli della stessa asta.",
-    "problem_identified": "La tabella user_auction_cooldowns ha vincolo UNIQUE(auction_id, user_id) che causava errore SQL quando un utente tentava di abbandonare la stessa asta più volte.",
-    "solution_implemented": "Sostituito INSERT con INSERT OR REPLACE in tutti i punti del codice che inseriscono record in user_auction_cooldowns.",
-    "files_modified": [
-      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
-      "src/lib/db/services/response-timer.service.ts", 
-      "src/lib/db/services/auction-states.service.ts"
-    ],
-    "user_flow_corrected": [
-      "1. Utente1 fa offerta per 'Retegui' a 10 crediti → stato: miglior_offerta (verde).",
-      "2. Utente2 rilancia 'Retegui' a 15 crediti → Utente1 stato: rilancio_possibile (rosso).",
-      "3. Utente1 accede alla pagina auction → timer 1 ora parte per decidere rilancio/abbandono.",
-      "4. Utente1 clicca 'Abbandona' → cooldown 48h per Retegui + slot liberata immediatamente.",
-      "5. Sistema registra abbandono in user_auction_cooldowns senza errori di vincolo UNIQUE.",
-      "6. Timer response marcato come 'action_taken' e stato cambiato a 'asta_abbandonata'.",
-      "7. Notifiche real-time inviate a utente e lega per informare dell'abbandono.",
-      "8. Slot liberata permette a Utente1 di riempirla con altri giocatori."
-    ],
-    "testing_performed": "Verificato che INSERT OR REPLACE funzioni correttamente con test SQL su database reale."
-  },
-  "bugFixSlotLiberation": {
-    "feature_name": "Correzione Liberazione Slot dopo Abbandono Asta",
-    "summary": "Risolve il problema della mancata liberazione dei locked_credits quando un utente abbandona un'asta o scade il timer di risposta.",
-    "problem_identified": "Quando un utente abbandonava un'asta (manualmente o per scadenza timer), i locked_credits non venivano liberati, impedendo l'utilizzo di quei crediti per altre aste.",
-    "solution_implemented": "Aggiunta logica per sbloccare i locked_credits in tutti i punti di abbandono asta, recuperando l'importo dell'ultima offerta dell'utente e sottraendolo dai locked_credits.",
-    "files_modified": [
-      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts - Abbandono manuale",
-      "src/lib/db/services/response-timer.service.ts - Abbandono automatico timer scaduto", 
-      "src/lib/db/services/auction-states.service.ts - Funzione handleAuctionAbandon"
-    ],
-    "logic_implemented": [
-      "1. Recupera l'ultima offerta dell'utente per l'asta specifica",
-      "2. Aggiorna locked_credits sottraendo l'importo dell'offerta",
-      "3. Mantiene tutte le altre logiche esistenti (cooldown, timer, notifiche)",
-      "4. Libera immediatamente la slot per permettere altre aste"
-    ],
-    "user_flow_corrected": [
-      "1. Utente1 fa offerta 10 crediti per Retegui → locked_credits +10",
-      "2. Utente2 rilancia a 15 → Utente1 stato: rilancio_possibile",
-      "3. Utente1 abbandona o timer scade → locked_credits -10 (slot liberata)",
-      "4. Utente1 può immediatamente usare quei 10 crediti per altri giocatori",
-      "5. Cooldown 48h attivo solo per Retegui, non per altri giocatori"
-    ],
-    "testing_performed": "Verificato esistenza tabelle e colonne nel database. Testata logica di recupero offerte e aggiornamento locked_credits."
-  },
-  "databaseCleanupLockedCredits": {
-    "feature_name": "Pulizia Database - Correzione locked_credits Anomali",
-    "summary": "Risolti problemi di locked_credits non allineati con le aste attive, causati da refusi precedenti all'implementazione del sistema di liberazione automatica.",
-    "problems_identified": [
-      "Admin aveva locked_credits = -10 per aste abbandonate/superate (Ahanor, Cambiaso)",
-      "User sgrshdgfgh aveva locked_credits = 84 ma offerte attive per 87 crediti",
-      "Discrepanze causate da sistema liberazione crediti non ancora implementato"
-    ],
-    "corrections_applied": [
-      "Admin: locked_credits da -10 a 0 (slot liberate)",
-      "sgrshdgfgh: locked_credits da 84 a 87 (allineamento con 6 aste attive)",
-      "Verificato che altri utenti non abbiano problemi simili"
-    ],
-    "final_status": [
-      "✅ Team Admin: 381 budget, 0 locked (slot completamente liberate)",
-      "✅ sgrshdgfgh: 455 budget, 87 locked (6 aste attive: Caprile:1, Calhanoglu:1, Billing:1, Cristante:1, Cambiaso:81, Ahanor:2)",
-      "✅ real madrid: 500 budget, 0 locked (nessun problema)",
-      "✅ real betis: 500 budget, 0 locked (nessun problema)"
-    ],
-    "impact": "Database ora completamente allineato con la logica del sistema aste. Tutti gli utenti possono partecipare normalmente senza slot bloccate erroneamente."
-  },
-  "bugFixUserAuctionStates": {
-    "feature_name": "Correzione user_auction_states per Slot Fantasma",
-    "summary": "Risolto problema di slot occupate da giocatori 'scaduti' nell'interfaccia admin causato da user_auction_states non aggiornati dopo abbandono aste.",
-    "problem_identified": "Admin vedeva ancora Cambiaso e Ahanor come slot occupate 'scadute' anche se aveva abbandonato le aste e i giocatori non erano in player_assignments.",
-    "root_cause": "Campo user_auction_states nelle tabelle auctions conteneva ancora stato 'rilancio_possibile' per l'admin invece di 'asta_abbandonata'.",
-    "investigation_steps": [
-      "1. Verificato che Cambiaso e Ahanor NON sono in player_assignments dell'admin ✅",
-      "2. Confermato che admin NON è current_highest_bidder per questi giocatori ✅", 
-      "3. Controllato locked_credits = 0 (corretto) ✅",
-      "4. Identificato problema in user_auction_states JSON field ❌"
-    ],
-    "corrections_applied": [
-      "Cambiaso (asta ID: 23): user_auction_states aggiornato da 'rilancio_possibile' a 'asta_abbandonata'",
-      "Ahanor (asta ID: 34): user_auction_states aggiornato da 'rilancio_possibile' a 'asta_abbandonata'"
-    ],
-    "technical_details": {
-      "api_affected": "/api/user/auction-states - legge user_auction_states per determinare stato UI",
-      "component_affected": "ManagerColumn.tsx - usa userAuctionStates per mostrare slot",
-      "database_fields": "auctions.user_auction_states (JSON field con stati per utente)"
     },
-    "final_status": [
-      "✅ Cambiaso: user_auction_states = asta_abbandonata (slot liberata)",
-      "✅ Ahanor: user_auction_states = asta_abbandonata (slot liberata)",
-      "✅ Admin può ora vedere slot libere per nuove aste",
-      "✅ Interfaccia allineata con stato reale database"
-    ],
-    "prevention": "Il sistema di abbandono aste ora aggiorna correttamente sia user_auction_cooldowns che user_auction_states."
-  },
-  "featureTimerCooldownUI": {
-    "feature_name": "Sistema Timer Cooldown UI Completo",
-    "summary": "Implementazione completa del timer cooldown visivo nella pagina players con due pulsanti separati e design ottimizzato.",
-    "user_story": "Come utente che ha abbandonato un'asta, voglio vedere chiaramente quando potrò fare nuove offerte per quel giocatore, con timer dinamico e interfaccia intuitiva.",
-    "implementation_phases": [
-      "1. Estensione API /api/players con getUserCooldownInfo per includere dati cooldown",
-      "2. Aggiornamento interface PlayerWithAuctionStatus con cooldownInfo",
-      "3. Modifica PlayerSearchCard per mostrare timer cooldown dinamico",
-      "4. Ottimizzazione design con due pulsanti separati e spacing perfetto"
-    ],
-    "technical_architecture": {
-      "backend_apis": [
-        "/api/players - Include cooldown info per utenti senza leghe",
-        "/api/leagues/[league-id]/players-with-status - Include cooldown info per utenti con leghe"
+    "bug_details": {
+      "original_issue": "Team Fede rilancia Butez ma riceve errore 'L'offerta deve essere superiore all'offerta attuale' con oggetti di errore vuoti {}",
+      "root_cause": "UI non si sincronizzava dopo attivazione auto-bid. Frontend mostrava 13 crediti mentre database aveva 21 crediti a causa di auto-bid eBay logic (20+1).",
+      "error_manifestation": [
+        "Console Error: Bid Error Details: {}",
+        "Console Error: Bid Failure: {}",
+        "Unhandled Runtime Error: An unexpected error occurred while processing your bid"
       ],
-      "frontend_components": [
-        "PlayerSearchCard - Timer dinamico con useEffect ogni minuto",
-        "Due pulsanti separati: timer (destructive) + messaggio (outline)"
-      ],
-      "data_flow": "getUserCooldownInfo(userId, playerId) → API → Frontend → Card con Timer Live"
+      "technical_cause": "handlePlaceBid() non gestiva errori di sync auto-bid e non forzava refresh UI dopo errori di offerta obsoleta."
     },
-    "ui_design_final": {
-      "layout": "Due pulsanti affiancati nel footer della card",
-      "pulsante_timer": {
-        "contenuto": "🚫 47h 31m",
-        "variant": "destructive (rosso)",
-        "dimensione": "compatto",
-        "icona_spacing": "mr-1 (ridotto per compattezza)"
-      },
-      "pulsante_messaggio": {
-        "contenuto": "Non puoi fare offerte ora",
-        "variant": "outline (bordo)",
-        "dimensione": "flex-1 (espanso)",
-        "icona": "nessuna (evita duplicazioni)"
-      },
-      "spacing": "gap-2 tra pulsanti, py-3 px-4 padding interno",
-      "visibilita": "opacity-100 forzata per nitidezza completa"
-    },
-    "user_experience": [
-      "Timer dinamico che si aggiorna ogni minuto automaticamente",
-      "Informazioni cooldown visibili immediatamente nella ricerca giocatori",
-      "Design pulito senza duplicazioni o ridondanze",
-      "Feedback visivo chiaro su quando poter fare nuove offerte",
-      "Layout responsive e professionale"
-    ],
-    "testing_performed": [
-      "✅ Timer cooldown appare correttamente su Ahanor (46h+ rimanenti)",
-      "✅ Due pulsanti separati con spacing ottimale",
-      "✅ Aggiornamento automatico ogni minuto",
-      "✅ Design nitido senza opacità",
-      "✅ Funziona sia per utenti con che senza leghe"
-    ],
-    "integration_with_existing": {
-      "cooldown_backend": "Integrato con sistema esistente getUserCooldownInfo",
-      "api_bidding": "Coerente con messaggi di errore nelle API di offerte",
-      "auction_page": "Complementare al sistema di abbandono aste",
-      "database": "Utilizza user_auction_cooldowns esistente"
-    },
-    "impact": "Sistema cooldown ora completamente visibile e user-friendly. Utenti possono vedere immediatamente quando potranno fare offerte sui giocatori abbandonati, migliorando significativamente l'esperienza utente."
-  },
-  "bugFixCooldownValidation": {
-    "feature_name": "Implementazione Validazione Cooldown 48h",
-    "summary": "Aggiunta validazione cooldown di 48 ore nelle API di bidding per impedire offerte su giocatori abbandonati.",
-    "problem_identified": "Admin riusciva a fare offerte su Ahanor (3 crediti) nonostante avesse abbandonato l'asta e dovesse avere cooldown 48h attivo.",
-    "root_cause": "Funzione canUserBidOnPlayer esisteva ma non veniva mai chiamata nelle API di bidding (placeBidOnExistingAuction e placeInitialBidAndCreateAuction).",
-    "investigation_findings": [
-      "✅ Cooldown correttamente registrato in user_auction_cooldowns",
-      "✅ Cooldown attivo: 46.4 ore rimanenti (fino al 15/07 05:26:25)",
-      "❌ Validazione cooldown mancante nelle API di bidding",
-      "❌ Admin riuscito a fare offerta 1h22min dopo abbandono"
-    ],
     "solution_implemented": [
-      "Aggiunto import canUserBidOnPlayer in bid.service.ts",
-      "Aggiunta validazione cooldown in placeBidOnExistingAuction (offerte su aste esistenti)",
-      "Aggiunta validazione cooldown in placeInitialBidAndCreateAuction (nuove aste)",
-      "Messaggi di errore chiari per utente quando cooldown attivo"
-    ],
-    "technical_details": {
-      "function_used": "canUserBidOnPlayer(userId, playerId) from response-timer.service.ts",
-      "validation_logic": "Controlla user_auction_cooldowns JOIN auctions WHERE cooldown_ends_at > now()",
-      "error_messages": [
-        "Offerte esistenti: 'Non puoi fare offerte per questo giocatore. Hai un cooldown attivo di 48 ore dopo aver abbandonato l'asta.'",
-        "Nuove aste: 'Non puoi avviare un'asta per questo giocatore. Hai un cooldown attivo di 48 ore dopo aver abbandonato l'asta.'"
-      ]
-    },
-    "testing_performed": [
-      "✅ Verificato cooldown attivo per admin su Ahanor (46.4h rimanenti)",
-      "✅ Query SQL conferma: 'COOLDOWN_ACTIVE - Cannot bid'",
-      "✅ Validazione implementata in entrambe le funzioni di bidding"
-    ],
-    "impact": "Sistema di cooldown ora completamente funzionale. Utenti non possono più aggirare il cooldown di 48 ore dopo aver abbandonato un'asta."
-  },
-  "projectGoal": "Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.",
-  "currentDevelopmentPhase": "Task 9 (Sviluppo UI) COMPLETATO. Tutti i subtask completati: 9.1 (Layout/Navigation), 9.2 (Auction Interface), 9.3 (Player Management Interface), 9.4 (Enhanced Notifications). Sistema auto-bid funzionale, aste scadute processate automaticamente, Socket.IO ottimizzato, database pulito. Pronto per testing finale e deployment.",
-  "technologyStack": {
-    "frontend": "Next.js 15.2.3 (App Router), React, TypeScript, Tailwind CSS",
-    "backend": "Next.js API Routes & Server Actions (TypeScript)",
-    "database": "BetterSQLite3 (accesso diretto)",
-    "authentication": "Clerk",
-    "realTime": "Socket.IO",
-    "validation": "Zod",
-    "packageManager": "pnpm",
-    "developmentEnvironment": "Docker & Docker Compose (Node 20 Slim/Debian base)",
-    "uiComponents": "shadcn/ui (base per theming), lucide-react (icone), sonner (notifiche)",
-    "theming": "next-themes",
-    "excelParsing": "xlsx (SheetJS)"
-  },
-  "databaseManagement": {
-    "schemaDefinition": "SQL DDL in `database/schema.sql`",
-    "dbConnection": "`src/lib/db/index.ts` (singleton pattern, crea DB file se non esiste)",
-    "scripts": [
-      { "name": "db:migrate", "purpose": "Applica l'intero `database/schema.sql`." },
-      { "name": "db:reset", "purpose": "Effettua un backup, cancella il file del database e richiede una migrazione successiva per ricrearlo." },
-      { "name": "db:apply-changes", "purpose": "Esegue query SQL ad-hoc da `database/adhoc_changes.sql` (con backup)." },
-      { "name": "db:backup", "purpose": "Crea backup manuale." },
-      { "name": "db:seed", "purpose": "Popola DB con dati di esempio." }
-    ]
-  },
-  "coreEntitiesSchema": [
-    { "tableName": "users", "description": "Estende utenti Clerk con `role` ('admin', 'manager') e `status`." },
-    { "tableName": "players", "description": "Catalogo giocatori." },
-    { "tableName": "auction_leagues", "description": "Configurazione della lega d'asta." },
-    { "tableName": "league_participants", "description": "Associazione utenti a leghe. Traccia `current_budget`, `locked_credits`, etc." },
-    { "tableName": "auctions", "description": "Asta per un singolo giocatore." },
-    { "tableName": "bids", "description": "Log di ogni offerta." },
-    { "tableName": "player_assignments", "description": "Traccia l'assegnazione finale di un giocatore a un manager." },
-    { "tableName": "budget_transactions", "description": "Log delle modifiche al `current_budget`." },
-    { "tableName": "user_league_compliance_status", "description": "Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase." }
-  ],
-  "leagueAndParticipantManagement": {
-    "feature_name": "Gestione Leghe e Partecipanti (Admin)",
-    "summary": "Fornisce all'admin una suite di strumenti per creare leghe, visualizzarle in una lista e gestire i partecipanti (aggiunta, modifica nome squadra, rimozione) e lo stato operativo di ogni lega dalla sua dashboard dedicata.",
-    "architectural_pattern": "Pagine Server Components per il data fetching diretto e la visualizzazione. Le operazioni di modifica (mutations) sono gestite da componenti Client dedicati (forms, dialogs) che invocano Server Actions per interagire con il backend in modo sicuro.",
-    "user_flow": [
-      "1. **Creazione:** L'admin usa il form in `/admin/leagues/create` per creare una nuova lega.",
-      "2. **Visualizzazione:** L'admin vede tutte le leghe create nella pagina `/admin/leagues`.",
-      "3. **Gestione:** Cliccando su una lega, accede alla sua dashboard (`/admin/leagues/[id]/dashboard`).",
-      "4. **Aggiunta Partecipante:** Dalla dashboard, l'admin può aggiungere nuovi manager.",
-      "5. **Modifica Nome Squadra:** L'admin può modificare il nome di una squadra in qualsiasi momento tramite un popover.",
-      "6. **Rimozione Partecipante:** L'admin può rimuovere un partecipante tramite un dialogo di conferma, ma solo se la lega è in stato 'participants_joining'.",
-      "7. **Cambio Stato:** L'admin può cambiare la fase operativa della lega (es. da 'Iscrizioni Aperte' a 'Asta Attiva')."
-    ]
-  },
-  "realTimeNotificationSystem": {
-    "feature_name": "Sistema di Notifiche e Aggiornamenti in Tempo Reale",
-    "summary": "Implementa un sistema basato su WebSocket (Socket.IO) per fornire aggiornamenti della UI in tempo reale e notifiche personali.",
-    "architectural_pattern": "Pattern a 'Server Dedicato Stateful'. Un server Socket.IO (`socket-server.ts`) gira come processo separato. Il backend Next.js comunica con esso tramite un 'ponte HTTP'."
-  },
-  "auctionLogic": {
-    "penaltySystem": {
-      "trigger": "Al login/accesso sezioni chiave asta (approccio 'lazy').",
-      "requirement": "Entro 1 ora dal trigger, N-1 slot coperti per ruoli attivi.",
-      "penaltyApplication": "5 crediti se non conforme dopo 1 ora, con notifica real-time all'utente."
-    }
-  },
-  "adminFunctionalitiesImplemented": [
-    "Gestione Utenti (visualizzazione e cambio ruolo).",
-    "Creazione di nuove leghe.",
-    "Visualizzazione lista leghe.",
-    "Dashboard di gestione lega con controlli per: aggiungere/rimuovere partecipanti, modificare nomi squadra e cambiare lo stato della lega."
-  ],
-  "managerFunctionalitiesImplemented_Backend": [
-    "Offerte (iniziali, successive) con gestione `locked_credits`.",
-    "Visualizzazione stato asta giocatore.",
-    "Visualizzazione propria cronologia transazioni budget.",
-    "Visualizzazione propria rosa.",
-    "Trigger (implicito) del controllo di compliance per penalità.",
-    "Ricezione aggiornamenti asta e notifiche (offerte superate, penalità) in tempo reale."
-  ],
-  "managerFunctionalitiesImplemented_Frontend": [
-    "Interfaccia aste live responsive con visualizzazione giocatore e timer real-time.",
-    "Sistema di offerte con validazione budget e offerte rapide (+1, +5, +10).",
-    "Monitoraggio budget in tempo reale con progress bar e avvisi.",
-    "Cronologia offerte con evidenziazione utente corrente.",
-    "Notifiche toast per offerte superate e aste concluse.",
-    "Layout responsive (desktop: 2 colonne, mobile: singola colonna).",
-    "Integrazione Socket.IO per aggiornamenti live dell'interfaccia.",
-    "Interfaccia ricerca giocatori con filtri avanzati (ruolo, stato asta, tempo rimanente, squadra).",
-    "Ricerca testuale per nome giocatore e squadra con risultati real-time.",
-    "Cards giocatori con stats complete (Qt.A, Qt.I, FVM, Diff) e stato asta.",
-    "Modal offerte rapide direttamente dalla ricerca con validazione budget.",
-    "Countdown timer per aste in scadenza con aggiornamenti real-time.",
-    "Funzionalità admin per avviare nuove aste direttamente dall'interfaccia giocatori."
-  ],
-  "autoBidSystem": {
-    "feature_name": "Sistema Auto-Bid con Logica eBay",
-    "summary": "Sistema di offerte automatiche che segue la logica di proxy bidding di eBay con priorità temporale e counter-bid intelligente.",
-    "core_logic": [
-      "Auto-bid si attiva quando qualcuno fa offerta superiore a quella corrente.",
-      "Counter-bid automatico a (offerta_avversaria + 1) se auto-bid può coprire.",
-      "Priorità temporale: auto-bid più vecchia vince in caso di importi uguali.",
-      "Auto-bid vs auto-bid: vincitore paga (secondo_max + 1) fino al proprio limite.",
-      "Privacy: solo il proprietario vede la propria auto-bid.",
-      "Notifiche real-time per attivazioni e superamenti."
-    ],
-    "components": [
-      "src/components/auction/AutoBidModal.tsx - Modal per impostare auto-bid",
-      "src/components/players/QuickBidModal.tsx - Quick bid con auto-bid integrata",
-      "src/app/api/leagues/[league-id]/players/[player-id]/auto-bid/route.ts - API gestione auto-bid",
-      "src/lib/db/services/bid.service.ts - Logica eBay per attivazione auto-bid"
-    ]
-  },
-  "expiredAuctionsSystem": {
-    "feature_name": "Processamento Automatico Aste Scadute",
-    "summary": "Sistema che previene offerte su aste scadute e processa automaticamente le assegnazioni.",
-    "core_logic": [
-      "Validazione scadenza in tutte le API di bidding.",
-      "Processamento automatico ogni 30 secondi nelle pagine auctions e players.",
-      "Endpoint dedicato /process-expired-auctions per elaborazione.",
-      "Assegnazione automatica al miglior offerente quando timer scade.",
-      "Aggiornamento real-time dell'UI dopo processamento."
-    ]
-  },
-  "socketIOEnhancements": {
-    "feature_name": "Miglioramenti Sistema Socket.IO",
-    "summary": "Ottimizzazioni per notifiche real-time e avvio automatico del socket server.",
-    "improvements": [
-      "Socket server avviato automaticamente con 'pnpm run dev' usando concurrently.",
-      "Correzione nomi stanze Socket.IO (league-1 invece di league-league-1).",
-      "Notifiche specifiche per auto-bid attivate e offerte superate.",
-      "Debug logs per troubleshooting eventi Socket.IO.",
-      "Gestione corretta cleanup intervalli nelle pagine."
-    ]
-  },
-  "uiImprovements": {
-    "feature_name": "Miglioramenti Interfaccia Utente",
-    "summary": "Standardizzazione colori, icone e correzioni visual consistency.",
-    "improvements": [
-      "Colori ruoli standardizzati: P=giallo, D=verde, C=blu, A=rosso.",
-      "Icona lucchetto per giocatori assegnati invece di ruolo+prezzo.",
-      "Visualizzazione auto-bid solo al proprietario (privacy).",
-      "Correzione duplicazioni nei menu a tendina squadre.",
-      "Database pulito: rimossi duplicati giocatori e standardizzati nomi squadre."
-    ]
-  },
-  "databaseCleanup": {
-    "feature_name": "Pulizia Database e Standardizzazione",
-    "summary": "Rimozione duplicati e standardizzazione nomi squadre per consistenza dati.",
-    "actions_performed": [
-      "Rimossi giocatori duplicati (es. MAIGNAN/MIL vs Maignan/Milan).",
-      "Standardizzati nomi squadre a versioni complete (Milan invece di MIL).",
-      "560 giocatori totali dopo pulizia (vs ~570 con duplicati).",
-      "20 squadre uniche con nomi completi standardizzati.",
-      "Eliminazione confusione nei menu a tendina e filtri."
-    ]
-  },
-  "uiSyncFix": {
-    "feature_name": "Fix Sincronizzazione UI Aste con Refresh Automatico",
-    "summary": "Risolve problema di sincronizzazione UI dove utenti tentavano offerte duplicate perch� l'interfaccia non si aggiornava dopo offerte riuscite.",
-    "root_cause": "UI non si aggiornava dopo offerte riuscite, causando tentativi di offerte duplicate. Sistema WebSocket funzionava ma eventi auction-update non venivano inviati quando offerte fallivano, lasciando UI in stato inconsistente.",
-    "solution_implemented": [
-      "Aggiunta funzione refreshCurrentAuctionData() per refresh automatico dati asta.",
-      "Modificata handlePlaceBid() per chiamare refresh dopo ogni tentativo (riuscito o fallito).",
-      "Migliorato logging socket server per debugging eventi auction-update.",
-      "Garantita sincronizzazione UI con database indipendentemente da successo/fallimento offerte."
+      "Aggiunta detection specifica per errore 'superiore all'offerta attuale' in handlePlaceBid()",
+      "Implementata refreshCurrentAuctionData() per sync completo asta/budget/manager",
+      "Migliorato handleAuctionUpdate() con toast notification per auto-bid",
+      "Aggiornato API error handling per status 400 invece di 500 su errori sync",
+      "Garantita UI consistency dopo ogni tentativo di offerta (riuscito o fallito)"
     ],
     "files_modified": [
-      "src/app/auctions/AuctionPageContent.tsx: Aggiunta refreshCurrentAuctionData() e modificata handlePlaceBid()",
-      "socket-server.ts: Migliorato logging con JSON.stringify per debugging eventi"
+      "src/app/auctions/AuctionPageContent.tsx: Aggiunta error recovery e refresh logic",
+      "src/components/auction/ManagerColumn.tsx: Fix bidType parameter passing", 
+      "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts: Improved error classification"
     ]
   }
 }

@@ -55,7 +55,7 @@ export function BudgetDisplay({
         <div className="text-center p-4 bg-primary/10 rounded-lg">
           <p className="text-sm text-muted-foreground mb-1">Disponibile</p>
           <p className="text-3xl font-bold text-primary">
-            {availableBudget}
+            {availableBudget.toString()}
           </p>
           <p className="text-sm text-muted-foreground">crediti</p>
         </div>

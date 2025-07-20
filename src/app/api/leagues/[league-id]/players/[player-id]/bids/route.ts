@@ -190,6 +190,7 @@ export async function POST(request: Request, context: RouteContext) {
           error.message.includes("is not currently active for bidding")) ||
         error.message.includes("has already been assigned") ||
         error.message.includes("must be > current bid") ||
+        error.message.includes("L'offerta deve essere superiore all'offerta attuale") || // Auto-bid sync issue
         error.message.includes("is already the highest bidder") ||
         error.message.includes("Sei già il miglior offerente") ||
         error.message.includes("Auction is not active or closing") ||
