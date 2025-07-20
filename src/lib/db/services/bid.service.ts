@@ -577,48 +577,33 @@ export async function placeBidOnExistingAuction({
       let finalBidAmount = bidAmount;
       
       if (currentBidderAutoBid) {
-        console.log(`[BID_SERVICE] Auto-bid vs Auto-bid scenario.`);
-        // Case: Auto-bid vs Auto-bid
-        // Find the highest auto-bid, with time priority for ties
-        const allAutoBids = [
-          {
-            user_id: userId,
-            max_amount: currentBidderAutoBid.max_amount,
-            created_at: currentBidderAutoBid.created_at,
-            username: 'current_user'
-          },
-          ...competingAutoBids
-        ];
+        console.log(`[BID_SERVICE] Auto-bid vs Auto-bid scenario - using 'series of automatic manual bids' logic.`);
         
-        // Sort by max_amount DESC, then by created_at ASC (earlier wins)
-        allAutoBids.sort((a, b) => {
-          if (a.max_amount !== b.max_amount) {
-            return b.max_amount - a.max_amount; // Higher amount wins
-          }
-          return a.created_at - b.created_at; // Earlier time wins
-        });
+        // SIMPLIFIED LOGIC: Think of auto-bids as series of automatic manual bids
+        // 1. Current user makes manual bid
+        // 2. All auto-bids "compete" by making automatic counter-bids
+        // 3. The winner is who can bid highest, paying loser's max + 1
         
-        const winner = allAutoBids[0];
-        const secondHighest = allAutoBids[1];
-        console.log(`[BID_SERVICE] Auto-bid winner: ${JSON.stringify(winner)}, Second highest: ${JSON.stringify(secondHighest)}`);
-        
-        if (winner.user_id !== userId) {
-          // Competing auto-bid wins
-          winningAutoBid = winner;
-          if (secondHighest) {
-            // Set final amount to second highest max + 1, but not exceeding winner's max
-            finalBidAmount = Math.min(secondHighest.max_amount + 1, winner.max_amount);
-          } else {
-            // No second bidder, set to current bid + 1
-            finalBidAmount = bidAmount + 1;
-          }
-          console.log(`[BID_SERVICE] Competing auto-bid wins. Final bid amount: ${finalBidAmount}`);
-        } else {
-          // Current user's auto-bid wins
-          if (secondHighest) {
-            // Set final amount to second highest max + 1, but not exceeding current user's max
-            finalBidAmount = Math.min(secondHighest.max_amount + 1, currentBidderAutoBid.max_amount);
-            // Current user already has the winning bid, just update the amount
+        if (competingAutoBids.length > 0) {
+          // Find the highest competing auto-bid
+          const highestCompetingAutoBid = competingAutoBids.reduce((highest, current) => 
+            current.max_amount > highest.max_amount ? current : highest
+          );
+          
+          console.log(`[BID_SERVICE] Current user auto-bid: ${currentBidderAutoBid.max_amount}, Highest competing: ${highestCompetingAutoBid.max_amount}`);
+          
+          if (highestCompetingAutoBid.max_amount > currentBidderAutoBid.max_amount) {
+            // Competing auto-bid wins
+            winningAutoBid = highestCompetingAutoBid;
+            // Winner pays current user's auto-bid max + 1 (or manual bid + 1 if higher)
+            const currentUserMaxBid = Math.max(bidAmount, currentBidderAutoBid.max_amount);
+            finalBidAmount = Math.min(currentUserMaxBid + 1, highestCompetingAutoBid.max_amount);
+            console.log(`[BID_SERVICE] Competing auto-bid wins with ${finalBidAmount} (beats ${currentUserMaxBid} + 1)`);
+          } else if (currentBidderAutoBid.max_amount > highestCompetingAutoBid.max_amount) {
+            // Current user's auto-bid wins
+            finalBidAmount = Math.min(highestCompetingAutoBid.max_amount + 1, currentBidderAutoBid.max_amount);
+            
+            // Only activate auto-bid if calculated amount is higher than manual bid
             if (finalBidAmount > bidAmount) {
               console.log(`[BID_SERVICE] Current user's auto-bid wins. Updating bid amount to ${finalBidAmount}`);
               // Update the current bid to the calculated amount
@@ -633,15 +618,29 @@ export async function placeBidOnExistingAuction({
                 )`
               ).run(finalBidAmount, auction.id, userId, auction.id, userId);
               
-              // Update locked credits
+              // Update locked credits (difference from manual bid)
               const creditDifference = finalBidAmount - bidAmount;
               incrementLockedCreditsStmt.run(creditDifference, leagueId, userId);
               console.log(`[BID_SERVICE] Locked credits updated by ${creditDifference} for ${userId}`);
+            } else {
+              // Manual bid is already sufficient
+              finalBidAmount = bidAmount;
+              console.log(`[BID_SERVICE] Manual bid ${bidAmount} is sufficient, no auto-bid activation needed`);
             }
+            winningAutoBid = null; // Current user keeps the bid
+          } else {
+            // Tie: both have same max amount
+            // In eBay logic, the first bidder (who made the initial offer) wins at their max amount
+            // Since competing auto-bid was set first (initial offer), they win at max amount
+            winningAutoBid = highestCompetingAutoBid;
+            finalBidAmount = highestCompetingAutoBid.max_amount; // Winner pays their full max amount
+            console.log(`[BID_SERVICE] Tie situation: first bidder (competing auto-bid) wins at max amount ${finalBidAmount}`);
           }
-          // Current user keeps the bid, no auto-bid activation needed
+        } else {
+          // No competing auto-bids, current user's manual bid stands
+          finalBidAmount = bidAmount;
           winningAutoBid = null;
-          console.log(`[BID_SERVICE] Current user keeps the bid. No auto-bid activated.`);
+          console.log(`[BID_SERVICE] No competing auto-bids, manual bid stands at ${finalBidAmount}`);
         }
       } else {
         console.log(`[BID_SERVICE] Manual bid vs Auto-bid scenario.`);
@@ -684,9 +683,9 @@ export async function placeBidOnExistingAuction({
             console.log(`[BID_SERVICE] Auto-bidder budget and slots valid.`);
             
             // Process auto-bid
-            // First unlock credits from the user who just bid
-            decrementLockedCreditsStmt.run(bidAmount, leagueId, userId);
-            console.log(`[BID_SERVICE] Decremented ${bidAmount} locked credits for original bidder ${userId}`);
+            // FIXED: First unlock credits from the user who just bid (use amount that was locked)
+            decrementLockedCreditsStmt.run(effectiveBidAmount, leagueId, userId);
+            console.log(`[BID_SERVICE] Decremented ${effectiveBidAmount} locked credits for original bidder ${userId}`);
             
             // Lock credits for auto-bidder
             incrementLockedCreditsStmt.run(finalBidAmount, leagueId, winningAutoBid.user_id);

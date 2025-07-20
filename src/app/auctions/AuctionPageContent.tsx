@@ -391,7 +391,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         } catch (textParseError) {
           textError = 'Unable to parse response';
         }
-        console.error('JSON parsing error or non-JSON response:', JSON.stringify({
+        console.warn('JSON parsing error or non-JSON response:', JSON.stringify({
           status: response.status,
           statusText: response.statusText,
           text: textError,
@@ -403,7 +403,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       
       if (!response.ok) {
         const errorMessage = responseData?.error || responseData?.message || "Errore sconosciuto";
-        console.error('Bid Error Details:', JSON.stringify({
+        console.warn('Bid Error Details:', JSON.stringify({
           status: response.status,
           statusText: response.statusText,
           url: response.url,
@@ -430,7 +430,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
     } catch (error) {
       const finalErrorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Bid Failure:', JSON.stringify({
+      console.warn('Bid Failure:', JSON.stringify({
         errorType: (error && typeof error === 'object' && error.constructor) ? error.constructor.name : 'Unknown',
         errorMessage: finalErrorMessage,
         errorStack: error instanceof Error ? error.stack : 'No stack trace',

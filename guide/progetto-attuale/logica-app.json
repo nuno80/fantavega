@@ -1,27 +1,27 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-20T08:15:00Z",
-    "task_completed": "Bug Fix - Error Handling in Bid System",
+    "last_update": "2025-01-20T09:30:00Z",
+    "task_completed": "Bug Fix - Auto-Bid Calculation Logic Complete Rewrite",
     "feature_logic": {
-      "feature_name": "Fix Error Handling in Bid System",
-      "summary": "Risolve errore critico 'Bid Error Details: {}' nel sistema di offerte. Il problema si verificava quando la gestione degli errori tentava di accedere a proprieta di oggetti undefined o vuoti, causando crash dell'applicazione durante le operazioni di offerta.",
-      "architectural_pattern": "Pattern di Error Handling Robusto: implementa null safety, optional chaining, e fallback values per prevenire errori di accesso a proprieta undefined durante parsing delle risposte API.",
+      "feature_name": "Fix Auto-Bid Calculation Logic - eBay-Style Implementation",
+      "summary": "Risolve completamente il bug critico nel calcolo degli auto-bid. Implementa la logica 'serie di rilanci manuali automatici' conforme agli standard eBay. Il problema principale era che il sistema usava importi auto-bid invece di offerte manuali per i calcoli, causando prezzi finali errati.",
+      "architectural_pattern": "Pattern 'Serie di Rilanci Manuali Automatici': implementa la logica eBay dove ogni auto-bid e trattato come una sequenza di rilanci manuali automatici. Questo semplifica enormemente la logica e garantisce risultati corretti in tutti gli scenari.",
       "user_flow": [
-        "1. Utente tenta di piazzare un'offerta tramite l'interfaccia di asta.",
-        "2. API restituisce errore (es. offerta troppo bassa, budget insufficiente).",
-        "3. Client-side riceve risposta di errore e tenta di parsare JSON.",
-        "4. Se parsing fallisce o responseData e undefined, sistema usa fallback values.",
-        "5. Error handler accede safely alle proprieta error/message con optional chaining.",
-        "6. Errore viene loggato correttamente con informazioni complete.",
-        "7. Utente riceve messaggio di errore chiaro invece di crash dell'applicazione."
+        "1. Utente con auto-bid attivo fa un'offerta manuale su un giocatore.",
+        "2. Sistema rileva auto-bid competitivi di altri utenti per lo stesso giocatore.",
+        "3. Sistema simula una 'battaglia di rilanci automatici' tra tutti gli auto-bid.",
+        "4. Logica: chi ha auto-bid piu alto vince, pagando max del secondo + 1.",
+        "5. In caso di parita, vince chi ha fatto l'offerta iniziale al suo importo massimo.",
+        "6. Sistema aggiorna asta con vincitore e prezzo finale corretto.",
+        "7. Notifiche real-time inviate a tutti i partecipanti interessati."
       ],
       "core_components_interaction": {
-        "src/app/auctions/AuctionPageContent.tsx": "Componente principale con error handling migliorato in handlePlaceBid(). Usa optional chaining e fallback values per accesso sicuro a responseData.",
-        "handlePlaceBid()": "Funzione con gestione errori robusta. Implementa try-catch per JSON parsing e null safety per accesso proprieta.",
-        "JSON Error Handling": "Doppio try-catch per parsing JSON e text response, con logging dettagliato di errori di parsing.",
-        "Response Error Handling": "Optional chaining per responseData?.error e responseData?.message con fallback 'Errore sconosciuto'.",
-        "Error Logging": "Logging completo con status, statusText, URL, responseData (con fallback {}), e bidData per debugging."
+        "src/lib/db/services/bid.service.ts": "Servizio principale completamente riscritto con logica 'serie di rilanci automatici'. Linee 577-645 implementano la nuova logica eBay-style.",
+        "placeBidOnExistingAuction()": "Funzione principale che gestisce auto-bid vs auto-bid con logica semplificata: trova auto-bid piu alto, calcola prezzo finale come max_perdente + 1.",
+        "Auto-bid Competition Logic": "Sistema confronta auto-bid massimi, determina vincitore, calcola prezzo finale. In parita vince primo offerente al suo massimo.",
+        "Credit Management": "Gestione corretta dei crediti bloccati usando effectiveBidAmount per sbloccare e finalBidAmount per bloccare al vincitore.",
+        "Real-time Notifications": "Notifiche Socket.IO per aggiornamenti asta, offerte superate, e attivazioni auto-bid con dati corretti."
       },
       "database_interactions": [
         {
@@ -45,24 +45,27 @@
       ]
     },
     "bug_details": {
-      "original_issue": "Error: Bid Error Details: {} causava crash dell'applicazione durante gestione errori di offerta",
-      "root_cause": "handlePlaceBid() tentava di accedere a responseData.error e responseData.message su oggetti undefined o vuoti, causando errori di accesso proprieta.",
+      "original_issue": "Auto-bid system calcolava prezzi finali errati in scenari auto-bid vs auto-bid. Esempio: offerta manuale 33 crediti risultava in prezzo finale 31 invece di 34.",
+      "root_cause": "Logica auto-bid usava importi auto-bid invece di offerte manuali per calcoli. Sistema non implementava correttamente la logica eBay di 'rilanci automatici sequenziali'.",
       "error_manifestation": [
-        "Console Error: Bid Error Details: {}",
-        "TypeError: Cannot read properties of undefined",
-        "Unhandled Runtime Error durante operazioni di offerta"
+        "Prezzi finali asta incorretti (troppo bassi)",
+        "Utenti vincevano aste pagando meno del dovuto",
+        "Violazione principi eBay-style auction",
+        "Gestione crediti bloccati inconsistente"
       ],
-      "technical_cause": "Mancanza di null safety e optional chaining nell'accesso alle proprieta degli oggetti di risposta API."
+      "technical_cause": "Algoritmo auto-bid confrontava max_amount degli auto-bid invece di simulare rilanci sequenziali partendo dall'offerta manuale."
     },
     "solution_implemented": [
-      "Aggiunto optional chaining (responseData?.error, responseData?.message) per accesso sicuro proprieta",
-      "Implementato fallback value (responseData || {}) per logging sicuro oggetti undefined",
-      "Migliorato JSON parsing con doppio try-catch per gestire errori di parsing text response",
-      "Aggiunto logging dettagliato con status codes e informazioni complete per debugging",
-      "Garantita robustezza error handling per tutti i tipi di errore API"
+      "Riscritta completamente logica auto-bid con approccio 'serie di rilanci manuali automatici'",
+      "Implementato confronto diretto tra auto-bid massimi per determinare vincitore",
+      "Calcolo prezzo finale: vincitore paga max_amount del perdente + 1 (o suo massimo in caso di parita)",
+      "Gestione corretta caso parita: primo offerente vince al suo importo massimo",
+      "Correzione gestione crediti bloccati con importi effettivi corretti",
+      "Aggiornamento logging per tracciare nuova logica di calcolo"
     ],
     "files_modified": [
-      "src/app/auctions/AuctionPageContent.tsx: Migliorato error handling in handlePlaceBid() con null safety e optional chaining"
+      "src/lib/db/services/bid.service.ts: Riscritta logica auto-bid (linee 577-645) con implementazione eBay-style",
+      "bugfix.md: Documentazione completa del bug e della soluzione implementata"
     ]
   }
 }
