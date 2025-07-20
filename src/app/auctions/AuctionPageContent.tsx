@@ -275,8 +275,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         toast.info(`Auto-bid attivato! Nuova offerta: ${data.newPrice} crediti`);
       }
       
-      // Force refresh auction data immediately to sync UI
-      await refreshCurrentAuctionData();
+      // Force refresh ALL league data to sync manager columns and auction state
+      if (selectedLeagueId) {
+        await fetchLeagueData(selectedLeagueId);
+      }
     };
 
     const handleBidSurpassed = (data: {
@@ -340,6 +342,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     socket.on("auction-update", handleAuctionUpdate);
+    socket.on("auction-created", handleAuctionUpdate); // Nuove aste usano stesso handler
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-closed-notification", handleAuctionClosed);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
@@ -348,6 +351,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
       socket.off("auction-update", handleAuctionUpdate);
+      socket.off("auction-created", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
@@ -453,7 +457,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 p-4">
           <CallPlayerInterface 
             leagueId={selectedLeagueId || 0}
-            onAuctionCreated={() => {
+            userId={userId}
+            onStartAuction={() => {
               if (selectedLeagueId) {
                 fetchLeagueData(selectedLeagueId);
               }
