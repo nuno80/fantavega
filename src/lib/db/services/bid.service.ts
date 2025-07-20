@@ -517,24 +517,10 @@ export async function placeBidOnExistingAuction({
         console.warn(`[BID_SERVICE] No previous bid found for previous highest bidder ${previousHighestBidderId} in auction ${auction.id}`);
       }
     }
-    incrementLockedCreditsStmt.run(bidAmount, leagueId, userId);
-    console.log(`[BID_SERVICE] Incremented ${bidAmount} locked credits for ${userId}`);
+    // We'll update locked credits after determining the effective bid amount
 
-    // --- Blocco 4: Aggiornamento Asta e Inserimento Nuova Offerta ---
-    const newScheduledEndTime =
-      Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
-    db.prepare(
-      `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
-    ).run(bidAmount, userId, newScheduledEndTime, auction.id);
-    console.log(`[BID_SERVICE] Auction ${auction.id} updated with new bid ${bidAmount} by ${userId}`);
-    db.prepare(
-      `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
-    ).run(auction.id, userId, bidAmount, bidType);
-    console.log(`[BID_SERVICE] New bid record inserted for auction ${auction.id}`);
-
-    // --- Blocco 5: Check for Auto-Bid Activation (eBay Logic) ---
-    console.log(`[BID_SERVICE] Checking for auto-bid activation...`);
-    // After user's bid is processed, check if any auto-bids should activate
+    // --- Blocco 4: Check Auto-Bid BEFORE Processing Manual Bid ---
+    console.log(`[BID_SERVICE] Checking for auto-bid activation BEFORE processing manual bid...`);
     
     // First, check if the current bidder also has an auto-bid for this auction
     const currentBidderAutoBid = db
@@ -544,6 +530,33 @@ export async function placeBidOnExistingAuction({
          WHERE ab.auction_id = ? AND ab.user_id = ? AND ab.is_active = TRUE`
       )
       .get(auction.id, userId) as {max_amount: number, created_at: number} | undefined;
+    console.log(`[BID_SERVICE] Current bidder auto-bid: ${JSON.stringify(currentBidderAutoBid)}`);
+    
+    // Determine the effective bid amount (manual bid or auto-bid max)
+    let effectiveBidAmount = bidAmount;
+    if (currentBidderAutoBid && currentBidderAutoBid.max_amount > bidAmount) {
+      effectiveBidAmount = currentBidderAutoBid.max_amount;
+      console.log(`[BID_SERVICE] Using auto-bid amount ${effectiveBidAmount} instead of manual bid ${bidAmount}`);
+    }
+
+    // Now increment locked credits with the effective amount
+    incrementLockedCreditsStmt.run(effectiveBidAmount, leagueId, userId);
+    console.log(`[BID_SERVICE] Incremented ${effectiveBidAmount} locked credits for ${userId}`);
+
+    // --- Blocco 5: Aggiornamento Asta e Inserimento Nuova Offerta ---
+    const newScheduledEndTime =
+      Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
+    db.prepare(
+      `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
+    ).run(effectiveBidAmount, userId, newScheduledEndTime, auction.id);
+    console.log(`[BID_SERVICE] Auction ${auction.id} updated with new bid ${effectiveBidAmount} by ${userId}`);
+    db.prepare(
+      `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
+    ).run(auction.id, userId, effectiveBidAmount, effectiveBidAmount > bidAmount ? 'auto' : bidType);
+    console.log(`[BID_SERVICE] New bid record inserted for auction ${auction.id}`);
+
+    // --- Blocco 6: Check for Competing Auto-Bid Activation (eBay Logic) ---
+    console.log(`[BID_SERVICE] Checking for competing auto-bid activation...`);
     console.log(`[BID_SERVICE] Current bidder auto-bid: ${JSON.stringify(currentBidderAutoBid)}`);
     
     // Get all other active auto-bids for this auction (excluding current bidder)

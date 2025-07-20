@@ -385,26 +385,32 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       try {
         responseData = await response.json();
       } catch (jsonError) {
-        const textError = await response.text();
-        console.error('JSON parsing error or non-JSON response:', {
+        let textError = '';
+        try {
+          textError = await response.text();
+        } catch (textParseError) {
+          textError = 'Unable to parse response';
+        }
+        console.error('JSON parsing error or non-JSON response:', JSON.stringify({
           status: response.status,
+          statusText: response.statusText,
           text: textError,
-          jsonError: jsonError,
+          jsonError: jsonError instanceof Error ? jsonError.message : String(jsonError),
           bidData: { amount, bidType }
-        });
-        throw new Error(`Errore dal server: ${textError || 'Risposta non valida'}`);
+        }));
+        throw new Error(`Errore dal server (${response.status}): ${textError || 'Risposta non valida'}`);
       }
       
       if (!response.ok) {
-        const errorMessage = responseData.error || responseData.message || "Errore sconosciuto";
-        console.error('Bid Error Details:', {
+        const errorMessage = responseData?.error || responseData?.message || "Errore sconosciuto";
+        console.error('Bid Error Details:', JSON.stringify({
           status: response.status,
           statusText: response.statusText,
           url: response.url,
-          responseData: responseData,
+          responseData: responseData || {},
           error: errorMessage,
           bidData: { amount, bidType }
-        });
+        }));
         
         // If it's a bid amount error, force refresh to sync UI with current auction state
         if (errorMessage.includes("superiore all'offerta attuale")) {
@@ -424,21 +430,22 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
     } catch (error) {
       const finalErrorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Bid Failure:', {
-        errorType: error?.constructor?.name || 'Unknown',
+      console.error('Bid Failure:', JSON.stringify({
+        errorType: (error && typeof error === 'object' && error.constructor) ? error.constructor.name : 'Unknown',
         errorMessage: finalErrorMessage,
         errorStack: error instanceof Error ? error.stack : 'No stack trace',
-        currentAuction: currentAuction?.player_id,
-        userId,
-        amount
-      });
+        currentAuction: currentAuction?.player_id || null,
+        userId: userId || null,
+        amount: amount || null,
+        errorObject: error instanceof Error ? error.toString() : String(error)
+      }));
       
       toast.error(`Errore nell'offerta: ${finalErrorMessage}`);
       
       if (selectedLeagueId) {
         await fetchLeagueData(selectedLeagueId);
       }
-      throw error;
+      // Error is already handled with toast and data refresh, no need to throw
     }
   }, [currentAuction, selectedLeagueId, userId, refreshCurrentAuctionData, fetchLeagueData]);
 

@@ -686,9 +686,15 @@ export function ManagerColumn({
               setSelectedPlayerForBid(null);
               return;
             }
-            await handlePlaceBid(amount, bidType || "manual");
-            setShowStandardBidModal(false);
-            setSelectedPlayerForBid(null);
+            try {
+              await handlePlaceBid(amount, bidType || "manual");
+              setShowStandardBidModal(false);
+              setSelectedPlayerForBid(null);
+            } catch (error) {
+              // Error is already handled in handlePlaceBid, just close the modal
+              setShowStandardBidModal(false);
+              setSelectedPlayerForBid(null);
+            }
           }}
         />
       )}

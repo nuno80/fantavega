@@ -1,89 +1,68 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-20T07:45:00Z",
-    "task_completed": "Bug Fix - Sistema Rilanci con Auto-bid Sync",
+    "last_update": "2025-01-20T08:15:00Z",
+    "task_completed": "Bug Fix - Error Handling in Bid System",
     "feature_logic": {
-      "feature_name": "Fix Sistema Rilanci con Auto-bid Sync e Error Recovery",
-      "summary": "Risolve problema critico di sincronizzazione UI durante rilanci con auto-bid attivi. Quando auto-bid si attivano automaticamente, l'interfaccia utente non si aggiornava, causando errori 'offerta deve essere superiore' quando utenti tentavano rilanci con dati obsoleti.",
-      "architectural_pattern": "Pattern di Error Recovery con Refresh Intelligente: rileva errori di sincronizzazione auto-bid, forza refresh immediato dei dati asta, e implementa gestione eventi socket migliorata per aggiornamenti real-time.",
+      "feature_name": "Fix Error Handling in Bid System",
+      "summary": "Risolve errore critico 'Bid Error Details: {}' nel sistema di offerte. Il problema si verificava quando la gestione degli errori tentava di accedere a proprieta di oggetti undefined o vuoti, causando crash dell'applicazione durante le operazioni di offerta.",
+      "architectural_pattern": "Pattern di Error Handling Robusto: implementa null safety, optional chaining, e fallback values per prevenire errori di accesso a proprieta undefined durante parsing delle risposte API.",
       "user_flow": [
-        "1. Team Red punta Butez a 10 crediti con auto-bid a 20 crediti.",
-        "2. Team Fede rilancia a 11 crediti - auto-bid di Team Red si attiva automaticamente a 12 crediti.",
-        "3. Team Fede imposta auto-bid a 25 e rilancia a 13 - sistema calcola offerta finale a 21 crediti (20+1).",
-        "4. Team Fede tenta nuovo rilancio a 13 crediti ma UI mostra dati obsoleti.",
-        "5. Sistema rileva errore 'superiore all'offerta attuale' e attiva error recovery.",
-        "6. refreshCurrentAuctionData() forza aggiornamento immediato di asta, budget e manager.",
-        "7. handleAuctionUpdate() gestisce eventi socket con toast notification per auto-bid.",
-        "8. UI sincronizzata mostra 21 crediti come offerta attuale, prevenendo errori futuri."
+        "1. Utente tenta di piazzare un'offerta tramite l'interfaccia di asta.",
+        "2. API restituisce errore (es. offerta troppo bassa, budget insufficiente).",
+        "3. Client-side riceve risposta di errore e tenta di parsare JSON.",
+        "4. Se parsing fallisce o responseData e undefined, sistema usa fallback values.",
+        "5. Error handler accede safely alle proprieta error/message con optional chaining.",
+        "6. Errore viene loggato correttamente con informazioni complete.",
+        "7. Utente riceve messaggio di errore chiaro invece di crash dell'applicazione."
       ],
       "core_components_interaction": {
-        "src/app/auctions/AuctionPageContent.tsx": "Componente principale con error recovery per auto-bid sync. Gestisce handlePlaceBid() migliorato e handleAuctionUpdate() per eventi socket.",
-        "handlePlaceBid()": "Funzione con detection errori auto-bid sync. Se rileva 'superiore all'offerta attuale', forza refreshCurrentAuctionData() e mostra messaggio specifico.",
-        "refreshCurrentAuctionData()": "Helper function che aggiorna asta, budget e manager simultaneamente per sincronizzazione completa UI.",
-        "handleAuctionUpdate()": "Nuovo listener socket per eventi auction-update con toast notification per auto-bid attivati e refresh immediato.",
-        "src/components/auction/ManagerColumn.tsx": "Aggiornato per passare bidType correttamente a handlePlaceBid().",
-        "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts": "API con gestione errore specifico 'L'offerta deve essere superiore all'offerta attuale' come status 400 invece di 500.",
-        "src/lib/db/services/bid.service.ts": "Servizio auto-bid con logica eBay che invia eventi auction-update con flag autoBidActivated per UI sync."
+        "src/app/auctions/AuctionPageContent.tsx": "Componente principale con error handling migliorato in handlePlaceBid(). Usa optional chaining e fallback values per accesso sicuro a responseData.",
+        "handlePlaceBid()": "Funzione con gestione errori robusta. Implementa try-catch per JSON parsing e null safety per accesso proprieta.",
+        "JSON Error Handling": "Doppio try-catch per parsing JSON e text response, con logging dettagliato di errori di parsing.",
+        "Response Error Handling": "Optional chaining per responseData?.error e responseData?.message con fallback 'Errore sconosciuto'.",
+        "Error Logging": "Logging completo con status, statusText, URL, responseData (con fallback {}), e bidData per debugging."
       },
       "database_interactions": [
         {
           "table": "auctions",
           "operation": "SELECT + UPDATE",
-          "description": "Recupera e aggiorna dati asta corrente durante rilanci e auto-bid."
-        },
-        {
-          "table": "auto_bids", 
-          "operation": "SELECT",
-          "description": "Controlla auto-bid attivi per logica eBay durante rilanci."
-        },
-        {
-          "table": "bids",
-          "operation": "INSERT + SELECT",
-          "description": "Inserisce nuove offerte e recupera cronologia per UI sync."
+          "description": "Operazioni di offerta che possono generare errori gestiti dal nuovo error handler."
         },
         {
           "table": "league_participants",
-          "operation": "UPDATE",
-          "description": "Aggiorna locked_credits durante cambio di miglior offerente."
+          "operation": "SELECT + UPDATE", 
+          "description": "Controlli budget e locked_credits che possono fallire e richiedere error handling."
         }
       ],
       "real_time_features": [
         {
-          "event": "auction-update",
-          "trigger": "Auto-bid activation o rilancio manuale",
-          "data": "playerId, newPrice, highestBidderId, autoBidActivated flag",
-          "ui_response": "Toast notification + refresh immediato dati asta"
-        },
-        {
-          "event": "bid-surpassed-notification", 
-          "trigger": "Utente superato da auto-bid",
-          "data": "playerName, newBidAmount, autoBidActivated flag",
-          "ui_response": "Notifica personalizzata + cambio stato rilancio_possibile"
+          "event": "error_handling",
+          "trigger": "Errore durante operazioni di offerta",
+          "data": "Error details con null safety",
+          "ui_response": "Toast error message invece di crash applicazione"
         }
       ]
     },
     "bug_details": {
-      "original_issue": "Team Fede rilancia Butez ma riceve errore 'L'offerta deve essere superiore all'offerta attuale' con oggetti di errore vuoti {}",
-      "root_cause": "UI non si sincronizzava dopo attivazione auto-bid. Frontend mostrava 13 crediti mentre database aveva 21 crediti a causa di auto-bid eBay logic (20+1).",
+      "original_issue": "Error: Bid Error Details: {} causava crash dell'applicazione durante gestione errori di offerta",
+      "root_cause": "handlePlaceBid() tentava di accedere a responseData.error e responseData.message su oggetti undefined o vuoti, causando errori di accesso proprieta.",
       "error_manifestation": [
         "Console Error: Bid Error Details: {}",
-        "Console Error: Bid Failure: {}",
-        "Unhandled Runtime Error: An unexpected error occurred while processing your bid"
+        "TypeError: Cannot read properties of undefined",
+        "Unhandled Runtime Error durante operazioni di offerta"
       ],
-      "technical_cause": "handlePlaceBid() non gestiva errori di sync auto-bid e non forzava refresh UI dopo errori di offerta obsoleta."
+      "technical_cause": "Mancanza di null safety e optional chaining nell'accesso alle proprieta degli oggetti di risposta API."
     },
     "solution_implemented": [
-      "Aggiunta detection specifica per errore 'superiore all'offerta attuale' in handlePlaceBid()",
-      "Implementata refreshCurrentAuctionData() per sync completo asta/budget/manager",
-      "Migliorato handleAuctionUpdate() con toast notification per auto-bid",
-      "Aggiornato API error handling per status 400 invece di 500 su errori sync",
-      "Garantita UI consistency dopo ogni tentativo di offerta (riuscito o fallito)"
+      "Aggiunto optional chaining (responseData?.error, responseData?.message) per accesso sicuro proprieta",
+      "Implementato fallback value (responseData || {}) per logging sicuro oggetti undefined",
+      "Migliorato JSON parsing con doppio try-catch per gestire errori di parsing text response",
+      "Aggiunto logging dettagliato con status codes e informazioni complete per debugging",
+      "Garantita robustezza error handling per tutti i tipi di errore API"
     ],
     "files_modified": [
-      "src/app/auctions/AuctionPageContent.tsx: Aggiunta error recovery e refresh logic",
-      "src/components/auction/ManagerColumn.tsx: Fix bidType parameter passing", 
-      "src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts: Improved error classification"
+      "src/app/auctions/AuctionPageContent.tsx: Migliorato error handling in handlePlaceBid() con null safety e optional chaining"
     ]
   }
 }
