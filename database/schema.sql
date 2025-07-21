@@ -213,21 +213,22 @@ CREATE TABLE IF NOT EXISTS user_auction_cooldowns (
     UNIQUE(auction_id, user_id)
 );
 
--- Tabella per Timer di Risposta Utente (Funzionalità futura)
+-- Tabella per Timer di Risposta Utente (Sistema Timer Rilancio)
 CREATE TABLE IF NOT EXISTS user_auction_response_timers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
-    notified_at INTEGER DEFAULT (strftime('%s', 'now')), 
-    response_deadline INTEGER NOT NULL, 
-    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'action_taken', 'deadline_missed')),
-    last_reset_at INTEGER DEFAULT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    response_deadline INTEGER, -- NULL = timer pendente, valore = timer attivo
+    activated_at INTEGER, -- quando il timer è stato attivato (login utente)
+    processed_at INTEGER, -- quando il timer è stato processato
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'cancelled', 'abandoned', 'expired')),
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(auction_id, user_id)
 );
 
--- Tabella Preferenze Utente per Giocatori (per lega)
+-- Tabella Preferenze Utente per Giocatori (per lega e cooldown)
 CREATE TABLE IF NOT EXISTS user_player_preferences (
     user_id TEXT NOT NULL,
     player_id INTEGER NOT NULL,
@@ -236,6 +237,8 @@ CREATE TABLE IF NOT EXISTS user_player_preferences (
     is_favorite BOOLEAN DEFAULT FALSE,
     integrity_value INTEGER DEFAULT 0,
     has_fmv BOOLEAN DEFAULT FALSE,
+    preference_type TEXT DEFAULT 'preference', -- 'preference', 'cooldown'
+    expires_at INTEGER, -- timestamp di scadenza per cooldown (NULL = permanente)
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     
@@ -323,6 +326,23 @@ WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL
 BEGIN
     UPDATE player_discard_requests SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
 END;
+
+-- Tabella Sessioni Utente (per tracking login/logout preciso)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    session_start INTEGER NOT NULL, -- timestamp login
+    session_end INTEGER, -- timestamp logout (NULL se ancora online)
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, session_end);
+
+-- Constraint: solo una sessione attiva per utente
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_unique_active 
+ON user_sessions(user_id) WHERE session_end IS NULL;
 
 -- NUOVO TRIGGER: per user_league_compliance_status
 CREATE TRIGGER IF NOT EXISTS update_user_league_compliance_status_updated_at

@@ -4,7 +4,7 @@
 import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 import { handleBidderChange } from "./auction-states.service";
-import { canUserBidOnPlayer, getUserCooldownInfo } from "./response-timer.service";
+import { canUserBidOnPlayer, getUserCooldownInfo, createResponseTimer, cancelResponseTimer } from "./response-timer.service";
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
@@ -193,6 +193,12 @@ export const placeInitialBidAndCreateAuction = async (
   bidderUserIdParam: string,
   bidAmountParam: number
 ): Promise<AuctionCreationResult> => {
+  // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
+  const cooldownInfo = await getUserCooldownInfo(bidderUserIdParam, playerIdParam, leagueIdParam);
+  if (!cooldownInfo.canBid) {
+    throw new Error(cooldownInfo.message || "Non puoi avviare un'asta per questo giocatore. Hai un cooldown attivo.");
+  }
+
   const result = db.transaction(() => {
     const now = Math.floor(Date.now() / 1000);
     const leagueStmt = db.prepare(
@@ -262,12 +268,6 @@ export const placeInitialBidAndCreateAuction = async (
       throw new Error(
         `Giocatore ${playerIdParam} già assegnato in questa lega.`
       );
-
-    // Check if user is in cooldown for this player (48h after abandoning)
-    const cooldownInfo = getUserCooldownInfo(bidderUserIdParam, playerIdParam);
-    if (!cooldownInfo.canBid) {
-      throw new Error(cooldownInfo.message || "Non puoi avviare un'asta per questo giocatore. Hai un cooldown attivo.");
-    }
 
     const existingAuctionStmt = db.prepare(
       "SELECT id, scheduled_end_time, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
@@ -372,6 +372,14 @@ export async function placeBidOnExistingAuction({
   bidType = "manual",
 }: PlaceBidParams) {
   console.log(`[BID_SERVICE] placeBidOnExistingAuction called for user ${userId}, player ${playerId}, amount ${bidAmount}`);
+  
+  // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
+  const cooldownInfo = await getUserCooldownInfo(userId, playerId, leagueId);
+  if (!cooldownInfo.canBid) {
+    console.error(`[BID_SERVICE] User ${userId} in cooldown for player ${playerId}: ${cooldownInfo.message}`);
+    throw new Error(cooldownInfo.message || "Non puoi fare offerte per questo giocatore. Hai un cooldown attivo.");
+  }
+
   const transaction = db.transaction(() => {
     console.log(`[BID_SERVICE] Transaction started.`);
     // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
@@ -398,13 +406,6 @@ export async function placeBidOnExistingAuction({
     if (auction.scheduled_end_time <= now) {
       console.error(`[BID_SERVICE] Auction expired: ${auction.id}`);
       throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
-    }
-
-    // Check if user is in cooldown for this player (48h after abandoning)
-    const cooldownInfo = getUserCooldownInfo(userId, playerId);
-    if (!cooldownInfo.canBid) {
-      console.error(`[BID_SERVICE] User ${userId} in cooldown for player ${playerId}: ${cooldownInfo.message}`);
-      throw new Error(cooldownInfo.message || "Non puoi fare offerte per questo giocatore. Hai un cooldown attivo.");
     }
 
     const league = db
@@ -741,6 +742,34 @@ export async function placeBidOnExistingAuction({
 
   const result = transaction();
   console.log(`[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`);
+
+  // --- Gestione Timer di Risposta ---
+  if (result.success) {
+    // Cancella timer per l'utente che ha rilanciato (non serve più)
+    try {
+      await cancelResponseTimer(
+        db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
+          .get(leagueId, playerId)?.id || 0,
+        userId
+      );
+    } catch (error) {
+      console.log(`[BID_SERVICE] Timer cancellation non-critical error: ${error}`);
+    }
+
+    // Crea timer pendente per l'utente superato
+    const finalPreviousHighestBidderId = result.autoBidActivated ? userId : result.previousHighestBidderId;
+    if (finalPreviousHighestBidderId && finalPreviousHighestBidderId !== (result.autoBidActivated ? result.autoBidUserId : userId)) {
+      try {
+        const auctionId = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
+          .get(leagueId, playerId)?.id;
+        if (auctionId) {
+          await createResponseTimer(auctionId, finalPreviousHighestBidderId);
+        }
+      } catch (error) {
+        console.error(`[BID_SERVICE] Error creating response timer: ${error}`);
+      }
+    }
+  }
 
   // --- Blocco 6: Invio Notifiche Socket.IO ---
   if (result.success) {

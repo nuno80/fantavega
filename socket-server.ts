@@ -1,8 +1,29 @@
-// socket-server.ts v.1.1
+// socket-server.ts v.1.2
 // Server Socket.IO che gestisce le stanze per le leghe e per i singoli utenti.
 // 1. Importazioni
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
+
+// Import dinamico per i servizi (ESM compatibility)
+let recordUserLogout: ((userId: string) => Promise<void>) | null = null;
+let startScheduler: (() => void) | null = null;
+
+(async () => {
+  try {
+    const sessionModule = await import('./src/lib/db/services/session.service.js');
+    recordUserLogout = sessionModule.recordUserLogout;
+    
+    const schedulerModule = await import('./src/lib/scheduler.js');
+    startScheduler = schedulerModule.startScheduler;
+    
+    // Avvia lo scheduler automatico
+    if (startScheduler) {
+      startScheduler();
+    }
+  } catch (error) {
+    console.warn('[SOCKET] Could not import services:', error);
+  }
+})();
 
 // 2. Costanti di Configurazione
 const SOCKET_PORT = 3001;
@@ -85,14 +106,26 @@ io.on("connection", (socket: Socket) => {
     if (!userId) return;
     const roomName = `user-${userId}`;
     socket.join(roomName);
+    // Salva userId nel socket per il logout
+    (socket as any).userId = userId;
     console.log(
       `[Socket] Utente ${socket.id} si è unito alla sua stanza personale: ${roomName}`
     );
   });
 
   // Gestione della disconnessione
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     console.log(`❌ Utente disconnesso: ${socket.id}`);
+    
+    // Registra logout se abbiamo l'userId
+    const userId = (socket as any).userId;
+    if (userId && recordUserLogout) {
+      try {
+        await recordUserLogout(userId);
+      } catch (error) {
+        console.error('[SOCKET] Error recording logout:', error);
+      }
+    }
   });
 });
 

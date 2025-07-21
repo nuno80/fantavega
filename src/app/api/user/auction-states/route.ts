@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
+import { recordUserLogin } from "@/lib/db/services/session.service";
 
 export async function GET(request: Request) {
   try {
@@ -22,6 +23,14 @@ export async function GET(request: Request) {
     }
 
     console.log(`[USER_AUCTION_STATES] Processing for user: ${user.id}, league: ${leagueId}`);
+
+    // **FASE 0: Registra login utente**
+    try {
+      await recordUserLogin(user.id);
+    } catch (error) {
+      console.error('[USER_AUCTION_STATES] Error recording login:', error);
+      // Non bloccare la richiesta per errori di sessione
+    }
 
     // **FASE 1: Attiva i timer pendenti per l'utente**
     // Questa è la logica chiave: il timer parte quando l'utente "vede" lo stato.

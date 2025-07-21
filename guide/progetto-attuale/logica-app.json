@@ -1,30 +1,36 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-20T09:30:00Z",
-    "task_completed": "Bug Fix - Auto-Bid Calculation Logic Complete Rewrite",
+    "last_update": "2025-01-20T15:00:00Z",
+    "task_completed": "Sistema Timer Rilancio - Implementazione Logica Corretta",
     "feature_logic": {
-      "feature_name": "Fix Auto-Bid Calculation Logic - eBay-Style Implementation",
-      "summary": "Implementa un timer di risposta asincrono e specifico per utente. Quando un utente viene superato, un timer personale si attiva, dandogli un tempo limitato per rispondere. La mancata risposta comporta una penalità di cooldown, impedendo offerte future sullo stesso giocatore per un periodo di tempo.",
-      "architectural_pattern": "Pattern 'Serie di Rilanci Manuali Automatici': implementa la logica eBay dove ogni auto-bid e trattato come una sequenza di rilanci manuali automatici. Questo semplifica enormemente la logica e garantisce risultati corretti in tutti gli scenari.",
+      "feature_name": "Sistema Timer Rilancio - Logica Fairness e Slot Liberation",
+      "summary": "Implementa un sistema di timer di rilancio che garantisce fairness: il timer di 1 ora parte solo quando l'utente torna online e vede la notifica del rilancio. Include tracking preciso login/logout, scheduling automatico per liberare slot bloccate, e gestione completa del ciclo di vita dei timer.",
+      "architectural_pattern": "Pattern 'Timer Pendente + Session Tracking': Timer rimangono pendenti (senza deadline) finché l'utente non torna online. Sistema di scheduling automatico processa timer scaduti ogni 5 minuti per liberare slot e applicare cooldown.",
       "user_flow": [
-        "1. UserB supera l'offerta di UserA per un giocatore.",
-        "2. Il server chiama `createResponseTimer` per UserA, creando un record 'pending' in `user_auction_response_timers` senza una scadenza immediata.",
-        "3. UserA effettua il login o accede a una pagina che recupera i suoi stati d'asta. L'endpoint `/api/user/auction-states/route.ts` invoca `activateTimersForUser`.",
-        "4. `activateTimersForUser` calcola la scadenza (es. 1 ora dal login) per i timer pendenti di UserA, aggiorna il DB e invia una notifica Socket.IO (`response-timer-started`).",
-        "5. L'UI di UserA visualizza il countdown basato sulla scadenza appena attivata.",
-        "6. CASO A: UserA rilancia prima della scadenza. `markTimerCompleted` imposta lo stato del timer su 'action_taken'. Nessuna penalità.",
-        "7. CASO B: UserA non agisce. Un processo di background (`processExpiredResponseTimers`) rileva il timer scaduto.",
-        "8. Il timer di UserA viene impostato su 'deadline_missed', i suoi crediti vengono sbloccati e viene aggiunto un record di penalità in `user_auction_cooldowns`.",
-        "9. UserA riceve una notifica di abbandono e non può più offrire per quel giocatore per un periodo di tempo (es. 48 ore)."
+        "1. UserA fa offerta → UserB supera UserA",
+        "2. Sistema crea timer PENDENTE per UserA (response_deadline = NULL)",
+        "3. Se UserA è ONLINE: Timer si attiva subito (deadline = login_time + 1h)",
+        "4. Se UserA è OFFLINE: Timer rimane pendente fino al login",
+        "5. UserA torna online → Middleware registra login in user_sessions",
+        "6. activateTimersForUser() attiva timer pendenti (deadline = login_time + 1h)",
+        "7. Socket.IO invia notifica 'response-timer-started' a UserA",
+        "8. CASO A: UserA rilancia → cancelResponseTimer() marca timer 'cancelled'",
+        "9. CASO B: UserA abbandona volontariamente → abandonAuction() marca timer 'abandoned' + cooldown 48h",
+        "10. CASO C: Timer scade → Scheduler automatico processa timer 'expired' + cooldown 48h",
+        "11. In tutti i casi: Slot liberate immediatamente, crediti sbloccati"
       ],
       "core_components_interaction": {
-        "src/lib/db/services/response-timer.service.ts": "Servizio dedicato che gestisce l'intero ciclo di vita dei timer di risposta asincroni.",
-        "src/lib/db/services/bid.service.ts": "Orchestra la logica delle offerte, invocando `createResponseTimer` e `markTimerCompleted` nei momenti appropriati.",
-        "createResponseTimer()": "Crea o aggiorna un timer di risposta per un utente superato.",
-        "markTimerCompleted()": "Annulla un timer pendente quando l'utente effettua un controrilancio.",
-        "processExpiredResponseTimers()": "Processo in background che gestisce i timer scaduti, sblocca i crediti e applica le penalità di cooldown.",
-        "canUserBidOnPlayer()": "Verifica se un utente è in cooldown per un giocatore specifico prima di consentire un'offerta."
+        "src/lib/db/services/session.service.ts": "Nuovo servizio per tracking login/logout preciso con tabella user_sessions",
+        "src/lib/db/services/response-timer.service.ts": "Servizio timer completamente riscritto con logica pendente/attiva",
+        "src/lib/scheduler.ts": "Sistema scheduling automatico che processa timer scaduti ogni 5 minuti",
+        "src/middleware.tsx": "Registra login utente per route protette chiamando recordUserLogin()",
+        "socket-server.ts": "Registra logout utente e avvia scheduler automatico",
+        "createResponseTimer()": "Crea timer PENDENTE (deadline=NULL), attiva subito se utente online",
+        "activateTimersForUser()": "Attiva timer pendenti calcolando deadline dal login_time",
+        "cancelResponseTimer()": "Cancella timer quando utente rilancia",
+        "abandonAuction()": "Gestisce abbandono volontario con cooldown 48h",
+        "processExpiredResponseTimers()": "Processa timer scaduti, libera slot, applica cooldown"
       },
       "database_interactions": [
         {

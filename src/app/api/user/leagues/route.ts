@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { recordUserLogin } from "@/lib/db/services/session.service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,14 @@ export async function GET(request: NextRequest) {
     
     if (!user) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+    }
+
+    // Registra login utente
+    try {
+      await recordUserLogin(user.id);
+    } catch (error) {
+      console.error('[USER_LEAGUES] Error recording login:', error);
+      // Non bloccare la richiesta per errori di sessione
     }
 
     // Get leagues where the user is a participant
