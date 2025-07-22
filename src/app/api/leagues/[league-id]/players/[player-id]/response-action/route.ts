@@ -103,11 +103,11 @@ export async function POST(request: Request, context: RouteContext) {
           ).run(userBid.amount, leagueId, user.id);
         }
 
-        // Aggiungi alla tabella user_auction_cooldowns (nome corretto dallo schema)
+        // Aggiungi cooldown usando user_player_preferences (standardizzato)
         // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
         db.prepare(
-          "INSERT OR REPLACE INTO user_auction_cooldowns (auction_id, user_id, abandoned_at, cooldown_ends_at) VALUES (?, ?, ?, ?)"
-        ).run(auction.id, user.id, now, cooldownEnd);
+          "INSERT OR REPLACE INTO user_player_preferences (user_id, player_id, league_id, preference_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, 'cooldown', ?, ?, ?)"
+        ).run(user.id, auction.player_id, leagueId, cooldownEnd, now, now);
       })();
 
       // Notifiche

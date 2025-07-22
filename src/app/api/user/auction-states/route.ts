@@ -45,7 +45,7 @@ export async function GET(request: Request) {
         a.current_highest_bidder_id,
         a.current_highest_bid_amount,
         urt.response_deadline,
-        uac.cooldown_ends_at
+        upp.expires_at as cooldown_ends_at
       FROM auctions a
       JOIN players p ON a.player_id = p.id
       -- Join per trovare le aste in cui l'utente ha fatto un'offerta
@@ -53,10 +53,10 @@ export async function GET(request: Request) {
       -- Join per ottenere il timer di risposta, se esiste
       LEFT JOIN user_auction_response_timers urt ON a.id = urt.auction_id AND urt.user_id = ? AND urt.status = 'pending'
       -- Join per verificare il cooldown
-      LEFT JOIN user_auction_cooldowns uac ON a.id = uac.auction_id AND uac.user_id = ?
+      LEFT JOIN user_player_preferences upp ON a.player_id = upp.player_id AND upp.user_id = ? AND upp.league_id = a.auction_league_id AND upp.preference_type = 'cooldown' AND upp.expires_at > ?
       WHERE a.auction_league_id = ? AND a.status = 'active'
       GROUP BY a.id
-    `).all(user.id, user.id, user.id, leagueId) as Array<{
+    `).all(user.id, user.id, user.id, Math.floor(Date.now() / 1000), leagueId) as Array<{
       auction_id: number;
       player_id: number;
       player_name: string;

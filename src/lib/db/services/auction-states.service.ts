@@ -191,11 +191,12 @@ export const handleAuctionAbandon = async (
     const cooldownEnd = now + (48 * 3600);
     
     // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
+    // Standardizzato su user_player_preferences con preference_type = 'cooldown'
     db.prepare(`
-      INSERT OR REPLACE INTO user_auction_cooldowns 
-      (auction_id, user_id, abandoned_at, cooldown_ends_at) 
-      VALUES (?, ?, ?, ?)
-    `).run(auctionId, userId, now, cooldownEnd);
+      INSERT OR REPLACE INTO user_player_preferences 
+      (user_id, player_id, league_id, preference_type, expires_at, created_at, updated_at) 
+      VALUES (?, ?, ?, 'cooldown', ?, ?, ?)
+    `).run(userId, playerId, leagueId, cooldownEnd, now, now);
     
     console.log(`[AUCTION_STATES] User ${userId} abandoned auction ${auctionId}, 48h cooldown active`);
 

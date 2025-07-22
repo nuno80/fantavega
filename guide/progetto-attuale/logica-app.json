@@ -1,8 +1,8 @@
 {
   "projectName": "Fantavega - Fantacalcio Auction System",
   "last_task_completed": {
-    "last_update": "2025-01-20T15:00:00Z",
-    "task_completed": "Sistema Timer Rilancio - Implementazione Logica Corretta",
+    "last_update": "2025-01-20T16:30:00Z",
+    "task_completed": "Sistema Timer Rilancio - Fix Inconsistenze e Standardizzazione",
     "feature_logic": {
       "feature_name": "Sistema Timer Rilancio - Logica Fairness e Slot Liberation",
       "summary": "Implementa un sistema di timer di rilancio che garantisce fairness: il timer di 1 ora parte solo quando l'utente torna online e vede la notifica del rilancio. Include tracking preciso login/logout, scheduling automatico per liberare slot bloccate, e gestione completa del ciclo di vita dei timer.",
@@ -85,8 +85,11 @@
       "Aggiornamento logging per tracciare nuova logica di calcolo"
     ],
     "files_modified": [
-      "src/lib/db/services/bid.service.ts: Riscritta logica auto-bid (linee 577-645) con implementazione eBay-style",
-      "bugfix.md: Documentazione completa del bug e della soluzione implementata"
+      "src/lib/db/services/response-timer.service.ts: Aggiunta funzione markTimerCompleted() mancante",
+      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts: Standardizzato su user_player_preferences",
+      "src/lib/db/services/auction-states.service.ts: Standardizzato cooldown su user_player_preferences", 
+      "src/app/api/user/auction-states/route.ts: Aggiornate query per usare user_player_preferences",
+      "Sistema timer completamente funzionale e standardizzato"
     ]
   }
 }

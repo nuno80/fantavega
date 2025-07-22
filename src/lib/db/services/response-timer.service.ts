@@ -231,6 +231,35 @@ export const cancelResponseTimer = async (
 };
 
 /**
+ * Segna un timer come completato quando l'utente prende un'azione
+ * Usato quando l'utente sceglie di fare un rilancio dopo essere stato superato
+ */
+export const markTimerCompleted = async (
+  auctionId: number,
+  userId: string
+): Promise<void> => {
+  const now = Math.floor(Date.now() / 1000);
+  
+  try {
+    const result = await db.run(`
+      UPDATE user_auction_response_timers 
+      SET status = 'action_taken', processed_at = ?
+      WHERE auction_id = ? AND user_id = ? AND status = 'pending'
+    `, now, auctionId, userId);
+    
+    if (result.changes > 0) {
+      console.log(`[TIMER] Timer completed for user ${userId}, auction ${auctionId}`);
+    } else {
+      console.log(`[TIMER] No pending timer found for user ${userId}, auction ${auctionId} - this is normal if no timer was active`);
+    }
+  } catch (error) {
+    console.error(`[TIMER] Error marking timer completed for user ${userId}, auction ${auctionId}:`, error);
+    // Non fare throw dell'errore - è normale che non ci sia sempre un timer da completare
+    console.log(`[TIMER] Continuing despite timer completion error - this is not critical`);
+  }
+};
+
+/**
  * Processa i timer scaduti e sblocca automaticamente le slot
  */
 export const processExpiredResponseTimers = async (): Promise<{
