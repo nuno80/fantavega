@@ -11,6 +11,7 @@ import {
   placeBidOnExistingAuction,
   placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 
 interface RouteContext {
   params: Promise<{
@@ -40,6 +41,52 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    // 2.2. Parsing del body della richiesta (INVARIATO)
+    const body: PlaceBidRequestBody = await request.json();
+    console.log(`[API BIDS POST] Request body:`, body);
+
+    // 2.1.1. Rate Limiting per offerte
+    const bidType = body.bid_type || 'manual';
+    let rateLimitConfig;
+    
+    switch (bidType) {
+      case 'auto':
+        rateLimitConfig = RATE_LIMITS.BID_AUTO;
+        break;
+      case 'quick':
+        rateLimitConfig = RATE_LIMITS.BID_QUICK;
+        break;
+      default:
+        rateLimitConfig = RATE_LIMITS.BID_MANUAL;
+    }
+    
+    const rateCheck = checkRateLimit(
+      user.id, 
+      `bid_${bidType}`, 
+      rateLimitConfig.limit, 
+      rateLimitConfig.windowMs
+    );
+    
+    if (!rateCheck.allowed) {
+      const waitTime = Math.ceil((rateCheck.resetTime! - Date.now()) / 1000);
+      return NextResponse.json(
+        { 
+          error: `Troppe offerte ${bidType}! Riprova tra ${waitTime} secondi.`,
+          retryAfter: waitTime,
+          type: 'rate_limit_exceeded'
+        }, 
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': waitTime.toString(),
+            'X-RateLimit-Limit': rateLimitConfig.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateCheck.resetTime!.toString()
+          }
+        }
+      );
+    }
+
     const routeParams = await context.params;
     const leagueIdStr = routeParams["league-id"];
     const playerIdStr = routeParams["player-id"];
@@ -54,11 +101,9 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    // 2.2. Parsing e validazione del corpo della richiesta (offerta) (INVARIATO)
-    const body = (await request.json()) as PlaceBidRequestBody;
-    console.log("[API BIDS POST] Request body:", body);
+    // Body già parsato sopra per rate limiting
     const bidAmount = body.amount;
-    const bidType = body.bid_type || "manual";
+    // bidType già definito sopra per rate limiting
     console.log("[API BIDS POST] Parsed - bidAmount:", bidAmount, "bidType:", bidType);
 
     if (bidType !== "manual" && bidType !== "quick" && bidType !== "auto") {

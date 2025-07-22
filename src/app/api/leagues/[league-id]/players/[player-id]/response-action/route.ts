@@ -93,7 +93,7 @@ export async function POST(request: Request, context: RouteContext) {
       db.transaction(() => {
         // Segna il timer come completato
         db.prepare(
-          "UPDATE user_auction_response_timers SET status = 'action_taken' WHERE id = ?"
+          "UPDATE user_auction_response_timers SET status = 'cancelled' WHERE id = ?"
         ).run(responseTimer.id);
 
         // Sblocca i crediti dell'utente se aveva fatto un'offerta

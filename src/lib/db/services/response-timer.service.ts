@@ -243,7 +243,7 @@ export const markTimerCompleted = async (
   try {
     const result = await db.run(`
       UPDATE user_auction_response_timers 
-      SET status = 'action_taken', processed_at = ?
+      SET status = 'cancelled', processed_at = ?
       WHERE auction_id = ? AND user_id = ? AND status = 'pending'
     `, now, auctionId, userId);
     
