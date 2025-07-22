@@ -52,7 +52,17 @@ export async function GET(request: Request) {
     }>;
 
     const now = Math.floor(Date.now() / 1000);
-    const states: any[] = [];
+    const states: Array<{
+      auction_id: number;
+      player_id: number;
+      user_id: string;
+      player_name: string;
+      current_bid: number;
+      user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
+      response_deadline: number | null;
+      time_remaining: number | null;
+      is_highest_bidder: boolean;
+    }> = [];
 
     // Iterate through each active auction
     for (const auction of activeAuctions) {

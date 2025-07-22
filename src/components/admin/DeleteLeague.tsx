@@ -81,7 +81,7 @@ export function DeleteLeague({
         }
       } catch (error) {
         toast.error("Errore", { 
-          description: "Si è verificato un errore durante l'eliminazione" 
+          description: "Si è verificato un errore durante l&apos;eliminazione" 
         });
       }
     });
@@ -150,7 +150,7 @@ export function DeleteLeague({
                 <Button variant="outline">Annulla</Button>
               </DialogClose>
               <Button variant="destructive" onClick={handleFirstConfirm}>
-                Continua con l'Eliminazione
+                Continua con l&apos;Eliminazione
               </Button>
             </DialogFooter>
           </div>
@@ -162,7 +162,7 @@ export function DeleteLeague({
 
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
               <p className="text-sm font-medium text-destructive mb-3">
-                Per confermare l'eliminazione, digita esattamente: <code className="bg-background px-1 rounded">ELIMINA</code>
+                Per confermare l&apos;eliminazione, digita esattamente: <code className="bg-background px-1 rounded">ELIMINA</code>
               </p>
               
               <Label htmlFor="confirmText">Conferma eliminazione</Label>

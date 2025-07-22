@@ -77,10 +77,11 @@ export async function createLeague(
 
     const config_json = JSON.stringify({ min_bid_rule: min_bid_rule });
 
+    // eslint-disable-next-line prefer-const
     let newLeagueId: number;
     
     const transaction = db.transaction(() => {
-      let fields = [
+      const fields = [
         "name",
         "league_type",
         "initial_budget_per_manager",
@@ -93,7 +94,7 @@ export async function createLeague(
         "config_json",
         "status",
       ];
-      let values = [
+      const values = [
         name,
         league_type,
         initial_budget_per_manager,
@@ -128,6 +129,7 @@ export async function createLeague(
       const id = leagueResult.lastInsertRowid as number;
       return id;
     });
+    // eslint-disable-next-line prefer-const
     newLeagueId = transaction();
     console.log("[createLeague] Lega creata con ID:", newLeagueId);
     revalidatePath("/admin/leagues");

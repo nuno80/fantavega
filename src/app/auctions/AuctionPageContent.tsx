@@ -381,7 +381,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
       );
 
-      let responseData: any;
+      let responseData: { states: Array<{ auction_id: number; user_state: string; response_deadline: number | null; time_remaining: number | null }> };
       try {
         responseData = await response.json();
       } catch (jsonError) {

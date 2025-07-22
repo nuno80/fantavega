@@ -86,7 +86,7 @@ export function CreateLeagueForm() {
       <CardHeader>
         <CardTitle>Crea una Nuova Lega</CardTitle>
         <CardDescription>
-          Inserisci i dettagli per configurare la tua nuova lega d'asta.
+          Inserisci i dettagli per configurare la tua nuova lega d&apos;asta.
         </CardDescription>
       </CardHeader>
       <CardContent>
