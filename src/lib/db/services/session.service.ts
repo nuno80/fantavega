@@ -6,27 +6,27 @@
 import { db } from '@/lib/db';
 import { activateTimersForUser } from './response-timer.service';
 
-export const recordUserLogin = async (userId: string): Promise<void> => {
+export const recordUserLogin = (userId: string): void => {
   const now = Math.floor(Date.now() / 1000);
   
   try {
     // Chiudi eventuali sessioni precedenti rimaste aperte
-    await db.run(`
+    db.prepare(`
       UPDATE user_sessions 
       SET session_end = ? 
       WHERE user_id = ? AND session_end IS NULL
-    `, now, userId);
+    `).run(now, userId);
     
     // Crea nuova sessione
-    await db.run(`
+    db.prepare(`
       INSERT INTO user_sessions (user_id, session_start) 
       VALUES (?, ?)
-    `, userId, now);
+    `).run(userId, now);
     
     console.log(`[SESSION] User ${userId} logged in at ${now}`);
     
     // Attiva timer pendenti
-    await activateTimersForUser(userId);
+    activateTimersForUser(userId);
     
   } catch (error) {
     console.error('[SESSION] Error recording login:', error);
@@ -34,15 +34,15 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
   }
 };
 
-export const recordUserLogout = async (userId: string): Promise<void> => {
+export const recordUserLogout = (userId: string): void => {
   const now = Math.floor(Date.now() / 1000);
   
   try {
-    const result = await db.run(`
+    const result = db.prepare(`
       UPDATE user_sessions 
       SET session_end = ? 
       WHERE user_id = ? AND session_end IS NULL
-    `, now, userId);
+    `).run(now, userId);
     
     if (result.changes > 0) {
       console.log(`[SESSION] User ${userId} logged out at ${now}`);
@@ -54,15 +54,15 @@ export const recordUserLogout = async (userId: string): Promise<void> => {
   }
 };
 
-export const getUserLastLogin = async (userId: string): Promise<number | null> => {
+export const getUserLastLogin = (userId: string): number | null => {
   try {
-    const session = await db.get(`
+    const session = db.prepare(`
       SELECT session_start 
       FROM user_sessions 
       WHERE user_id = ? AND session_end IS NULL
       ORDER BY session_start DESC 
       LIMIT 1
-    `, userId);
+    `).get(userId) as { session_start: number } | undefined;
     
     return session?.session_start || null;
   } catch (error) {
@@ -71,12 +71,12 @@ export const getUserLastLogin = async (userId: string): Promise<number | null> =
   }
 };
 
-export const isUserCurrentlyOnline = async (userId: string): Promise<boolean> => {
+export const isUserCurrentlyOnline = (userId: string): boolean => {
   try {
-    const activeSession = await db.get(`
+    const activeSession = db.prepare(`
       SELECT id FROM user_sessions 
       WHERE user_id = ? AND session_end IS NULL
-    `, userId);
+    `).get(userId);
     
     return !!activeSession;
   } catch (error) {

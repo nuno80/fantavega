@@ -134,7 +134,7 @@ export const handleBidderChange = async (
       // Salva timer per il countdown UI
       db.prepare(`
         INSERT OR REPLACE INTO user_auction_response_timers 
-        (auction_id, user_id, notified_at, response_deadline, status) 
+        (auction_id, user_id, created_at, response_deadline, status) 
         VALUES (?, ?, ?, ?, 'pending')
       `).run(auctionId, previousBidderId, Math.floor(Date.now() / 1000), deadline);
       

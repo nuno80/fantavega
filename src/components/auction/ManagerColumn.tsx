@@ -82,7 +82,7 @@ interface ManagerColumnProps {
   currentAuctionPlayerId?: number;
   userAuctionStates?: UserAuctionState[];
   leagueId?: number;
-  handlePlaceBid: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
+  handlePlaceBid: (amount: number, bidType?: "manual" | "quick", targetPlayerId?: number) => Promise<void>;
 }
 
 // Helper functions
@@ -687,7 +687,7 @@ export function ManagerColumn({
               return;
             }
             try {
-              await handlePlaceBid(amount, bidType || "manual");
+              await handlePlaceBid(amount, bidType || "manual", selectedPlayerForBid.id);
               setShowStandardBidModal(false);
               setSelectedPlayerForBid(null);
             } catch (error) {

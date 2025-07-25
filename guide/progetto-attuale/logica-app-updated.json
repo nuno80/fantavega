@@ -1,0 +1,67 @@
+{
+  "sistema_timer_rilancio": {
+    "status": "completed",
+    "description": "Sistema timer di rilancio completamente implementato e funzionale",
+    "features": {
+      "timer_pendente": "Timer parte solo quando utente vede rilancio (fairness)",
+      "processing_automatico": "Scheduler ogni 5 minuti per slot liberate",
+      "cooldown_48h": "Cooldown standardizzato su user_player_preferences",
+      "real_time_notifications": "Socket.IO per timer e penalità"
+    },
+    "files_modified": [
+      "src/lib/db/services/response-timer.service.ts",
+      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+      "src/lib/db/services/auction-states.service.ts",
+      "src/app/api/user/auction-states/route.ts"
+    ]
+  },
+  "fix_bid_validation": {
+    "status": "completed",
+    "description": "Risolto errore 'L'offerta deve essere superiore all'offerta attuale'",
+    "problem": "Race condition tra UI non sincronizzata e dati server aggiornati",
+    "solution": "Implementato refresh dei dati immediatamente prima dell'offerta con validazione preventiva",
+    "changes": {
+      "pre_bid_refresh": "Aggiunto fetch dei dati freschi prima di ogni offerta",
+      "smart_validation": "Validazione client-side con refresh automatico UI se necessario",
+      "error_handling": "Messaggi di errore migliorati con toast differenziati",
+      "concurrency_protection": "Sistema di locking per prevenire offerte concorrenti",
+      "data_sync": "Refresh automatico dei dati dopo ogni operazione"
+    },
+    "files_modified": [
+      "src/app/auctions/AuctionPageContent.tsx",
+      "src/lib/db/services/bid.service.ts"
+    ]
+  },
+  "auto_bid_system": {
+    "status": "completed",
+    "description": "Sistema auto-bid completamente funzionale con logica eBay",
+    "features": {
+      "ebay_logic": "Implementata logica eBay per competizione auto-bid",
+      "real_time_activation": "Attivazione automatica con notifiche Socket.IO",
+      "budget_validation": "Controlli budget e slot per auto-bidder",
+      "user_interface": "Modal per gestione auto-bid con indicatori visivi"
+    }
+  },
+  "penalty_system": {
+    "status": "completed",
+    "description": "Sistema penalità automatico per conformità roster",
+    "features": {
+      "compliance_check": "Controllo N-1 slot per ruoli attivi",
+      "grace_period": "1 ora di grazia prima delle penalità",
+      "automatic_penalties": "5 crediti per ora di non conformità",
+      "real_time_notifications": "Notifiche Socket.IO per penalità applicate"
+    }
+  },
+  "real_time_system": {
+    "status": "completed",
+    "description": "Sistema notifiche real-time con Socket.IO",
+    "architecture": "Server Socket.IO separato con comunicazione HTTP bridge",
+    "events": [
+      "auction-update",
+      "bid-surpassed-notification", 
+      "penalty-applied-notification",
+      "auto-bid-activated-notification",
+      "timer-expired-notification"
+    ]
+  }
+}

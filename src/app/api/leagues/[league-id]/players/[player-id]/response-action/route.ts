@@ -140,7 +140,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     } else if (action === 'counter_bid') {
       // Segna il timer come completato (l'utente procederà con un'offerta)
-      await markTimerCompleted(auction.id, user.id);
+      markTimerCompleted(auction.id, user.id);
 
       return NextResponse.json({
         success: true,
