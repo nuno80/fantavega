@@ -34,13 +34,15 @@
   },
   "auto_bid_system": {
     "status": "completed",
-    "description": "Sistema auto-bid completamente funzionale con logica eBay",
+    "description": "Sistema auto-bid semplificato con logica 'Black Box'",
     "features": {
-      "ebay_logic": "Implementata logica eBay per competizione auto-bid",
-      "real_time_activation": "Attivazione automatica con notifiche Socket.IO",
-      "budget_validation": "Controlli budget e slot per auto-bidder",
-      "user_interface": "Modal per gestione auto-bid con indicatori visivi"
-    }
+      "ebay_logic": "Implementata logica eBay per competizione auto-bid (backend only)",
+      "black_box_approach": "Frontend riceve solo risultati finali, meccanismi interni nascosti",
+      "simplified_ui": "Visualizzazione solo della propria auto-bid e risultato finale",
+      "unified_notifications": "Una sola notifica per risultato finale dell'asta",
+      "user_interface": "Modal per gestione auto-bid, indicatori semplificati"
+    },
+    "ui_format": "[P] Ronaldo | 50 | 42 | 1:30 (ruolo nome | auto-bid personale | offerta finale | timer)"
   },
   "penalty_system": {
     "status": "completed",

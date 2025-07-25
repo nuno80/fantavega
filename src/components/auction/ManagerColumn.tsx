@@ -340,7 +340,6 @@ function InAuctionSlot({
 }) {
   const [playerAutoBid, setPlayerAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
   
-  const autoBidIndicator = autoBids.find(ab => ab.player_id === auction.player_id);
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
   const roleTextColor = getRoleTextColor(role);
@@ -361,9 +360,9 @@ function InAuctionSlot({
       };
       fetchPlayerAutoBid();
     }
-  }, [isCurrentUser, leagueId, auction.player_id]);
+  }, [isCurrentUser, leagueId, auction.player_id, auction.current_highest_bid_amount]);
   
-  // Show user's auto-bid for this specific player
+  // Show user's auto-bid for this specific player (only their own)
   const showUserAutoBid = isCurrentUser && 
                           playerAutoBid && 
                           playerAutoBid.is_active;
@@ -402,6 +401,7 @@ function InAuctionSlot({
           {showUserAutoBid && (
             <span className="text-blue-400 font-semibold">{playerAutoBid.max_amount}</span>
           )}
+          {showUserAutoBid && <span className="text-gray-400">|</span>}
           <span className={`text-green-400 font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
         </div>
         <span className={`ml-2 ${timeInfo.color} ${timeInfo.color === 'text-red-500' && timeInfo.text.includes('s') ? 'animate-pulse' : ''}`}>

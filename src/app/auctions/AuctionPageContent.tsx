@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -102,14 +102,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBidIndicator[]>([]);
-  const [bidHistory, setBidHistory] = useState<any[]>([]);
+  const [bidHistory, setBidHistory] = useState<Array<{id: number; amount: number; user_id: string; created_at: string; [key: string]: unknown}>>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [showLeagueSelector, setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
   const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
-  const [isBidding, setIsBidding] = useState(false); // Prevent concurrent bids
   
   const { socket, isConnected } = useSocket();
   const router = useRouter();
@@ -267,19 +266,29 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       newPrice: number;
       highestBidderId: string;
       scheduledEndTime: number;
+      autoBidActivated?: boolean;
     }) => {
       console.log("[AUCTION UPDATE] Received auction update:", data);
-      console.log("[AUCTION UPDATE] Current auction:", currentAuction);
-      if (currentAuction && data.playerId === currentAuction.player_id) {
-        console.log("[AUCTION UPDATE] Updating current auction for player:", data.playerId);
-        setCurrentAuction(prev => prev ? {
-          ...prev,
-          current_highest_bid_amount: data.newPrice,
-          current_highest_bidder_id: data.highestBidderId,
-          scheduled_end_time: data.scheduledEndTime,
-        } : null);
-      } else {
-        console.log("[AUCTION UPDATE] No matching current auction or different player");
+      
+      setCurrentAuction(prev => {
+        console.log("[AUCTION UPDATE] Current auction:", prev);
+        if (prev && data.playerId === prev.player_id) {
+          console.log("[AUCTION UPDATE] Updating current auction for player:", data.playerId);
+          return {
+            ...prev,
+            current_highest_bid_amount: data.newPrice,
+            current_highest_bidder_id: data.highestBidderId,
+            scheduled_end_time: data.scheduledEndTime,
+          };
+        } else {
+          console.log("[AUCTION UPDATE] No matching current auction or different player");
+          return prev;
+        }
+      });
+      
+      // Also refresh budget data after auction update
+      if (selectedLeagueId) {
+        fetchBudgetData(selectedLeagueId);
       }
     };
 
@@ -300,12 +309,15 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       winnerId: string;
       finalPrice: number;
     }) => {
-      if (currentAuction && data.playerId === currentAuction.player_id) {
-        setCurrentAuction(prev => prev ? { ...prev, status: "sold" } : null);
-        toast.info(`Asta per ${data.playerName} conclusa!`, {
-          description: `Assegnato a ${data.winnerId} per ${data.finalPrice} crediti.`,
-        });
-      }
+      setCurrentAuction(prev => {
+        if (prev && data.playerId === prev.player_id) {
+          toast.info(`Asta per ${data.playerName} conclusa!`, {
+            description: `Assegnato a ${data.winnerId} per ${data.finalPrice} crediti.`,
+          });
+          return { ...prev, status: "sold" };
+        }
+        return prev;
+      });
     };
 
     // Handle penalty notifications
@@ -313,7 +325,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       amount: number;
       reason: string;
     }) => {
-      toast.error(`Penalità applicata: ${data.amount} crediti`, {
+      toast.error(`Penalit applicata: ${data.amount} crediti`, {
         description: data.reason,
         duration: 8000, // Show longer for important penalty notifications
       });
@@ -356,162 +368,37 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       clearInterval(expiredAuctionsInterval);
     };
-  }, [socket, isConnected, selectedLeagueId, currentAuction]);
+  }, [socket, isConnected, selectedLeagueId]);
 
-  const fetchLeagueData = useCallback(async (leagueId: number) => {
-    console.log(`[DATA_FETCH] Fetching all data for league ${leagueId}`);
+  const handlePlaceBid = async (amount: number) => {
+    if (!currentAuction || !selectedLeagueId) return;
+
     try {
-      // Fetch all data in parallel for speed
-      const [managersResponse, auctionStatesResponse, budgetResponse, auctionResponse] = await Promise.all([
-        fetch(`/api/leagues/${leagueId}/managers`),
-        fetch(`/api/auction-states?leagueId=${leagueId}`),
-        fetch(`/api/leagues/${leagueId}/budget`),
-        fetch(`/api/leagues/${leagueId}/current-auction`)
-      ]);
+      const response = await fetch(
+        `/api/leagues/${selectedLeagueId}/players/${currentAuction.player_id}/bids`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bidAmount: amount }),
+        }
+      );
 
-      // Process responses
-      if (managersResponse.ok) {
-        const managersData = await managersResponse.json();
-        setManagers(managersData.managers || []);
-        setLeagueSlots(managersData.leagueSlots || null);
-        setActiveAuctions(managersData.activeAuctions || []);
-        setAutoBids(managersData.autoBids || []);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Errore nel piazzare l'offerta");
       }
 
-      if (auctionStatesResponse.ok) {
-        const statesData = await auctionStatesResponse.json();
-        setUserAuctionStates(statesData.states || []);
-      }
-
+      // Update budget after successful bid
+      const budgetResponse = await fetch(`/api/leagues/${selectedLeagueId}/budget`);
       if (budgetResponse.ok) {
         const budget = await budgetResponse.json();
         setUserBudget(budget);
       }
 
-      if (auctionResponse.ok) {
-        const auction = await auctionResponse.json();
-        setCurrentAuction(auction);
-        
-        // If there's an auction, get its specific data
-        if (auction?.player_id) {
-          const [bidsResponse, autoBidResponse] = await Promise.all([
-            fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/bids`),
-            fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`)
-          ]);
-
-          if (bidsResponse.ok) {
-            const bidsData = await bidsResponse.json();
-            setBidHistory(bidsData.bids || []);
-          }
-          if (autoBidResponse.ok) {
-            const autoBidData = await autoBidResponse.json();
-            setUserAutoBid(autoBidData.auto_bid);
-          }
-        } else {
-          setBidHistory([]);
-          setUserAutoBid(null);
-        }
-      }
     } catch (error) {
-      console.error("Error fetching league data:", error);
-      toast.error("Errore nell'aggiornamento dei dati della lega");
+      throw error; // Re-throw to be handled by BiddingInterface
     }
-  }, []);
-
-  const handlePlaceBid = useCallback(async (amount: number, bidType: "manual" | "quick" = "manual", targetPlayerId?: number) => {
-    if (!selectedLeagueId) return;
-    
-    // Prevent concurrent bids
-    if (isBidding) {
-      console.warn("[BID_WARNING] Bid already in progress, ignoring duplicate request");
-      throw new Error("Un'offerta e gia in corso. Attendi il completamento.");
-    }
-    
-    setIsBidding(true);
-    
-    try {
-      // Determine which player this bid is for
-      const actualPlayerId = targetPlayerId || currentAuction?.player_id;
-      if (!actualPlayerId) {
-        console.error("[BID_ERROR] No player ID specified for bid");
-        throw new Error("Nessun giocatore specificato per l'offerta");
-      }
-      
-      // Refresh auction data immediately before bidding to ensure UI is in sync
-      console.log(`[BID_DEBUG] Refreshing auction data before placing bid for player ${actualPlayerId}`);
-      try {
-        const freshAuctionResponse = await fetch(`/api/leagues/${selectedLeagueId}/current-auction`);
-        if (freshAuctionResponse.ok) {
-          const freshAuction = await freshAuctionResponse.json();
-          if (freshAuction?.player_id === actualPlayerId) {
-            const currentBid = freshAuction.current_highest_bid_amount || 0;
-            console.log(`[BID_DEBUG] Fresh auction data: current bid = ${currentBid}, attempting bid = ${amount}`);
-            
-            // If the user's bid is not higher than the fresh data, show a helpful error
-            if (amount <= currentBid) {
-              console.warn(`[BID_WARNING] Bid ${amount} not higher than fresh current bid ${currentBid}`);
-              // Refresh UI data and show user the current state
-              await fetchLeagueData(selectedLeagueId);
-              throw new Error(`L'offerta deve essere superiore all'offerta corrente di ${currentBid} crediti. I dati sono stati aggiornati.`);
-            }
-          }
-        }
-      } catch (refreshError) {
-        if (refreshError instanceof Error && refreshError.message.includes("L'offerta deve essere superiore")) {
-          throw refreshError; // Re-throw our custom error
-        }
-        console.warn("[BID_WARNING] Could not refresh auction data, proceeding with bid attempt:", refreshError);
-        // Continue with bid attempt even if refresh fails
-      }
-
-      const response = await fetch(
-        `/api/leagues/${selectedLeagueId}/players/${actualPlayerId}/bids`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            amount: amount, 
-            bid_type: bidType,
-            user_id: userId
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nell'offerta");
-      }
-
-      const result = await response.json();
-      toast.success(result.message || "Offerta piazzata con successo!");
-
-      // Refresh data after successful bid
-      if (selectedLeagueId) {
-        await fetchLeagueData(selectedLeagueId);
-      }
-
-    } catch (error) {
-      console.error("Error placing bid:", error);
-      const errorMessage = error instanceof Error ? error.message : "Errore nell'offerta";
-      
-      // Show different toast based on error type
-      if (errorMessage.includes("L'offerta deve essere superiore")) {
-        toast.warning(errorMessage, {
-          description: "Prova con un importo piu alto",
-          duration: 5000,
-        });
-      } else {
-        toast.error(errorMessage);
-      }
-      
-      // Always refresh data on error to sync state
-      if (selectedLeagueId) {
-        await fetchLeagueData(selectedLeagueId);
-      }
-    } finally {
-      setIsBidding(false); // Always release the lock
-    }
-  }, [currentAuction, selectedLeagueId, userId, isBidding, fetchLeagueData]);
+  };
 
   const handleTeamManagement = () => {
     if (!selectedLeagueId) return;
@@ -560,11 +447,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   autoBids={autoBids}
                   userAutoBid={manager.user_id === userId ? userAutoBid : null}
                   currentAuctionPlayerId={currentAuction?.player_id}
-                  userAuctionStates={userAuctionStates.filter(state => 
-                    state.user_id === manager.user_id
-                  )}
+                  userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
                   leagueId={selectedLeagueId ?? undefined}
-                  handlePlaceBid={handlePlaceBid}
                 />
               </div>
             ))

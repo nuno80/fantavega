@@ -106,10 +106,26 @@
     "bid_validation_race_condition": {
       "date": "2025-01-20",
       "description": "Fixed 'L'offerta deve essere superiore all'offerta attuale' error caused by race condition between client-side validation and real-time updates",
-      "solution": "Removed duplicate client-side validation, improved server-side error messages",
+      "solution": "Implemented pre-bid data refresh with smart validation and improved error handling",
       "files_modified": [
         "src/app/auctions/AuctionPageContent.tsx",
         "src/lib/db/services/bid.service.ts"
+      ]
+    },
+    "auto_bid_simplification": {
+      "date": "2025-01-20",
+      "description": "Simplified auto-bid system with 'Black Box' approach - frontend shows only final results",
+      "solution": "Removed complex auto-bid indicators, unified notifications, simplified UI to show only personal auto-bid and final auction results",
+      "changes": {
+        "removed_indicators": "Auto-bid counters and competitor indicators",
+        "simplified_notifications": "Single notification for final auction result",
+        "ui_format": "[P] Ronaldo | 50 | 42 | 1:30 (personal auto-bid | final result | timer)",
+        "backend_logic": "All auto-bid calculations remain in backend, invisible to frontend"
+      },
+      "files_modified": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/components/auction/ManagerColumn.tsx",
+        "guide/progetto-attuale/auto-bid-v2.md"
       ]
     },
     "timer_system_standardization": {
