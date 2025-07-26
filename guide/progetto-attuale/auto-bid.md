@@ -117,94 +117,247 @@ Formato: [P] Ronaldo | 50 | 42 | 1:30
 - ❌ Importi auto-bid di competitors
 - ❌ Badge o icone auto-bid generiche
 
-## Logica "Serie di Rilanci Automatici"
+## Piano di Refactoring: Auto-bid "Serie di Bid Manuali"
 
-### Principio Base
+Questa sezione descrive il piano per correggere un comportamento errato nella logica di auto-bid, passando a un sistema di simulazione di battaglia completo.
 
-L'auto-bid funziona come una serie di rilanci manuali automatici:
+### 📋 ANALISI PROBLEMA ATTUALE
 
-```
-Esempio: Fede (auto-bid 20) vs Red (manual 11, auto-bid 25)
+#### Comportamento Errato
 
-1. Red offre 11 manuale
-2. Sistema simula: Fede rilancia a 12, Red a 13, Fede a 14...
-3. Continua fino a: Fede 20, Red 21
-4. Fede non può più rilanciare (max 20)
-5. Risultato finale: Red vince con 21 crediti
-```
+Un'offerta manuale che innesca un auto-bid avversario causa uno stop immediato dopo un singolo rilancio, invece di simulare l'intera sequenza di offerte.
 
-### Formula Semplificata
-
-```javascript
-// Auto-bid vs Auto-bid
-const loserMaxBid = Math.min(autobid_A, autobid_B);
-const winnerMaxBid = Math.max(autobid_A, autobid_B);
-const finalBidAmount = Math.min(loserMaxBid + 1, winnerMaxBid);
-```
-
-## Modifiche Implementative Necessarie
-
-### Backend (bid.service.ts)
-
-- ✅ Logica auto-bid già implementata correttamente.
-- ✅ Calcoli interni nascosti al frontend.
-- ✅ Risultato finale restituito via Socket.IO.
-
-### Frontend (Rimuovere)
-
-- ❌ Indicatori auto-bid di altri utenti.
-- ❌ Notifiche multiple confuse.
-- ❌ Visualizzazione calcoli intermedi.
-
-### Frontend (Mantenere)
-
-- ✅ Modal per impostare propria auto-bid.
-- ✅ Visualizzazione propria auto-bid impostata.
-- ✅ Risultato finale dell'asta.
-
-## Vantaggi della Nuova Logica
-
-### 🎯 User Experience
-
-- **Semplicità**: Un solo risultato finale da capire.
-- **Chiarezza**: Nessuna confusione sui meccanismi interni.
-- **Trasparenza**: Ogni utente vede la propria strategia.
-
-### 🔧 Manutenibilità
-
-- **Backend Centralizzato**: Tutta la logica in un posto.
-- **Frontend Semplice**: Solo visualizzazione risultati.
-- **Debug Facile**: Meno complessità UI.
-
-### 🚀 Performance
-
-- **Meno Eventi Socket**: Solo risultati finali.
-- **UI Più Veloce**: Meno aggiornamenti in tempo reale.
-- **Codice Pulito**: Separazione netta responsabilità.
+- **Esempio Errato**: `Red bid 72 → Fede auto-bid scatta a 73 → STOP ❌`
+- **Esempio Corretto**: `Red bid 72 → Simulazione completa battaglia auto-bid → Risultato finale 75 ✅`
 
 ---
 
-## ✅ Verifica di Coerenza e Stato Attuale (Luglio 2025)
+### 🔧 SOLUZIONE PROPOSTA
 
-A seguito di un'analisi del codice sorgente, è stato verificato che **l'implementazione attuale del sistema di auto-bid è pienamente coerente con i principi descritti in questo documento.**
+La soluzione consiste nel simulare l'intera "battaglia" di auto-bid in memoria ogni volta che un'offerta manuale viene piazzata, per determinare il vincitore e il prezzo finale in un'unica operazione atomica.
 
-Le sezioni precedenti che descrivevano un "problema" o una "logica da implementare" si riferivano a una versione passata del codice e sono state rimosse per evitare confusione.
+#### STEP 1: Nuova Funzione `simulateAutoBidBattle()`
 
-### Punti Chiave Verificati
+Creare una funzione dedicata che simula l'intera battaglia auto-bid:
 
-1. **Logica Backend Corretta**:
+```typescript
+function simulateAutoBidBattle(
+  initialBid: number,
+  initialBidderId: string,
+  allAutoBids: AutoBid[],
+  auction: Auction
+): BattleResult {
+  // Simula serie di bid manuali incrementali
+  // Ritorna: vincitore finale, importo finale, sequenza bid
+}
+```
 
-   - Il file `src/lib/db/services/bid.service.ts` implementa correttamente la logica di tipo "eBay".
-   - La formula utilizzata è `finalBidAmount = Math.min(loserMaxBid + 1, winnerMaxBid)`, che rispecchia fedelmente il comportamento atteso.
-   - La gestione dei casi di parità (vince chi ha impostato l'auto-bid per primo) è implementata come da specifica.
+#### STEP 2: Algoritmo di Simulazione
 
-2. **Frontend "Black Box"**:
+1. Inizia con l'offerta manuale corrente.
+2. Esegui un loop fino a quando non ci sono più rilanci possibili:
+   a. Trova tutti gli auto-bid attivi che possono superare l'offerta corrente.
+   b. Ordinali per priorità (data di creazione, `created_at` ascendente).
+   c. Il primo auto-bid valido nella lista rilancia di `+1`.
+   d. Aggiorna l'offerta corrente e l'offerente.
+   e. Ripeti il ciclo.
+3. Ritorna il risultato finale della simulazione.
 
-   - I componenti React, come `AuctionRealtimeDisplay.tsx`, si limitano a visualizzare i dati finali ricevuti dal backend (`newPrice`, `highestBidderId`).
-   - Non c'è alcuna esposizione dei meccanismi interni dell'auto-bid, né indicatori visivi delle auto-bid degli altri utenti.
+#### STEP 3: Integrazione nel Bid Service
 
-3. **Conclusione**:
-   - L'applicazione si comporta come descritto. La documentazione è ora allineata allo stato attuale del software, confermando che non ci sono discrepanze tra la logica attesa e quella implementata.
+Sostituire la logica attuale nel `bid.service.ts` con la nuova funzione di simulazione.
+
+- **PRIMA (ERRATO)**: Applicava un singolo rilancio basato sul primo auto-bid concorrente.
+- **DOPO (CORRETTO)**: Esegue la simulazione completa e applica solo il risultato finale.
+
+```typescript
+// DOPO (CORRETTO):
+if (competingAutoBids.length > 0) {
+  const battleResult = simulateAutoBidBattle(
+    bidAmount,
+    userId,
+    allAutoBids,
+    auction
+  );
+  // Applica risultato finale della battaglia
+}
+```
+
+---
+
+### 📊 DETTAGLIO IMPLEMENTAZIONE
+
+#### Fase 1: Strutture Dati
+
+```typescript
+interface AutoBidBattleParticipant {
+  userId: string;
+  maxAmount: number;
+  createdAt: number; // Timestamp per priorità
+  isActive: boolean; // Per gestire l'esaurimento del max_amount
+}
+
+interface BattleStep {
+  bidAmount: number;
+  bidderId: string;
+  isAutoBid: boolean;
+  step: number;
+}
+
+interface BattleResult {
+  finalAmount: number;
+  finalBidderId: string;
+  battleSteps: BattleStep[];
+  totalSteps: number;
+}
+```
+
+#### Fase 2: Algoritmo Core
+
+```typescript
+function simulateAutoBidBattle(
+  initialBid: number,
+  initialBidderId: string,
+  autoBids: AutoBidBattleParticipant[],
+  auction: Auction
+): BattleResult {
+  let currentBid = initialBid;
+  let currentBidderId = initialBidderId;
+  const battleSteps: BattleStep[] = [];
+  let step = 0;
+
+  // Aggiungi bid iniziale
+  battleSteps.push({
+    bidAmount: currentBid,
+    bidderId: currentBidderId,
+    isAutoBid: false,
+    step: step++,
+  });
+
+  while (true) {
+    // Trova auto-bid che possono rispondere
+    const activeAutoBids = autoBids
+      .filter(
+        (ab) =>
+          ab.isActive &&
+          ab.maxAmount > currentBid &&
+          ab.userId !== currentBidderId
+      )
+      .sort((a, b) => a.createdAt - b.createdAt); // Priorità temporale
+
+    if (activeAutoBids.length === 0) {
+      break; // Nessuno può rispondere, la battaglia è finita
+    }
+
+    // Il primo auto-bid (con priorità) risponde
+    const respondingAutoBid = activeAutoBids[0];
+    const newBid = Math.min(currentBid + 1, respondingAutoBid.maxAmount);
+
+    currentBid = newBid;
+    currentBidderId = respondingAutoBid.userId;
+
+    battleSteps.push({
+      bidAmount: currentBid,
+      bidderId: currentBidderId,
+      isAutoBid: true,
+      step: step++,
+    });
+
+    // Disattiva l'auto-bid se ha raggiunto il suo limite massimo
+    if (newBid >= respondingAutoBid.maxAmount) {
+      const participant = autoBids.find(
+        (ab) => ab.userId === respondingAutoBid.userId
+      );
+      if (participant) {
+        participant.isActive = false;
+      }
+    }
+  }
+
+  return {
+    finalAmount: currentBid,
+    finalBidderId: currentBidderId,
+    battleSteps,
+    totalSteps: step,
+  };
+}
+```
+
+#### Fase 3: Integrazione Database
+
+Nel `bid.service.ts`:
+
+1. Raccogliere tutti gli auto-bid attivi per l'asta.
+2. Eseguire `simulateAutoBidBattle()` con i dati raccolti.
+3. Applicare **solo il risultato finale** (`finalAmount`, `finalBidderId`) al database.
+4. Loggare la sequenza completa della battaglia per il debug.
+
+```typescript
+// Esempio di integrazione
+const allAutoBids = getAllActiveAutoBidsForAuction(auction.id);
+const battleResult = simulateAutoBidBattle(
+  effectiveBidAmount,
+  userId,
+  allAutoBids,
+  auction
+);
+
+if (battleResult.finalBidderId !== userId) {
+  await applyAutoBidWin(battleResult);
+} else {
+  await applyManualBidWin(battleResult);
+}
+
+console.log(
+  `[BID_SERVICE] Auto-bid battle completed in ${battleResult.totalSteps} steps`
+);
+console.log(`[BID_SERVICE] Battle sequence:`, battleResult.battleSteps);
+```
+
+---
+
+### 🎯 VANTAGGI SOLUZIONE
+
+1. **Correttezza Logica**: Simula fedelmente una serie di rilanci manuali, rispettando priorità e limiti.
+2. **Performance**: La simulazione avviene in memoria, con un solo aggiornamento finale al database.
+3. **Manutenibilità**: La logica è isolata, testabile e facile da debuggare grazie alla tracciabilità degli step.
+4. **Trasparenza**: I log dettagliati permettono di analizzare ogni battaglia e capire l'esito.
+
+---
+
+### 📋 PIANO IMPLEMENTAZIONE
+
+- **Step 1**: Creare la funzione `simulateAutoBidBattle()` e scrivere test unitari per coprire vari scenari.
+- **Step 2**: Integrare la funzione nel `bid.service.ts`, sostituendo la logica di rilancio singolo.
+- **Step 3**: Eseguire test di integrazione completi, inclusi scenari con più auto-bid e casi limite.
+- **Step 4**: Implementare logging dettagliato e monitoraggio delle performance.
+
+---
+
+### 🚀 RISULTATO ATTESO
+
+**Scenario di Test**:
+
+- Red ha un auto-bid massimo di 75.
+- Fede ha un auto-bid massimo di 75, impostato prima di Red (ha la priorità).
+- Red piazza un'offerta manuale di 72.
+
+**Sequenza Simulata**:
+
+1. Red (manuale): 72
+2. Fede (auto-bid): 73
+3. Red (auto-bid): 74
+4. Fede (auto-bid): 75
+5. Red non può superare 75.
+6. Fede vince a 75 (avendo la priorità a parità di importo).
+
+**Log Atteso**:
+
+```
+[BID_SERVICE] Auto-bid battle completed in 4 steps.
+[BID_SERVICE] Final winner: Fede (75 credits).
+[BID_SERVICE] Battle sequence: [ { bid: 72, ... }, { bid: 73, ... }, { bid: 74, ... }, { bid: 75, ... } ]
+```
 
 ---
 
@@ -215,9 +368,11 @@ Le sezioni precedenti che descrivevano un "problema" o una "logica da implementa
 **Status**: 🔧 **IN RISOLUZIONE**
 
 #### **Descrizione Problema**
+
 Il sistema legge auto-bid **obsoleti** invece di quelli **correnti** impostati dall'utente, causando comportamenti errati al primo rilancio dopo aver aggiornato l'auto-bid.
 
 #### **Scenario Problematico**
+
 ```
 1. Red imposta auto-bid: 70 crediti (NUOVO valore)
 2. Sistema legge auto-bid: 60 crediti (VECCHIO da bid precedente)
@@ -225,11 +380,13 @@ Il sistema legge auto-bid **obsoleti** invece di quelli **correnti** impostati d
 ```
 
 #### **Causa Radice Identificata**
+
 - **Cache prepared statements**: Query SQLite cached con risultati obsoleti
 - **Transaction isolation**: Lettura di dati non aggiornati tra transazioni
 - **Multiple DB connections**: Inconsistenza tra connessioni database
 
 #### **Evidenze Log**
+
 ```
 [BID_SERVICE] Current bidder auto-bid: {"max_amount":60,"created_at":1753506601,"updated_at":1753513262}
 // Dovrebbe essere: {"max_amount":70,"created_at":1753507753,"updated_at":1753513626}
@@ -238,6 +395,7 @@ Il sistema legge auto-bid **obsoleti** invece di quelli **correnti** impostati d
 #### **Soluzione Implementata**
 
 **Step 1: Query Non-Cached**
+
 ```typescript
 // Invece di prepared statement cached, usa query fresh
 const autoBidQuery = `
@@ -249,26 +407,32 @@ const autoBidQuery = `
 ```
 
 **Step 2: Timestamp Validation**
+
 ```typescript
 // Validazione età timestamp per rilevare dati stale
 if (currentBidderAutoBid) {
   const age = now - currentBidderAutoBid.updated_at;
   console.log(`[BID_SERVICE] Auto-bid age: ${age} seconds`);
-  
-  if (age > 300) { // 5 minuti
+
+  if (age > 300) {
+    // 5 minuti
     console.warn(`[BID_SERVICE] Auto-bid seems stale (${age}s old)`);
   }
 }
 ```
 
 **Step 3: Logging Migliorato**
+
 ```typescript
 // Debug dettagliato per monitoraggio
 console.log(`[BID_SERVICE] DEBUG - Fresh auto-bid query for user ${userId}`);
-console.log(`[BID_SERVICE] Auto-bid result: ${JSON.stringify(currentBidderAutoBid)}`);
+console.log(
+  `[BID_SERVICE] Auto-bid result: ${JSON.stringify(currentBidderAutoBid)}`
+);
 ```
 
 #### **Fix Applicato**
+
 - ✅ Query diretta invece di prepared statement cached
 - ✅ Validazione età timestamp per rilevare dati obsoleti
 - ✅ Warning automatico per dati stale
@@ -276,6 +440,7 @@ console.log(`[BID_SERVICE] Auto-bid result: ${JSON.stringify(currentBidderAutoBi
 - ✅ Risoluzione del problema al primo rilancio
 
 #### **Risultato Atteso**
+
 ```
 1. Red imposta auto-bid: 70 crediti
 2. Sistema legge auto-bid: 70 crediti (CORRETTO)
@@ -285,13 +450,16 @@ console.log(`[BID_SERVICE] Auto-bid result: ${JSON.stringify(currentBidderAutoBi
 ### 📋 **Altri Problemi Noti**
 
 #### **1. Gestione Errori**
+
 - Auto-bid non si attiva se l'utente non ha budget sufficiente
 - Necessario gestire meglio i casi di errore di rete
 
 #### **2. UI/UX**
+
 - Feedback visivo limitato quando auto-bid si attiva
 - Manca indicazione chiara del range di auto-bid attivo
 
 #### **3. Performance**
+
 - Query multiple per verificare auto-bid durante ogni offerta
 - Possibile ottimizzazione con caching intelligente (dopo fix cache stale)
