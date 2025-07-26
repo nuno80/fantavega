@@ -1,352 +1,143 @@
 {
-  "tasks": [
-    {
-      "id": "1",
-      "title": "Project Setup and Infrastructure",
+  "project_name": "Fantavega - Fantacalcio Auction System",
+  "current_phase": "Task 9 - UI Development",
+  "tasks": {
+    "task_1": {
+      "name": "Project Setup and Database Schema",
       "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "1.1",
-          "title": "Initialize Next.js 15 project with TypeScript",
-          "status": "completed"
+      "description": "Initial project setup with Next.js 15, database schema, and basic authentication"
+    },
+    "task_2": {
+      "name": "User Management and Authentication",
+      "status": "completed", 
+      "description": "Clerk integration, role-based access, user management interfaces"
+    },
+    "task_3": {
+      "name": "League Management System",
+      "status": "completed",
+      "description": "League creation, participant management, league configuration"
+    },
+    "task_4": {
+      "name": "Player Database and Management",
+      "status": "completed",
+      "description": "Player CRUD operations, Excel import, search and filtering"
+    },
+    "task_5": {
+      "name": "Auction System Core",
+      "status": "completed",
+      "description": "Basic auction creation, bidding logic, auction lifecycle management"
+    },
+    "task_6": {
+      "name": "Budget and Credit Management",
+      "status": "completed",
+      "description": "Budget tracking, locked credits, transaction history, budget validation"
+    },
+    "task_7": {
+      "name": "Real-time Features",
+      "status": "completed",
+      "description": "Socket.IO integration, real-time auction updates, live notifications"
+    },
+    "task_8": {
+      "name": "Advanced Auction Features",
+      "status": "completed",
+      "description": "Auto-bid system, response timers, penalty system, auction states",
+      "subtasks": {
+        "task_8_1": {
+          "name": "Auto-bid System",
+          "status": "completed",
+          "description": "eBay-style auto-bidding with real-time activation"
         },
-        {
-          "id": "1.2",
-          "title": "Configure Tailwind CSS and shadcn/ui",
-          "status": "completed"
+        "task_8_2": {
+          "name": "Response Timer System", 
+          "status": "completed",
+          "description": "Fair timer system with offline user support"
         },
-        {
-          "id": "1.3",
-          "title": "Set up ESLint and Prettier for code quality",
-          "status": "completed"
+        "task_8_3": {
+          "name": "Penalty System",
+          "status": "completed", 
+          "description": "Automatic penalties for roster non-compliance"
         },
-        {
-          "id": "1.4",
-          "title": "Configure BetterSQLite database connection",
-          "status": "completed"
-        },
-        {
-          "id": "1.5",
-          "title": "Set up Docker and Docker Compose for development",
-          "status": "completed"
+        "task_8_4": {
+          "name": "Auction States Management",
+          "status": "completed",
+          "description": "User auction states and response management"
         }
-      ]
+      }
     },
-    {
-      "id": "2",
-      "title": "Authentication System",
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "2.1",
-          "title": "Set up Clerk authentication",
-          "status": "completed"
-        },
-        {
-          "id": "2.2",
-          "title": "Create login and registration pages",
-          "status": "completed"
-        },
-        {
-          "id": "2.3",
-          "title": "Implement role-based access control",
-          "status": "completed"
-        },
-        {
-          "id": "2.4",
-          "title": "Develop user profile management",
-          "status": "completed"
-        }
-      ]
-    },
-    {
-      "id": "3",
-      "title": "Database Schema and Migrations",
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "3.1",
-          "title": "Design database schema",
-          "status": "completed"
-        },
-        {
-          "id": "3.2",
-          "title": "Implement schema creation script",
-          "status": "completed"
-        },
-        {
-          "id": "3.3",
-          "title": "Set up migration system",
-          "status": "completed"
-        },
-        { "id": "3.4", "title": "Create seed data", "status": "completed" }
-      ]
-    },
-    {
-      "id": "4",
-      "title": "Core Auction System",
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "4.1",
-          "title": "Implement auction creation and configuration",
-          "status": "completed"
-        },
-        {
-          "id": "4.2",
-          "title": "Develop bidding mechanics",
-          "status": "completed"
-        },
-        {
-          "id": "4.3",
-          "title": "Create timer management system",
-          "status": "completed"
-        },
-        {
-          "id": "4.4",
-          "title": "Implement auction completion and player assignment",
-          "status": "completed"
-        }
-      ]
-    },
-    {
-      "id": "5",
-      "title": "Budget Management System",
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "5.1",
-          "title": "Implement real-time budget tracking (current_budget and locked_credits)",
-          "status": "completed"
-        },
-        {
-          "id": "5.2",
-          "title": "Create transaction history (logging and API)",
-          "status": "completed"
-        },
-        { "id": "5.3", "title": "Develop budget alerts", "status": "skipped" },
-        {
-          "id": "5.4",
-          "title": "Implement automatic penalty application (lazy with cap)",
-          "status": "completed"
-        }
-      ]
-    },
-    {
-      "id": "6",
-      "title": "Player Management System",
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "6.1",
-          "title": "Create player database management (Excel import & CRUD APIs)",
-          "status": "completed"
-        },
-        {
-          "id": "6.2",
-          "title": "Implement player search and filtering (API)",
-          "status": "completed"
-        },
-        {
-          "id": "6.3",
-          "title": "Develop player assignment tracking (APIs for roster & assignment status)",
-          "status": "completed"
-        },
-        {
-          "id": "6.4",
-          "title": "Implement data export functionality (CSV export for league rosters)",
-          "status": "completed"
-        }
-      ]
-    },
-    {
-      "id": "7",
-      "title": "Real-Time Notification System",
-      "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "7.1",
-          "title": "Set up WebSocket server",
-          "status": "completed"
-        },
-        {
-          "id": "7.2",
-          "title": "Develop WebSocket client integration",
-          "status": "completed"
-        },
-        {
-          "id": "7.3",
-          "title": "Implement in-app notifications (toasts, center)",
-          "status": "completed"
-        },
-        {
-          "id": "7.4",
-          "title": "Create bidding reminders and penalty notifications (via WebSocket)",
-          "status": "completed"
-        }
-      ]
-    },
-    {
-      "id": "8",
-      "title": "Administrative Controls",
-      "description": "Implement admin dashboard, auction management controls, and system monitoring.",
-      "status": "completed",
-      "priority": "medium",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "8.1",
-          "title": "Develop user management page",
-          "status": "completed"
-        },
-        {
-          "id": "8.2",
-          "title": "Implement league creation page",
-          "status": "completed"
-        },
-        {
-          "id": "8.3",
-          "title": "Create league management dashboard",
-          "status": "completed"
-        },
-        {
-          "id": "8.4",
-          "title": "Implement league status management controls",
-          "status": "completed"
-        },
-        {
-          "id": "8.5",
-          "title": "Implement league list view for admin",
-          "status": "completed"
-        },
-        {
-          "id": "8.6",
-          "title": "Implement participant management (remove, edit team name)",
-          "status": "completed"
-        }
-      ]
-    },
-    {
-      "id": "9",
-      "title": "User Interface Development",
-      "description": "Implement responsive UI components for all system features, ensuring a consistent and intuitive user experience.",
+    "task_9": {
+      "name": "UI Development and Enhancement",
       "status": "in_progress",
-      "priority": "high",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "9.1",
-          "title": "Develop layout and navigation components",
-          "status": "completed"
+      "description": "Enhanced user interface, responsive design, user experience improvements",
+      "subtasks": {
+        "task_9_1": {
+          "name": "Layout and Navigation Components",
+          "status": "completed",
+          "description": "Main layout, navigation, responsive design framework"
         },
-        {
-          "id": "9.2",
-          "title": "Implement auction interface components",
-          "status": "completed"
+        "task_9_2": {
+          "name": "Auction Interface Components", 
+          "status": "completed",
+          "description": "Auction display, bidding interface, real-time updates"
         },
-        {
-          "id": "9.3",
-          "title": "Create player management interface",
-          "status": "completed"
+        "task_9_3": {
+          "name": "Player Management Interface",
+          "status": "completed",
+          "description": "Player search, filtering, management interfaces"
         },
-        {
-          "id": "9.4",
-          "title": "Implement budget and notification components",
-          "status": "completed"
+        "task_9_4": {
+          "name": "Enhanced Notifications and Error Handling",
+          "status": "completed",
+          "description": "Fixed bid validation race conditions, improved error messages, enhanced real-time notifications with smart data synchronization"
         }
+      }
+    },
+    "task_10": {
+      "name": "Testing and Quality Assurance",
+      "status": "pending",
+      "description": "Comprehensive testing, bug fixes, performance optimization"
+    },
+    "task_11": {
+      "name": "Documentation and Deployment",
+      "status": "pending", 
+      "description": "Complete documentation, deployment setup, production configuration"
+    }
+  },
+  "recent_fixes": {
+    "bid_validation_race_condition": {
+      "date": "2025-01-20",
+      "description": "Fixed 'L'offerta deve essere superiore all'offerta attuale' error caused by race condition between client-side validation and real-time updates",
+      "solution": "Implemented pre-bid data refresh with smart validation and improved error handling",
+      "files_modified": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/lib/db/services/bid.service.ts"
       ]
     },
-    {
-      "id": "10",
-      "title": "Testing and Quality Assurance",
-      "description": "Implement comprehensive testing for all system components, including unit tests, integration tests, and end-to-end tests.",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": [],
-      "subtasks": [
-        { "id": "10.1", "title": "Implement unit tests", "status": "pending" },
-        {
-          "id": "10.2",
-          "title": "Create integration tests",
-          "status": "pending"
-        },
-        {
-          "id": "10.3",
-          "title": "Implement end-to-end tests",
-          "status": "pending"
-        },
-        {
-          "id": "10.4",
-          "title": "Perform security testing",
-          "status": "pending"
-        }
+    "auto_bid_simplification": {
+      "date": "2025-01-20",
+      "description": "Simplified auto-bid system with 'Black Box' approach - frontend shows only final results",
+      "solution": "Removed complex auto-bid indicators, unified notifications, simplified UI to show only personal auto-bid and final auction results",
+      "changes": {
+        "removed_indicators": "Auto-bid counters and competitor indicators",
+        "simplified_notifications": "Single notification for final auction result",
+        "ui_format": "[P] Ronaldo | 50 | 42 | 1:30 (personal auto-bid | final result | timer)",
+        "backend_logic": "All auto-bid calculations remain in backend, invisible to frontend"
+      },
+      "files_modified": [
+        "src/app/auctions/AuctionPageContent.tsx",
+        "src/components/auction/ManagerColumn.tsx",
+        "guide/progetto-attuale/auto-bid-v2.md"
       ]
     },
-    {
-      "id": "11",
-      "title": "Deployment and DevOps",
-      "description": "Set up deployment pipeline, containerization, and monitoring for production environment.",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "11.1",
-          "title": "Finalize Docker configuration",
-          "status": "pending"
-        },
-        { "id": "11.2", "title": "Set up CI/CD pipeline", "status": "pending" },
-        {
-          "id": "11.3",
-          "title": "Implement monitoring and logging",
-          "status": "pending"
-        },
-        {
-          "id": "11.4",
-          "title": "Create backup and disaster recovery procedures",
-          "status": "pending"
-        }
-      ]
-    },
-    {
-      "id": "12",
-      "title": "Documentation",
-      "description": "Create comprehensive documentation for the system, including API documentation, user guides, and deployment instructions.",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": [],
-      "subtasks": [
-        {
-          "id": "12.1",
-          "title": "Create API documentation",
-          "status": "pending"
-        },
-        { "id": "12.2", "title": "Write user manuals", "status": "pending" },
-        {
-          "id": "12.3",
-          "title": "Prepare deployment documentation",
-          "status": "pending"
-        },
-        {
-          "id": "12.4",
-          "title": "Develop technical documentation",
-          "status": "pending"
-        }
+    "timer_system_standardization": {
+      "date": "2025-01-20", 
+      "description": "Standardized timer system and cooldown management on user_player_preferences table",
+      "solution": "Added missing markTimerCompleted function, unified cooldown logic",
+      "files_modified": [
+        "src/lib/db/services/response-timer.service.ts",
+        "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+        "src/lib/db/services/auction-states.service.ts",
+        "src/app/api/user/auction-states/route.ts"
       ]
     }
-  ]
+  }
 }

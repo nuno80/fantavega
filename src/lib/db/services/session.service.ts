@@ -4,7 +4,7 @@
  */
 
 import { db } from '@/lib/db';
-import { activateTimersForUser } from './response-timer.service';
+import { activateTimersForUser, processExpiredResponseTimers } from './response-timer.service';
 
 export const recordUserLogin = (userId: string): void => {
   const now = Math.floor(Date.now() / 1000);
@@ -25,7 +25,18 @@ export const recordUserLogin = (userId: string): void => {
     
     console.log(`[SESSION] User ${userId} logged in at ${now}`);
     
-    // Attiva timer pendenti
+    // Prima processa timer scaduti globalmente (libera slot)
+    try {
+      const result = processExpiredResponseTimers();
+      if (result.processedCount > 0) {
+        console.log(`[SESSION] Processed ${result.processedCount} expired timers at login`);
+      }
+    } catch (error) {
+      console.error('[SESSION] Error processing expired timers at login:', error);
+      // Non bloccare il login per errori di processing
+    }
+    
+    // Poi attiva timer pendenti per questo utente
     activateTimersForUser(userId);
     
   } catch (error) {
