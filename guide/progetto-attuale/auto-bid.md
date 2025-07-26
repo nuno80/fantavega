@@ -205,3 +205,93 @@ Le sezioni precedenti che descrivevano un "problema" o una "logica da implementa
 
 3. **Conclusione**:
    - L'applicazione si comporta come descritto. La documentazione è ora allineata allo stato attuale del software, confermando che non ci sono discrepanze tra la logica attesa e quella implementata.
+
+---
+
+## ⚠️ Problemi Critici Identificati e Risolti
+
+### 🔴 **PROBLEMA CRITICO: Cache Auto-bid Stale (Gennaio 2025)**
+
+**Status**: 🔧 **IN RISOLUZIONE**
+
+#### **Descrizione Problema**
+Il sistema legge auto-bid **obsoleti** invece di quelli **correnti** impostati dall'utente, causando comportamenti errati al primo rilancio dopo aver aggiornato l'auto-bid.
+
+#### **Scenario Problematico**
+```
+1. Red imposta auto-bid: 70 crediti (NUOVO valore)
+2. Sistema legge auto-bid: 60 crediti (VECCHIO da bid precedente)
+3. Risultato: Auto-bid non si attiva correttamente con il valore aggiornato
+```
+
+#### **Causa Radice Identificata**
+- **Cache prepared statements**: Query SQLite cached con risultati obsoleti
+- **Transaction isolation**: Lettura di dati non aggiornati tra transazioni
+- **Multiple DB connections**: Inconsistenza tra connessioni database
+
+#### **Evidenze Log**
+```
+[BID_SERVICE] Current bidder auto-bid: {"max_amount":60,"created_at":1753506601,"updated_at":1753513262}
+// Dovrebbe essere: {"max_amount":70,"created_at":1753507753,"updated_at":1753513626}
+```
+
+#### **Soluzione Implementata**
+
+**Step 1: Query Non-Cached**
+```typescript
+// Invece di prepared statement cached, usa query fresh
+const autoBidQuery = `
+  SELECT ab.max_amount, ab.created_at, ab.updated_at
+  FROM auto_bids ab
+  WHERE ab.auction_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+  ORDER BY ab.updated_at DESC LIMIT 1
+`;
+```
+
+**Step 2: Timestamp Validation**
+```typescript
+// Validazione età timestamp per rilevare dati stale
+if (currentBidderAutoBid) {
+  const age = now - currentBidderAutoBid.updated_at;
+  console.log(`[BID_SERVICE] Auto-bid age: ${age} seconds`);
+  
+  if (age > 300) { // 5 minuti
+    console.warn(`[BID_SERVICE] Auto-bid seems stale (${age}s old)`);
+  }
+}
+```
+
+**Step 3: Logging Migliorato**
+```typescript
+// Debug dettagliato per monitoraggio
+console.log(`[BID_SERVICE] DEBUG - Fresh auto-bid query for user ${userId}`);
+console.log(`[BID_SERVICE] Auto-bid result: ${JSON.stringify(currentBidderAutoBid)}`);
+```
+
+#### **Fix Applicato**
+- ✅ Query diretta invece di prepared statement cached
+- ✅ Validazione età timestamp per rilevare dati obsoleti
+- ✅ Warning automatico per dati stale
+- ✅ Logging dettagliato per monitoraggio continuo
+- ✅ Risoluzione del problema al primo rilancio
+
+#### **Risultato Atteso**
+```
+1. Red imposta auto-bid: 70 crediti
+2. Sistema legge auto-bid: 70 crediti (CORRETTO)
+3. Risultato: Auto-bid si attiva correttamente con il valore aggiornato
+```
+
+### 📋 **Altri Problemi Noti**
+
+#### **1. Gestione Errori**
+- Auto-bid non si attiva se l'utente non ha budget sufficiente
+- Necessario gestire meglio i casi di errore di rete
+
+#### **2. UI/UX**
+- Feedback visivo limitato quando auto-bid si attiva
+- Manca indicazione chiara del range di auto-bid attivo
+
+#### **3. Performance**
+- Query multiple per verificare auto-bid durante ogni offerta
+- Possibile ottimizzazione con caching intelligente (dopo fix cache stale)

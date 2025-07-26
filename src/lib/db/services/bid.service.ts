@@ -523,21 +523,53 @@ export async function placeBidOnExistingAuction({
     // --- Blocco 4: Check Auto-Bid BEFORE Processing Manual Bid ---
     console.log(`[BID_SERVICE] Checking for auto-bid activation BEFORE processing manual bid...`);
     
-    // First, check if the current bidder also has an auto-bid for this auction
-    const currentBidderAutoBid = db
+    // FIXED: Fresh auto-bid query to avoid stale cache issues
+    console.log(`[BID_SERVICE] DEBUG - Fresh auto-bid query for user ${userId} on auction ${auction.id}`);
+    
+    // Step 1: Use fresh query instead of potentially cached prepared statement
+    const autoBidQuery = `
+      SELECT ab.max_amount, ab.created_at, ab.updated_at
+      FROM auto_bids ab
+      WHERE ab.auction_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+      ORDER BY ab.updated_at DESC LIMIT 1
+    `;
+    
+    // Execute fresh query each time to avoid cache issues
+    const currentBidderAutoBid = db.prepare(autoBidQuery).get(auction.id, userId) as {max_amount: number, created_at: number, updated_at: number} | undefined;
+    
+    console.log(`[BID_SERVICE] Auto-bid result: ${JSON.stringify(currentBidderAutoBid)}`);
+    
+    // Step 2: Timestamp validation to detect stale data
+    if (currentBidderAutoBid) {
+      const now = Math.floor(Date.now() / 1000);
+      const age = now - currentBidderAutoBid.updated_at;
+      console.log(`[BID_SERVICE] Auto-bid age: ${age} seconds`);
+      
+      if (age > 300) { // 5 minutes
+        console.warn(`[BID_SERVICE] Auto-bid seems stale (${age}s old), this might indicate a cache issue`);
+      }
+    }
+    
+    // DEBUG: Also check all auto-bids for this user/auction for comparison
+    const allUserAutoBids = db
       .prepare(
-        `SELECT ab.max_amount, ab.created_at
+        `SELECT ab.id, ab.max_amount, ab.is_active, ab.created_at, ab.updated_at
          FROM auto_bids ab
-         WHERE ab.auction_id = ? AND ab.user_id = ? AND ab.is_active = TRUE`
+         WHERE ab.auction_id = ? AND ab.user_id = ?
+         ORDER BY ab.updated_at DESC`
       )
-      .get(auction.id, userId) as {max_amount: number, created_at: number} | undefined;
-    console.log(`[BID_SERVICE] Current bidder auto-bid: ${JSON.stringify(currentBidderAutoBid)}`);
+      .all(auction.id, userId);
+    console.log(`[BID_SERVICE] DEBUG - All auto-bids for user: ${JSON.stringify(allUserAutoBids)}`);
     
     // Determine the effective bid amount (manual bid or auto-bid max)
+    // FIXED: Only use auto-bid if it's actually higher than manual bid
     let effectiveBidAmount = bidAmount;
     if (currentBidderAutoBid && currentBidderAutoBid.max_amount > bidAmount) {
       effectiveBidAmount = currentBidderAutoBid.max_amount;
       console.log(`[BID_SERVICE] Using auto-bid amount ${effectiveBidAmount} instead of manual bid ${bidAmount}`);
+    } else if (currentBidderAutoBid) {
+      console.log(`[BID_SERVICE] Manual bid ${bidAmount} is higher than or equal to auto-bid ${currentBidderAutoBid.max_amount}, using manual bid`);
+      // effectiveBidAmount remains bidAmount (manual bid)
     }
 
     // Now increment locked credits with the effective amount

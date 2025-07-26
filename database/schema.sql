@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS player_discard_requests (
 CREATE TABLE IF NOT EXISTS budget_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_league_id INTEGER NOT NULL,
+    league_id INTEGER, -- Aggiunto per compatibilità con response-timer.service.ts
     user_id TEXT NOT NULL,
     transaction_type TEXT NOT NULL CHECK(transaction_type IN (
         'initial_allocation',
@@ -184,7 +185,8 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
         'discard_player_credit', -- Futuro
         'admin_budget_increase', -- Futuro
         'admin_budget_decrease', -- Futuro
-        'penalty_response_timeout' -- Futuro
+        'penalty_response_timeout', -- Futuro
+        'timer_expired' -- Aggiunto per timer scaduti
     )),
     amount INTEGER NOT NULL, 
     related_auction_id INTEGER,
@@ -193,7 +195,9 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
     description TEXT,
     balance_after_in_league INTEGER NOT NULL, 
     transaction_time INTEGER DEFAULT (strftime('%s', 'now')), 
+    created_at INTEGER DEFAULT (strftime('%s', 'now')), -- Aggiunto per compatibilità
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
+    FOREIGN KEY (league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (related_auction_id) REFERENCES auctions(id) ON DELETE SET NULL,
     FOREIGN KEY (related_player_id) REFERENCES players(id) ON DELETE SET NULL,

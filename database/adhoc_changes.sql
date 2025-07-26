@@ -49,3 +49,9 @@
 -- - integrity_value (INTEGER)
 -- - has_fmv (BOOLEAN)
 -- Queste colonne sono ora presenti anche nello schema principale in database/schema.sql
+
+-- COMPLETATO: Fix per budget_transactions (Gennaio 2025)
+-- Aggiunte colonne league_id e created_at per compatibilità con response-timer.service.ts
+
+-- COMPLETATO: Fix CHECK constraint per 'timer_expired' (Gennaio 2025)
+-- Tabella budget_transactions ricreata con supporto completo per 'timer_expired'

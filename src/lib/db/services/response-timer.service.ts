@@ -328,10 +328,10 @@ export const processExpiredResponseTimers = (): {
         // Log transazione
         db.prepare(`
           INSERT INTO budget_transactions 
-          (user_id, league_id, amount, transaction_type, description, created_at)
-          VALUES (?, ?, 0, 'timer_expired', ?, ?)
-        `).run(timer.user_id, timer.league_id, 
-           `Timer scaduto per ${timer.player_name} - Cooldown 48h applicato`, now);
+          (user_id, auction_league_id, league_id, amount, transaction_type, description, created_at, balance_after_in_league)
+          VALUES (?, ?, ?, 0, 'timer_expired', ?, ?, ?)
+        `).run(timer.user_id, timer.league_id, timer.league_id, 
+           `Timer scaduto per ${timer.player_name} - Cooldown 48h applicato`, now, 0);
 
         db.prepare('COMMIT').run();
 
