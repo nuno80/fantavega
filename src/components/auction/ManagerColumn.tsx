@@ -495,8 +495,10 @@ export function ManagerColumn({
   };
 
   const getRoleCount = (role: string) => {
-    const assignedCount = manager.players.filter(p => p.role.toUpperCase() === role.toUpperCase()).length;
-    const activeAuctionCount = activeAuctions.filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id).length;
+    // Controllo di sicurezza per manager.players
+    const managerPlayers = manager.players || [];
+    const assignedCount = managerPlayers.filter(p => p.role.toUpperCase() === role.toUpperCase()).length;
+    const activeAuctionCount = (activeAuctions || []).filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id).length;
     return assignedCount + activeAuctionCount;
   };
 
@@ -506,7 +508,9 @@ export function ManagerColumn({
     const roleKey = `slots_${role}` as keyof LeagueSlots;
     const totalSlots = leagueSlots[roleKey];
     
-    const assignedPlayers = manager.players.filter(p => p.role.toUpperCase() === role.toUpperCase());
+    // Controllo di sicurezza per manager.players
+    const managerPlayers = manager.players || [];
+    const assignedPlayers = managerPlayers.filter(p => p.role.toUpperCase() === role.toUpperCase());
     const activeAuctionsForRole = activeAuctions.filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id);
     const statesForRole = userAuctionStates.filter(s => {
       // Trova il ruolo del giocatore dallo stato
@@ -613,7 +617,7 @@ export function ManagerColumn({
             <div key={role} className="flex flex-col">
               <div className={`${getRoleColor(role)} text-gray-900 px-2 py-1 ${slots.some(s => s.type === 'in_auction') ? 'rounded-t-md' : 'rounded-md mb-1'} text-xs font-semibold flex items-center justify-between`}>
                 <span>{role}</span>
-                <span>{manager.players.filter(p => p.role.toUpperCase() === role.toUpperCase()).length}/{leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0}</span>
+                <span>{(manager.players || []).filter(p => p.role.toUpperCase() === role.toUpperCase()).length}/{leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0}</span>
               </div>
               
               <div className="space-y-0.5">

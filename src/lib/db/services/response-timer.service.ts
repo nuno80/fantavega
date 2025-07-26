@@ -276,7 +276,7 @@ export const processExpiredResponseTimers = (): {
     // Trova tutti i timer scaduti
     const expiredTimers = db.prepare(`
       SELECT urt.id, urt.auction_id, urt.user_id, urt.response_deadline,
-             a.player_id, a.league_id, p.name as player_name,
+             a.player_id, a.auction_league_id as league_id, p.name as player_name,
              a.current_highest_bid_amount, a.current_highest_bidder_id
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id

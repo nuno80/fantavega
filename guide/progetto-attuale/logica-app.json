@@ -1,95 +1,69 @@
 {
-  "projectName": "Fantavega - Fantacalcio Auction System",
-  "last_task_completed": {
-    "last_update": "2025-01-20T16:30:00Z",
-    "task_completed": "Sistema Timer Rilancio - Fix Inconsistenze e Standardizzazione",
-    "feature_logic": {
-      "feature_name": "Sistema Timer Rilancio - Logica Fairness e Slot Liberation",
-      "summary": "Implementa un sistema di timer di rilancio che garantisce fairness: il timer di 1 ora parte solo quando l'utente torna online e vede la notifica del rilancio. Include tracking preciso login/logout, scheduling automatico per liberare slot bloccate, e gestione completa del ciclo di vita dei timer.",
-      "architectural_pattern": "Pattern 'Timer Pendente + Session Tracking': Timer rimangono pendenti (senza deadline) finché l'utente non torna online. Sistema di scheduling automatico processa timer scaduti ogni 5 minuti per liberare slot e applicare cooldown.",
-      "user_flow": [
-        "1. UserA fa offerta → UserB supera UserA",
-        "2. Sistema crea timer PENDENTE per UserA (response_deadline = NULL)",
-        "3. Se UserA è ONLINE: Timer si attiva subito (deadline = login_time + 1h)",
-        "4. Se UserA è OFFLINE: Timer rimane pendente fino al login",
-        "5. UserA torna online → Middleware registra login in user_sessions",
-        "6. activateTimersForUser() attiva timer pendenti (deadline = login_time + 1h)",
-        "7. Socket.IO invia notifica 'response-timer-started' a UserA",
-        "8. CASO A: UserA rilancia → cancelResponseTimer() marca timer 'cancelled'",
-        "9. CASO B: UserA abbandona volontariamente → abandonAuction() marca timer 'abandoned' + cooldown 48h",
-        "10. CASO C: Timer scade → Scheduler automatico processa timer 'expired' + cooldown 48h",
-        "11. In tutti i casi: Slot liberate immediatamente, crediti sbloccati"
-      ],
-      "core_components_interaction": {
-        "src/lib/db/services/session.service.ts": "Nuovo servizio per tracking login/logout preciso con tabella user_sessions",
-        "src/lib/db/services/response-timer.service.ts": "Servizio timer completamente riscritto con logica pendente/attiva",
-        "src/lib/scheduler.ts": "Sistema scheduling automatico che processa timer scaduti ogni 5 minuti",
-        "src/middleware.tsx": "Registra login utente per route protette chiamando recordUserLogin()",
-        "socket-server.ts": "Registra logout utente e avvia scheduler automatico",
-        "createResponseTimer()": "Crea timer PENDENTE (deadline=NULL), attiva subito se utente online",
-        "activateTimersForUser()": "Attiva timer pendenti calcolando deadline dal login_time",
-        "cancelResponseTimer()": "Cancella timer quando utente rilancia",
-        "abandonAuction()": "Gestisce abbandono volontario con cooldown 48h",
-        "processExpiredResponseTimers()": "Processa timer scaduti, libera slot, applica cooldown"
-      },
-      "database_interactions": [
-        {
-          "table": "auctions",
-          "operation": "SELECT + UPDATE",
-          "description": "Operazioni di offerta che possono generare errori gestiti dal nuovo error handler."
-        },
-        {
-          "table": "league_participants",
-          "operation": "SELECT + UPDATE", 
-          "description": "Controlli budget e locked_credits che possono fallire e richiedere error handling."
-        }
-      ],
-      "real_time_features": [
-        {
-          "event": "response-timer-started",
-          "trigger": "L'utente superato effettua il login o accede a una pagina che attiva i suoi timer pendenti.",
-          "data": "{ auctionId, deadline, timeRemaining }",
-          "ui_response": "Informa il client dell'utente superato che un timer di risposta è stato attivato, fornendo la scadenza per avviare il countdown."
-        },
-        {
-          "event": "auction-auto-abandoned",
-          "trigger": "Scadenza di un timer di risposta",
-          "data": "{ playerName, cooldownHours, reason }",
-          "ui_response": "Notifica all'utente che ha abbandonato automaticamente l'asta e che è stato messo in cooldown."
-        },
-        {
-          "event": "user-abandoned-auction",
-          "trigger": "Scadenza di un timer di risposta",
-          "data": "{ userId, playerId, playerName, reason }",
-          "ui_response": "Informa l'intera lega che un utente ha abbandonato un'asta per timeout."
-        }
-      ]
+  "sistema_timer_rilancio": {
+    "status": "completed",
+    "description": "Sistema timer di rilancio completamente implementato e funzionale",
+    "features": {
+      "timer_pendente": "Timer parte solo quando utente vede rilancio (fairness)",
+      "processing_automatico": "Scheduler ogni 5 minuti per slot liberate",
+      "cooldown_48h": "Cooldown standardizzato su user_player_preferences",
+      "real_time_notifications": "Socket.IO per timer e penalità"
     },
-    "bug_details": {
-      "original_issue": "Auto-bid system calcolava prezzi finali errati in scenari auto-bid vs auto-bid. Esempio: offerta manuale 33 crediti risultava in prezzo finale 31 invece di 34.",
-      "root_cause": "Logica auto-bid usava importi auto-bid invece di offerte manuali per calcoli. Sistema non implementava correttamente la logica eBay di 'rilanci automatici sequenziali'.",
-      "error_manifestation": [
-        "Prezzi finali asta incorretti (troppo bassi)",
-        "Utenti vincevano aste pagando meno del dovuto",
-        "Violazione principi eBay-style auction",
-        "Gestione crediti bloccati inconsistente"
-      ],
-      "technical_cause": "Algoritmo auto-bid confrontava max_amount degli auto-bid invece di simulare rilanci sequenziali partendo dall'offerta manuale."
-    },
-    "solution_implemented": [
-      "Riscritta completamente logica auto-bid con approccio 'serie di rilanci manuali automatici'",
-      "Implementato confronto diretto tra auto-bid massimi per determinare vincitore",
-      "Calcolo prezzo finale: vincitore paga max_amount del perdente + 1 (o suo massimo in caso di parita)",
-      "Gestione corretta caso parita: primo offerente vince al suo importo massimo",
-      "Correzione gestione crediti bloccati con importi effettivi corretti",
-      "Aggiornamento logging per tracciare nuova logica di calcolo"
-    ],
     "files_modified": [
-      "src/lib/db/services/response-timer.service.ts: Aggiunta funzione markTimerCompleted() mancante",
-      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts: Standardizzato su user_player_preferences",
-      "src/lib/db/services/auction-states.service.ts: Standardizzato cooldown su user_player_preferences", 
-      "src/app/api/user/auction-states/route.ts: Aggiornate query per usare user_player_preferences",
-      "Sistema timer completamente funzionale e standardizzato"
+      "src/lib/db/services/response-timer.service.ts",
+      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
+      "src/lib/db/services/auction-states.service.ts",
+      "src/app/api/user/auction-states/route.ts"
+    ]
+  },
+  "fix_bid_validation": {
+    "status": "completed",
+    "description": "Risolto errore 'L'offerta deve essere superiore all'offerta attuale'",
+    "problem": "Race condition tra UI non sincronizzata e dati server aggiornati",
+    "solution": "Implementato refresh dei dati immediatamente prima dell'offerta con validazione preventiva",
+    "changes": {
+      "pre_bid_refresh": "Aggiunto fetch dei dati freschi prima di ogni offerta",
+      "smart_validation": "Validazione client-side con refresh automatico UI se necessario",
+      "error_handling": "Messaggi di errore migliorati con toast differenziati",
+      "concurrency_protection": "Sistema di locking per prevenire offerte concorrenti",
+      "data_sync": "Refresh automatico dei dati dopo ogni operazione"
+    },
+    "files_modified": [
+      "src/app/auctions/AuctionPageContent.tsx",
+      "src/lib/db/services/bid.service.ts"
+    ]
+  },
+  "auto_bid_system": {
+    "status": "completed",
+    "description": "Sistema auto-bid semplificato con logica 'Black Box'",
+    "features": {
+      "ebay_logic": "Implementata logica eBay per competizione auto-bid (backend only)",
+      "black_box_approach": "Frontend riceve solo risultati finali, meccanismi interni nascosti",
+      "simplified_ui": "Visualizzazione solo della propria auto-bid e risultato finale",
+      "unified_notifications": "Una sola notifica per risultato finale dell'asta",
+      "user_interface": "Modal per gestione auto-bid, indicatori semplificati"
+    },
+    "ui_format": "[P] Ronaldo | 50 | 42 | 1:30 (ruolo nome | auto-bid personale | offerta finale | timer)"
+  },
+  "penalty_system": {
+    "status": "completed",
+    "description": "Sistema penalità automatico per conformità roster",
+    "features": {
+      "compliance_check": "Controllo N-1 slot per ruoli attivi",
+      "grace_period": "1 ora di grazia prima delle penalità",
+      "automatic_penalties": "5 crediti per ora di non conformità",
+      "real_time_notifications": "Notifiche Socket.IO per penalità applicate"
+    }
+  },
+  "real_time_system": {
+    "status": "completed",
+    "description": "Sistema notifiche real-time con Socket.IO",
+    "architecture": "Server Socket.IO separato con comunicazione HTTP bridge",
+    "events": [
+      "auction-update",
+      "bid-surpassed-notification", 
+      "penalty-applied-notification",
+      "auto-bid-activated-notification",
+      "timer-expired-notification"
     ]
   }
 }

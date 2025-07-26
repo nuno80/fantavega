@@ -161,9 +161,41 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         setLeagueInfo(league);
         setLeagues(leagues);
 
+        // Feature flag for consolidated API (INITIAL LOAD)
+        const USE_CONSOLIDATED_API = process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
+        console.log('[PERFORMANCE] Initial load - Feature flag check:', {
+          env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
+          USE_CONSOLIDATED_API,
+          leagueId: league.id
+        });
+
+        if (USE_CONSOLIDATED_API) {
+          // NEW: Single consolidated API call for initial load
+          console.log('[PERFORMANCE] Using consolidated API for initial load');
+          const success = await refreshAllDataConsolidated(league.id.toString());
+          if (!success) {
+            console.log('[PERFORMANCE] Consolidated API failed on initial load, falling back to old method');
+            // Fallback to old method
+            await loadDataOldMethod(league.id);
+          }
+        } else {
+          // OLD: 4 separate API calls (fallback)
+          console.log('[PERFORMANCE] Using old method (4 API calls) for initial load');
+          await loadDataOldMethod(league.id);
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        toast.error("Errore nel caricamento dei dati");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const loadDataOldMethod = async (leagueId: number) => {
+      try {
         // Get ALL MANAGERS for this league - THIS IS THE KEY!
-        console.log("Fetching managers for league:", league.id);
-        const managersResponse = await fetch(`/api/leagues/${league.id}/managers`);
+        console.log("Fetching managers for league:", leagueId);
+        const managersResponse = await fetch(`/api/leagues/${leagueId}/managers`);
         if (managersResponse.ok) {
           const managersData = await managersResponse.json();
           console.log("Managers API response:", managersData);
@@ -177,7 +209,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
 
         // Fetch user's auction states
-        const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${league.id}`);
+        const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
         if (auctionStatesResponse.ok) {
           const statesData = await auctionStatesResponse.json();
           console.log("Auction states API response:", statesData);
@@ -185,40 +217,37 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
 
         // Get user budget for this league
-        const budgetResponse = await fetch(`/api/leagues/${league.id}/budget`);
+        const budgetResponse = await fetch(`/api/leagues/${leagueId}/budget`);
         if (budgetResponse.ok) {
           const budget = await budgetResponse.json();
           setUserBudget(budget);
         }
 
         // Get current active auction for this league
-        const auctionResponse = await fetch(`/api/leagues/${league.id}/current-auction`);
+        const auctionResponse = await fetch(`/api/leagues/${leagueId}/current-auction`);
         if (auctionResponse.ok) {
           const auction = await auctionResponse.json();
           setCurrentAuction(auction);
           
           // If there's a current auction, fetch bid history and user's auto-bid
           if (auction?.player_id) {
-            const bidsResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/bids`);
+            const bidsResponse = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/bids`);
             if (bidsResponse.ok) {
               const bidsData = await bidsResponse.json();
               setBidHistory(bidsData.bids || []);
             }
             
             // Fetch user's auto-bid for this player
-            const autoBidResponse = await fetch(`/api/leagues/${league.id}/players/${auction.player_id}/auto-bid`);
+            const autoBidResponse = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`);
             if (autoBidResponse.ok) {
               const autoBidData = await autoBidResponse.json();
               setUserAutoBid(autoBidData.auto_bid);
             }
           }
         }
-
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati");
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -286,9 +315,30 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
       });
       
-      // Also refresh budget data after auction update
+      // Also refresh related data after auction update
       if (selectedLeagueId) {
-        fetchBudgetData(selectedLeagueId);
+        // Feature flag for consolidated API
+        const USE_CONSOLIDATED_API = process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
+        console.log('[PERFORMANCE] Feature flag check:', {
+          env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
+          USE_CONSOLIDATED_API,
+          selectedLeagueId
+        });
+        
+        if (USE_CONSOLIDATED_API) {
+          // NEW: Single consolidated API call
+          console.log('[PERFORMANCE] Using consolidated API for real-time update');
+          refreshAllDataConsolidated(selectedLeagueId).then(success => {
+            if (!success) {
+              console.log('[PERFORMANCE] Consolidated API failed, falling back to old method');
+              refreshAllDataOld(selectedLeagueId);
+            }
+          });
+        } else {
+          // OLD: 4 separate API calls (fallback)
+          console.log('[PERFORMANCE] Using old method (4 API calls) for real-time update');
+          refreshAllDataOld(selectedLeagueId);
+        }
       }
     };
 
@@ -370,6 +420,107 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
   }, [socket, isConnected, selectedLeagueId]);
 
+  // Helper function to refresh all data with consolidated API (NEW OPTIMIZED METHOD)
+  const refreshAllDataConsolidated = async (leagueId: string) => {
+    try {
+      console.time('[PERFORMANCE] Consolidated API call');
+      const response = await fetch(`/api/leagues/${leagueId}/auction-realtime`);
+      console.timeEnd('[PERFORMANCE] Consolidated API call');
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update all states from single API response
+          if (data.auction) {
+            setCurrentAuction(data.auction);
+          }
+          if (data.userBudget) {
+            setUserBudget(data.userBudget);
+          }
+          if (data.userStates) {
+            setUserAuctionStates(data.userStates);
+          }
+          if (data.managerStates) {
+            setManagers(data.managerStates);
+          }
+          if (data.leagueSlots) {
+            setLeagueSlots(data.leagueSlots);
+          }
+          if (data.activeAuctions) {
+            setActiveAuctions(data.activeAuctions);
+          }
+          if (data.autoBids) {
+            setAutoBids(data.autoBids);
+          }
+          
+          console.log('[PERFORMANCE] Consolidated update completed successfully');
+          return true; // Success
+        } else {
+          console.warn('[PERFORMANCE] Consolidated API returned errors:', data.errors);
+          return false; // Fallback needed
+        }
+      } else {
+        console.error('[PERFORMANCE] Consolidated API failed:', response.status);
+        return false; // Fallback needed
+      }
+    } catch (error) {
+      console.error('[PERFORMANCE] Consolidated API error:', error);
+      return false; // Fallback needed
+    }
+  };
+
+  // Helper function to refresh data with old method (FALLBACK)
+  const refreshAllDataOld = async (leagueId: string) => {
+    console.time('[PERFORMANCE] Old method (4 API calls)');
+    try {
+      // Original 4 separate API calls
+      fetchBudgetData(leagueId);
+      
+      // Refresh bid history for current auction
+      if (currentAuction) {
+        fetchCurrentAuction(leagueId);
+      }
+      
+      // Refresh user auction states
+      refreshUserAuctionStatesOld(leagueId);
+      
+      // Refresh managers data
+      refreshManagersDataOld(leagueId);
+      
+      console.timeEnd('[PERFORMANCE] Old method (4 API calls)');
+    } catch (error) {
+      console.timeEnd('[PERFORMANCE] Old method (4 API calls)');
+      console.error("Error in old refresh method:", error);
+    }
+  };
+
+  // Helper function to refresh user auction states (OLD METHOD)
+  const refreshUserAuctionStatesOld = async (leagueId: string) => {
+    try {
+      const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
+      if (auctionStatesResponse.ok) {
+        const statesData = await auctionStatesResponse.json();
+        setUserAuctionStates(statesData.states || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing user auction states:", error);
+    }
+  };
+
+  // Helper function to refresh managers data (OLD METHOD)
+  const refreshManagersDataOld = async (leagueId: string) => {
+    try {
+      const managersResponse = await fetch(`/api/auction-states?leagueId=${leagueId}`);
+      if (managersResponse.ok) {
+        const managersData = await managersResponse.json();
+        setManagers(managersData.states || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing managers data:", error);
+    }
+  };
+
   const handlePlaceBid = async (amount: number) => {
     if (!currentAuction || !selectedLeagueId) return;
 
@@ -434,7 +585,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         <div className="flex-1 flex space-x-2 p-2 overflow-x-auto scrollbar-hide">
           {managers.length > 0 ? (
             managers.map((manager, index) => (
-              <div key={manager.user_id} className="flex-1 min-w-0">
+              <div key={`${manager.user_id}-${index}`} className="flex-1 min-w-0">
                 <ManagerColumn
                   manager={manager}
                   isCurrentUser={manager.user_id === userId}
