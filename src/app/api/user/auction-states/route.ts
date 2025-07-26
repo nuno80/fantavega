@@ -45,6 +45,7 @@ export async function GET(request: Request) {
         a.current_highest_bidder_id,
         a.current_highest_bid_amount,
         urt.response_deadline,
+        urt.activated_at,
         upp.expires_at as cooldown_ends_at
       FROM auctions a
       JOIN players p ON a.player_id = p.id
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
       current_highest_bidder_id: string;
       current_highest_bid_amount: number;
       response_deadline: number | null;
+      activated_at: number | null;
       cooldown_ends_at: number | null;
     }>;
 

@@ -40,6 +40,7 @@ export async function GET(request: Request) {
         urt.auction_id,
         urt.user_id,
         urt.response_deadline,
+        urt.activated_at,
         urt.status
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
       auction_id: number;
       user_id: string;
       response_deadline: number | null;
+      activated_at: number | null;
       status: string;
     }>;
 
@@ -71,6 +73,7 @@ export async function GET(request: Request) {
         const user_id = participant.user_id;
         let user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata' = 'asta_abbandonata'; // Default
         let response_deadline: number | null = null;
+        let activated_at: number | null = null;
         let time_remaining: number | null = null;
         let is_highest_bidder: boolean = false;
 
@@ -87,6 +90,7 @@ export async function GET(request: Request) {
 
         if (timer) {
           response_deadline = timer.response_deadline;
+          activated_at = timer.activated_at;
           if (response_deadline !== null) {
             time_remaining = Math.max(0, response_deadline - now);
           }
