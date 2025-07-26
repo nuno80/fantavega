@@ -62,3 +62,25 @@ La gestione crediti è **CORRETTA** e in linea con la nuova logica!
 4.  **Vincita asta**: I crediti restano bloccati fino alla fine dell'asta per garantire il pagamento.
 
 La logica implementata rispetta perfettamente il principio che l'auto-bid è una promessa di rilancio che deve essere sempre garantita dai crediti bloccati! 🎯
+
+---
+
+##  Penalità e Visualizzazione UI
+
+### Gestione delle Penalità
+
+Le penalità per il mancato rispetto dei requisiti della rosa vengono gestite separatamente dai crediti bloccati e hanno un impatto diretto sul budget dell'utente.
+
+- **Azione**: Le penalità vengono sottratte direttamente dal `current_budget` dell'utente nel database.
+- **Logica**: Il servizio `penalty.service.ts` si occupa di applicare queste deduzioni e di registrare una transazione di tipo `penalty_requirement`.
+
+### Impatto sulla UI (Componente `BudgetDisplay`)
+
+La visualizzazione del budget nella pagina dell'asta tiene conto delle penalità in modo implicito:
+
+1.  **`Budget attuale`**: Il valore mostrato (`currentBudget`) è già al netto di eventuali penalità applicate.
+2.  **`Crediti bloccati`**: Questo valore (`lockedCredits`) rappresenta solo i fondi impegnati per le offerte e **non include le penalità**.
+3.  **`Budget disponibile`**: Calcolato come `currentBudget - lockedCredits`, questo valore riflette accuratamente i fondi disponibili per nuove offerte, tenendo conto sia delle penalità (già sottratte dal `currentBudget`) sia dei crediti bloccati.
+4.  **`% Utilizzo Budget`**: Questa percentuale (`budgetUsedPercentage`) aumenta quando vengono applicate penalità, poiché queste riducono il `currentBudget` e, di conseguenza, aumentano il `spentBudget` (`totalBudget - currentBudget`).
+
+In sintesi, la UI fornisce una visione chiara e accurata della situazione finanziaria, dove le penalità riducono il budget complessivo, mentre i crediti bloccati rappresentano un impegno temporaneo per le aste in corso.
