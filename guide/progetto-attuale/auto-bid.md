@@ -274,17 +274,72 @@ console.log(
 
 ### 📋 **Altri Problemi Noti**
 
-#### **1. Gestione Errori**
+I will now modify `src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts` to accept the `autoBidMaxAmount` and pass it to the `placeBidOnExistingAuction` function. I will also remove the now-redundant block of code that handles the auto-bid `UPSERT` separately.
 
-- Auto-bid non si attiva se l'utente non ha budget sufficiente
-- Necessario gestire meglio i casi di errore di rete
+Cline wants to edit this file:
 
-#### **2. UI/UX**
+src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts‎
 
-- Feedback visivo limitato quando auto-bid si attiva
-- Manca indicazione chiara del range di auto-bid attivo
+2
 
-#### **3. Performance**
+\*\*Checkpoint
 
-- Query multiple per verificare auto-bid durante ogni offerta
-- Possibile ottimizzazione con caching intelligente (dopo fix cache stale)
+Compare
+
+Restore
+
+API Request$0.2107
+
+Now I will update the frontend component `src/components/auction/StandardBidModal.tsx` to send the `autoBidMaxAmount` in the same request as the manual bid. This will eliminate the separate API call and the race condition.
+
+Cline wants to edit this file:
+
+src/components/auction/StandardBidModal.tsx‎
+
+1
+
+\*\*Checkpoint
+
+Compare
+
+Restore
+
+API Request$0.1951
+
+I have now updated the backend logic and the frontend modal. The final step is to remove the now-unused `onAutoBidSet` prop from `AutoBidModal` and `ManagerColumn` to clean up the code and resolve the final TypeScript errors.
+
+I will start with `src/components/auction/AutoBidModal.tsx`.
+
+Cline wants to edit this file:
+
+src/components/auction/AutoBidModal.tsx‎
+
+4
+
+\*\*Checkpoint
+
+Compare
+
+Restore
+
+API Request$0.1898
+
+Now that `AutoBidModal` is updated, I will remove the `onAutoBidSet` prop from `ManagerColumn`'s `InAuctionSlot` component, as it's no longer needed there.
+
+Cline wants to edit this file:
+
+src/components/auction/ManagerColumn.tsx‎
+
+2
+
+\*\*Checkpoint
+
+Compare
+
+Restore
+
+API Request$0.2016
+
+I have now removed the `onAutoBidSet` prop from `InAuctionSlot` and `AutoBidModal`, as it is no longer needed.
+
+The final step is to remove the `onAutoBidSet` prop from the `ManagerColumn` component in `AuctionPageContent.tsx`, as it is no longer a valid prop for `ManagerColumn`.

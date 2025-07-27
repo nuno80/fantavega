@@ -328,7 +328,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         if (USE_CONSOLIDATED_API) {
           // NEW: Single consolidated API call
           console.log('[PERFORMANCE] Using consolidated API for real-time update');
-          refreshAllDataConsolidated(selectedLeagueId).then(success => {
+          refreshAllDataConsolidated(selectedLeagueId.toString()).then(success => {
             if (!success) {
               console.log('[PERFORMANCE] Consolidated API failed, falling back to old method');
               refreshAllDataOld(selectedLeagueId);
@@ -471,7 +471,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   // Helper function to refresh data with old method (FALLBACK)
-  const refreshAllDataOld = async (leagueId: string) => {
+  const refreshAllDataOld = async (leagueId: number) => { // Changed type to number
     console.time('[PERFORMANCE] Old method (4 API calls)');
     try {
       // Original 4 separate API calls
@@ -496,7 +496,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   // Helper function to refresh user auction states (OLD METHOD)
-  const refreshUserAuctionStatesOld = async (leagueId: string) => {
+  const refreshUserAuctionStatesOld = async (leagueId: number) => { // Changed type to number
     try {
       const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
       if (auctionStatesResponse.ok) {
@@ -509,7 +509,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   // Helper function to refresh managers data (OLD METHOD)
-  const refreshManagersDataOld = async (leagueId: string) => {
+  const refreshManagersDataOld = async (leagueId: number) => { // Changed type to number
     try {
       const managersResponse = await fetch(`/api/auction-states?leagueId=${leagueId}`);
       if (managersResponse.ok) {
@@ -566,6 +566,47 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   
   const isUserHighestBidder = currentAuction?.current_highest_bidder_id === userId;
 
+  const handleAutoBidSet = async (playerId: number, maxAmount: number) => {
+    if (!selectedLeagueId) return;
+
+    try {
+      const response = await fetch(
+        `/api/leagues/${selectedLeagueId}/players/${playerId}/auto-bid`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ max_amount: maxAmount }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || error.message || "Errore nell'impostare l'auto-offerta");
+      }
+
+      const result = await response.json();
+      console.log("Auto-bid set successfully:", result);
+      toast.success(`Auto-offerta impostata fino a ${maxAmount} crediti per ${currentAuction?.player_name || 'il giocatore'}`);
+      
+      // Refresh user's auto-bid state for the current player
+      if (currentAuction?.player_id === playerId) {
+        setUserAutoBid({ max_amount: maxAmount, is_active: maxAmount > 0 });
+      }
+      // Also trigger a full data refresh to ensure consistency
+      if (process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true') {
+        await refreshAllDataConsolidated(selectedLeagueId.toString());
+      } else {
+        await refreshAllDataOld(selectedLeagueId); // Changed type to number
+      }
+
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Errore nell'impostare l'auto-offerta"
+      );
+      throw error; // Re-throw to be handled by modal
+    }
+  };
+
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
@@ -600,6 +641,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   currentAuctionPlayerId={currentAuction?.player_id}
                   userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
                   leagueId={selectedLeagueId ?? undefined}
+                  handlePlaceBid={handlePlaceBid} // Pass handlePlaceBid
                 />
               </div>
             ))

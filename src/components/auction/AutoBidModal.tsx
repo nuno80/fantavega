@@ -17,7 +17,6 @@ interface AutoBidModalProps {
   playerId: number;
   leagueId: number;
   playerName: string;
-  onAutoBidSet: (maxAmount: number) => Promise<void>;
   existingAutoBid?: {
     max_amount: number;
     is_active: boolean;
@@ -32,7 +31,6 @@ export function AutoBidModal({
   playerId,
   leagueId,
   playerName,
-  onAutoBidSet,
   existingAutoBid,
   defaultMaxAmount,
 }: AutoBidModalProps) {
@@ -58,8 +56,9 @@ export function AutoBidModal({
 
     setIsSubmitting(true);
     try {
-      await onAutoBidSet(maxAmount);
-      toast.success(`Auto-offerta impostata fino a ${maxAmount} crediti`);
+      // This logic is now handled by the bid submission modal
+      console.warn("handleSubmit in AutoBidModal is deprecated and should not be called directly.");
+      toast.info("Per impostare un'auto-offerta, usa il modale di offerta.");
       setIsOpen(false);
     } catch (error) {
       toast.error(
@@ -192,7 +191,10 @@ export function AutoBidModal({
             {existingAutoBid?.is_active && (
               <Button
                 variant="outline"
-                onClick={() => onAutoBidSet(0)} // 0 = disable
+                onClick={() => {
+                  // This logic is now handled by the bid submission modal
+                  toast.info("Per disattivare un'auto-offerta, imposta il valore a 0 nel modale di offerta.");
+                }}
                 disabled={isSubmitting}
               >
                 Disattiva

@@ -205,6 +205,7 @@ interface PlaceBidParams {
   userId: string;
   bidAmount: number;
   bidType?: "manual" | "quick" | "auto";
+  autoBidMaxAmount?: number; // Add this field
 }
 
 interface ExpiredAuctionData {
@@ -492,6 +493,7 @@ export async function placeBidOnExistingAuction({
   playerId,
   bidAmount,
   bidType = "manual",
+  autoBidMaxAmount, // Add this parameter
 }: PlaceBidParams) {
   console.log(`[BID_SERVICE] placeBidOnExistingAuction called for user ${userId}, player ${playerId}, amount ${bidAmount}`);
   
@@ -630,6 +632,21 @@ export async function placeBidOnExistingAuction({
     // --- Blocco 6: Logica di Simulazione Auto-Bid ---
     console.log(`[BID_SERVICE] Avvio logica di simulazione auto-bid...`);
 
+    // NEW: Upsert auto-bid within the same transaction if provided
+    if (autoBidMaxAmount && autoBidMaxAmount > 0) {
+      const now = Math.floor(Date.now() / 1000);
+      db.prepare(`
+        INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, TRUE, ?, ?)
+        ON CONFLICT(auction_id, user_id) 
+        DO UPDATE SET 
+          max_amount = excluded.max_amount,
+          is_active = TRUE,
+          updated_at = excluded.updated_at
+      `).run(auction.id, userId, autoBidMaxAmount, now, now);
+      console.log(`[BID_SERVICE] Auto-bid for user ${userId} upserted to ${autoBidMaxAmount}`);
+    }
+
     // 1. Raccogli tutti gli auto-bid attivi per l'asta, inclusi quelli dell'offerente attuale
     // CORREZIONE: Usa READ UNCOMMITTED per vedere auto-bid creati in transazioni parallele
     const allActiveAutoBids = db
@@ -718,8 +735,11 @@ export async function placeBidOnExistingAuction({
   if (result.success) {
     // Cancella timer per l'utente che ha rilanciato (non serve più)
     try {
-      await cancelResponseTimer(leagueId, playerId, userId);
-      console.log(`[BID_SERVICE] Timer cancellato per l'utente ${userId}`);
+      const auctionInfoForCancel = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'").get(leagueId, playerId) as { id: number } | undefined;
+      if (auctionInfoForCancel) {
+        await cancelResponseTimer(auctionInfoForCancel.id, userId);
+        console.log(`[BID_SERVICE] Timer cancellato per l'utente ${userId}`);
+      }
     } catch (error) {
       console.log(`[BID_SERVICE] Timer cancellation non-critical error: ${error}`);
     }

@@ -34,6 +34,7 @@ interface StandardBidModalProps {
     is_active: boolean;
   } | null; // Auto-bid esistente dell'utente (solo per rilanci)
   playerQtA?: number; // QtA del giocatore per nuove aste
+  onAutoBidSet?: (maxAmount: number) => Promise<void>; // Add this prop
 }
 
 interface UserBudgetInfo {
@@ -158,7 +159,8 @@ export function StandardBidModal({
         endpoint = `/api/leagues/${leagueId}/players/${playerId}/bids`;
         body = { 
           amount: bidAmount,
-          bidType: "manual"
+          bidType: "manual",
+          max_amount: useAutoBid ? maxAmount : undefined, // Pass auto-bid amount
         };
       }
 
@@ -173,40 +175,10 @@ export function StandardBidModal({
         throw new Error(error.error || error.message || "Errore nel piazzare l'offerta");
       }
 
-      // Se auto-bid è abilitato e il prezzo massimo è superiore all'offerta
-      if (useAutoBid && maxAmount > bidAmount) {
-        // Aspetta un momento per permettere al database di completare l'aggiornamento dell'offerta
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        try {
-          const autoBidResponse = await fetch(
-            `/api/leagues/${leagueId}/players/${playerId}/auto-bid`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ max_amount: maxAmount }),
-            }
-          );
-
-          if (!autoBidResponse.ok) {
-            const autoBidError = await autoBidResponse.json();
-            console.warn("Auto-bid failed:", autoBidError.error);
-            toast.warning(`Offerta piazzata, ma auto-bid fallita: ${autoBidError.error}`);
-          } else {
-            const autoBidResult = await autoBidResponse.json();
-            console.log("Auto-bid set successfully:", autoBidResult);
-            toast.success(`Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`);
-          }
-        } catch (autoBidError) {
-          console.warn("Auto-bid request failed:", autoBidError);
-          toast.warning("Offerta piazzata, ma auto-bid non impostata");
-        }
-      } else {
-        const successMessage = isNewAuction 
-          ? "Asta avviata con successo!" 
-          : "Offerta piazzata con successo!";
-        toast.success(successMessage);
-      }
+      const successMessage = isNewAuction 
+        ? "Asta avviata con successo!" 
+        : "Offerta piazzata con successo!";
+      toast.success(successMessage);
 
       onClose();
       

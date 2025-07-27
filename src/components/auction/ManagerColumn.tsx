@@ -1,11 +1,13 @@
 "use client";
 
-import { Star, User, Lock, DollarSign, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import { DollarSign, Lock, Star, User, X } from "lucide-react";
 import { toast } from "sonner";
+
+import { ComplianceChecker } from "./ComplianceChecker";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
-import { ComplianceChecker } from "./ComplianceChecker";
 
 // Type definitions
 interface PlayerInRoster {
@@ -49,7 +51,7 @@ interface UserAuctionState {
   player_id: number;
   player_name: string;
   current_bid: number;
-  user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
+  user_state: "miglior_offerta" | "rilancio_possibile" | "asta_abbandonata";
   response_deadline: number | null;
   time_remaining: number | null;
   is_highest_bidder: boolean;
@@ -62,10 +64,10 @@ interface AutoBidIndicator {
 
 // Discriminated union for Slot
 type Slot =
-  | { type: 'assigned'; player: PlayerInRoster }
-  | { type: 'in_auction'; auction: ActiveAuction }
-  | { type: 'response_needed'; state: UserAuctionState }
-  | { type: 'empty' };
+  | { type: "assigned"; player: PlayerInRoster }
+  | { type: "in_auction"; auction: ActiveAuction }
+  | { type: "response_needed"; state: UserAuctionState }
+  | { type: "empty" };
 
 interface ManagerColumnProps {
   manager: Manager;
@@ -82,53 +84,68 @@ interface ManagerColumnProps {
   currentAuctionPlayerId?: number;
   userAuctionStates?: UserAuctionState[];
   leagueId?: number;
-  handlePlaceBid: (amount: number, bidType?: "manual" | "quick", targetPlayerId?: number) => Promise<void>;
+  handlePlaceBid: (
+    amount: number,
+    bidType?: "manual" | "quick",
+    targetPlayerId?: number
+  ) => Promise<void>;
+  onAutoBidSet: (playerId: number, maxAmount: number) => Promise<void>;
 }
 
 // Helper functions
 const getRoleColor = (role: string) => {
   switch (role.toUpperCase()) {
-    case 'P': return 'bg-yellow-500';
-    case 'D': return 'bg-green-500';
-    case 'C': return 'bg-blue-500';
-    case 'A': return 'bg-red-500';
-    default: return 'bg-gray-500';
+    case "P":
+      return "bg-yellow-500";
+    case "D":
+      return "bg-green-500";
+    case "C":
+      return "bg-blue-500";
+    case "A":
+      return "bg-red-500";
+    default:
+      return "bg-gray-500";
   }
 };
 
 const getRoleTextColor = (role: string) => {
   switch (role.toUpperCase()) {
-    case 'P': return 'text-yellow-400';
-    case 'D': return 'text-green-400';
-    case 'C': return 'text-blue-400';
-    case 'A': return 'text-red-400';
-    default: return 'text-gray-400';
+    case "P":
+      return "text-yellow-400";
+    case "D":
+      return "text-green-400";
+    case "C":
+      return "text-blue-400";
+    case "A":
+      return "text-red-400";
+    default:
+      return "text-gray-400";
   }
 };
 
 const getSlotStyle = (role: string): React.CSSProperties => {
   const style: React.CSSProperties = {
-    backgroundColor: 'rgba(107, 114, 128, 0.2)',
-    borderColor: '#6B7280',
-    borderWidth: '1px',
-    borderStyle: 'solid',
+    backgroundColor: "rgba(107, 114, 128, 0.2)",
+    borderColor: "#6B7280",
+    borderWidth: "1px",
+    borderStyle: "solid",
   };
   switch (role.toUpperCase()) {
-    case 'P':
-      style.backgroundColor = 'rgba(234, 179, 8, 0.2)';
-      style.borderColor = '#F59E0B';
+    case "P":
+      style.backgroundColor = "rgba(234, 179, 8, 0.2)";
+      style.borderColor = "#F59E0B";
       break;
-    case 'D':
-      style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-      style.borderColor = '#10B981';
+    case "D":
+      style.backgroundColor = "rgba(16, 185, 129, 0.2)";
+      style.borderColor = "#10B981";
       break;
-    case 'C':
-      style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
-      style.borderColor = '#3B82F6';
+    case "C":
+      style.backgroundColor = "rgba(59, 130, 246, 0.2)";
+      style.borderColor = "#3B82F6";
       break;
-    case 'A':
-      style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
-      style.borderColor = '#EF4444';
+    case "A":
+      style.backgroundColor = "rgba(239, 68, 68, 0.2)";
+      style.borderColor = "#EF4444";
       break;
   }
   return style;
@@ -161,40 +178,50 @@ const formatTimeRemaining = (endTime: number) => {
 };
 
 // Slot Components
-function AssignedSlot({ player, role }: { player: PlayerInRoster; role: string }) {
+function AssignedSlot({
+  player,
+  role,
+}: {
+  player: PlayerInRoster;
+  role: string;
+}) {
   const roleColor = getRoleColor(role);
   const roleTextColor = getRoleTextColor(role);
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
   let borderClass = "border-gray-700";
-  
+
   switch (role.toUpperCase()) {
-    case 'P':
+    case "P":
       bgClass = "bg-yellow-600 bg-opacity-20";
       borderClass = "border-yellow-500";
       break;
-    case 'D':
+    case "D":
       bgClass = "bg-green-600 bg-opacity-20";
       borderClass = "border-green-500";
       break;
-    case 'C':
+    case "C":
       bgClass = "bg-blue-600 bg-opacity-20";
       borderClass = "border-blue-500";
       break;
-    case 'A':
+    case "A":
       bgClass = "bg-red-600 bg-opacity-20";
       borderClass = "border-red-500";
       break;
   }
 
   return (
-    <div className={`p-1.5 flex items-center justify-between rounded-md ${bgClass} border ${borderClass}`}>
-      <div className="flex items-center min-w-0">
-        <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
-        <span className="text-xs truncate">{player.name}</span>
+    <div
+      className={`flex items-center justify-between rounded-md p-1.5 ${bgClass} border ${borderClass}`}
+    >
+      <div className="flex min-w-0 items-center">
+        <div
+          className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+        />
+        <span className="truncate text-xs">{player.name}</span>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center gap-1">
         <span className="text-xs font-semibold text-white">
           {player.assignment_price}
         </span>
@@ -210,7 +237,7 @@ function ResponseNeededSlot({
   leagueId,
   isLast,
   onCounterBid,
-  isCurrentUser // Add this prop
+  isCurrentUser, // Add this prop
 }: {
   state: UserAuctionState;
   role: string;
@@ -220,8 +247,10 @@ function ResponseNeededSlot({
   isCurrentUser: boolean; // Add this prop
 }) {
   const [showModal, setShowModal] = useState(false);
-  const [currentTimeRemaining, setCurrentTimeRemaining] = useState(state.time_remaining || 0);
-  
+  const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
+    state.time_remaining || 0
+  );
+
   const roleColor = getRoleColor(role);
 
   // Response timer countdown effect
@@ -234,7 +263,7 @@ function ResponseNeededSlot({
     setCurrentTimeRemaining(state.time_remaining);
 
     const interval = setInterval(() => {
-      setCurrentTimeRemaining(prev => {
+      setCurrentTimeRemaining((prev) => {
         if (prev <= 0) {
           clearInterval(interval);
           return 0;
@@ -249,10 +278,10 @@ function ResponseNeededSlot({
   // Format response timer (hours and minutes only)
   const formatResponseTimer = (seconds: number) => {
     if (seconds <= 0) return "Scaduto";
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -269,13 +298,21 @@ function ResponseNeededSlot({
 
   return (
     <>
-      <div className={`p-1.5 flex items-center justify-between bg-red-600 bg-opacity-30 border border-red-500 ${isLast ? 'rounded-b-md' : ''}`}>
-        <div className="flex items-center min-w-0 flex-1">
-          <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
-          <span className="text-xs truncate text-red-200 mr-2">{state.player_name}</span>
+      <div
+        className={`flex items-center justify-between border border-red-500 bg-red-600 bg-opacity-30 p-1.5 ${isLast ? "rounded-b-md" : ""}`}
+      >
+        <div className="flex min-w-0 flex-1 items-center">
+          <div
+            className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+          />
+          <span className="mr-2 truncate text-xs text-red-200">
+            {state.player_name}
+          </span>
           {/* Response Timer */}
           {currentTimeRemaining > 0 ? (
-            <span className={`text-xs font-mono font-bold ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? 'animate-pulse' : ''}`}>
+            <span
+              className={`font-mono text-xs font-bold ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? "animate-pulse" : ""}`}
+            >
               {formatResponseTimer(currentTimeRemaining)}
             </span>
           ) : (
@@ -286,23 +323,27 @@ function ResponseNeededSlot({
           <span className="text-xs text-red-200">{state.current_bid}</span>
           <button
             onClick={() => onCounterBid(state.player_id)}
-            className="p-1 hover:bg-green-600 rounded transition-colors"
+            className="rounded p-1 transition-colors hover:bg-green-600"
             title="Rilancia"
             disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
           >
-            <DollarSign className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? 'text-gray-500' : 'text-green-400'}`} />
+            <DollarSign
+              className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
+            />
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="p-1 hover:bg-red-600 rounded transition-colors"
+            className="rounded p-1 transition-colors hover:bg-red-600"
             title="Abbandona"
             disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
           >
-            <X className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? 'text-gray-500' : 'text-red-400'}`} />
+            <X
+              className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
+            />
           </button>
         </div>
       </div>
-      
+
       <ResponseActionModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
@@ -317,39 +358,44 @@ function ResponseNeededSlot({
   );
 }
 
-function InAuctionSlot({ 
-  auction, 
-  role, 
-  autoBids = [], 
-  managerUserId, 
-  isLast, 
-  userAutoBid, 
-  currentAuctionPlayerId, 
+function InAuctionSlot({
+  auction,
+  role,
+  autoBids = [],
+  managerUserId,
+  isLast,
+  userAutoBid,
+  currentAuctionPlayerId,
   isCurrentUser,
-  leagueId
-}: { 
-  auction: ActiveAuction; 
-  role: string; 
-  autoBids: AutoBidIndicator[]; 
-  managerUserId: string; 
+  leagueId,
+}: {
+  auction: ActiveAuction;
+  role: string;
+  autoBids: AutoBidIndicator[];
+  managerUserId: string;
   isLast: boolean;
   userAutoBid?: { max_amount: number; is_active: boolean } | null;
   currentAuctionPlayerId?: number;
   isCurrentUser: boolean;
   leagueId?: number;
 }) {
-  const [playerAutoBid, setPlayerAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
-  
+  const [playerAutoBid, setPlayerAutoBid] = useState<{
+    max_amount: number;
+    is_active: boolean;
+  } | null>(null);
+
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
   const roleTextColor = getRoleTextColor(role);
-  
+
   // Fetch auto-bid for this specific player if current user
   useEffect(() => {
     if (isCurrentUser && leagueId) {
       const fetchPlayerAutoBid = async () => {
         try {
-          const response = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`);
+          const response = await fetch(
+            `/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`
+          );
           if (response.ok) {
             const data = await response.json();
             setPlayerAutoBid(data.auto_bid);
@@ -360,51 +406,65 @@ function InAuctionSlot({
       };
       fetchPlayerAutoBid();
     }
-  }, [isCurrentUser, leagueId, auction.player_id, auction.current_highest_bid_amount]);
-  
+  }, [
+    isCurrentUser,
+    leagueId,
+    auction.player_id,
+    auction.current_highest_bid_amount,
+  ]);
+
   // Show user's auto-bid for this specific player (only their own)
-  const showUserAutoBid = isCurrentUser && 
-                          playerAutoBid && 
-                          playerAutoBid.is_active;
+  const showUserAutoBid =
+    isCurrentUser && playerAutoBid && playerAutoBid.is_active;
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
   let borderClass = "border-gray-700";
-  
+
   switch (role.toUpperCase()) {
-    case 'P':
+    case "P":
       bgClass = "bg-yellow-600 bg-opacity-20";
       borderClass = "border-yellow-500";
       break;
-    case 'D':
+    case "D":
       bgClass = "bg-green-600 bg-opacity-20";
       borderClass = "border-green-500";
       break;
-    case 'C':
+    case "C":
       bgClass = "bg-blue-600 bg-opacity-20";
       borderClass = "border-blue-500";
       break;
-    case 'A':
+    case "A":
       bgClass = "bg-red-600 bg-opacity-20";
       borderClass = "border-red-500";
       break;
   }
 
   return (
-    <div className={`p-1.5 flex items-center justify-between ${bgClass} border ${borderClass} ${isLast ? 'rounded-b-md' : ''}`}>
-      <div className="flex items-center min-w-0">
-        <div className={`w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 ${roleColor}`} />
-        <span className="text-xs truncate">{auction.player_name}</span>
+    <div
+      className={`flex items-center justify-between p-1.5 ${bgClass} border ${borderClass} ${isLast ? "rounded-b-md" : ""}`}
+    >
+      <div className="flex min-w-0 items-center">
+        <div
+          className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+        />
+        <span className="truncate text-xs">{auction.player_name}</span>
       </div>
-      <div className="text-xs flex items-center justify-between">
+      <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
-            <span className="text-blue-400 font-semibold">{playerAutoBid.max_amount}</span>
+            <span className="font-semibold text-blue-400">
+              {playerAutoBid.max_amount}
+            </span>
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}
-          <span className={`text-green-400 font-semibold`}>{auction.current_highest_bid_amount || 0}</span>
+          <span className={`font-semibold text-green-400`}>
+            {auction.current_highest_bid_amount || 0}
+          </span>
         </div>
-        <span className={`ml-2 ${timeInfo.color} ${timeInfo.color === 'text-red-500' && timeInfo.text.includes('s') ? 'animate-pulse' : ''}`}>
+        <span
+          className={`ml-2 ${timeInfo.color} ${timeInfo.color === "text-red-500" && timeInfo.text.includes("s") ? "animate-pulse" : ""}`}
+        >
           {timeInfo.text}
         </span>
       </div>
@@ -414,10 +474,10 @@ function InAuctionSlot({
 
 function EmptySlot() {
   return (
-    <div className="p-1.5 flex items-center justify-between bg-gray-600 bg-opacity-20 border border-gray-500 border-dashed rounded-md">
-      <div className="flex items-center min-w-0">
-        <div className="w-4 h-4 rounded-sm mr-1.5 flex-shrink-0 bg-gray-500 opacity-50" />
-        <span className="text-xs truncate">Slot vuoto</span>
+    <div className="flex items-center justify-between rounded-md border border-dashed border-gray-500 bg-gray-600 bg-opacity-20 p-1.5">
+      <div className="flex min-w-0 items-center">
+        <div className="mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm bg-gray-500 opacity-50" />
+        <span className="truncate text-xs">Slot vuoto</span>
       </div>
       <span className="text-xs font-semibold text-gray-500">-</span>
     </div>
@@ -438,6 +498,7 @@ export function ManagerColumn({
   userAuctionStates = [],
   leagueId,
   handlePlaceBid,
+  onAutoBidSet, // Destructure onAutoBidSet here
 }: ManagerColumnProps) {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -450,135 +511,179 @@ export function ManagerColumn({
 
   const handleCounterBid = (playerId: number) => {
     console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
-    
+
     // Trova le informazioni del giocatore
-    const auction = activeAuctions.find(a => a.player_id === playerId);
-    const state = userAuctionStates.find(s => s.player_id === playerId);
-    
+    const auction = activeAuctions.find((a) => a.player_id === playerId);
+    const state = userAuctionStates.find((s) => s.player_id === playerId);
+
     if (auction || state) {
       setSelectedPlayerForBid({
         id: playerId,
         name: auction?.player_name || state?.player_name || "Giocatore",
         role: auction?.player_role || "?",
         team: auction?.player_team || "?",
-        currentBid: auction?.current_highest_bid_amount || state?.current_bid || 0
+        currentBid:
+          auction?.current_highest_bid_amount || state?.current_bid || 0,
       });
       setShowStandardBidModal(true);
     }
   };
   const getTeamColor = (position: number) => {
-    const colors = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-orange-400', 'text-cyan-400'];
+    const colors = [
+      "text-red-400",
+      "text-blue-400",
+      "text-green-400",
+      "text-yellow-400",
+      "text-purple-400",
+      "text-pink-400",
+      "text-orange-400",
+      "text-cyan-400",
+    ];
     return colors[(position - 1) % colors.length];
   };
 
   // Determina il ruolo predominante per il colore della barra di progresso
   const getPredominantRoleColor = () => {
     // Conta i giocatori per ruolo
-    const pCount = getRoleCount('P');
-    const dCount = getRoleCount('D');
-    const cCount = getRoleCount('C');
-    const aCount = getRoleCount('A');
-    
+    const pCount = getRoleCount("P");
+    const dCount = getRoleCount("D");
+    const cCount = getRoleCount("C");
+    const aCount = getRoleCount("A");
+
     // Trova il ruolo con più giocatori
     if (pCount >= dCount && pCount >= cCount && pCount >= aCount) {
-      return 'bg-yellow-500';
+      return "bg-yellow-500";
     } else if (dCount >= pCount && dCount >= cCount && dCount >= aCount) {
-      return 'bg-green-500';
+      return "bg-green-500";
     } else if (cCount >= pCount && cCount >= dCount && cCount >= aCount) {
-      return 'bg-blue-500';
+      return "bg-blue-500";
     } else if (aCount >= pCount && aCount >= dCount && aCount >= cCount) {
-      return 'bg-red-500';
+      return "bg-red-500";
     }
-    
+
     // Default
-    return 'bg-yellow-500';
+    return "bg-yellow-500";
   };
 
   const getRoleCount = (role: string) => {
     // Controllo di sicurezza per manager.players
     const managerPlayers = manager.players || [];
-    const assignedCount = managerPlayers.filter(p => p.role.toUpperCase() === role.toUpperCase()).length;
-    const activeAuctionCount = (activeAuctions || []).filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id).length;
+    const assignedCount = managerPlayers.filter(
+      (p) => p.role.toUpperCase() === role.toUpperCase()
+    ).length;
+    const activeAuctionCount = (activeAuctions || []).filter(
+      (a) =>
+        a.player_role.toUpperCase() === role.toUpperCase() &&
+        a.current_highest_bidder_id === manager.user_id
+    ).length;
     return assignedCount + activeAuctionCount;
   };
 
   const createSlotsForRole = (role: string): Slot[] => {
     if (!leagueSlots) return [];
-    
+
     const roleKey = `slots_${role}` as keyof LeagueSlots;
     const totalSlots = leagueSlots[roleKey];
-    
+
     // Controllo di sicurezza per manager.players
     const managerPlayers = manager.players || [];
-    const assignedPlayers = managerPlayers.filter(p => p.role.toUpperCase() === role.toUpperCase());
-    const activeAuctionsForRole = activeAuctions.filter(a => a.player_role.toUpperCase() === role.toUpperCase() && a.current_highest_bidder_id === manager.user_id);
-    const statesForRole = userAuctionStates.filter(s => {
+    const assignedPlayers = managerPlayers.filter(
+      (p) => p.role.toUpperCase() === role.toUpperCase()
+    );
+    const activeAuctionsForRole = activeAuctions.filter(
+      (a) =>
+        a.player_role.toUpperCase() === role.toUpperCase() &&
+        a.current_highest_bidder_id === manager.user_id
+    );
+    const statesForRole = userAuctionStates.filter((s) => {
       // Trova il ruolo del giocatore dallo stato
-      const auction = activeAuctions.find(a => a.player_id === s.player_id);
-      return auction?.player_role.toUpperCase() === role.toUpperCase() && s.user_state === 'rilancio_possibile';
+      const auction = activeAuctions.find((a) => a.player_id === s.player_id);
+      return (
+        auction?.player_role.toUpperCase() === role.toUpperCase() &&
+        s.user_state === "rilancio_possibile"
+      );
     });
-    
+
     const slots: Slot[] = [];
-    
-    assignedPlayers.forEach(player => slots.push({ type: 'assigned', player }));
-    
+
+    assignedPlayers.forEach((player) =>
+      slots.push({ type: "assigned", player })
+    );
+
     // Add response needed states (priority over regular auctions)
-    statesForRole.forEach(state => {
-      slots.push({ type: 'response_needed', state });
+    statesForRole.forEach((state) => {
+      slots.push({ type: "response_needed", state });
     });
-    
+
     // Add auctions for this role (excluding those with response needed states for current user)
-    activeAuctionsForRole.forEach(auction => {
-      const hasResponseState = isCurrentUser && statesForRole.some(s => s.player_id === auction.player_id);
+    activeAuctionsForRole.forEach((auction) => {
+      const hasResponseState =
+        isCurrentUser &&
+        statesForRole.some((s) => s.player_id === auction.player_id);
       if (!hasResponseState) {
-        slots.push({ type: 'in_auction', auction });
+        slots.push({ type: "in_auction", auction });
       }
     });
-    
+
     while (slots.length < totalSlots) {
-      slots.push({ type: 'empty' });
+      slots.push({ type: "empty" });
     }
-    
+
     return slots;
   };
 
   const totalBudget = manager?.total_budget || 0;
   const currentBudget = manager?.current_budget || 0;
   const lockedCredits = manager?.locked_credits || 0;
-  
+
   const spentBudget = totalBudget - currentBudget + lockedCredits;
-  const budgetPercentage = totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
+  const budgetPercentage =
+    totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
   const availableBudget = currentBudget - lockedCredits;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-2 flex flex-col h-full border-2 border-gray-700">
+    <div className="flex h-full flex-col rounded-lg border-2 border-gray-700 bg-gray-800 p-2">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          {isCurrentUser ? <Star className="h-4 w-4 text-yellow-400" /> : <User className="h-4 w-4 text-gray-400" />}
-          <span className={`text-xs font-semibold truncate ${getTeamColor(position)}`}>
+          {isCurrentUser ? (
+            <Star className="h-4 w-4 text-yellow-400" />
+          ) : (
+            <User className="h-4 w-4 text-gray-400" />
+          )}
+          <span
+            className={`truncate text-xs font-semibold ${getTeamColor(position)}`}
+          >
             {manager.manager_team_name || `Team #${position}`}
           </span>
         </div>
-        <div className={`text-lg font-bold ${isHighestBidder ? 'text-green-400' : isCurrentUser ? 'text-yellow-400' : 'text-white'}`}>
+        <div
+          className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-white"}`}
+        >
           {manager.current_budget}
         </div>
       </div>
 
       {/* Budget info */}
-      <div className="flex justify-between text-xs text-gray-400 mb-1">
-        <span>max <span className="text-white">${availableBudget}</span></span>
+      <div className="mb-1 flex justify-between text-xs text-gray-400">
+        <span>
+          max <span className="text-white">${availableBudget}</span>
+        </span>
         <span className="text-white">% {budgetPercentage.toFixed(1)}</span>
       </div>
 
       {/* Role counters */}
-      <div className="flex justify-around text-xs mb-2">
-        {['P', 'D', 'C', 'A'].map(role => {
+      <div className="mb-2 flex justify-around text-xs">
+        {["P", "D", "C", "A"].map((role) => {
           const currentCount = getRoleCount(role);
-          const requiredSlots = leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0;
+          const requiredSlots =
+            leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0;
           const isCompliant = currentCount >= Math.max(0, requiredSlots - 1);
           return (
-            <span key={role} className={isCompliant ? 'text-green-400' : 'text-red-400'}>
+            <span
+              key={role}
+              className={isCompliant ? "text-green-400" : "text-red-400"}
+            >
               {role}: {currentCount}
             </span>
           );
@@ -586,8 +691,11 @@ export function ManagerColumn({
       </div>
 
       {/* Budget bar */}
-      <div className="w-full bg-gray-600 h-2 rounded-full mb-2">
-        <div className={`${getPredominantRoleColor()} h-2 rounded-full transition-all duration-300`} style={{ width: `${Math.min(budgetPercentage, 100)}%` }} />
+      <div className="mb-2 h-2 w-full rounded-full bg-gray-600">
+        <div
+          className={`${getPredominantRoleColor()} h-2 rounded-full transition-all duration-300`}
+          style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
+        />
       </div>
 
       {/* Compliance Checker - Only for current user */}
@@ -601,54 +709,79 @@ export function ManagerColumn({
             activeAuctions={activeAuctions}
             onComplianceChecked={() => {
               // Optional callback for when compliance is checked
-              console.log("Compliance check completed for user:", manager.user_id);
+              console.log(
+                "Compliance check completed for user:",
+                manager.user_id
+              );
             }}
           />
         </div>
       )}
 
       {/* Slots list */}
-      <div className="flex-1 flex flex-col space-y-1 overflow-y-auto scrollbar-hide">
-        {['P', 'D', 'C', 'A'].map(role => {
+      <div className="scrollbar-hide flex flex-1 flex-col space-y-1 overflow-y-auto">
+        {["P", "D", "C", "A"].map((role) => {
           const slots = createSlotsForRole(role);
           if (slots.length === 0) return null;
 
           return (
             <div key={role} className="flex flex-col">
-              <div className={`${getRoleColor(role)} text-gray-900 px-2 py-1 ${slots.some(s => s.type === 'in_auction') ? 'rounded-t-md' : 'rounded-md mb-1'} text-xs font-semibold flex items-center justify-between`}>
+              <div
+                className={`${getRoleColor(role)} px-2 py-1 text-gray-900 ${slots.some((s) => s.type === "in_auction") ? "rounded-t-md" : "mb-1 rounded-md"} flex items-center justify-between text-xs font-semibold`}
+              >
                 <span>{role}</span>
-                <span>{(manager.players || []).filter(p => p.role.toUpperCase() === role.toUpperCase()).length}/{leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0}</span>
+                <span>
+                  {
+                    (manager.players || []).filter(
+                      (p) => p.role.toUpperCase() === role.toUpperCase()
+                    ).length
+                  }
+                  /{leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0}
+                </span>
               </div>
-              
+
               <div className="space-y-0.5">
                 {slots.map((slot, index) => {
                   switch (slot.type) {
-                    case 'assigned':
-                      return <AssignedSlot key={index} player={slot.player} role={role} />;
-                    case 'in_auction':
-                      return <InAuctionSlot 
-                        key={index} 
-                        auction={slot.auction} 
-                        role={role} 
-                        autoBids={autoBids} 
-                        managerUserId={manager.user_id} 
-                        isLast={index === slots.length - 1}
-                        userAutoBid={userAutoBid}
-                        currentAuctionPlayerId={currentAuctionPlayerId}
-                        isCurrentUser={isCurrentUser}
-                        leagueId={leagueId}
-                      />;
-                    case 'response_needed':
-                      return <ResponseNeededSlot
-                        key={index}
-                        state={slot.state}
-                        role={role}
-                        leagueId={leagueId || parseInt(window.location.pathname.split('/')[2])} // Extract from URL
-                        isLast={index === slots.length - 1}
-                        onCounterBid={handleCounterBid}
-                        isCurrentUser={isCurrentUser} // Pass isCurrentUser prop
-                      />;
-                    case 'empty':
+                    case "assigned":
+                      return (
+                        <AssignedSlot
+                          key={index}
+                          player={slot.player}
+                          role={role}
+                        />
+                      );
+                    case "in_auction":
+                      return (
+                        <InAuctionSlot
+                          key={index}
+                          auction={slot.auction}
+                          role={role}
+                          autoBids={autoBids}
+                          managerUserId={manager.user_id}
+                          isLast={index === slots.length - 1}
+                          userAutoBid={userAutoBid}
+                          currentAuctionPlayerId={currentAuctionPlayerId}
+                          isCurrentUser={isCurrentUser}
+                          leagueId={leagueId}
+                        />
+                      );
+                    case "response_needed":
+                      return (
+                        <ResponseNeededSlot
+                          key={index}
+                          state={slot.state}
+                          role={role}
+                          leagueId={
+                            leagueId ||
+                            parseInt(window.location.pathname.split("/")[2])
+                          } // Extract from URL
+                          isLast={index === slots.length - 1}
+                          onCounterBid={handleCounterBid}
+                          isCurrentUser={isCurrentUser} // Pass isCurrentUser prop
+                        />
+                      );
+                    case "empty":
                       return <EmptySlot key={index} />;
                     default:
                       return null;
@@ -658,9 +791,9 @@ export function ManagerColumn({
             </div>
           );
         })}
-        
+
         {!leagueSlots && (
-          <div className="text-center text-gray-500 text-xs py-4">
+          <div className="py-4 text-center text-xs text-gray-500">
             Configurazione slot non disponibile
           </div>
         )}
@@ -682,7 +815,11 @@ export function ManagerColumn({
           currentBid={selectedPlayerForBid.currentBid}
           isNewAuction={false}
           title="Rilancia"
-          existingAutoBid={isCurrentUser && currentAuctionPlayerId === selectedPlayerForBid.id ? userAutoBid : null}
+          existingAutoBid={
+            isCurrentUser && currentAuctionPlayerId === selectedPlayerForBid.id
+              ? userAutoBid
+              : null
+          }
           onBidSuccess={async (amount, bidType) => {
             if (!isCurrentUser) {
               toast.error("Non sei autorizzato a gestire questa squadra.");
@@ -691,7 +828,11 @@ export function ManagerColumn({
               return;
             }
             try {
-              await handlePlaceBid(amount, bidType || "manual", selectedPlayerForBid.id);
+              await handlePlaceBid(
+                amount,
+                bidType || "manual",
+                selectedPlayerForBid.id
+              );
               setShowStandardBidModal(false);
               setSelectedPlayerForBid(null);
             } catch (error) {
@@ -700,6 +841,7 @@ export function ManagerColumn({
               setSelectedPlayerForBid(null);
             }
           }}
+          onAutoBidSet={(maxAmount) => onAutoBidSet(selectedPlayerForBid.id, maxAmount)} // Pass onAutoBidSet to StandardBidModal
         />
       )}
     </div>

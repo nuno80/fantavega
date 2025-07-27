@@ -70,9 +70,11 @@ export async function POST(
 
     // If max_amount is 0, disable auto-bid
     if (max_amount === 0) {
-      const result = db
-        .prepare("UPDATE auto_bids SET is_active = FALSE, updated_at = strftime('%s', 'now') WHERE auction_id = ? AND user_id = ?")
-        .run(auction.id, user.id);
+      const result = db.transaction(() => {
+        return db
+          .prepare("UPDATE auto_bids SET is_active = FALSE, updated_at = strftime('%s', 'now') WHERE auction_id = ? AND user_id = ?")
+          .run(auction.id, user.id);
+      })();
 
       return NextResponse.json({
         message: "Auto-offerta disattivata",
@@ -82,31 +84,33 @@ export async function POST(
 
     // Validate max_amount
     if (max_amount <= auction.current_highest_bid_amount) {
-      return NextResponse.json({ 
-        error: `Il prezzo massimo deve essere superiore all'offerta attuale (${auction.current_highest_bid_amount})` 
+      return NextResponse.json({
+        error: `Il prezzo massimo deve essere superiore all'offerta attuale (${auction.current_highest_bid_amount})`
       }, { status: 400 });
     }
 
     const availableBudget = participant.current_budget - participant.locked_credits;
     if (max_amount > availableBudget) {
-      return NextResponse.json({ 
-        error: `Budget insufficiente. Disponibile: ${availableBudget}, Richiesto: ${max_amount}` 
+      return NextResponse.json({
+        error: `Budget insufficiente. Disponibile: ${availableBudget}, Richiesto: ${max_amount}`
       }, { status: 400 });
     }
 
-    // Insert or update auto-bid
+    // Insert or update auto-bid within a transaction
     const now = Math.floor(Date.now() / 1000);
-    const upsertResult = db
-      .prepare(`
-        INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, TRUE, ?, ?)
-        ON CONFLICT(auction_id, user_id) 
-        DO UPDATE SET 
-          max_amount = excluded.max_amount,
-          is_active = TRUE,
-          updated_at = excluded.updated_at
-      `)
-      .run(auction.id, user.id, max_amount, now, now);
+    const upsertResult = db.transaction(() => {
+      return db
+        .prepare(`
+          INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, TRUE, ?, ?)
+          ON CONFLICT(auction_id, user_id)
+          DO UPDATE SET
+            max_amount = excluded.max_amount,
+            is_active = TRUE,
+            updated_at = excluded.updated_at
+        `)
+        .run(auction.id, user.id, max_amount, now, now);
+    })();
 
     return NextResponse.json({
       message: "Auto-offerta impostata con successo",
@@ -117,14 +121,14 @@ export async function POST(
 
   } catch (error) {
     console.error("Error managing auto-bid:", error);
-    
+
     if (error instanceof Error) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: "Errore nella gestione dell'auto-offerta" },
       { status: 500 }
