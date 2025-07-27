@@ -54,63 +54,80 @@ function simulateAutoBidBattle(
   // Rendi tutti i partecipanti attivi all'inizio
   autoBids.forEach(ab => ab.isActive = true);
 
-  while (true) {
-    // Trova gli auto-bid che possono rispondere:
-    // 1. Devono essere attivi (non hanno esaurito il loro max_amount)
-    // 2. Il loro max_amount deve essere superiore all'offerta corrente
-    // 3. Non devono essere l'offerente corrente
-    const respondingParticipants = autoBids
-      .filter(ab => ab.isActive && ab.maxAmount > currentBid && ab.userId !== currentBidderId)
-      .sort((a, b) => a.createdAt - b.createdAt); // Priorità al più vecchio
-
-    if (respondingParticipants.length === 0) {
-      break; // Nessuno può rispondere, la battaglia è finita.
-    }
-
-    const respondingAutoBid = respondingParticipants[0];
-    
-    // L'offerta successiva è il bid corrente + 1, ma non può superare il max_amount del rispondente
-    const newBidAmount = Math.min(currentBid + 1, respondingAutoBid.maxAmount);
-
-    // Se il nuovo bid è uguale al bid corrente, significa che l'auto-bid non può rilanciare
-    // Questo può accadere se currentBid + 1 > respondingAutoBid.maxAmount
-    if (newBidAmount <= currentBid) {
-        // L'auto-bid del rispondente ha raggiunto il suo limite e non può superare l'offerta corrente.
-        const participant = autoBids.find(ab => ab.userId === respondingAutoBid.userId);
-        if (participant) {
-            participant.isActive = false;
-        }
-        continue; // Cerca il prossimo partecipante
-    }
-
-    currentBid = newBidAmount;
-    currentBidderId = respondingAutoBid.userId;
-
-    battleSteps.push({
-      bidAmount: currentBid,
-      bidderId: currentBidderId,
-      isAutoBid: true,
-      step: step++,
-    });
-
-    // Se l'auto-bid ha raggiunto il suo limite, disattivalo per i turni futuri
-    if (currentBid >= respondingAutoBid.maxAmount) {
-      const participant = autoBids.find(ab => ab.userId === respondingAutoBid.userId);
-      if (participant) {
-        participant.isActive = false;
-      }
-    }
+  // CORREZIONE: Controlla se ci sono auto-bid che possono competere
+  // NOTA: Non escludere l'auto-bid dell'offerente - può competere con altri auto-bid
+  const competingAutoBids = autoBids.filter(ab => ab.maxAmount > currentBid);
+  
+  if (competingAutoBids.length === 0) {
+    // Nessun auto-bid può competere, l'offerta manuale vince
+    console.log(`[AUTO_BID] Nessun auto-bid può competere con l'offerta manuale di ${currentBid}`);
+    return {
+      finalAmount: currentBid,
+      finalBidderId: currentBidderId,
+      battleSteps,
+      totalSteps: step,
+      initialBidderHadWinningManualBid: true,
+    };
   }
 
-  // Determina se l'offerta manuale iniziale era sufficiente per vincere la battaglia
-  const initialBidderWon = battleSteps.length === 1 || battleSteps[battleSteps.length - 1].bidderId === initialBidderId;
+  // Trova l'auto-bid vincente (massimo importo, poi priorità temporale)
+  const winningAutoBid = competingAutoBids
+    .sort((a, b) => {
+      // Prima ordina per max_amount (decrescente)
+      if (b.maxAmount !== a.maxAmount) {
+        return b.maxAmount - a.maxAmount;
+      }
+      // In caso di parità, ordina per createdAt (crescente = primo vince)
+      return a.createdAt - b.createdAt;
+    })[0];
+
+  console.log(`[AUTO_BID] Auto-bid vincente: ${winningAutoBid.userId} con max ${winningAutoBid.maxAmount}`);
+
+  // CORREZIONE: Calcola il prezzo finale secondo la logica eBay
+  let finalAmount: number;
+  
+  // Trova il secondo miglior auto-bid (se esiste)
+  const secondBestAutoBid = competingAutoBids
+    .filter(ab => ab.userId !== winningAutoBid.userId)
+    .sort((a, b) => {
+      if (b.maxAmount !== a.maxAmount) {
+        return b.maxAmount - a.maxAmount;
+      }
+      return a.createdAt - b.createdAt;
+    })[0];
+
+  if (secondBestAutoBid) {
+    console.log(`[AUTO_BID] Secondo miglior auto-bid: ${secondBestAutoBid.userId} con max ${secondBestAutoBid.maxAmount}`);
+    
+    if (secondBestAutoBid.maxAmount === winningAutoBid.maxAmount) {
+      // CASO PARITÀ: il vincitore (primo per timestamp) paga il suo importo massimo
+      finalAmount = winningAutoBid.maxAmount;
+      console.log(`[AUTO_BID] PARITÀ rilevata! Vincitore paga importo massimo: ${finalAmount}`);
+    } else {
+      // Il vincitore paga 1 credito più del secondo migliore, ma non più del suo massimo
+      finalAmount = Math.min(secondBestAutoBid.maxAmount + 1, winningAutoBid.maxAmount);
+      console.log(`[AUTO_BID] Vincitore paga 1+ del secondo migliore: ${finalAmount}`);
+    }
+  } else {
+    // Solo un auto-bid: paga 1 credito più dell'offerta manuale, ma non più del suo massimo
+    finalAmount = Math.min(currentBid + 1, winningAutoBid.maxAmount);
+    console.log(`[AUTO_BID] Solo un auto-bid, paga 1+ dell'offerta manuale: ${finalAmount}`);
+  }
+
+  // Aggiungi il bid finale dell'auto-bid vincente
+  battleSteps.push({
+    bidAmount: finalAmount,
+    bidderId: winningAutoBid.userId,
+    isAutoBid: true,
+    step: step++,
+  });
 
   return {
-    finalAmount: currentBid,
-    finalBidderId: currentBidderId,
+    finalAmount: finalAmount,
+    finalBidderId: winningAutoBid.userId,
     battleSteps,
     totalSteps: step,
-    initialBidderHadWinningManualBid: initialBidderWon && battleSteps[0].bidAmount === currentBid,
+    initialBidderHadWinningManualBid: false,
   };
 }
 
@@ -490,7 +507,7 @@ export async function placeBidOnExistingAuction({
     // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
     const auction = db
       .prepare(
-        `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
+        `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time, user_auction_states FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
       )
       .get(leagueId, playerId) as
       | {
@@ -498,6 +515,7 @@ export async function placeBidOnExistingAuction({
           current_highest_bid_amount: number;
           current_highest_bidder_id: string | null;
           scheduled_end_time: number;
+          user_auction_states: string | null;
         }
       | undefined;
     if (!auction) {
@@ -542,12 +560,17 @@ export async function placeBidOnExistingAuction({
         WHERE auction_id = ? AND user_id = ? AND status = 'pending'
       `).get(auction.id, userId);
       
-      if (!canCounterBid) {
-        console.error(`[BID_SERVICE] User ${userId} is already highest bidder and cannot counter-bid.`);
+      // Verifica anche se l'utente ha uno stato 'rilancio_possibile' nell'asta
+      const auctionStates = auction.user_auction_states ? JSON.parse(auction.user_auction_states) : {};
+      const userState = auctionStates[userId];
+      const hasRilancioPossibile = userState === 'rilancio_possibile';
+      
+      if (!canCounterBid && !hasRilancioPossibile) {
+        console.error(`[BID_SERVICE] User ${userId} is already highest bidder and cannot counter-bid. Timer: ${!!canCounterBid}, State: ${userState}`);
         throw new Error("Sei già il miglior offerente.");
       }
       
-      console.log(`[BID_SERVICE] User ${userId} is highest bidder but can counter-bid`);
+      console.log(`[BID_SERVICE] User ${userId} is highest bidder but can counter-bid (Timer: ${!!canCounterBid}, State: ${userState})`);
     }
 
     // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
@@ -608,11 +631,13 @@ export async function placeBidOnExistingAuction({
     console.log(`[BID_SERVICE] Avvio logica di simulazione auto-bid...`);
 
     // 1. Raccogli tutti gli auto-bid attivi per l'asta, inclusi quelli dell'offerente attuale
+    // CORREZIONE: Usa READ UNCOMMITTED per vedere auto-bid creati in transazioni parallele
     const allActiveAutoBids = db
       .prepare(
         `SELECT user_id as userId, max_amount as maxAmount, created_at as createdAt
          FROM auto_bids
-         WHERE auction_id = ? AND is_active = TRUE`
+         WHERE auction_id = ? AND is_active = TRUE
+         ORDER BY created_at ASC`
       )
       .all(auction.id) as Omit<AutoBidBattleParticipant, 'isActive'>[];
     
@@ -693,8 +718,8 @@ export async function placeBidOnExistingAuction({
   if (result.success) {
     // Cancella timer per l'utente che ha rilanciato (non serve più)
     try {
-      // cancelResponseTimer temporaneamente disabilitato per test auto-bid
-      console.log(`[BID_SERVICE] Timer cancellation skipped for testing`);
+      await cancelResponseTimer(leagueId, playerId, userId);
+      console.log(`[BID_SERVICE] Timer cancellato per l'utente ${userId}`);
     } catch (error) {
       console.log(`[BID_SERVICE] Timer cancellation non-critical error: ${error}`);
     }
@@ -706,8 +731,8 @@ export async function placeBidOnExistingAuction({
         const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
           .get(leagueId, playerId) as { id: number } | undefined;
         if (auctionInfo) {
-          // createResponseTimer temporaneamente disabilitato per test auto-bid
-          console.log(`[BID_SERVICE] Timer creation skipped for testing for auction ${auctionInfo.id}`);
+          await createResponseTimer(auctionInfo.id, finalPreviousHighestBidderId);
+          console.log(`[BID_SERVICE] Timer creato per l'utente superato ${finalPreviousHighestBidderId}`);
         }
       } catch (error) {
         console.error(`[BID_SERVICE] Error creating response timer: ${error}`);

@@ -142,6 +142,34 @@ export async function POST(request: Request, context: RouteContext) {
       `[API BIDS POST] User ${user.id} attempting bid of ${bidAmount} (type: ${bidType}) for player ${playerIdNum} in league ${leagueIdNum}`
     );
 
+    // 2.2.1. CORREZIONE: Gestisci auto-bid PRIMA di processare l'offerta
+    if (body.max_amount && body.max_amount > 0) {
+      console.log(`[API BIDS POST] Setting auto-bid ${body.max_amount} before processing bid`);
+      
+      // Importa il servizio auto-bid
+      const { db } = await import("@/lib/db");
+      
+      // Trova l'asta esistente per ottenere l'auction_id
+      const existingAuctionForAutoBid = await getAuctionStatusForPlayer(leagueIdNum, playerIdNum);
+      
+      if (existingAuctionForAutoBid && (existingAuctionForAutoBid.status === "active" || existingAuctionForAutoBid.status === "closing")) {
+        // Crea/aggiorna auto-bid PRIMA dell'offerta
+        const now = Math.floor(Date.now() / 1000);
+        const upsertAutoBid = db.prepare(`
+          INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, TRUE, ?, ?)
+          ON CONFLICT(auction_id, user_id) 
+          DO UPDATE SET 
+            max_amount = excluded.max_amount,
+            is_active = TRUE,
+            updated_at = excluded.updated_at
+        `);
+        
+        upsertAutoBid.run(existingAuctionForAutoBid.id, user.id, body.max_amount, now, now);
+        console.log(`[API BIDS POST] Auto-bid ${body.max_amount} set for auction ${existingAuctionForAutoBid.id}`);
+      }
+    }
+
     // 2.3. Logica di offerta: determina se creare una nuova asta o fare un'offerta su una esistente (INVARIATO)
     const existingAuctionStatus = await getAuctionStatusForPlayer(
       leagueIdNum,

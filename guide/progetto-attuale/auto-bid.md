@@ -70,6 +70,12 @@ User B vede: [P] Ronaldo | 50 | 50 | 1:30 (sua auto-bid | risultato finale)
 Notifica: "User A ha vinto l'offerta con 50 crediti"
 ```
 
+L'API src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts gestisce il front end va sempre controllata per essere sicuri che:
+Frontend → POST /bids (amount: 2, auto_bid_max: 10) │
+│ Backend → Crea/aggiorna auto-bid PRIMA di processare offerta │
+│ Backend → Processa offerta (trova entrambi gli auto-bid) │
+│ Backend → Restituisce risultato finale
+
 ## Integrazione Real-Time (Semplificata)
 
 ### Socket.IO Events (Solo Risultato Finale)
@@ -137,14 +143,14 @@ La logica è implementata tramite la funzione `simulateAutoBidBattle()` nel file
 
 #### Algoritmo di Simulazione
 
-1.  **Offerta Iniziale**: La simulazione parte dall'offerta manuale appena piazzata.
-2.  **Ciclo di Battaglia**: Il sistema esegue un loop fino a quando non ci sono più rilanci possibili:
-    a. **Ricerca Concorrenti**: Trova tutti gli auto-bid attivi che possono superare l'offerta corrente.
-    b. **Priorità**: Ordina i concorrenti per data di creazione (`created_at` ascendente), dando priorità a chi ha impostato l'auto-bid per primo.
-    c. **Rilancio**: Il primo auto-bid valido nella lista rilancia di `+1` (o fino al suo massimo).
-    d. **Aggiornamento**: L'offerta corrente e l'offerente vengono aggiornati.
-    e. **Ripetizione**: Il ciclo si ripete fino a quando nessun auto-bid può più rilanciare.
-3.  **Risultato Finale**: L'ultimo offerente e l'importo finale vengono restituiti come risultato della battaglia.
+1. **Offerta Iniziale**: La simulazione parte dall'offerta manuale appena piazzata.
+2. **Ciclo di Battaglia**: Il sistema esegue un loop fino a quando non ci sono più rilanci possibili:
+   a. **Ricerca Concorrenti**: Trova tutti gli auto-bid attivi che possono superare l'offerta corrente.
+   b. **Priorità**: Ordina i concorrenti per data di creazione (`created_at` ascendente), dando priorità a chi ha impostato l'auto-bid per primo.
+   c. **Rilancio**: Il primo auto-bid valido nella lista rilancia di `+1` (o fino al suo massimo).
+   d. **Aggiornamento**: L'offerta corrente e l'offerente vengono aggiornati.
+   e. **Ripetizione**: Il ciclo si ripete fino a quando nessun auto-bid può più rilanciare.
+3. **Risultato Finale**: L'ultimo offerente e l'importo finale vengono restituiti come risultato della battaglia.
 
 ---
 
@@ -156,23 +162,25 @@ L'implementazione della logica di simulazione è stata completata e verificata t
 
 I log hanno confermato il corretto funzionamento in scenari complessi:
 
--   **Partecipanti**:
-    -   **Red**: Auto-bid massimo di 75.
-    -   **Fede**: Auto-bid massimo di 75, impostato *prima* di Red (ha la priorità).
--   **Azione**: Red piazza un'offerta manuale di **74**.
--   **Log della Simulazione**:
-    ```
-    [BID_SERVICE] Battaglia auto-bid completata in 2 steps.
-    [BID_SERVICE] Sequenza battaglia: [
-      { bidAmount: 74, bidderId: 'user_2yAf7DnJ7asI88hIP03WtYnzxDL', isAutoBid: false, step: 0 },
-      { bidAmount: 75, bidderId: 'user_305PTUmZvR3qDMx41mZlqJDUVeZ', isAutoBid: true, step: 1 }
-    ]
-    ```
--   **Esito Verificato**:
-    1.  L'offerta manuale di Red (74) innesca la battaglia.
-    2.  L'auto-bid di Fede (con priorità) risponde, rilanciando a 75.
-    3.  L'auto-bid di Red non può superare 75.
-    4.  **Fede vince l'asta con 75 crediti**, come confermato dai log.
+- **Partecipanti**:
+  - **Red**: Auto-bid massimo di 75.
+  - **Fede**: Auto-bid massimo di 75, impostato _prima_ di Red (ha la priorità).
+- **Azione**: Red piazza un'offerta manuale di **74**.
+- **Log della Simulazione**:
+
+  ```
+  [BID_SERVICE] Battaglia auto-bid completata in 2 steps.
+  [BID_SERVICE] Sequenza battaglia: [
+    { bidAmount: 74, bidderId: 'user_2yAf7DnJ7asI88hIP03WtYnzxDL', isAutoBid: false, step: 0 },
+    { bidAmount: 75, bidderId: 'user_305PTUmZvR3qDMx41mZlqJDUVeZ', isAutoBid: true, step: 1 }
+  ]
+  ```
+
+- **Esito Verificato**:
+  1. L'offerta manuale di Red (74) innesca la battaglia.
+  2. L'auto-bid di Fede (con priorità) risponde, rilanciando a 75.
+  3. L'auto-bid di Red non può superare 75.
+  4. **Fede vince l'asta con 75 crediti**, come confermato dai log.
 
 Questo conferma che la logica di simulazione è robusta e gestisce correttamente la priorità temporale in caso di parità di offerte massime.
 
