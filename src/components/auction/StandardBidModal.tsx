@@ -34,7 +34,6 @@ interface StandardBidModalProps {
     is_active: boolean;
   } | null; // Auto-bid esistente dell'utente (solo per rilanci)
   playerQtA?: number; // QtA del giocatore per nuove aste
-  onAutoBidSet?: (maxAmount: number) => Promise<void>; // Add this prop
 }
 
 interface UserBudgetInfo {

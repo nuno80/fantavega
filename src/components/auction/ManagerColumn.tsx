@@ -89,7 +89,6 @@ interface ManagerColumnProps {
     bidType?: "manual" | "quick",
     targetPlayerId?: number
   ) => Promise<void>;
-  onAutoBidSet: (playerId: number, maxAmount: number) => Promise<void>;
 }
 
 // Helper functions
@@ -498,7 +497,6 @@ export function ManagerColumn({
   userAuctionStates = [],
   leagueId,
   handlePlaceBid,
-  onAutoBidSet, // Destructure onAutoBidSet here
 }: ManagerColumnProps) {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -841,7 +839,6 @@ export function ManagerColumn({
               setSelectedPlayerForBid(null);
             }
           }}
-          onAutoBidSet={(maxAmount) => onAutoBidSet(selectedPlayerForBid.id, maxAmount)} // Pass onAutoBidSet to StandardBidModal
         />
       )}
     </div>

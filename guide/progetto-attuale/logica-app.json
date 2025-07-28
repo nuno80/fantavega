@@ -1,69 +1,123 @@
 {
-  "sistema_timer_rilancio": {
-    "status": "completed",
-    "description": "Sistema timer di rilancio completamente implementato e funzionale",
-    "features": {
-      "timer_pendente": "Timer parte solo quando utente vede rilancio (fairness)",
-      "processing_automatico": "Scheduler ogni 5 minuti per slot liberate",
-      "cooldown_48h": "Cooldown standardizzato su user_player_preferences",
-      "real_time_notifications": "Socket.IO per timer e penalità"
+  "project_name": "Fantavega - Fantacalcio Auction System",
+  "last_updated": "2025-01-20",
+  "version": "2.3",
+  "core_systems": {
+    "authentication": {
+      "provider": "Clerk",
+      "roles": ["admin", "manager"],
+      "middleware": "src/middleware.tsx",
+      "role_storage": "user.publicMetadata.role"
     },
-    "files_modified": [
-      "src/lib/db/services/response-timer.service.ts",
-      "src/app/api/leagues/[league-id]/players/[player-id]/response-action/route.ts",
-      "src/lib/db/services/auction-states.service.ts",
-      "src/app/api/user/auction-states/route.ts"
-    ]
-  },
-  "fix_bid_validation": {
-    "status": "completed",
-    "description": "Risolto errore 'L'offerta deve essere superiore all'offerta attuale'",
-    "problem": "Race condition tra UI non sincronizzata e dati server aggiornati",
-    "solution": "Implementato refresh dei dati immediatamente prima dell'offerta con validazione preventiva",
-    "changes": {
-      "pre_bid_refresh": "Aggiunto fetch dei dati freschi prima di ogni offerta",
-      "smart_validation": "Validazione client-side con refresh automatico UI se necessario",
-      "error_handling": "Messaggi di errore migliorati con toast differenziati",
-      "concurrency_protection": "Sistema di locking per prevenire offerte concorrenti",
-      "data_sync": "Refresh automatico dei dati dopo ogni operazione"
+    "database": {
+      "type": "BetterSQLite3",
+      "schema": "database/schema.sql",
+      "location": "database/starter_default.db",
+      "services_pattern": "src/lib/db/services/*.service.ts"
     },
-    "files_modified": [
-      "src/app/auctions/AuctionPageContent.tsx",
-      "src/lib/db/services/bid.service.ts"
-    ]
-  },
-  "auto_bid_system": {
-    "status": "completed",
-    "description": "Sistema auto-bid semplificato con logica 'Black Box'",
-    "features": {
-      "ebay_logic": "Implementata logica eBay per competizione auto-bid (backend only)",
-      "black_box_approach": "Frontend riceve solo risultati finali, meccanismi interni nascosti",
-      "simplified_ui": "Visualizzazione solo della propria auto-bid e risultato finale",
-      "unified_notifications": "Una sola notifica per risultato finale dell'asta",
-      "user_interface": "Modal per gestione auto-bid, indicatori semplificati"
-    },
-    "ui_format": "[P] Ronaldo | 50 | 42 | 1:30 (ruolo nome | auto-bid personale | offerta finale | timer)"
-  },
-  "penalty_system": {
-    "status": "completed",
-    "description": "Sistema penalità automatico per conformità roster",
-    "features": {
-      "compliance_check": "Controllo N-1 slot per ruoli attivi",
-      "grace_period": "1 ora di grazia prima delle penalità",
-      "automatic_penalties": "5 crediti per ora di non conformità",
-      "real_time_notifications": "Notifiche Socket.IO per penalità applicate"
+    "real_time": {
+      "technology": "Socket.IO",
+      "server": "socket-server.ts",
+      "client_context": "src/contexts/SocketContext.tsx",
+      "communication": "HTTP bridge via socket-emitter.ts"
     }
   },
-  "real_time_system": {
-    "status": "completed",
-    "description": "Sistema notifiche real-time con Socket.IO",
-    "architecture": "Server Socket.IO separato con comunicazione HTTP bridge",
-    "events": [
-      "auction-update",
-      "bid-surpassed-notification", 
-      "penalty-applied-notification",
-      "auto-bid-activated-notification",
-      "timer-expired-notification"
-    ]
+  "auction_system": {
+    "core_logic": {
+      "service": "src/lib/db/services/bid.service.ts",
+      "auction_creation": "placeInitialBidAndCreateAuction",
+      "bid_placement": "placeBidOnExistingAuction",
+      "auto_bid_simulation": "simulateAutoBidBattle"
+    },
+    "auto_bid_system": {
+      "version": "2.0",
+      "approach": "Black Box - Backend Only",
+      "logic": "eBay-style: highest auto-bid wins, pays 1+ of second highest",
+      "storage": "auto_bids table",
+      "activation": "Automatic when manual bid triggers battle",
+      "timing_fix": {
+        "problem": "Race condition between manual bid and auto-bid setting",
+        "solution": "Single atomic transaction with autoBidMaxAmount in bid request",
+        "implementation": "UPSERT auto-bid within same transaction as bid placement"
+      }
+    },
+    "response_timers": {
+      "service": "src/lib/db/services/response-timer.service.ts",
+      "storage": "user_auction_response_timers table",
+      "cooldown_logic": "48h cooldown after abandoning auction",
+      "states": ["pending", "completed", "expired"]
+    },
+    "penalty_system": {
+      "service": "src/lib/db/services/penalty.service.ts",
+      "trigger": "Lazy evaluation on user actions",
+      "grace_period": "1 hour",
+      "penalty_amount": "5 credits per hour",
+      "max_penalties": "5 per cycle",
+      "compliance_tracking": "user_league_compliance_status table"
+    }
+  },
+  "ui_architecture": {
+    "pattern": "Server Components + Client Components",
+    "real_time_updates": "Socket.IO events trigger state updates",
+    "auction_interface": {
+      "main_component": "src/app/auctions/AuctionPageContent.tsx",
+      "manager_columns": "src/components/auction/ManagerColumn.tsx",
+      "bidding_interface": "src/components/auction/BiddingInterface.tsx",
+      "modals": [
+        "StandardBidModal.tsx",
+        "AutoBidModal.tsx",
+        "QuickBidModal.tsx"
+      ]
+    },
+    "data_flow": {
+      "consolidated_api": "Feature flag controlled",
+      "fallback_method": "4 separate API calls",
+      "real_time_sync": "Socket events trigger data refresh"
+    }
+  },
+  "api_structure": {
+    "admin_routes": "/api/admin/*",
+    "league_routes": "/api/leagues/[league-id]/*",
+    "user_routes": "/api/user/*",
+    "key_endpoints": {
+      "bid_placement": "/api/leagues/[league-id]/players/[player-id]/bids",
+      "auto_bid_management": "/api/leagues/[league-id]/players/[player-id]/auto-bid",
+      "auction_realtime": "/api/leagues/[league-id]/auction-realtime",
+      "compliance_check": "/api/leagues/[league-id]/check-compliance"
+    }
+  },
+  "recent_implementations": {
+    "auto_bid_timing_fix": {
+      "date": "2025-01-20",
+      "description": "Fixed race condition in auto-bid system",
+      "technical_approach": {
+        "unified_request": "Single API call with both bid amount and auto-bid max",
+        "atomic_transaction": "Auto-bid UPSERT within bid placement transaction",
+        "eliminated_race": "No more separate API calls for auto-bid setting"
+      },
+      "code_changes": {
+        "backend_service": "Added autoBidMaxAmount parameter to placeBidOnExistingAuction",
+        "api_route": "Modified to accept and pass max_amount to service",
+        "frontend_modal": "Sends auto-bid amount in same request as manual bid",
+        "cleanup": "Removed unused onAutoBidSet props and handlers"
+      }
+    },
+    "black_box_auto_bid": {
+      "date": "2025-01-20",
+      "description": "Simplified auto-bid UI to hide internal mechanics",
+      "approach": "Frontend shows only personal auto-bid and final results",
+      "removed_features": [
+        "Auto-bid counters",
+        "Competitor auto-bid indicators",
+        "Complex battle step visualization"
+      ]
+    }
+  },
+  "development_patterns": {
+    "error_handling": "Typed errors at service level, consistent JSON responses",
+    "validation": "Input validation, parameterized queries, role checks",
+    "transactions": "Database transactions for multi-step operations",
+    "real_time": "Socket.IO events for immediate UI updates",
+    "testing_approach": "Multi-role testing, responsive design validation"
   }
 }

@@ -20,7 +20,6 @@ interface BiddingInterfaceProps {
   leagueId: number;
   playerName: string;
   onPlaceBid: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
-  onAutoBidSet: (maxAmount: number) => Promise<void>;
   existingAutoBid?: {
     max_amount: number;
     is_active: boolean;
@@ -41,7 +40,6 @@ export function BiddingInterface({
   leagueId,
   playerName,
   onPlaceBid,
-  onAutoBidSet,
   existingAutoBid,
   isLoading = false,
   defaultBidAmount,
@@ -215,7 +213,6 @@ export function BiddingInterface({
           playerId={playerId}
           leagueId={leagueId}
           playerName={playerName}
-          onAutoBidSet={onAutoBidSet}
           existingAutoBid={existingAutoBid}
           defaultMaxAmount={isCounterBid ? currentBid + 1 : undefined}
         />

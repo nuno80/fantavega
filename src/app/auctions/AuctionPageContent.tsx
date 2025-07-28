@@ -566,46 +566,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   
   const isUserHighestBidder = currentAuction?.current_highest_bidder_id === userId;
 
-  const handleAutoBidSet = async (playerId: number, maxAmount: number) => {
-    if (!selectedLeagueId) return;
-
-    try {
-      const response = await fetch(
-        `/api/leagues/${selectedLeagueId}/players/${playerId}/auto-bid`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ max_amount: maxAmount }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || error.message || "Errore nell'impostare l'auto-offerta");
-      }
-
-      const result = await response.json();
-      console.log("Auto-bid set successfully:", result);
-      toast.success(`Auto-offerta impostata fino a ${maxAmount} crediti per ${currentAuction?.player_name || 'il giocatore'}`);
-      
-      // Refresh user's auto-bid state for the current player
-      if (currentAuction?.player_id === playerId) {
-        setUserAutoBid({ max_amount: maxAmount, is_active: maxAmount > 0 });
-      }
-      // Also trigger a full data refresh to ensure consistency
-      if (process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true') {
-        await refreshAllDataConsolidated(selectedLeagueId.toString());
-      } else {
-        await refreshAllDataOld(selectedLeagueId); // Changed type to number
-      }
-
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Errore nell'impostare l'auto-offerta"
-      );
-      throw error; // Re-throw to be handled by modal
-    }
-  };
 
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
