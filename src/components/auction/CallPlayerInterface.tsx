@@ -318,7 +318,7 @@ export function CallPlayerInterface({
       {/* Tab Content */}
       <div className="p-4">
         {activeTab === "chiama" && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col md:flex-row items-center gap-3">
             {/* Search Bar */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
@@ -434,7 +434,7 @@ export function CallPlayerInterface({
 
             {/* Player Info Inline */}
             {selectedPlayerDetails && (
-              <div className="flex items-center gap-3 border-l border-gray-600 pl-3 text-sm">
+              <div className="flex flex-col md:flex-row items-center gap-3 md:border-l md:border-gray-600 md:pl-3 text-sm mt-3 md:mt-0">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-purple-400" />
                   <span className="font-medium text-white">

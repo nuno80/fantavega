@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
 import { getUserActiveResponseTimers } from "@/lib/db/services/response-timer.service";
+import { useMobile } from "@/hooks/use-mobile";
+import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
 
 interface AuctionPageContentProps {
   userId: string;
@@ -110,6 +112,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
+  const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
+  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
+  const isMobile = useMobile();
   
   const { socket, isConnected } = useSocket();
   const router = useRouter();
@@ -569,6 +574,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   
   const isUserHighestBidder = currentAuction?.current_highest_bidder_id === userId;
 
+  const displayedManagers = isMobile
+    ? managers.filter(m => m.user_id === (selectedManagerId || userId))
+    : managers;
+
 
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
@@ -586,9 +595,23 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         </div>
 
         {/* Bottom Panel - Manager Columns */}
-        <div className="flex-1 flex space-x-2 p-2 overflow-x-auto scrollbar-hide">
-          {managers.length > 0 ? (
-            managers.map((manager, index) => (
+        <div className="flex-1 flex flex-col md:flex-row md:space-x-2 p-2 overflow-x-auto scrollbar-hide">
+          {isMobile && (
+            <div className="w-full p-2 md:hidden">
+              <Button onClick={() => setIsTeamSelectorOpen(true)} className="w-full">
+                Visualizza Squadre
+              </Button>
+            </div>
+          )}
+          <TeamSelectorModal
+            isOpen={isTeamSelectorOpen}
+            onClose={() => setIsTeamSelectorOpen(false)}
+            managers={managers}
+            onSelectTeam={(managerId) => setSelectedManagerId(managerId)}
+            onShowAllTeams={() => setSelectedManagerId(null)}
+          />
+          {displayedManagers.length > 0 ? (
+            displayedManagers.map((manager, index) => (
               <div key={`${manager.user_id}-${index}`} className="flex-1 min-w-0">
                 <ManagerColumn
                   manager={manager}
@@ -599,11 +622,11 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   position={index + 1}
                   leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
-                  autoBids={autoBids} // Pass the new collection of all auto-bids
+                  autoBids={autoBids}
                   currentAuctionPlayerId={currentAuction?.player_id}
                   userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
                   leagueId={selectedLeagueId ?? undefined}
-                  handlePlaceBid={handlePlaceBid} // Pass handlePlaceBid
+                  handlePlaceBid={handlePlaceBid}
                 />
               </div>
             ))
