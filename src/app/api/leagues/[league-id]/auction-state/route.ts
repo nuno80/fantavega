@@ -168,24 +168,33 @@ async function getManagersDataLogic(leagueId: string) {
   `);
   const autoBids = autoBidsStmt.all(parseInt(leagueId));
 
-  // Get players for each manager
-  const playersStmt = db.prepare(`
+  // --- OTTIMIZZAZIONE N+1 QUERY ---
+  // 1. Recupera TUTTI i giocatori per la lega in una sola query
+  const allPlayersStmt = db.prepare(`
     SELECT 
-      p.id,
-      p.name,
-      p.role,
-      p.team,
-      pa.purchase_price as assignment_price
+      p.id, p.name, p.role, p.team,
+      pa.purchase_price as assignment_price,
+      pa.user_id // Aggiungi user_id per il mapping
     FROM player_assignments pa
     JOIN players p ON pa.player_id = p.id
-    WHERE pa.auction_league_id = ? AND pa.user_id = ?
+    WHERE pa.auction_league_id = ?
     ORDER BY p.role, p.name
   `);
+  const allPlayers = allPlayersStmt.all(parseInt(leagueId));
 
-  // Build the complete managers data with their rosters
-  const managersWithRosters = managers.map(manager => ({
+  // 2. Raggruppa i giocatori per manager in una mappa per un accesso veloce
+  const playersByManager = new Map<string, any[]>();
+  for (const player of allPlayers as any[]) {
+    if (!playersByManager.has(player.user_id)) {
+      playersByManager.set(player.user_id, []);
+    }
+    playersByManager.get(player.user_id)!.push(player);
+  }
+
+  // 3. Associa i giocatori ai manager (senza ulteriori query)
+  const managersWithRosters = (managers as any[]).map(manager => ({
     ...manager,
-    players: playersStmt.all(parseInt(leagueId), manager.user_id) || []
+    players: playersByManager.get(manager.user_id) || []
   }));
 
   return {

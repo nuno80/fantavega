@@ -775,23 +775,67 @@ export async function placeBidOnExistingAuction({
     }
   }
 
-  // --- Blocco 7: Invio Notifiche Socket.IO ---
+  // --- Blocco 7: Invio Notifiche Socket.IO (OTTIMIZZATO) ---
   if (result.success) {
-    console.log(`[BID_SERVICE] Notifying socket server for auction-update. Final bid: ${result.finalBidAmount}, Final bidder: ${result.finalBidderId}`);
+    const { finalBidderId, previousHighestBidderId, finalBidAmount, newScheduledEndTime } = result;
+
+    // 1. Recupera i dati aggiornati per il payload arricchito
+    const budgetUpdates = [];
+    const getParticipantBudget = (pUserId: string) => db.prepare(
+        `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+      ).get(leagueId, pUserId) as { current_budget: number, locked_credits: number } | undefined;
+
+    // Aggiungi budget del vincitore finale
+    const finalWinnerBudget = getParticipantBudget(finalBidderId);
+    if (finalWinnerBudget) {
+      budgetUpdates.push({
+        userId: finalBidderId,
+        newBudget: finalWinnerBudget.current_budget,
+        newLockedCredits: finalWinnerBudget.locked_credits,
+      });
+    }
+
+    // Aggiungi budget dell'offerente precedente (se diverso dal vincitore)
+    if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
+      const previousBidderBudget = getParticipantBudget(previousHighestBidderId);
+      if (previousBidderBudget) {
+        budgetUpdates.push({
+          userId: previousHighestBidderId,
+          newBudget: previousBidderBudget.current_budget,
+          newLockedCredits: previousBidderBudget.locked_credits,
+        });
+      }
+    }
     
+    // Recupera l'ID dell'asta per trovare l'ultima offerta
+    const auctionInfoForBid = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ?").get(leagueId, playerId) as { id: number };
+    
+    // Recupera l'ultima offerta inserita
+    const lastBid = db.prepare(
+        `SELECT id, user_id, amount, created_at FROM bids WHERE auction_id = ? ORDER BY created_at DESC LIMIT 1`
+      ).get(auctionInfoForBid.id) as { id: number; user_id: string; amount: number; created_at: string; } | undefined;
+
+    // 2. Costruisci il payload arricchito
+    const richPayload = {
+      playerId,
+      newPrice: finalBidAmount,
+      highestBidderId: finalBidderId,
+      scheduledEndTime: newScheduledEndTime,
+      autoBidActivated: result.autoBidActivated,
+      budgetUpdates,
+      newBid: lastBid ? { ...lastBid, created_at: new Date(parseInt(lastBid.created_at) * 1000).toISOString() } : undefined,
+    };
+
+    console.log(`[BID_SERVICE] Notifying socket server with rich payload for auction-update.`);
+    
+    // 3. Invia l'evento `auction-update` arricchito
     await notifySocketServer({
       room: `league-${leagueId}`,
       event: "auction-update",
-      data: {
-        playerId,
-        newPrice: result.finalBidAmount,
-        highestBidderId: result.finalBidderId,
-        scheduledEndTime: result.newScheduledEndTime,
-        autoBidActivated: result.autoBidActivated,
-      },
+      data: richPayload,
     });
 
-    // Notifica all'utente che è stato superato (se non è il vincitore finale)
+    // 4. Gestisci le notifiche individuali (invariato)
     const surpassedUsers = new Set<string>();
     if (result.previousHighestBidderId && result.previousHighestBidderId !== result.finalBidderId) {
       surpassedUsers.add(result.previousHighestBidderId);
@@ -808,13 +852,12 @@ export async function placeBidOnExistingAuction({
         data: {
           playerName: result.playerName?.name || "Giocatore",
           newBidAmount: result.finalBidAmount,
-          autoBidActivated: true, // La notifica è sempre dovuta a una battaglia
+          autoBidActivated: true,
           autoBidUsername: result.autoBidUsername,
         },
       });
     }
 
-    // Notifica al vincitore se il suo auto-bid è stato attivato
     if (result.autoBidActivated && result.finalBidderId === result.autoBidUserId) {
       console.log(`[BID_SERVICE] Notifying auto-bidder (${result.autoBidUserId}) of auto-bid activation.`);
       await notifySocketServer({
@@ -823,19 +866,16 @@ export async function placeBidOnExistingAuction({
         data: {
           playerName: result.playerName?.name || "Giocatore",
           bidAmount: result.finalBidAmount,
-          triggeredBy: userId, // L'utente che ha iniziato la battaglia
+          triggeredBy: userId,
         },
       });
     }
 
-    // Gestisci cambio stato per tutti gli utenti superati
-    const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'")
-      .get(leagueId, playerId) as { id: number } | undefined;
-    
-    if (auctionInfo) {
+    // 5. Gestisci cambio stato (invariato)
+    if (auctionInfoForBid) {
       for (const surpassedUserId of surpassedUsers) {
-        console.log(`[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfo.id}`);
-        await handleBidderChange(auctionInfo.id, surpassedUserId, result.finalBidderId!);
+        console.log(`[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`);
+        await handleBidderChange(auctionInfoForBid.id, surpassedUserId, result.finalBidderId!);
       }
     }
   }

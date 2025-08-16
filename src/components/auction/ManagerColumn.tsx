@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { DollarSign, Lock, Star, User, X } from "lucide-react";
 import { toast } from "sonner";
@@ -481,7 +481,7 @@ function EmptySlot() {
 }
 
 // Main Component
-export function ManagerColumn({
+const ManagerColumn: React.FC<ManagerColumnProps> = ({
   manager,
   isCurrentUser,
   isHighestBidder,
@@ -494,7 +494,7 @@ export function ManagerColumn({
   userAuctionStates = [],
   leagueId,
   handlePlaceBid,
-}: ManagerColumnProps) {
+}) => {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
     id: number;
@@ -836,4 +836,6 @@ export function ManagerColumn({
       )}
     </div>
   );
-}
+};
+
+export const MemoizedManagerColumn = React.memo(ManagerColumn);

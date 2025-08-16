@@ -11,7 +11,7 @@ import { AuctionTimer } from "@/components/auction/AuctionTimer";
 import { BidHistory } from "@/components/auction/BidHistory";
 import { BudgetDisplayWithCompliance } from "@/components/auction/BudgetDisplay";
 import { AuctionLayout } from "@/components/auction/AuctionLayout";
-import { ManagerColumn } from "@/components/auction/ManagerColumn";
+import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -323,30 +323,30 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
       });
       
-      // Also refresh related data after auction update
-      if (selectedLeagueId) {
-        // Feature flag for consolidated API
-        const USE_CONSOLIDATED_API = false; //process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
-        console.log('[PERFORMANCE] Feature flag check:', {
-          env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
-          USE_CONSOLIDATED_API,
-          selectedLeagueId
-        });
-        
-        if (USE_CONSOLIDATED_API) {
-          // NEW: Single consolidated API call
-          console.log('[PERFORMANCE] Using consolidated API for real-time update');
-          refreshAllDataConsolidated(selectedLeagueId.toString()).then(success => {
-            if (!success) {
-              console.log('[PERFORMANCE] Consolidated API failed, falling back to old method');
-              refreshAllDataOld(selectedLeagueId);
+      // --- OTTIMIZZAZIONE FRONTEND ---
+      // Rimuoviamo il re-fetch completo. Aggiorniamo lo stato localmente.
+      // Questo richiede che il backend invii un evento socket più ricco.
+      
+      // Esempio di aggiornamento del budget dei manager
+      if (data.budgetUpdates) {
+        setManagers(prevManagers => 
+          prevManagers.map(manager => {
+            const update = data.budgetUpdates.find(u => u.userId === manager.user_id);
+            if (update) {
+              return { 
+                ...manager, 
+                current_budget: update.newBudget, 
+                locked_credits: update.newLockedCredits 
+              };
             }
-          });
-        } else {
-          // OLD: 4 separate API calls (fallback)
-          console.log('[PERFORMANCE] Using old method (4 API calls) for real-time update');
-          refreshAllDataOld(selectedLeagueId);
-        }
+            return manager;
+          })
+        );
+      }
+
+      // Aggiorniamo la cronologia delle offerte
+      if (data.newBid) {
+        setBidHistory(prevHistory => [data.newBid, ...prevHistory]);
       }
     };
 
