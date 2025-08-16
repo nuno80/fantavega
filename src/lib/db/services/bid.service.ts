@@ -310,6 +310,8 @@ const decrementLockedCreditsStmt = db.prepare(
   "UPDATE league_participants SET locked_credits = locked_credits - ?, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?"
 );
 
+import { processUserComplianceAndPenalties } from './penalty.service';
+
 export const placeInitialBidAndCreateAuction = async (
   leagueIdParam: number,
   playerIdParam: number,
@@ -317,6 +319,8 @@ export const placeInitialBidAndCreateAuction = async (
   bidAmountParam: number,
   autoBidMaxAmount?: number | null
 ): Promise<AuctionCreationResult> => {
+
+
   // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
   const cooldownInfo = getUserCooldownInfo(bidderUserIdParam, playerIdParam, leagueIdParam);
   if (!cooldownInfo.canBid) {
@@ -510,6 +514,8 @@ export async function placeBidOnExistingAuction({
   bidType = "manual",
   autoBidMaxAmount, // Add this parameter
 }: PlaceBidParams) {
+
+
   console.log(`[BID_SERVICE] placeBidOnExistingAuction called for user ${userId}, player ${playerId}, amount ${bidAmount}`);
   
   // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
@@ -812,8 +818,8 @@ export async function placeBidOnExistingAuction({
     
     // Recupera l'ultima offerta inserita
     const lastBid = db.prepare(
-        `SELECT id, user_id, amount, created_at FROM bids WHERE auction_id = ? ORDER BY created_at DESC LIMIT 1`
-      ).get(auctionInfoForBid.id) as { id: number; user_id: string; amount: number; created_at: string; } | undefined;
+        `SELECT id, user_id, amount, bid_time FROM bids WHERE auction_id = ? ORDER BY bid_time DESC LIMIT 1`
+      ).get(auctionInfoForBid.id) as { id: number; user_id: string; amount: number; bid_time: string; } | undefined;
 
     // 2. Costruisci il payload arricchito
     const richPayload = {
@@ -823,7 +829,7 @@ export async function placeBidOnExistingAuction({
       scheduledEndTime: newScheduledEndTime,
       autoBidActivated: result.autoBidActivated,
       budgetUpdates,
-      newBid: lastBid ? { ...lastBid, created_at: new Date(parseInt(lastBid.created_at) * 1000).toISOString() } : undefined,
+      newBid: lastBid ? { ...lastBid, bid_time: new Date(parseInt(lastBid.bid_time) * 1000).toISOString() } : undefined,
     };
 
     console.log(`[BID_SERVICE] Notifying socket server with rich payload for auction-update.`);

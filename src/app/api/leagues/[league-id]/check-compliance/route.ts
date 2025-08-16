@@ -106,17 +106,8 @@ export async function POST(
       error instanceof Error ? error.message : "Unknown error";
     console.error(`[API CHECK_COMPLIANCE POST] Error: ${errorMessage}`, error);
 
-    if (
-      errorMessage.startsWith("Failed to process user compliance and penalties")
-    ) {
-      return NextResponse.json(
-        { error: "Could not process compliance check at this time." },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json(
-      { error: "An unexpected error occurred during compliance check." },
+      { error: errorMessage },
       { status: 500 }
     );
   }

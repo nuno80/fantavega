@@ -24,7 +24,7 @@ interface QuickBidModalProps {
   player: PlayerWithAuctionStatus;
   leagueId: number;
   userId: string;
-  onBidSuccess?: () => void; // Callback per refresh dei dati
+  onBidSuccess?: () => void; // @deprecated Callback per refresh manuale. L'aggiornamento ora è gestito da Socket.IO.
 }
 
 interface UserBudgetInfo {
@@ -135,59 +135,52 @@ export function QuickBidModal({
     if (!canSubmitBid) return;
 
     setIsSubmitting(true);
+
+    // Costruisce il corpo della richiesta in un unico oggetto
+    const requestBody: {
+      amount: number;
+      bid_type: "manual" | "auto";
+      max_amount?: number;
+    } = {
+      amount: bidAmount,
+      bid_type: useAutoBid ? "auto" : "manual",
+    };
+
+    if (useAutoBid && maxAmount > bidAmount) {
+      requestBody.max_amount = maxAmount;
+    }
+
     try {
-      // First, place the manual bid
-      const bidResponse = await fetch(
+      // Esegue una singola chiamata API per l'offerta e l'auto-bid
+      const response = await fetch(
         `/api/leagues/${leagueId}/players/${player.id}/bids`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            amount: bidAmount,
-            bid_type: "manual"
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
-      if (!bidResponse.ok) {
-        const error = await bidResponse.json();
-        throw new Error(error.error || error.message || "Errore nel piazzare l'offerta");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore nel piazzare l'offerta");
       }
 
-      // If auto-bid is enabled and max amount is higher than bid amount, set auto-bid
-      if (useAutoBid && maxAmount > bidAmount) {
-        try {
-          const autoBidResponse = await fetch(
-            `/api/leagues/${leagueId}/players/${player.id}/auto-bid`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ max_amount: maxAmount }),
-            }
-          );
-
-          if (!autoBidResponse.ok) {
-            const autoBidError = await autoBidResponse.json();
-            console.warn("Auto-bid failed:", autoBidError.error);
-            toast.warning(`Offerta piazzata, ma auto-bid fallita: ${autoBidError.error}`);
-          } else {
-            toast.success(`Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`);
-          }
-        } catch (autoBidError) {
-          console.warn("Auto-bid request failed:", autoBidError);
-          toast.warning("Offerta piazzata, ma auto-bid non impostata");
-        }
+      // Gestisce il successo della chiamata unificata
+      if (useAutoBid && requestBody.max_amount) {
+        toast.success(
+          `Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`
+        );
       } else {
         toast.success("Offerta piazzata con successo!");
       }
 
       onClose();
-      
-      // Trigger refresh of players data
-      if (onBidSuccess) {
-        onBidSuccess();
-      }
 
+      // La chiamata onBidSuccess() viene rimossa per prevenire race conditions.
+      // L'aggiornamento dei dati ora è gestito esclusivamente dal listener Socket.IO
+      // nel componente PlayerSearchInterface, che garantisce che la UI rifletta
+      // lo stato reale del database dopo la notifica dell'avvenuta offerta.
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Errore nel piazzare l'offerta"

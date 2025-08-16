@@ -233,6 +233,8 @@ export async function POST(request: Request, context: RouteContext) {
         // Cattura "Player not found", "League not found", "Auction not found"
         statusCode = 404;
       } else if (
+
+        error.message.includes("non sono attualmente attive") || // Mercato per ruolo non attivo
         error.message.includes("Bidding is not currently active") ||
         (error.message.includes("Player's role") &&
           error.message.includes("is not currently active for bidding")) ||

@@ -105,6 +105,8 @@ export const processUserComplianceAndPenalties = async (
 
       const requiredSlots = calculateRequiredSlotsMinusOne(league);
       const coveredSlots = countCoveredSlots(leagueId, userId);
+
+
       isNowCompliant = checkUserCompliance(requiredSlots, coveredSlots, league.active_auction_roles); // <-- CORREZIONE: Assegnazione alla variabile esterna
 
       if (!isNowCompliant) {

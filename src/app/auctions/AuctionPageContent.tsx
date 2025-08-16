@@ -114,6 +114,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
+  const [userComplianceStatus, setUserComplianceStatus] = useState({
+    isCompliant: true,
+    isInGracePeriod: true,
+  });
   const isMobile = useMobile();
   
   const { socket, isConnected } = useSocket();
@@ -304,6 +308,19 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       highestBidderId: string;
       scheduledEndTime: number;
       autoBidActivated?: boolean;
+      budgetUpdates?: {
+        userId: string;
+        newBudget: number;
+        newLockedCredits: number;
+      }[];
+      newBid?: {
+        id: number;
+        amount: number;
+        user_id: string;
+        created_at: string;
+        [key: string]: unknown;
+      };
+      userAuctionStates?: UserAuctionState[];
     }) => {
       console.log("[AUCTION UPDATE] Received auction update:", data);
       
@@ -322,6 +339,21 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           return prev;
         }
       });
+
+      // Aggiorna anche la lista generale delle aste attive
+      setActiveAuctions(prevAuctions =>
+        prevAuctions.map(auction => {
+          if (auction.player_id === data.playerId) {
+            return {
+              ...auction,
+              current_highest_bid_amount: data.newPrice,
+              current_highest_bidder_id: data.highestBidderId,
+              scheduled_end_time: data.scheduledEndTime,
+            };
+          }
+          return auction;
+        })
+      );
       
       // --- OTTIMIZZAZIONE FRONTEND ---
       // Rimuoviamo il re-fetch completo. Aggiorniamo lo stato localmente.
@@ -331,7 +363,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       if (data.budgetUpdates) {
         setManagers(prevManagers => 
           prevManagers.map(manager => {
-            const update = data.budgetUpdates.find(u => u.userId === manager.user_id);
+            const update = data.budgetUpdates?.find(u => u.userId === manager.user_id);
             if (update) {
               return { 
                 ...manager, 
@@ -346,7 +378,17 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
       // Aggiorniamo la cronologia delle offerte
       if (data.newBid) {
-        setBidHistory(prevHistory => [data.newBid, ...prevHistory]);
+        setBidHistory(prevHistory => {
+          if (data.newBid) { // Controllo di tipo per TypeScript
+            return [data.newBid, ...prevHistory];
+          }
+          return prevHistory;
+        });
+      }
+
+      // Aggiorna lo stato delle aste dell'utente
+      if (data.userAuctionStates) {
+        setUserAuctionStates(data.userAuctionStates);
       }
     };
 
@@ -529,33 +571,63 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   };
 
-  const handlePlaceBid = async (amount: number) => {
-    if (!currentAuction || !selectedLeagueId) return;
+  const handlePlaceBid = async (
+    amount: number,
+    bidType: "manual" | "quick" = "manual",
+    targetPlayerId?: number,
+    bypassComplianceCheck = false,
+    maxAmount?: number
+  ) => {
+    const playerId = targetPlayerId || currentAuction?.player_id;
+    if (!playerId || !selectedLeagueId) {
+      toast.error("Impossibile piazzare l'offerta: dati mancanti.");
+      throw new Error("Player ID or League ID is missing.");
+    }
+
+    // Blocco preventivo basato sullo stato di conformità
+    if (!bypassComplianceCheck && !userComplianceStatus.isCompliant && !userComplianceStatus.isInGracePeriod) {
+      toast.error("Offerta bloccata", {
+        description: "Non puoi fare offerte perché la tua rosa non è conforme e il periodo di grazia è terminato.",
+      });
+      throw new Error("Offerta bloccata per mancata conformità.");
+    }
+
+    // VALIDAZIONE LATO CLIENT AGGIUNTIVA
+    const auctionForPlayer = activeAuctions.find(a => a.player_id === playerId);
+    const stateForPlayer = userAuctionStates.find(s => s.player_id === playerId);
+    const currentBidForPlayer = auctionForPlayer?.current_highest_bid_amount ?? stateForPlayer?.current_bid ?? 0;
+
+    if (amount <= currentBidForPlayer) {
+      const errorMessage = `L'offerta deve essere superiore all'offerta attuale di ${currentBidForPlayer} crediti.`;
+      toast.error("Offerta non valida", { description: errorMessage });
+      throw new Error(errorMessage);
+    }
 
     try {
       const response = await fetch(
-        `/api/leagues/${selectedLeagueId}/players/${currentAuction.player_id}/bids`,
+        `/api/leagues/${selectedLeagueId}/players/${playerId}/bids`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bidAmount: amount }),
+          body: JSON.stringify({ 
+            amount: amount,
+            bid_type: bidType,
+            max_amount: maxAmount,
+          }),
         }
       );
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Errore nel piazzare l'offerta");
+        throw new Error(error.error || "Errore nel piazzare l'offerta");
       }
-
-      // Update budget after successful bid
-      const budgetResponse = await fetch(`/api/leagues/${selectedLeagueId}/budget`);
-      if (budgetResponse.ok) {
-        const budget = await budgetResponse.json();
-        setUserBudget(budget);
-      }
+      
+      toast.success("Offerta piazzata con successo!");
+      // L'aggiornamento della UI è gestito da Socket.IO
 
     } catch (error) {
-      throw error; // Re-throw to be handled by BiddingInterface
+      // L'errore viene già mostrato dal componente chiamante, basta rilanciare.
+      throw error;
     }
   };
 
@@ -627,6 +699,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
                   leagueId={selectedLeagueId ?? undefined}
                   handlePlaceBid={handlePlaceBid}
+                  onComplianceChange={setUserComplianceStatus}
                 />
               </div>
             ))

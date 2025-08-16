@@ -198,6 +198,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         player.id === data.playerId 
           ? { 
               ...player, 
+              auctionStatus: "active_auction", // <-- CORREZIONE: Assicura che lo stato sia sempre attivo su un update
               currentBid: data.newPrice,
               currentHighestBidderName: data.highestBidderName || data.highestBidderId,
               timeRemaining: Math.max(0, data.scheduledEndTime - Math.floor(Date.now() / 1000)),
@@ -226,11 +227,33 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       ));
     };
 
+    const handleAuctionCreated = (data: {
+      playerId: number;
+      auctionId: number;
+      newPrice: number;
+      highestBidderId: string;
+      scheduledEndTime: number;
+    }) => {
+      setPlayers(prev => prev.map(player => 
+        player.id === data.playerId 
+          ? { 
+              ...player, 
+              auctionStatus: "active_auction",
+              auctionId: data.auctionId,
+              currentBid: data.newPrice,
+              timeRemaining: Math.max(0, data.scheduledEndTime - Math.floor(Date.now() / 1000)),
+            }
+          : player
+      ));
+    };
+
+    socket.on("auction-created", handleAuctionCreated);
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("auction-closed-notification", handleAuctionClosed);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
+      socket.off("auction-created", handleAuctionCreated);
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("auction-closed-notification", handleAuctionClosed);
       clearInterval(expiredAuctionsInterval);

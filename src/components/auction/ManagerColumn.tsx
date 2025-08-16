@@ -91,10 +91,13 @@ interface ManagerColumnProps {
   currentAuctionPlayerId?: number;
   userAuctionStates?: UserAuctionState[];
   leagueId?: number;
+  onComplianceChange?: (status: { isCompliant: boolean; isInGracePeriod: boolean }) => void;
   handlePlaceBid: (
     amount: number,
     bidType?: "manual" | "quick",
-    targetPlayerId?: number
+    targetPlayerId?: number,
+    bypassComplianceCheck?: boolean,
+    maxAmount?: number
   ) => Promise<void>;
 }
 
@@ -494,6 +497,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   userAuctionStates = [],
   leagueId,
   handlePlaceBid,
+  onComplianceChange,
 }) => {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -702,6 +706,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
             managerPlayers={manager.players}
             leagueSlots={leagueSlots}
             activeAuctions={activeAuctions}
+            onComplianceChange={onComplianceChange}
             onComplianceChecked={() => {
               // Optional callback for when compliance is checked
               console.log(
@@ -811,7 +816,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
               ? userAutoBid
               : null
           }
-          onBidSuccess={async (amount, bidType) => {
+          onBidSuccess={async (amount, bidType, maxAmount) => {
             if (!isCurrentUser) {
               toast.error("Non sei autorizzato a gestire questa squadra.");
               setShowStandardBidModal(false);
@@ -822,12 +827,22 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
               await handlePlaceBid(
                 amount,
                 bidType || "manual",
-                selectedPlayerForBid.id
+                selectedPlayerForBid.id,
+                true, // Bypass compliance check for counter-bids
+                maxAmount
               );
               setShowStandardBidModal(false);
               setSelectedPlayerForBid(null);
             } catch (error) {
-              // Error is already handled in handlePlaceBid, just close the modal
+              const errorMessage =
+                error instanceof Error
+                  ? error.message
+                  : "Si è verificato un errore sconosciuto";
+              console.error("Failed to place bid:", error);
+              toast.error("Errore nel piazzare l'offerta", {
+                description: errorMessage,
+              });
+              // Still close the modal
               setShowStandardBidModal(false);
               setSelectedPlayerForBid(null);
             }

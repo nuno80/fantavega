@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 interface ComplianceCheckerProps {
   leagueId: number;
   userId: string;
+    onComplianceChange?: (status: { isCompliant: boolean; isInGracePeriod: boolean }) => void;
   onComplianceChecked?: () => void;
   // Dati locali per calcolo immediato
   managerPlayers?: Array<{ role: string }>;
@@ -34,6 +35,7 @@ interface ComplianceResult {
 export function ComplianceChecker({
   leagueId,
   userId,
+  onComplianceChange, // <-- Aggiunto qui
   onComplianceChecked,
   managerPlayers = [],
   leagueSlots,
@@ -141,6 +143,14 @@ export function ComplianceChecker({
       const result: ComplianceResult = await response.json();
       console.log("DEBUG ComplianceChecker API result:", result);
       setLastCheckResult(result);
+
+      // Notifica il genitore dello stato aggiornato
+      if (onComplianceChange) {
+        onComplianceChange({
+          isCompliant: result.isNowCompliant,
+          isInGracePeriod: (result.timeRemainingSeconds ?? 0) > 0,
+        });
+      }
 
       // Show appropriate toast based on result - SOLO quando si preme manualmente "Verifica"
       if (showToasts) {

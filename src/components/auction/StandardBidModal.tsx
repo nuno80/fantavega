@@ -27,7 +27,7 @@ interface StandardBidModalProps {
   leagueId: number;
   currentBid?: number;
   isNewAuction?: boolean; // true per "Avvia asta", false per rilanci
-  onBidSuccess?: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
+  onBidSuccess?: (amount: number, bidType?: "manual" | "quick", maxAmount?: number) => Promise<void>;
   title?: string; // Custom title (es. "Rilancia", "Avvia asta", "Fai offerta")
   existingAutoBid?: {
     max_amount: number;
@@ -143,47 +143,23 @@ export function StandardBidModal({
 
     setIsSubmitting(true);
     try {
-      let endpoint: string;
-      let body: Record<string, unknown>;
-
-      if (isNewAuction) {
-        // Avvia nuova asta
-        endpoint = `/api/leagues/${leagueId}/players/${playerId}/bids`;
-        body = { 
-          amount: bidAmount,
-          bid_type: "manual",
-          max_amount: useAutoBid ? maxAmount : undefined,
-        };
-      
-
-      const bidResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!bidResponse.ok) {
-        const error = await bidResponse.json();
-        throw new Error(error.error || error.message || "Errore nel piazzare l'offerta");
-      }
-
-      const successMessage = isNewAuction 
-        ? "Asta avviata con successo!" 
-        : "Offerta piazzata con successo!";
-      toast.success(successMessage);
-
-      onClose();
-      
-      // Trigger refresh with bid details
+      // Il modale passa i dati al genitore, che gestisce la logica API.
       if (onBidSuccess) {
-        onBidSuccess(bidAmount, isNewAuction ? "manual" : "manual"); // Assuming manual for new auctions
+        await onBidSuccess(bidAmount, useAutoBid ? "quick" : "manual", useAutoBid ? maxAmount : undefined);
+        // Il genitore gestirà la notifica di successo e la chiusura del modale.
+        onClose(); 
+      } else {
+        console.error("StandardBidModal requires an onBidSuccess handler to function.");
+        toast.error("Errore di configurazione", {
+          description: "L'azione di offerta non è stata collegata correttamente.",
+        });
       }
-    }
-
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Errore nel piazzare l'offerta"
-      );
+      // L'errore viene generato da onBidSuccess (cioè da handlePlaceBid)
+      // e viene già gestito e notificato dal componente genitore (ManagerColumn).
+      // Qui chiudiamo solo il modale e logghiamo per debug.
+      console.error("Error propagated to StandardBidModal:", error);
+      onClose();
     } finally {
       setIsSubmitting(false);
     }
