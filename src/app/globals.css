@@ -2,24 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Come Funzionano i Colori (HSL)
+I colori sono definiti usando il formato HSL (Hue, Saturation, Lightness), che è molto intuitivo:
+H (Tonalità): Un valore da 0 a 360 che rappresenta il colore sulla ruota dei colori (es. 0 è rosso, 120 è verde, 240 è blu).
+S (Saturazione): Una percentuale che indica l'intensità del colore (0% è grigio, 100% è il colore pieno).
+L (Luminosità): Una percentuale che indica quanto il colore è chiaro o scuro (0% è nero, 100% è bianco). */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    /* Sfondo principale dell'applicazione */
+    --background: 240 5.9% 95%; /* Attualmente un grigio molto chiaro */
+    /* Colore del testo principale */
+    --foreground: 0 0% 3.9%; /* Nero */
+    /* Sfondo di elementi in primo piano come card, modali, popover */
+    --card: 0 0% 100%; /* Bianco puro, per risaltare sullo sfondo */
+    --card-foreground: 0 0% 3.9%; /* Testo dentro le card */
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    /* Colore primario per elementi interattivi (es. pulsanti principali) */
+    --primary: 0 0% 9%; /* Nero */
+    --primary-foreground: 0 0% 98%; /* Testo sopra gli elementi primari (bianco) */
+    /* Colore secondario (es. pulsanti secondari) */
+    --secondary: 0 0% 96.1%; /* Grigio chiaro */
+    --secondary-foreground: 0 0% 9%; /* Testo sopra gli elementi secondari (nero) */
+    /* Colore per testo "muted" o elementi meno importanti */
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
     --accent: 0 0% 96.1%;
     --accent-foreground: 0 0% 9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
+    /* Colore per bordi e input fields */
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;

@@ -272,15 +272,15 @@ export function CallPlayerInterface({
   ];
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800">
+    <div className="rounded-lg border border-border bg-card">
       {/* Tab Navigation */}
-      <div className="flex border-b border-gray-700">
+      <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab("chiama")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === "chiama"
-              ? "bg-gray-750 border-blue-500 text-blue-400"
-              : "hover:bg-gray-750 border-transparent text-gray-400 hover:text-gray-300"
+              ? "bg-muted border-primary text-primary"
+              : "hover:bg-muted border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <Gavel className="h-4 w-4" />
@@ -290,8 +290,8 @@ export function CallPlayerInterface({
           onClick={() => setActiveTab("stats")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === "stats"
-              ? "bg-gray-750 border-blue-500 text-blue-400"
-              : "hover:bg-gray-750 border-transparent text-gray-400 hover:text-gray-300"
+              ? "bg-muted border-primary text-primary"
+              : "hover:bg-muted border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <TrendingUp className="h-4 w-4" />
@@ -301,8 +301,8 @@ export function CallPlayerInterface({
           onClick={() => setActiveTab("filtri")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === "filtri"
-              ? "bg-gray-750 border-blue-500 text-blue-400"
-              : "hover:bg-gray-750 border-transparent text-gray-400 hover:text-gray-300"
+              ? "bg-muted border-primary text-primary"
+              : "hover:bg-muted border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <Search className="h-4 w-4" />
@@ -327,16 +327,16 @@ export function CallPlayerInterface({
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
-                className="h-10 border-gray-600 bg-gray-700 pl-10 text-white placeholder-gray-400"
+                className="h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground"
               />
 
               {/* Auto-dropdown */}
               {isDropdownOpen && filteredPlayers.length > 0 && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-gray-600 bg-gray-700 shadow-lg">
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-border bg-card shadow-lg">
                   {filteredPlayers.slice(0, 10).map((player) => (
                     <div
                       key={player.id}
-                      className="cursor-pointer border-b border-gray-600 px-3 py-2 text-white last:border-b-0 hover:bg-gray-600"
+                      className="cursor-pointer border-b border-border px-3 py-2 text-foreground last:border-b-0 hover:bg-muted"
                       onClick={() => handlePlayerSelect(player.id.toString())}
                     >
                       <div className="flex items-center justify-between">
@@ -380,15 +380,15 @@ export function CallPlayerInterface({
 
             {/* Player Selection */}
             <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
-              <SelectTrigger className="h-10 w-64 border-gray-600 bg-gray-700 text-white">
+              <SelectTrigger className="h-10 w-64 border-input bg-background text-foreground">
                 <SelectValue placeholder="Seleziona Giocatore" />
               </SelectTrigger>
-              <SelectContent className="max-h-60 border-gray-600 bg-gray-700">
+              <SelectContent className="max-h-60 border-border bg-card">
                 {filteredPlayers.map((player) => (
                   <SelectItem
                     key={player.id}
                     value={player.id.toString()}
-                    className="text-white hover:bg-gray-600"
+                    className="text-foreground hover:bg-muted"
                   >
                     <div className="flex w-full items-center justify-between">
                       <span>
@@ -522,8 +522,8 @@ export function CallPlayerInterface({
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${
                   preferenceFilters.isStarter
-                    ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/90"
                 }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
@@ -541,8 +541,8 @@ export function CallPlayerInterface({
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${
                   preferenceFilters.isFavorite
-                    ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/90"
                 }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
@@ -560,8 +560,8 @@ export function CallPlayerInterface({
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${
                   preferenceFilters.hasIntegrity
-                    ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/90"
                 }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
@@ -579,8 +579,8 @@ export function CallPlayerInterface({
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${
                   preferenceFilters.hasFmv
-                    ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/90"
                 }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({

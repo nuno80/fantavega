@@ -168,7 +168,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         setLeagues(leagues);
 
         // Feature flag for consolidated API (INITIAL LOAD)
-        const USE_CONSOLIDATED_API = process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
+        const USE_CONSOLIDATED_API = false; //process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
         console.log('[PERFORMANCE] Initial load - Feature flag check:', {
           env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
           USE_CONSOLIDATED_API,
@@ -326,7 +326,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       // Also refresh related data after auction update
       if (selectedLeagueId) {
         // Feature flag for consolidated API
-        const USE_CONSOLIDATED_API = process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
+        const USE_CONSOLIDATED_API = false; //process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
         console.log('[PERFORMANCE] Feature flag check:', {
           env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
           USE_CONSOLIDATED_API,
@@ -581,9 +581,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
-    <div className="flex flex-col h-full bg-gray-900 text-white">
+    <div className="flex flex-col h-full bg-background text-foreground">
         {/* Top Panel - Call Player Interface */}
-        <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 p-4">
+        <div className="flex-shrink-0 bg-card border-b border-border p-4">
           <CallPlayerInterface 
             leagueId={selectedLeagueId || 0}
             userId={userId}

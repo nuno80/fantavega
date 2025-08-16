@@ -137,15 +137,8 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         const league = leagues[0];
         setSelectedLeagueId(league.id);
 
-        // Fetch players with auction status for this league
-        const playersResponse = await fetch(`/api/leagues/${league.id}/players-with-status`);
-        if (!playersResponse.ok) throw new Error("Failed to fetch players");
-        
-        const playersData = await playersResponse.json();
-        console.log("Players data loaded:", playersData.slice(0, 3)); // Debug: mostra i primi 3 giocatori
-        console.log("Active auctions found:", playersData.filter((p: {auctionStatus: string}) => p.auctionStatus === 'active_auction').length);
-        setPlayers(playersData);
-        setFilteredPlayers(playersData);
+        // Use the existing refresh function to load player data, passing the league ID directly
+        await refreshPlayersData(league.id);
 
       } catch (error) {
         console.error("Error fetching players:", error);
@@ -320,11 +313,12 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     setIsBidModalOpen(true);
   };
 
-  const refreshPlayersData = async () => {
-    if (!selectedLeagueId) return;
+  const refreshPlayersData = async (leagueIdToLoad?: number) => {
+    const leagueId = leagueIdToLoad || selectedLeagueId;
+    if (!leagueId) return;
     
     try {
-      const playersResponse = await fetch(`/api/leagues/${selectedLeagueId}/players-with-status`);
+      const playersResponse = await fetch(`/api/leagues/${leagueId}/players-with-status`);
       if (playersResponse.ok) {
         const playersData = await playersResponse.json();
         setPlayers(playersData);

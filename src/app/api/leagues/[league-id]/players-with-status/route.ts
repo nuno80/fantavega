@@ -11,13 +11,13 @@ export async function GET(
   { params }: { params: Promise<{ "league-id": string }> }
 ) {
   try {
+    const resolvedParams = await params;
+    
     const user = await currentUser();
     
     if (!user) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
-
-    const resolvedParams = await params;
     const leagueId = parseInt(resolvedParams["league-id"]);
     
     if (isNaN(leagueId)) {
@@ -77,9 +77,7 @@ export async function GET(
           pa.purchase_price as finalPrice,
           
           -- User-specific info
-          CASE WHEN pa.user_id = ? THEN 1 ELSE 0 END as isAssignedToUser,
-          
-          
+          CASE WHEN pa.user_id = ? THEN 1 ELSE 0 END as isAssignedToUser
           
          FROM players p
          LEFT JOIN auctions a ON p.id = a.player_id AND a.auction_league_id = ? AND a.status IN ('active', 'closing')
@@ -90,6 +88,7 @@ export async function GET(
          ORDER BY p.name ASC`
       )
       .all(user.id, leagueId, leagueId, user.id, leagueId);
+    
 
     // Get only the current user's auto-bid information for active auctions
     const userAutoBidsData = db
@@ -124,8 +123,9 @@ export async function GET(
 
     // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = (playersWithStatus as Array<{id: number; scheduled_end_time?: number; [key: string]: unknown}>).map((player) => {
-      const cooldownInfo = getUserCooldownInfo(user.id, player.id);
+    const processedPlayers = (playersWithStatus as Array<{id: number; scheduled_end_time?: number; [key: string]: unknown}>).map((player, index) => {
+      
+      const cooldownInfo = getUserCooldownInfo(user.id, player.id, leagueId);
       return {
         ...player,
         timeRemaining: player.scheduled_end_time 

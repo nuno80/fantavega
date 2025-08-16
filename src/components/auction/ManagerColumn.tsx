@@ -167,7 +167,7 @@ const formatTimeRemaining = (endTime: number) => {
   const minutes = Math.floor((remaining % 3600) / 60);
   const seconds = remaining % 60;
 
-  let color = "text-white";
+  let color = "text-foreground";
   let text = "";
 
   if (remaining < 300) {
@@ -228,7 +228,7 @@ function AssignedSlot({
         <span className="truncate text-xs">{player.name}</span>
       </div>
       <div className="flex flex-shrink-0 items-center gap-1">
-        <span className="text-xs font-semibold text-white">
+        <span className="text-xs font-semibold text-foreground">
           {player.assignment_price}
         </span>
         <Lock className="h-3 w-3 text-gray-400" />
@@ -311,7 +311,7 @@ function ResponseNeededSlot({
           <div
             className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
           />
-          <span className="mr-2 truncate text-xs text-red-200">
+          <span className="mr-2 truncate text-xs dark:text-red-200 text-red-900">
             {state.player_name}
           </span>
           {/* Response Timer */}
@@ -326,7 +326,7 @@ function ResponseNeededSlot({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-red-200">{state.current_bid}</span>
+          <span className="text-xs text-foreground">{state.current_bid}</span>
           <button
             onClick={() => onCounterBid(state.player_id)}
             className="rounded p-1 transition-colors hover:bg-green-600"
@@ -449,12 +449,12 @@ function InAuctionSlot({
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
-            <span className="font-semibold text-blue-400">
+            <span className="font-semibold text-blue-600 dark:text-blue-400">
               {playerAutoBid.max_amount}
             </span>
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}
-          <span className={`font-semibold text-green-400`}>
+          <span className={`font-semibold text-green-600 dark:text-green-400`}>
             {auction.current_highest_bid_amount || 0}
           </span>
         </div>
@@ -637,7 +637,7 @@ export function ManagerColumn({
   const availableBudget = currentBudget - lockedCredits;
 
   return (
-    <div className="flex h-full flex-col rounded-lg border-2 border-gray-700 bg-gray-800 p-2">
+    <div className="flex h-full flex-col rounded-lg border-2 border-border bg-card p-2">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1">
@@ -653,7 +653,7 @@ export function ManagerColumn({
           </span>
         </div>
         <div
-          className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-white"}`}
+          className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-foreground"}`}
         >
           {manager.current_budget}
         </div>
@@ -662,9 +662,9 @@ export function ManagerColumn({
       {/* Budget info */}
       <div className="mb-1 flex justify-between text-xs text-gray-400">
         <span>
-          max <span className="text-white">${availableBudget}</span>
+          max <span className="text-foreground">${availableBudget}</span>
         </span>
-        <span className="text-white">% {budgetPercentage.toFixed(1)}</span>
+        <span className="text-foreground">% {budgetPercentage.toFixed(1)}</span>
       </div>
 
       {/* Role counters */}
