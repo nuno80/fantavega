@@ -44,6 +44,7 @@ export async function POST(request: Request, context: RouteContext) {
     // 2.2. Parsing del body della richiesta (INVARIATO)
     const body: PlaceBidRequestBody = await request.json();
     console.log(`[API BIDS POST] Request body:`, body);
+    console.log(`[DEBUG AUTO-BID] max_amount received:`, body.max_amount);
 
     // 2.1.1. Rate Limiting per offerte
     const bidType = body.bid_type || 'manual';
@@ -194,7 +195,8 @@ export async function POST(request: Request, context: RouteContext) {
         leagueIdNum,
         playerIdNum,
         user.id,
-        bidAmount
+        bidAmount,
+        body.max_amount // Pass auto-bid amount
       );
       console.log(
         "[API BIDS POST] Initial bid placed and auction created successfully. Result:",

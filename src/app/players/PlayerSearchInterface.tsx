@@ -37,7 +37,7 @@ export interface PlayerWithAuctionStatus extends Player {
   timeRemaining?: number; // in seconds
   isAssignedToUser?: boolean;
   assignedToTeam?: string;
-  canStartAuction?: boolean;
+  
   currentHighestBidderName?: string;
   cooldownInfo?: {
     timeRemaining: number;
@@ -335,34 +335,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     }
   };
 
-  const handleStartAuction = async (playerId: number) => {
-    if (!selectedLeagueId) return;
-
-    try {
-      const response = await fetch(`/api/leagues/${selectedLeagueId}/start-auction`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || error.message || "Errore nell'avviare l'asta");
-      }
-
-      toast.success("Asta avviata con successo!");
-      
-      // Refresh players data
-      const playersResponse = await fetch(`/api/leagues/${selectedLeagueId}/players-with-status`);
-      if (playersResponse.ok) {
-        const playersData = await playersResponse.json();
-        setPlayers(playersData);
-      }
-
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Errore nell'avviare l'asta");
-    }
-  };
+  
 
   const handleTogglePlayerIcon = async (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => {
     try {
@@ -427,7 +400,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       <PlayerSearchResults
         players={filteredPlayers}
         onBidOnPlayer={handleBidOnPlayer}
-        onStartAuction={handleStartAuction}
+        
         onTogglePlayerIcon={handleTogglePlayerIcon}
         userRole={userRole}
         userId={userId}

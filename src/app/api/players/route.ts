@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     const name = searchParams.get("name") || undefined;
     const role = searchParams.get("role")?.toUpperCase() || undefined;
     const team = searchParams.get("team") || undefined;
+    const leagueIdStr = searchParams.get("leagueId");
+    const leagueId = leagueIdStr ? parseInt(leagueIdStr, 10) : undefined;
 
     const sortBy =
       (searchParams.get("sortBy") as GetPlayersOptions["sortBy"]) || "name";
@@ -84,6 +86,7 @@ export async function GET(request: NextRequest) {
       sortOrder,
       page,
       limit,
+      leagueId,
     };
 
     // Rimuovi le chiavi con valore undefined per non passarle al servizio se non specificate

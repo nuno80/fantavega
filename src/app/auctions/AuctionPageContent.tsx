@@ -89,9 +89,11 @@ interface ActiveAuction {
   player_value?: number;
 }
 
-interface AutoBidIndicator {
+interface AutoBid {
   player_id: number;
-  auto_bid_count: number;
+  max_amount: number;
+  is_active: boolean;
+  user_id: string; // Added user_id to identify the owner of the auto-bid
 }
 
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
@@ -101,13 +103,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
-  const [autoBids, setAutoBids] = useState<AutoBidIndicator[]>([]);
+  const [autoBids, setAutoBids] = useState<AutoBid[]>([]); // Changed type to AutoBid[]
   const [bidHistory, setBidHistory] = useState<Array<{id: number; amount: number; user_id: string; created_at: string; [key: string]: unknown}>>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [showLeagueSelector, setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
-  const [userAutoBid, setUserAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
   const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
   
   const { socket, isConnected } = useSocket();
@@ -203,7 +204,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           console.log("Set managers:", managersData.managers?.length);
           setLeagueSlots(managersData.leagueSlots || null);
           setActiveAuctions(managersData.activeAuctions || []);
-          setAutoBids(managersData.autoBids || []);
+          // setAutoBids(managersData.autoBids || []); // This was for a different purpose, removed.
         } else {
           console.error("Failed to fetch managers");
         }
@@ -229,22 +230,24 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           const auction = await auctionResponse.json();
           setCurrentAuction(auction);
           
-          // If there's a current auction, fetch bid history and user's auto-bid
+          // If there's a current auction, fetch bid history
           if (auction?.player_id) {
             const bidsResponse = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/bids`);
             if (bidsResponse.ok) {
               const bidsData = await bidsResponse.json();
               setBidHistory(bidsData.bids || []);
             }
-            
-            // Fetch user's auto-bid for this player
-            const autoBidResponse = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`);
-            if (autoBidResponse.ok) {
-              const autoBidData = await autoBidResponse.json();
-              setUserAutoBid(autoBidData.auto_bid);
-            }
           }
         }
+
+        // Fetch ALL user's auto-bids for this league (not needed anymore with individual fetching)
+        // const allAutoBidsResponse = await fetch(`/api/leagues/${leagueId}/auto-bids`);
+        // if (allAutoBidsResponse.ok) {
+        //   const allAutoBidsData = await allAutoBidsResponse.json();
+        //   setAutoBids(allAutoBidsData.autoBids || []);
+        // } else {
+        //   console.error("Failed to fetch all auto-bids");
+        // }
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati");
@@ -596,8 +599,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   position={index + 1}
                   leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
-                  autoBids={autoBids}
-                  userAutoBid={manager.user_id === userId ? userAutoBid : null}
+                  autoBids={autoBids} // Pass the new collection of all auto-bids
                   currentAuctionPlayerId={currentAuction?.player_id}
                   userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
                   leagueId={selectedLeagueId ?? undefined}

@@ -79,8 +79,7 @@ export async function GET(
           -- User-specific info
           CASE WHEN pa.user_id = ? THEN 1 ELSE 0 END as isAssignedToUser,
           
-          -- Can start auction (for admins)
-          CASE WHEN pa.player_id IS NULL AND a.id IS NULL THEN 1 ELSE 0 END as canStartAuction
+          
           
          FROM players p
          LEFT JOIN auctions a ON p.id = a.player_id AND a.auction_league_id = ? AND a.status IN ('active', 'closing')

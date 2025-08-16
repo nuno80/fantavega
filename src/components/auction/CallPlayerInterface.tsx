@@ -1,16 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import {
+  Dumbbell,
+  Gavel,
+  Heart,
+  Search,
+  Shield,
+  TrendingUp,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Gavel, Shield, Star, TrendingUp, Timer, Users, Search, Clock, User, Heart, Dumbbell } from "lucide-react";
+
 import { QuickBidModal } from "@/components/players/QuickBidModal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { StandardBidModal } from "./StandardBidModal";
-import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 
 // Extend the Player interface to match PlayerWithAuctionStatus
 interface Player {
@@ -49,175 +64,199 @@ interface CallPlayerInterfaceProps {
   onStartAuction?: (playerId: number) => void;
 }
 
-export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPlayerInterfaceProps) {
+export function CallPlayerInterface({
+  leagueId,
+  userId,
+  onStartAuction,
+}: CallPlayerInterfaceProps) {
   const [selectedRole, setSelectedRole] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedPlayer, setSelectedPlayer] = useState<string>("");
   const [players, setPlayers] = useState<PlayerWithStatus[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<PlayerWithStatus[]>([]);
-  const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<PlayerWithStatus | null>(null);
+  const [filteredPlayers, setFilteredPlayers] = useState<PlayerWithStatus[]>(
+    []
+  );
+  const [selectedPlayerDetails, setSelectedPlayerDetails] =
+    useState<PlayerWithStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
+  const [selectedPlayerForBid, setSelectedPlayerForBid] =
+    useState<PlayerWithStatus | null>(null);
+  const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+  const [selectedPlayerForStartAuction, setSelectedPlayerForStartAuction] =
+    useState<{
+      id: number;
+      name: string;
+      role: string;
+      team: string;
+      qtA: number;
+    } | null>(null);
+  const [isStartAuctionModalOpen, setIsStartAuctionModalOpen] = useState(false);
+
   // Preference filters state
   const [preferenceFilters, setPreferenceFilters] = useState({
     isStarter: false,
     isFavorite: false,
     hasIntegrity: false,
-    hasFmv: false
+    hasFmv: false,
   });
-  
-  // Bid modal state
-  const [isBidModalOpen, setIsBidModalOpen] = useState(false);
-  const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<PlayerWithAuctionStatus | null>(null);
-  
-  // Start auction modal state
-  const [isStartAuctionModalOpen, setIsStartAuctionModalOpen] = useState(false);
-  const [selectedPlayerForStartAuction, setSelectedPlayerForStartAuction] = useState<{
-    id: number;
-    name: string;
-    role: string;
-    team: string;
-    qtA: number;
-  } | null>(null);
 
-  // Fetch all players with auction status
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      try {
-        const response = await fetch(`/api/leagues/${leagueId}/players-with-status`);
-        if (response.ok) {
-          const data = await response.json();
-          setPlayers(data);
-          setFilteredPlayers(data);
-        }
-      } catch (error) {
-        console.error("Error fetching players:", error);
+  // State for active tab
+  const [activeTab, setActiveTab] = useState<"chiama" | "stats" | "filtri">(
+    "chiama"
+  );
+
+  // Fetch players data
+  const refreshPlayersData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/players?limit=1000&leagueId=${leagueId}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        // Transform API data to match our interface
+        const playersWithStatus = (data.players || []).map((player: any) => ({
+          id: player.id,
+          role: player.role,
+          roleDetail: player.role_mantra || "",
+          name: player.name,
+          team: player.team,
+          qtA: player.current_quotation || 0,
+          qtI: player.initial_quotation || 0,
+          diff:
+            (player.current_quotation || 0) - (player.initial_quotation || 0),
+          qtAM: player.current_quotation_mantra || 0,
+          qtIM: player.initial_quotation_mantra || 0,
+          diffM:
+            (player.current_quotation_mantra || 0) -
+            (player.initial_quotation_mantra || 0),
+          fvm: player.fvm || 0,
+          fvmM: player.fvm_mantra || 0,
+          // Auction status is now fetched from the API
+          auctionStatus: player.auction_status || ("no_auction" as const),
+          // Default preferences - these would come from user preferences API
+          isStarter: false,
+          isFavorite: false,
+          integrityValue: 0,
+          hasFmv: !!(player.fvm && player.fvm > 0),
+        }));
+        setPlayers(playersWithStatus);
+      } else {
+        console.error("Failed to fetch players:", response.status);
+        toast.error("Errore nel caricamento dei giocatori");
       }
-    };
-
-    if (leagueId) {
-      fetchPlayers();
+    } catch (error) {
+      console.error("Error fetching players:", error);
+      toast.error("Errore nel caricamento dei giocatori");
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    refreshPlayersData();
   }, [leagueId]);
 
-  // Filter players based on role, search term, and preferences
+  // Filter players based on search term, role, and preferences
   useEffect(() => {
     let filtered = players;
 
-    // Filter by role
-    if (selectedRole !== "ALL") {
-      filtered = filtered.filter(player => player.role === selectedRole);
-    }
-
     // Filter by search term
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(player => 
-        player.name.toLowerCase().includes(term) ||
-        player.team.toLowerCase().includes(term)
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (player) =>
+          player.name.toLowerCase().includes(searchLower) ||
+          player.team.toLowerCase().includes(searchLower)
       );
-      // Auto-open dropdown when typing
-      setIsDropdownOpen(true);
-    } else {
-      // Close dropdown when search is empty
-      setIsDropdownOpen(false);
     }
 
-    // Filter by preferences (AND logic - all active filters must match)
+    // Filter by role
+    if (selectedRole !== "ALL") {
+      filtered = filtered.filter((player) => player.role === selectedRole);
+    }
+
+    // Filter by preferences
     if (preferenceFilters.isStarter) {
-      filtered = filtered.filter(player => player.isStarter);
+      filtered = filtered.filter((player) => player.isStarter);
     }
     if (preferenceFilters.isFavorite) {
-      filtered = filtered.filter(player => player.isFavorite);
+      filtered = filtered.filter((player) => player.isFavorite);
     }
     if (preferenceFilters.hasIntegrity) {
-      filtered = filtered.filter(player => player.integrityValue && player.integrityValue > 0);
+      filtered = filtered.filter(
+        (player) => player.integrityValue && player.integrityValue > 0
+      );
     }
     if (preferenceFilters.hasFmv) {
-      filtered = filtered.filter(player => player.hasFmv);
+      filtered = filtered.filter((player) => player.hasFmv);
     }
 
     setFilteredPlayers(filtered);
-  }, [players, selectedRole, searchTerm, preferenceFilters]);
-
-  // Handle player selection
-  const handlePlayerSelect = (playerId: string) => {
-    const player = filteredPlayers.find(p => p.id.toString() === playerId);
-    if (player) {
-      setSelectedPlayer(player.id.toString());
-      setSelectedPlayerDetails(player);
-      setSearchTerm(player.name); // Set search term to selected player name
-      setIsDropdownOpen(false); // Close dropdown after selection
-    }
-  };
+  }, [players, searchTerm, selectedRole, preferenceFilters]);
 
   // Handle search input change
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    if (!value.trim()) {
-      setSelectedPlayer("");
-      setSelectedPlayerDetails(null);
+    if (value.trim()) {
+      setIsDropdownOpen(true);
+    } else {
+      setIsDropdownOpen(false);
     }
   };
 
-  // Handle bid on player
+  // Handle player selection
+  const handlePlayerSelect = (playerId: string) => {
+    setSelectedPlayer(playerId);
+    setIsDropdownOpen(false);
+
+    const player = filteredPlayers.find((p) => p.id.toString() === playerId);
+    setSelectedPlayerDetails(player || null);
+  };
+
+  // Handle bid on player (for active auctions)
   const handleBidOnPlayer = (player: PlayerWithStatus) => {
-    // Convert to PlayerWithAuctionStatus format
-    const playerForBid: PlayerWithAuctionStatus = {
-      ...player,
-      // Ensure all required properties are present
-      roleDetail: player.roleDetail || "",
-      qtA: player.qtA || 0,
-      qtI: player.qtI || 0,
-      diff: player.diff || 0,
-      qtAM: player.qtAM || 0,
-      qtIM: player.qtIM || 0,
-      diffM: player.diffM || 0,
-      fvm: player.fvm || 0,
-      fvmM: player.fvmM || 0,
-    };
-    
-    setSelectedPlayerForBid(playerForBid);
+    setSelectedPlayerForBid(player);
     setIsBidModalOpen(true);
   };
 
-  // Refresh players data after bid
-  const refreshPlayersData = async () => {
-    try {
-      const response = await fetch(`/api/leagues/${leagueId}/players-with-status`);
-      if (response.ok) {
-        const data = await response.json();
-        setPlayers(data);
-        setFilteredPlayers(data);
-      }
-    } catch (error) {
-      console.error("Error refreshing players:", error);
+  // Handle start auction
+  const handleMainAction = () => {
+    if (!selectedPlayerDetails) return;
+
+    if (selectedPlayerDetails.auctionStatus === 'active_auction') {
+      handleBidOnPlayer(selectedPlayerDetails);
+    } else {
+      handleStartAuction();
     }
   };
 
-  // Handle starting auction - now opens modal
   const handleStartAuction = () => {
     if (!selectedPlayerDetails) return;
-    
+
     setSelectedPlayerForStartAuction({
       id: selectedPlayerDetails.id,
       name: selectedPlayerDetails.name,
       role: selectedPlayerDetails.role,
       team: selectedPlayerDetails.team,
-      qtA: selectedPlayerDetails.qtA
+      qtA: selectedPlayerDetails.qtA,
     });
     setIsStartAuctionModalOpen(true);
   };
 
   // Handle successful auction start
-  const handleAuctionStartSuccess = () => {
+  const handleAuctionStartSuccess = async (
+    amount: number,
+    bidType?: "manual" | "quick",
+  ) => {
     // Reset selection after starting auction
     setSelectedPlayer("");
     setSelectedPlayerDetails(null);
     setSelectedPlayerForStartAuction(null);
     // Refresh players data
-    refreshPlayersData();
+    await refreshPlayersData();
     // Callback to parent
     if (selectedPlayerForStartAuction) {
       onStartAuction?.(selectedPlayerForStartAuction.id);
@@ -233,353 +272,329 @@ export function CallPlayerInterface({ leagueId, userId, onStartAuction }: CallPl
   ];
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-        {/* Left Panel: Player Search and Selection */}
-        <div className="flex flex-col space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-white">CHIAMA UN GIOCATORE</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Search Bar with Auto-dropdown */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Cerca giocatore o squadra..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
-                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                />
-                
-                {/* Auto-dropdown */}
-                {isDropdownOpen && filteredPlayers.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto bg-gray-700 border border-gray-600 rounded-md shadow-lg">
-                    {filteredPlayers.slice(0, 10).map((player) => (
-                      <div
-                        key={player.id}
-                    className="px-3 py-2 hover:bg-gray-600 cursor-pointer text-white border-b border-gray-600 last:border-b-0"
-                    onClick={() => handlePlayerSelect(player.id.toString())}
-                  >
-                    <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-medium">{player.name}</span>
-                            <span className="text-gray-400 ml-2">({player.role}) - {player.team}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {player.auctionStatus === "active_auction" && (
-                              <Badge variant="destructive" className="text-xs">
-                                ASTA
-                              </Badge>
-                            )}
-                            {player.auctionStatus === "assigned" && (
-                              <Badge variant="secondary" className="text-xs">
-                                ASSEGNATO
-                              </Badge>
-                            )}
-                            {player.auctionStatus === "no_auction" && (
-                              <Badge variant="outline" className="text-xs text-green-400 border-green-400">
-                                DISPONIBILE
-                              </Badge>
-                            )}
-                          </div>
+    <div className="rounded-lg border border-gray-700 bg-gray-800">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-700">
+        <button
+          onClick={() => setActiveTab("chiama")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === "chiama"
+              ? "bg-gray-750 border-blue-500 text-blue-400"
+              : "hover:bg-gray-750 border-transparent text-gray-400 hover:text-gray-300"
+          }`}
+        >
+          <Gavel className="h-4 w-4" />
+          CHIAMA
+        </button>
+        <button
+          onClick={() => setActiveTab("stats")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === "stats"
+              ? "bg-gray-750 border-blue-500 text-blue-400"
+              : "hover:bg-gray-750 border-transparent text-gray-400 hover:text-gray-300"
+          }`}
+        >
+          <TrendingUp className="h-4 w-4" />
+          STATS
+        </button>
+        <button
+          onClick={() => setActiveTab("filtri")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === "filtri"
+              ? "bg-gray-750 border-blue-500 text-blue-400"
+              : "hover:bg-gray-750 border-transparent text-gray-400 hover:text-gray-300"
+          }`}
+        >
+          <Search className="h-4 w-4" />
+          FILTRI
+        </button>
+
+        {/* Results counter in tab bar */}
+        <div className="ml-auto flex items-center px-4 py-3 text-xs text-gray-400">
+          {filteredPlayers.length} trovati
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="p-4">
+        {activeTab === "chiama" && (
+          <div className="flex items-center gap-3">
+            {/* Search Bar */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+              <Input
+                placeholder="Cerca giocatore o squadra..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
+                className="h-10 border-gray-600 bg-gray-700 pl-10 text-white placeholder-gray-400"
+              />
+
+              {/* Auto-dropdown */}
+              {isDropdownOpen && filteredPlayers.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-gray-600 bg-gray-700 shadow-lg">
+                  {filteredPlayers.slice(0, 10).map((player) => (
+                    <div
+                      key={player.id}
+                      className="cursor-pointer border-b border-gray-600 px-3 py-2 text-white last:border-b-0 hover:bg-gray-600"
+                      onClick={() => handlePlayerSelect(player.id.toString())}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium">{player.name}</span>
+                          <span className="ml-2 text-gray-400">
+                            ({player.role}) - {player.team}
+                          </span>
                         </div>
-                      </div>
-                    ))}
-                    {filteredPlayers.length > 10 && (
-                      <div className="px-3 py-2 text-gray-400 text-sm text-center border-t border-gray-600">
-                        ... e altri {filteredPlayers.length - 10} giocatori
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Role Filter Buttons */}
-              <div className="flex space-x-1">
-                {roleButtons.map((role) => (
-                  <Button
-                    key={role.key}
-                    size="sm"
-                    variant={selectedRole === role.key ? "default" : "secondary"}
-                    className={`px-3 py-1 text-xs ${
-                      selectedRole === role.key 
-                        ? "bg-red-600 hover:bg-red-700 text-white" 
-                        : "bg-gray-700 hover:bg-gray-600 text-white"
-                    }`}
-                    onClick={() => setSelectedRole(role.key)}
-                  >
-                    {role.label}
-                  </Button>
-                ))}
-                
-                {/* Preference Filter Icons */}
-                <div className="flex space-x-1 ml-2">
-                  {/* Titolare */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={`p-2 h-8 w-8 ${
-                      preferenceFilters.isStarter 
-                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
-                    }`}
-                    onClick={() => setPreferenceFilters(prev => ({ ...prev, isStarter: !prev.isStarter }))}
-                    title="Filtra per Titolari"
-                  >
-                    <Shield className="h-4 w-4" />
-                  </Button>
-                  
-                  {/* Preferito */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={`p-2 h-8 w-8 ${
-                      preferenceFilters.isFavorite 
-                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
-                    }`}
-                    onClick={() => setPreferenceFilters(prev => ({ ...prev, isFavorite: !prev.isFavorite }))}
-                    title="Filtra per Preferiti"
-                  >
-                    <Heart className="h-4 w-4" />
-                  </Button>
-                  
-                  {/* Integrita */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={`p-2 h-8 w-8 ${
-                      preferenceFilters.hasIntegrity 
-                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
-                    }`}
-                    onClick={() => setPreferenceFilters(prev => ({ ...prev, hasIntegrity: !prev.hasIntegrity }))}
-                    title="Filtra per Integrita"
-                  >
-                    <Dumbbell className="h-4 w-4" />
-                  </Button>
-                  
-                  {/* FMV */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={`p-2 h-8 w-8 ${
-                      preferenceFilters.hasFmv 
-                        ? "bg-purple-600 hover:bg-purple-700 text-white" 
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-400"
-                    }`}
-                    onClick={() => setPreferenceFilters(prev => ({ ...prev, hasFmv: !prev.hasFmv }))}
-                    title="Filtra per FMV"
-                  >
-                    <TrendingUp className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Player Selection */}
-              <div className="flex items-center space-x-2">
-                <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
-                  <SelectTrigger className="flex-1 bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Seleziona un Giocatore" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600 max-h-60">
-                    {filteredPlayers.map((player) => (
-                      <SelectItem 
-                        key={player.id} 
-                        value={player.id.toString()}
-                        className="text-white hover:bg-gray-600"
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <span>{player.name} ({player.role}) - {player.team}</span>
+                        <div className="flex items-center space-x-2">
                           {player.auctionStatus === "active_auction" && (
-                            <Badge variant="destructive" className="ml-2 text-xs">
+                            <Badge variant="destructive" className="text-xs">
                               ASTA
                             </Badge>
                           )}
                           {player.auctionStatus === "assigned" && (
-                            <Badge variant="secondary" className="ml-2 text-xs">
+                            <Badge variant="secondary" className="text-xs">
                               ASSEGNATO
                             </Badge>
                           )}
+                          {player.auctionStatus === "no_auction" && (
+                            <Badge
+                              variant="outline"
+                              className="border-green-400 text-xs text-green-400"
+                            >
+                              DISPONIBILE
+                            </Badge>
+                          )}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Button
-                  size="sm"
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
-                  onClick={handleStartAuction}
-                  disabled={!selectedPlayer || selectedPlayerDetails?.auctionStatus !== "no_auction"}
-                  title="Avvia Asta"
-                >
-                  <Gavel className="h-4 w-4" />
-                </Button>
-              </div>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredPlayers.length > 10 && (
+                    <div className="border-t border-gray-600 px-3 py-2 text-center text-sm text-gray-400">
+                      ... e altri {filteredPlayers.length - 10} giocatori
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-              {/* Results Count */}
-              <div className="text-xs text-gray-400">
-                {filteredPlayers.length} giocatori trovati
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Panel: Player Details or Empty State */}
-        <div className="flex flex-col">
-          {selectedPlayerDetails ? (
-            <Card className="bg-gray-800 border-gray-700 flex-1">
-              <CardContent className="p-4">
-                {/* Player Header */}
-                <div className="flex items-center mb-3">
-                  <div className="h-16 w-16 rounded-full mr-3 border-2 border-purple-500 bg-gray-700 flex items-center justify-center">
-                    <User className="h-8 w-8 text-purple-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm text-gray-400">{selectedPlayerDetails.team}</h3>
-                    <h2 className="text-xl font-semibold text-white">{selectedPlayerDetails.name}</h2>
-                    <div className="flex items-center text-xs text-gray-400">
-                      <Star className="h-3 w-3 mr-1 text-yellow-400" />
-                      <span>{selectedPlayerDetails.role}</span>
-                      {selectedPlayerDetails.roleDetail && (
-                        <>
-                          <span className="mx-1">|</span>
-                          <span>{selectedPlayerDetails.roleDetail}</span>
-                        </>
+            {/* Player Selection */}
+            <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
+              <SelectTrigger className="h-10 w-64 border-gray-600 bg-gray-700 text-white">
+                <SelectValue placeholder="Seleziona Giocatore" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 border-gray-600 bg-gray-700">
+                {filteredPlayers.map((player) => (
+                  <SelectItem
+                    key={player.id}
+                    value={player.id.toString()}
+                    className="text-white hover:bg-gray-600"
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <span>
+                        {player.name} ({player.role}) - {player.team}
+                      </span>
+                      {player.auctionStatus === "active_auction" && (
+                        <Badge variant="destructive" className="ml-2 text-xs">
+                          ASTA
+                        </Badge>
+                      )}
+                      {player.auctionStatus === "assigned" && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          ASSEGNATO
+                        </Badge>
                       )}
                     </div>
-                  </div>
-                  
-                  {/* Auction Status Badge */}
-                  <div className="text-right">
-                    {selectedPlayerDetails.auctionStatus === "active_auction" && (
-                      <Badge variant="destructive" className="mb-1">
-                        ASTA ATTIVA
-                      </Badge>
-                    )}
-                    {selectedPlayerDetails.auctionStatus === "assigned" && (
-                      <Badge variant="secondary" className="mb-1">
-                        ASSEGNATO
-                      </Badge>
-                    )}
-                    {selectedPlayerDetails.auctionStatus === "no_auction" && (
-                      <Badge variant="outline" className="mb-1 text-green-400 border-green-400">
-                        DISPONIBILE
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-                {/* Player Stats */}
-                <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                  <div>
-                    <span className="text-gray-400">Qt.A:</span>
-                    <span className="ml-1 font-medium text-white">{selectedPlayerDetails.qtA}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Qt.I:</span>
-                    <span className="ml-1 font-medium text-white">{selectedPlayerDetails.qtI}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">FVM:</span>
-                    <span className="ml-1 font-medium text-white">{selectedPlayerDetails.fvm}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Diff:</span>
-                    <span className={`ml-1 font-medium ${selectedPlayerDetails.diff > 0 ? 'text-green-400' : selectedPlayerDetails.diff < 0 ? 'text-red-400' : 'text-white'}`}>
-                      {selectedPlayerDetails.diff > 0 ? '+' : ''}{selectedPlayerDetails.diff}
-                    </span>
-                  </div>
-                </div>
+            {/* Action Button */}
+            <Button
+              size="sm"
+              className="h-10 bg-blue-500 px-6 text-white hover:bg-blue-600"
+              onClick={handleMainAction}
+              disabled={
+                !selectedPlayer ||
+                (selectedPlayerDetails?.auctionStatus !== "no_auction" &&
+                  selectedPlayerDetails?.auctionStatus !== "active_auction")
+              }
+              title={
+                selectedPlayerDetails?.auctionStatus === "active_auction"
+                  ? "Fai un Rilancio"
+                  : "Avvia Asta"
+              }
+            >
+              <Gavel className="mr-2 h-4 w-4" />
+              {selectedPlayerDetails?.auctionStatus === "active_auction"
+                ? "Rilancia"
+                : "Avvia"}
+            </Button>
 
-                {/* Auction Info */}
-                {selectedPlayerDetails.auctionStatus === "active_auction" && (
-                  <div className="space-y-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Offerta Attuale:</span>
-                      <span className="font-bold text-orange-600">
-                        {selectedPlayerDetails.currentBid || 0} crediti
-                      </span>
-                    </div>
-                    
-                    {selectedPlayerDetails.currentHighestBidderName && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Miglior offerente:</span>
-                        <span className="text-sm font-medium text-orange-700">
-                          {selectedPlayerDetails.currentHighestBidderName}
-                        </span>
-                      </div>
-                    )}
-
-                    {selectedPlayerDetails.timeRemaining && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Tempo rimanente:</span>
-                        <span className="text-sm font-medium flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {Math.max(0, Math.floor(selectedPlayerDetails.timeRemaining / 1000))}s
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="space-y-2">
-                  {selectedPlayerDetails.auctionStatus === "active_auction" && (
-                    <Button
-                      onClick={() => handleBidOnPlayer(selectedPlayerDetails)}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                      size="sm"
-                    >
-                      <Gavel className="h-4 w-4 mr-2" />
-                      Fai Offerta
-                    </Button>
-                  )}
-                  
-                  {selectedPlayerDetails.auctionStatus === "no_auction" && (
-                    <Button
-                      onClick={handleStartAuction}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                      size="sm"
-                    >
-                      <Gavel className="h-4 w-4 mr-2" />
-                      Avvia Asta
-                    </Button>
-                  )}
-                </div>
-
-                {/* Role Badge */}
-                <div className="flex justify-center mt-4">
-                  <Badge 
-                    variant="secondary" 
-                    className={`
-                      ${selectedPlayerDetails.role === 'P' ? 'bg-yellow-500 text-gray-900' : ''}
-                      ${selectedPlayerDetails.role === 'D' ? 'bg-green-500 text-gray-900' : ''}
-                      ${selectedPlayerDetails.role === 'C' ? 'bg-blue-500 text-gray-900' : ''}
-                      ${selectedPlayerDetails.role === 'A' ? 'bg-red-500 text-gray-900' : ''}
-                      font-semibold
-                    `}
+            {/* Player Info Inline */}
+            {selectedPlayerDetails && (
+              <div className="flex items-center gap-3 border-l border-gray-600 pl-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-purple-400" />
+                  <span className="font-medium text-white">
+                    {selectedPlayerDetails.name}
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className={`text-xs ${
+                      selectedPlayerDetails.role === "P"
+                        ? "bg-yellow-500 text-gray-900"
+                        : ""
+                    }${selectedPlayerDetails.role === "D" ? "bg-green-500 text-gray-900" : ""}${
+                      selectedPlayerDetails.role === "C"
+                        ? "bg-blue-500 text-gray-900"
+                        : ""
+                    }${selectedPlayerDetails.role === "A" ? "bg-red-500 text-gray-900" : ""}`}
                   >
                     {selectedPlayerDetails.role}
                   </Badge>
+                  <span className="text-gray-400">
+                    {selectedPlayerDetails.team}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="bg-gray-800 border-gray-700 flex-1">
-              <CardContent className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-400">
-                  <Users className="h-12 w-12 mx-auto mb-2 text-gray-600" />
-                  <p className="text-sm">Seleziona un giocatore per vedere i dettagli</p>
+                <div className="flex items-center gap-3 text-xs text-gray-400">
+                  <span>QtA:{selectedPlayerDetails.qtA}</span>
+                  <span>FVM:{selectedPlayerDetails.fvm}</span>
+                  {selectedPlayerDetails.auctionStatus === "active_auction" && (
+                    <Badge variant="destructive" className="text-xs">
+                      ASTA ATTIVA
+                    </Badge>
+                  )}
+                  {selectedPlayerDetails.auctionStatus === "assigned" && (
+                    <Badge variant="secondary" className="text-xs">
+                      ASSEGNATO
+                    </Badge>
+                  )}
+                  {selectedPlayerDetails.auctionStatus === "no_auction" && (
+                    <Badge
+                      variant="outline"
+                      className="border-green-400 text-xs text-green-400"
+                    >
+                      DISPONIBILE
+                    </Badge>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "stats" && (
+          <div className="py-8 text-center text-gray-400">
+            <TrendingUp className="mx-auto mb-2 h-8 w-8" />
+            <p>Statistiche giocatori - Coming Soon</p>
+          </div>
+        )}
+
+        {activeTab === "filtri" && (
+          <div className="space-y-4">
+            {/* Role Filter Buttons */}
+            <div className="flex items-center gap-2">
+              <span className="mr-2 text-sm text-gray-400">Ruoli:</span>
+              {roleButtons.map((role) => (
+                <Button
+                  key={role.key}
+                  size="sm"
+                  variant={selectedRole === role.key ? "default" : "secondary"}
+                  className={`px-3 py-1 text-xs ${
+                    selectedRole === role.key
+                      ? "bg-red-600 text-white hover:bg-red-700"
+                      : "bg-gray-700 text-white hover:bg-gray-600"
+                  }`}
+                  onClick={() => setSelectedRole(role.key)}
+                >
+                  {role.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Preference Filters */}
+            <div className="flex items-center gap-2">
+              <span className="mr-2 text-sm text-gray-400">Preferenze:</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className={`px-3 py-1 text-xs ${
+                  preferenceFilters.isStarter
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                }`}
+                onClick={() =>
+                  setPreferenceFilters((prev) => ({
+                    ...prev,
+                    isStarter: !prev.isStarter,
+                  }))
+                }
+              >
+                <Shield className="mr-1 h-4 w-4" />
+                Titolari
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                className={`px-3 py-1 text-xs ${
+                  preferenceFilters.isFavorite
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                }`}
+                onClick={() =>
+                  setPreferenceFilters((prev) => ({
+                    ...prev,
+                    isFavorite: !prev.isFavorite,
+                  }))
+                }
+              >
+                <Heart className="mr-1 h-4 w-4" />
+                Preferiti
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                className={`px-3 py-1 text-xs ${
+                  preferenceFilters.hasIntegrity
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                }`}
+                onClick={() =>
+                  setPreferenceFilters((prev) => ({
+                    ...prev,
+                    hasIntegrity: !prev.hasIntegrity,
+                  }))
+                }
+              >
+                <Dumbbell className="mr-1 h-4 w-4" />
+                Integrita
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                className={`px-3 py-1 text-xs ${
+                  preferenceFilters.hasFmv
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                }`}
+                onClick={() =>
+                  setPreferenceFilters((prev) => ({
+                    ...prev,
+                    hasFmv: !prev.hasFmv,
+                  }))
+                }
+              >
+                <TrendingUp className="mr-1 h-4 w-4" />
+                FMV
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Bid Modal */}

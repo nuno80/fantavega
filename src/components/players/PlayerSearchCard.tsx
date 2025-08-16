@@ -27,7 +27,7 @@ import {
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
-  onStartAuction: (playerId: number) => void;
+  
   userRole: string;
   userId: string;
   onTogglePlayerIcon?: (
@@ -41,7 +41,7 @@ interface PlayerSearchCardProps {
 export function PlayerSearchCard({
   player,
   onBidOnPlayer,
-  onStartAuction,
+  
   userRole,
   userId,
   onTogglePlayerIcon,
@@ -172,7 +172,7 @@ export function PlayerSearchCard({
       player.auctionStatus === "no_auction") &&
     !player.isAssignedToUser &&
     !hasCooldown;
-  const canStartAuction = false; // Rimosso: ora si usa sempre "Fai Offerta"
+  
 
   return (
     <Card className="relative flex h-full flex-col">

@@ -57,7 +57,14 @@ interface UserAuctionState {
   is_highest_bidder: boolean;
 }
 
-interface AutoBidIndicator {
+interface AutoBid {
+  player_id: number;
+  max_amount: number;
+  is_active: boolean;
+  user_id: string; // Added user_id to identify the owner of the auto-bid
+}
+
+interface AutoBidIndicator { // Keeping this for now, but it's not used for the main autoBids prop
   player_id: number;
   auto_bid_count: number;
 }
@@ -76,7 +83,7 @@ interface ManagerColumnProps {
   position: number;
   leagueSlots?: LeagueSlots;
   activeAuctions?: ActiveAuction[];
-  autoBids?: AutoBidIndicator[];
+  autoBids?: AutoBid[]; // Changed from AutoBidIndicator[] to AutoBid[]
   userAutoBid?: {
     max_amount: number;
     is_active: boolean;
@@ -360,21 +367,13 @@ function ResponseNeededSlot({
 function InAuctionSlot({
   auction,
   role,
-  autoBids = [],
-  managerUserId,
   isLast,
-  userAutoBid,
-  currentAuctionPlayerId,
   isCurrentUser,
   leagueId,
 }: {
   auction: ActiveAuction;
   role: string;
-  autoBids: AutoBidIndicator[];
-  managerUserId: string;
   isLast: boolean;
-  userAutoBid?: { max_amount: number; is_active: boolean } | null;
-  currentAuctionPlayerId?: number;
   isCurrentUser: boolean;
   leagueId?: number;
 }) {
@@ -385,7 +384,6 @@ function InAuctionSlot({
 
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
-  const roleTextColor = getRoleTextColor(role);
 
   // Fetch auto-bid for this specific player if current user
   useEffect(() => {
@@ -413,8 +411,7 @@ function InAuctionSlot({
   ]);
 
   // Show user's auto-bid for this specific player (only their own)
-  const showUserAutoBid =
-    isCurrentUser && playerAutoBid && playerAutoBid.is_active;
+  const showUserAutoBid = isCurrentUser && playerAutoBid && playerAutoBid.is_active;
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -755,11 +752,7 @@ export function ManagerColumn({
                           key={index}
                           auction={slot.auction}
                           role={role}
-                          autoBids={autoBids}
-                          managerUserId={manager.user_id}
                           isLast={index === slots.length - 1}
-                          userAutoBid={userAutoBid}
-                          currentAuctionPlayerId={currentAuctionPlayerId}
                           isCurrentUser={isCurrentUser}
                           leagueId={leagueId}
                         />

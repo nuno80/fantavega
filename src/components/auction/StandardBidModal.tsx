@@ -148,20 +148,13 @@ export function StandardBidModal({
 
       if (isNewAuction) {
         // Avvia nuova asta
-        endpoint = `/api/leagues/${leagueId}/start-auction`;
-        body = { 
-          playerId: playerId,
-          initialBid: bidAmount
-        };
-      } else {
-        // Rilancio su asta esistente
         endpoint = `/api/leagues/${leagueId}/players/${playerId}/bids`;
         body = { 
           amount: bidAmount,
-          bidType: "manual",
-          max_amount: useAutoBid ? maxAmount : undefined, // Pass auto-bid amount
+          bid_type: "manual",
+          max_amount: useAutoBid ? maxAmount : undefined,
         };
-      }
+      
 
       const bidResponse = await fetch(endpoint, {
         method: "POST",
@@ -185,6 +178,7 @@ export function StandardBidModal({
       if (onBidSuccess) {
         onBidSuccess(bidAmount, isNewAuction ? "manual" : "manual"); // Assuming manual for new auctions
       }
+    }
 
     } catch (error) {
       toast.error(

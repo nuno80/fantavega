@@ -2,7 +2,7 @@
   "name": "Fantavega",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.11.0",
+  "packageManager": "pnpm@10.14.0",
   "scripts": {
     "dev": "concurrently \"next dev\" \"tsx watch socket-server.ts\"",
     "dev:next": "next dev",
@@ -65,7 +65,8 @@
     "prettier-plugin-tailwindcss": "^0.6.9",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-language-server": "^4.4.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

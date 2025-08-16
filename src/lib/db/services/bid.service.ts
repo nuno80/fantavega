@@ -314,7 +314,8 @@ export const placeInitialBidAndCreateAuction = async (
   leagueIdParam: number,
   playerIdParam: number,
   bidderUserIdParam: string,
-  bidAmountParam: number
+  bidAmountParam: number,
+  autoBidMaxAmount?: number | null
 ): Promise<AuctionCreationResult> => {
   // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
   const cooldownInfo = getUserCooldownInfo(bidderUserIdParam, playerIdParam, leagueIdParam);
@@ -445,6 +446,20 @@ export const placeInitialBidAndCreateAuction = async (
     );
     const newAuctionId = auctionInfo.lastInsertRowid as number;
     if (!newAuctionId) throw new Error("Creazione asta fallita.");
+
+    // NEW: Upsert auto-bid within the same transaction if provided
+    if (autoBidMaxAmount && autoBidMaxAmount > 0) {
+      db.prepare(
+        `INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, TRUE, ?, ?)
+         ON CONFLICT(auction_id, user_id) 
+         DO UPDATE SET 
+           max_amount = excluded.max_amount,
+           is_active = TRUE,
+           updated_at = excluded.updated_at`
+      ).run(newAuctionId, bidderUserIdParam, autoBidMaxAmount, now, now);
+      console.log(`[BID_SERVICE] Auto-bid for user  upserted to  for new auction `);
+    }
 
     const createBidStmt = db.prepare(
       `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, ?, 'manual')`

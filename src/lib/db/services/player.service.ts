@@ -1,11 +1,10 @@
-// src/lib/db/services/player.service.ts v.1.1
+// src/lib/db/services/player.service.ts v.1.7 (Definitive Fix)
 // Servizio per recuperare, filtrare e gestire i dati dei giocatori.
 // 1. Importazioni
 import { db } from "@/lib/db";
 
-// 2. Tipi e Interfacce (Manteniamo quelle esistenti e aggiungiamo le nuove)
+// 2. Tipi e Interfacce
 export interface Player {
-  // Già definita, assicurati che sia completa
   id: number;
   role: string;
   role_mantra: string | null;
@@ -17,21 +16,24 @@ export interface Player {
   initial_quotation_mantra: number | null;
   fvm: number | null;
   fvm_mantra: number | null;
-  photo_url?: string | null; // Aggiunto come opzionale
-  last_updated_from_source?: number | null; // Aggiunto come opzionale
-  created_at?: number; // Aggiunto come opzionale
-  updated_at?: number; // Aggiunto come opzionale
+  photo_url?: string | null;
+  last_updated_from_source?: number | null;
+  created_at?: number;
+  updated_at?: number;
+  auction_status?: "no_auction" | "active_auction" | "assigned";
 }
 
 export interface GetPlayersOptions {
-  /* ... come prima ... */ name?: string;
+  name?: string;
   role?: string;
   team?: string;
   sortBy?: "name" | "role" | "team" | "current_quotation" | "fvm";
   sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
+  leagueId?: number;
 }
+
 export interface GetPlayersResult {
   players: Player[];
   totalPlayers: number;
@@ -40,16 +42,13 @@ export interface GetPlayersResult {
   totalPages: number;
 }
 
-// NUOVI TIPI PER CRUD
 export interface CreatePlayerData {
-  // L'ID non è qui perché è AUTOINCREMENT, a meno che non lo si voglia specificare
-  // Se l'ID viene dal file Excel e vuoi permettere l'inserimento manuale con ID specifico:
-  id: number; // Rendiamolo opzionale per l'inserimento manuale, ma l'import Excel lo richiede
+  id: number;
   role: "P" | "D" | "C" | "A";
   name: string;
   team: string;
   initial_quotation: number;
-  current_quotation: number; // Spesso uguale a initial_quotation alla creazione manuale
+  current_quotation: number;
   role_mantra?: string | null;
   current_quotation_mantra?: number | null;
   initial_quotation_mantra?: number | null;
@@ -74,15 +73,12 @@ export interface UpdatePlayerData {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 1000;
 
-// 3. Funzione GetPlayers (INVARIATA - come nella v.1.0)
+// 3. Funzione GetPlayers (Versione Definitiva e Corretta)
 export const getPlayers = async (
   options: GetPlayersOptions = {}
 ): Promise<GetPlayersResult> => {
-  // ... implementazione completa di getPlayers come fornita precedentemente ...
-  // Per brevità, la collasso qui, ma deve essere presente nel tuo file.
-  // COLLAPSED getPlayers CODE - Use v.1.0 implementation
   console.log("[SERVICE PLAYER] Getting players with options:", options);
   const {
     name,
@@ -92,61 +88,83 @@ export const getPlayers = async (
     sortOrder = "asc",
     page = DEFAULT_PAGE,
     limit = DEFAULT_LIMIT,
+    leagueId,
   } = options;
+
   const validatedPage = Math.max(1, Number(page) || DEFAULT_PAGE);
   const validatedLimit = Math.min(
     MAX_LIMIT,
     Math.max(1, Number(limit) || DEFAULT_LIMIT)
   );
   const offset = (validatedPage - 1) * validatedLimit;
-  let baseQuery = "SELECT * FROM players";
-  let countQuery = "SELECT COUNT(*) as total FROM players";
+
+  let selectClause = "";
+  const selectParams: (string | number)[] = [];
+  
+  if (leagueId) {
+    selectClause = `
+      SELECT 
+        p.*,
+        CASE
+          WHEN (SELECT 1 FROM player_assignments pa WHERE pa.player_id = p.id AND pa.auction_league_id = ?) THEN 'assigned'
+          WHEN (SELECT 1 FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') THEN 'active_auction'
+          ELSE 'no_auction'
+        END as auction_status
+    `;
+    selectParams.push(leagueId, leagueId);
+  } else {
+    selectClause = "SELECT p.*, 'no_auction' as auction_status";
+  }
+
+  const fromClause = "FROM players p";
   const whereClauses: string[] = [];
-  const queryParams: (string | number)[] = [];
-  const countQueryParams: (string | number)[] = [];
+  const filterParams: (string | number)[] = [];
+
   if (name) {
-    whereClauses.push("name LIKE ?");
-    const searchName = `%${name}%`;
-    queryParams.push(searchName);
-    countQueryParams.push(searchName);
+    whereClauses.push("p.name LIKE ?");
+    filterParams.push(`%${name}%`);
   }
   if (role) {
-    whereClauses.push("role = ?");
-    queryParams.push(role.toUpperCase());
-    countQueryParams.push(role.toUpperCase());
+    whereClauses.push("p.role = ?");
+    filterParams.push(role.toUpperCase());
   }
   if (team) {
-    whereClauses.push("team LIKE ?");
-    const searchTeam = `%${team}%`;
-    queryParams.push(searchTeam);
-    countQueryParams.push(searchTeam);
+    whereClauses.push("p.team LIKE ?");
+    filterParams.push(`%${team}%`);
   }
-  if (whereClauses.length > 0) {
-    const whereString = ` WHERE ${whereClauses.join(" AND ")}`;
-    baseQuery += whereString;
-    countQuery += whereString;
-  }
+
+  const whereString = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(" AND ")}` : "";
+  
+  const countQuery = `SELECT COUNT(*) as total ${fromClause}${whereString}`;
+  
   const validSortByFields: { [key: string]: string } = {
-    name: "name",
-    role: "role",
-    team: "team",
-    current_quotation: "current_quotation",
-    fvm: "fvm",
+    name: "p.name",
+    role: "p.role",
+    team: "p.team",
+    current_quotation: "p.current_quotation",
+    fvm: "p.fvm",
   };
-  const dbSortByField = validSortByFields[sortBy] || "name";
+  const dbSortByField = validSortByFields[sortBy] || "p.name";
   const dbSortOrder = sortOrder === "desc" ? "DESC" : "ASC";
-  baseQuery += ` ORDER BY ${dbSortByField} ${dbSortOrder}, id ${dbSortOrder}`;
-  baseQuery += ` LIMIT ? OFFSET ?`;
-  queryParams.push(validatedLimit, offset);
+  const orderByClause = ` ORDER BY ${dbSortByField} ${dbSortOrder}, p.id ${dbSortOrder}`;
+  
+  const limitOffsetClause = ` LIMIT ? OFFSET ?`;
+  
+  const baseQuery = `${selectClause} ${fromClause}${whereString}${orderByClause}${limitOffsetClause}`;
+  
+  const finalBaseParams = [...selectParams, ...filterParams, validatedLimit, offset];
+  const finalCountParams = [...filterParams];
+
   try {
-    const playersStmt = db.prepare(baseQuery);
-    const players = playersStmt.all(...queryParams) as Player[];
     const totalPlayersStmt = db.prepare(countQuery);
-    const totalResult = totalPlayersStmt.get(...countQueryParams) as {
-      total: number;
-    };
+    const totalResult = totalPlayersStmt.get(...finalCountParams) as { total: number; };
     const totalPlayers = totalResult.total;
+
+    const playersStmt = db.prepare(baseQuery);
+    const players = playersStmt.all(...finalBaseParams) as Player[];
+    
     const totalPages = Math.ceil(totalPlayers / validatedLimit);
+
     return {
       players,
       totalPlayers,
@@ -158,29 +176,19 @@ export const getPlayers = async (
     const errorMessage =
       error instanceof Error ? error.message : "Unknown database error.";
     console.error(
-      "[SERVICE PLAYER] Error fetching players:",
+      `[SERVICE PLAYER] Error fetching players. Query: "${baseQuery}", Params: ${JSON.stringify(finalBaseParams)}`,
       errorMessage,
       error
     );
     throw new Error(`Failed to retrieve players: ${errorMessage}`);
   }
-  // END COLLAPSED getPlayers CODE
 };
 
-// 4. NUOVE Funzioni CRUD per Giocatori
-
-/**
- * Crea un nuovo giocatore nel database.
- * Se l'ID è fornito e già esistente, l'operazione fallirà a causa del constraint UNIQUE (o PRIMARY KEY).
- * Per l'inserimento manuale, l'ID potrebbe essere omesso per auto-incremento,
- * ma per coerenza con l'import Excel, permettiamo di specificarlo.
- */
+// 4. Funzioni CRUD per Giocatori (invariate)
 export const createPlayer = (playerData: CreatePlayerData): Player => {
   console.log("[SERVICE PLAYER] Creating new player:", playerData);
   const now = Math.floor(Date.now() / 1000);
 
-  // Se l'ID non è fornito, SQLite lo auto-incrementerà (se la colonna id è INTEGER PRIMARY KEY AUTOINCREMENT)
-  // Se l'ID è fornito, verrà usato quello.
   const sql = `
     INSERT INTO players (
       id, role, name, team, initial_quotation, current_quotation,
@@ -194,14 +202,13 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
       @last_updated_from_source, @created_at, @updated_at
     ) RETURNING *; 
   `;
-  // Nota: RETURNING * funziona bene con .get() o .all() in better-sqlite3 per INSERT
 
   try {
     const stmt = db.prepare(sql);
     const newPlayer = stmt.get({
-      id: playerData.id, // Se playerData.id è undefined, SQLite userà AUTOINCREMENT (se configurato) o darà errore se PK e non fornito
+      id: playerData.id,
       role: playerData.role,
-      name: playerData.name, // Assumiamo già sanificato se necessario
+      name: playerData.name,
       team: playerData.team,
       initial_quotation: playerData.initial_quotation,
       current_quotation: playerData.current_quotation,
@@ -217,8 +224,6 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
     }) as Player | undefined;
 
     if (!newPlayer) {
-      // Questo caso è improbabile con RETURNING * se l'insert ha successo,
-      // ma un errore DB avrebbe già lanciato un'eccezione.
       throw new Error("Failed to create player or retrieve data after insert.");
     }
     console.log(
@@ -242,9 +247,6 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
   }
 };
 
-/**
- * Aggiorna un giocatore esistente nel database.
- */
 export const updatePlayer = (
   playerId: number,
   playerData: UpdatePlayerData
@@ -258,18 +260,14 @@ export const updatePlayer = (
   const setClauses: string[] = [];
   const params: Record<string, unknown> = { id: playerId, updated_at: now };
 
-  // Costruisci dinamicamente la parte SET della query
   Object.keys(playerData).forEach((keyStr) => {
     const key = keyStr as keyof UpdatePlayerData;
     if (playerData[key] !== undefined) {
-      // Solo se il campo è presente nei dati di update
       setClauses.push(`${key} = @${key}`);
-      
-      // Gestisci i valori booleani convertendoli in 0/1 per SQLite
       if (typeof playerData[key] === 'boolean') {
         params[key] = playerData[key] ? 1 : 0;
       } else if (playerData[key] === "" && ["role_mantra", "photo_url"].includes(key)) {
-        params[key] = null; // Gestisci stringhe vuote per campi nullable
+        params[key] = null;
       } else {
         params[key] = playerData[key];
       }
@@ -281,7 +279,6 @@ export const updatePlayer = (
       "[SERVICE PLAYER] No fields provided for update for player ID:",
       playerId
     );
-    // Potresti restituire il giocatore esistente o un errore/messaggio specifico
     const existingPlayer = db
       .prepare("SELECT * FROM players WHERE id = ?")
       .get(playerId) as Player | undefined;
@@ -300,8 +297,6 @@ export const updatePlayer = (
     const updatedPlayer = stmt.get(params) as Player | undefined;
 
     if (!updatedPlayer) {
-      // Questo potrebbe accadere se l'ID giocatore non esiste, .get() non troverebbe nulla.
-      // La clausola RETURNING * non restituirebbe nulla se nessuna riga viene aggiornata.
       console.warn(
         `[SERVICE PLAYER] Player with ID ${playerId} not found for update, or no actual changes made.`
       );
@@ -319,23 +314,10 @@ export const updatePlayer = (
   }
 };
 
-/**
- * Elimina un giocatore dal database.
- * ATTENZIONE: Considerare le implicazioni se il giocatore è già in aste o assegnato.
- * Per ora, implementazione semplice di DELETE.
- */
 export const deletePlayer = (
   playerId: number
 ): { success: boolean; message?: string } => {
   console.log(`[SERVICE PLAYER] Deleting player ID ${playerId}`);
-
-  // TODO: Aggiungere controlli prima di eliminare?
-  // - Il giocatore è in qualche asta attiva?
-  // - Il giocatore è assegnato a qualche squadra?
-  // Se sì, l'eliminazione potrebbe fallire a causa di Foreign Key Constraints (ON DELETE RESTRICT)
-  // o causare inconsistenza se ON DELETE SET NULL/CASCADE non è desiderato ovunque.
-  // Il tuo schema usa ON DELETE CASCADE per auctions->players e player_assignments->players,
-  // quindi eliminare un giocatore cancellerà anche le sue aste e assegnazioni. Valuta se è il comportamento desiderato.
 
   try {
     const stmt = db.prepare("DELETE FROM players WHERE id = ?");
