@@ -5,7 +5,6 @@ import React, { useEffect, useState } from "react";
 import { DollarSign, Lock, Star, User, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { ComplianceChecker } from "./ComplianceChecker";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
 
@@ -64,7 +63,8 @@ interface AutoBid {
   user_id: string; // Added user_id to identify the owner of the auto-bid
 }
 
-interface AutoBidIndicator { // Keeping this for now, but it's not used for the main autoBids prop
+interface AutoBidIndicator {
+  // Keeping this for now, but it's not used for the main autoBids prop
   player_id: number;
   auto_bid_count: number;
 }
@@ -91,7 +91,10 @@ interface ManagerColumnProps {
   currentAuctionPlayerId?: number;
   userAuctionStates?: UserAuctionState[];
   leagueId?: number;
-  onComplianceChange?: (status: { isCompliant: boolean; isInGracePeriod: boolean }) => void;
+  onComplianceChange?: (status: {
+    isCompliant: boolean;
+    isInGracePeriod: boolean;
+  }) => void;
   handlePlaceBid: (
     amount: number,
     bidType?: "manual" | "quick",
@@ -314,7 +317,7 @@ function ResponseNeededSlot({
           <div
             className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
           />
-          <span className="mr-2 truncate text-xs dark:text-red-200 text-red-900">
+          <span className="mr-2 truncate text-xs text-red-900 dark:text-red-200">
             {state.player_name}
           </span>
           {/* Response Timer */}
@@ -414,7 +417,8 @@ function InAuctionSlot({
   ]);
 
   // Show user's auto-bid for this specific player (only their own)
-  const showUserAutoBid = isCurrentUser && playerAutoBid && playerAutoBid.is_active;
+  const showUserAutoBid =
+    isCurrentUser && playerAutoBid && playerAutoBid.is_active;
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -483,6 +487,14 @@ function EmptySlot() {
   );
 }
 
+interface ComplianceResult {
+  appliedPenaltyAmount: number;
+  isNowCompliant: boolean;
+  message: string;
+  gracePeriodEndTime?: number;
+  timeRemainingSeconds?: number;
+}
+
 // Main Component
 const ManagerColumn: React.FC<ManagerColumnProps> = ({
   manager,
@@ -507,6 +519,34 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     team: string;
     currentBid: number;
   } | null>(null);
+  const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
+
+  useEffect(() => {
+    const checkCompliance = async () => {
+      if (isCurrentUser && leagueId && manager.user_id) {
+        try {
+          const response = await fetch(`/api/leagues/${leagueId}/check-compliance`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          if (response.ok) {
+            const result = await response.json();
+            setComplianceResult(result);
+          } else {
+            setComplianceResult(null);
+          }
+        } catch (error) {
+          console.error("Error checking compliance:", error);
+          setComplianceResult(null);
+        }
+      }
+    };
+
+    checkCompliance();
+    const interval = setInterval(checkCompliance, 60000);
+
+    return () => clearInterval(interval);
+  }, [isCurrentUser, leagueId, manager.user_id]);
 
   const handleCounterBid = (playerId: number) => {
     console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
@@ -643,18 +683,43 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   return (
     <div className="flex h-full flex-col rounded-lg border-2 border-border bg-card p-2">
       {/* Header */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-1">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
           {isCurrentUser ? (
-            <Star className="h-4 w-4 text-yellow-400" />
+            <Star className="h-4 w-4 flex-shrink-0 text-yellow-400" />
           ) : (
-            <User className="h-4 w-4 text-gray-400" />
+            <User className="h-4 w-4 flex-shrink-0 text-gray-400" />
           )}
           <span
-            className={`truncate text-xs font-semibold ${getTeamColor(position)}`}
+            className={`truncate text-xs font-semibold ${getTeamColor(
+              position
+            )}`}
           >
             {manager.manager_team_name || `Team #${position}`}
           </span>
+          {isCurrentUser &&
+            complianceResult &&
+            (complianceResult.appliedPenaltyAmount > 0 ||
+              (complianceResult.timeRemainingSeconds === 0 &&
+                !complianceResult.isNowCompliant)) && (
+              <div className="ml-1 flex flex-shrink-0 items-center">
+                <div
+                  className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600"
+                  title={
+                    complianceResult.appliedPenaltyAmount > 0
+                      ? `Penalità applicata: ${complianceResult.appliedPenaltyAmount} crediti`
+                      : "Penalità attive (periodo di grazia scaduto)"
+                  }
+                >
+                  <span className="text-xs font-bold text-white">P</span>
+                </div>
+                {complianceResult.appliedPenaltyAmount > 0 && (
+                  <span className="ml-1 text-xs font-bold text-red-500">
+                    {complianceResult.appliedPenaltyAmount}
+                  </span>
+                )}
+              </div>
+            )}
         </div>
         <div
           className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-foreground"}`}
@@ -697,26 +762,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         />
       </div>
 
-      {/* Compliance Checker - Only for current user */}
-      {isCurrentUser && leagueId && (
-        <div className="mb-2">
-          <ComplianceChecker
-            leagueId={leagueId}
-            userId={manager.user_id}
-            managerPlayers={manager.players}
-            leagueSlots={leagueSlots}
-            activeAuctions={activeAuctions}
-            onComplianceChange={onComplianceChange}
-            onComplianceChecked={() => {
-              // Optional callback for when compliance is checked
-              console.log(
-                "Compliance check completed for user:",
-                manager.user_id
-              );
-            }}
-          />
-        </div>
-      )}
 
       {/* Slots list */}
       <div className="scrollbar-hide flex flex-1 flex-col space-y-1 overflow-y-auto">

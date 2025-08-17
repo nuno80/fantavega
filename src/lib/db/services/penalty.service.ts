@@ -81,7 +81,7 @@ export const processUserComplianceAndPenalties = async (
 }> => {
   let appliedPenaltyAmount = 0;
   let finalMessage = "Compliance check processed.";
-  let isNowCompliant = false; // <-- CORREZIONE: Inizializzata a false
+  let isNowCompliant = false;
 
   try {
     const transactionResult = db.transaction(() => {
@@ -106,8 +106,11 @@ export const processUserComplianceAndPenalties = async (
       const requiredSlots = calculateRequiredSlotsMinusOne(league);
       const coveredSlots = countCoveredSlots(leagueId, userId);
 
-
-      isNowCompliant = checkUserCompliance(requiredSlots, coveredSlots, league.active_auction_roles); // <-- CORREZIONE: Assegnazione alla variabile esterna
+      isNowCompliant = checkUserCompliance(
+        requiredSlots,
+        coveredSlots,
+        league.active_auction_roles
+      );
 
       if (!isNowCompliant) {
         let timerToUse = complianceRecord.compliance_timer_start_at;
@@ -120,19 +123,53 @@ export const processUserComplianceAndPenalties = async (
         if (now >= gracePeriodEndTime) {
           const refTime = complianceRecord.last_penalty_applied_for_hour_ending_at || gracePeriodEndTime;
           const hoursSince = Math.floor((now - refTime) / 3600);
-          const penaltiesToApply = Math.min(hoursSince, MAX_PENALTIES_PER_CYCLE - (complianceRecord.penalties_applied_this_cycle || 0));
+          const penaltiesToApply = Math.min(
+            hoursSince,
+            MAX_PENALTIES_PER_CYCLE -
+              (complianceRecord.penalties_applied_this_cycle || 0)
+          );
 
           if (penaltiesToApply > 0) {
             for (let i = 0; i < penaltiesToApply; i++) {
-              db.prepare("UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?").run(PENALTY_AMOUNT, leagueId, userId);
+              db.prepare(
+                "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
+              ).run(PENALTY_AMOUNT, leagueId, userId);
               appliedPenaltyAmount += PENALTY_AMOUNT;
-              const newBalance = (db.prepare("SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?").get(leagueId, userId) as { current_budget: number }).current_budget;
-              const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${ (complianceRecord.penalties_applied_this_cycle || 0) + i + 1}/${MAX_PENALTIES_PER_CYCLE}).`;
-              db.prepare(`INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`).run(leagueId, userId, PENALTY_AMOUNT, penaltyDescription, newBalance, now);
+              const newBalance = (
+                db
+                  .prepare(
+                    "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
+                  )
+                  .get(leagueId, userId) as { current_budget: number }
+              ).current_budget;
+              const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${
+                (complianceRecord.penalties_applied_this_cycle || 0) + i + 1
+              }/${MAX_PENALTIES_PER_CYCLE}).`;
+              db.prepare(
+                `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
+              ).run(
+                leagueId,
+                userId,
+                PENALTY_AMOUNT,
+                penaltyDescription,
+                newBalance,
+                now
+              );
             }
-            db.prepare("UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?").run(now, penaltiesToApply, now, leagueId, userId, phaseIdentifier);
+            db.prepare(
+              "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+            ).run(now, penaltiesToApply, now, leagueId, userId, phaseIdentifier);
             finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties.`;
           }
+          // Aggiorna l'importo totale delle penalità da restituire
+          const updatedComplianceRecord = getComplianceStmt.get(
+            leagueId,
+            userId,
+            phaseIdentifier
+          ) as UserLeagueComplianceStatus;
+          appliedPenaltyAmount =
+            (updatedComplianceRecord.penalties_applied_this_cycle || 0) *
+            PENALTY_AMOUNT;
         } else {
           finalMessage = `User is non-compliant, but within grace period.`;
         }
