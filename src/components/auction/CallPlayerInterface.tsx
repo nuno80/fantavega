@@ -249,17 +249,47 @@ export function CallPlayerInterface({
   // Handle successful auction start
   const handleAuctionStartSuccess = async (
     amount: number,
-    bidType?: "manual" | "quick",
+    bidType: "manual" | "quick" = "manual",
+    maxAmount?: number
   ) => {
-    // Reset selection after starting auction
-    setSelectedPlayer("");
-    setSelectedPlayerDetails(null);
-    setSelectedPlayerForStartAuction(null);
-    // Refresh players data
-    await refreshPlayersData();
-    // Callback to parent
-    if (selectedPlayerForStartAuction) {
-      onStartAuction?.(selectedPlayerForStartAuction.id);
+    if (!selectedPlayerForStartAuction) return;
+
+    try {
+      const response = await fetch(
+        `/api/leagues/${leagueId}/players/${selectedPlayerForStartAuction.id}/bids`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: amount,
+            bid_type: bidType,
+            auto_bid_max_amount: maxAmount, // Passa il maxAmount per l'auto-bid
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        // Lancia l'errore così che il modale possa catturarlo e mostrarlo
+        throw new Error(error.message || "Errore nel creare l'asta");
+      }
+
+      toast.success("Asta avviata con successo!");
+
+      // Reset selection after starting auction
+      setSelectedPlayer("");
+      setSelectedPlayerDetails(null);
+      setSelectedPlayerForStartAuction(null);
+      // Refresh players data
+      await refreshPlayersData();
+      // Callback to parent
+      if (onStartAuction) {
+        onStartAuction(selectedPlayerForStartAuction.id);
+      }
+    } catch (error) {
+      console.error("Failed to start auction:", error);
+      // Rilancia l'errore per permettere al modal di gestirlo (mostrare il toast)
+      throw error;
     }
   };
 

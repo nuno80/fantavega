@@ -42,12 +42,6 @@ export function AuctionRealtimeDisplay({
       return;
     }
 
-    // --- Setup: Unisciti alla stanza della lega ---
-    socket.emit("join-league-room", `league-${leagueId}`);
-    console.log(
-      `[Socket Client] Tentativo di unirsi alla stanza: league-${leagueId}`
-    );
-
     // --- Gestori di Eventi ---
     const handleAuctionUpdate = (data: {
       playerId: number;
@@ -104,15 +98,13 @@ export function AuctionRealtimeDisplay({
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-closed-notification", handleAuctionClosed);
 
-    // --- Cleanup: Lascia la stanza e rimuovi i listener ---
+    // --- Cleanup: Rimuovi i listener ---
     return () => {
-      console.log(`[Socket Client] Uscita dalla stanza: league-${leagueId}`);
-      socket.emit("leave-league-room", `league-${leagueId}`);
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
     };
-  }, [socket, isConnected, leagueId, playerId]); // Riesegui se uno di questi cambia
+  }, [socket, isConnected, leagueId, playerId]); // Manteniamo le dipendenze per coerenza
 
   // 6. JSX per la visualizzazione
   return (

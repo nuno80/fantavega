@@ -271,6 +271,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     if (!isConnected || !socket || !selectedLeagueId) return;
 
     // Join league room
+    console.log(`[Socket Client] Joining league room: league-${selectedLeagueId}`);
     socket.emit("join-league-room", selectedLeagueId.toString());
 
     // Auto-process expired auctions every 30 seconds
@@ -459,14 +460,20 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
 
+    // Cleanup function
     return () => {
-      socket.emit("leave-league-room", selectedLeagueId.toString());
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       clearInterval(expiredAuctionsInterval);
+
+      // Leave league room on cleanup
+      if (selectedLeagueId) {
+        console.log(`[Socket Client] Leaving league room: league-${selectedLeagueId}`);
+        socket.emit("leave-league-room", selectedLeagueId.toString());
+      }
     };
   }, [socket, isConnected, selectedLeagueId]);
 

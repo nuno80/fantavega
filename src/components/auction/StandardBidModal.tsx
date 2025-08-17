@@ -155,11 +155,12 @@ export function StandardBidModal({
         });
       }
     } catch (error) {
-      // L'errore viene generato da onBidSuccess (cioè da handlePlaceBid)
-      // e viene già gestito e notificato dal componente genitore (ManagerColumn).
-      // Qui chiudiamo solo il modale e logghiamo per debug.
-      console.error("Error propagated to StandardBidModal:", error);
-      onClose();
+      // MOSTRA L'ERRORE ALL'UTENTE INVECE DI NASCONDERLO
+      const errorMessage = error instanceof Error ? error.message : "Si è verificato un errore sconosciuto";
+      toast.error("Offerta Fallita", {
+        description: errorMessage,
+      });
+      console.error("Error in handleSubmitBid:", error);
     } finally {
       setIsSubmitting(false);
     }

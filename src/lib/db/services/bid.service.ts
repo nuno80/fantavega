@@ -712,14 +712,21 @@ export async function placeBidOnExistingAuction({
     console.log(`[BID_SERVICE] Budget e slot validi per il vincitore finale ${finalBidderId}.`);
 
     // Blocca i crediti per il vincitore finale
-    incrementLockedCreditsStmt.run(finalAmount, leagueId, finalBidderId);
+    const lockResult = incrementLockedCreditsStmt.run(finalAmount, leagueId, finalBidderId);
+    if (lockResult.changes === 0) {
+      throw new Error(`Impossibile bloccare i crediti per il vincitore finale ${finalBidderId}.`);
+    }
     console.log(`[BID_SERVICE] Bloccati ${finalAmount} crediti per il vincitore finale ${finalBidderId}.`);
 
     // Aggiorna l'asta con il risultato finale
     const newScheduledEndTime = Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
-    db.prepare(
+    const updateAuctionResult = db.prepare(
       `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
     ).run(finalAmount, finalBidderId, newScheduledEndTime, auction.id);
+
+    if (updateAuctionResult.changes === 0) {
+      throw new Error(`Aggiornamento dell'asta ${auction.id} fallito. Nessuna riga modificata.`);
+    }
     console.log(`[BID_SERVICE] Asta ${auction.id} aggiornata. Vincitore: ${finalBidderId}, Importo: ${finalAmount}`);
 
     // Inserisci solo l'offerta finale nel DB per mantenere la cronologia pulita
