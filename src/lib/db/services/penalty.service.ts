@@ -184,16 +184,16 @@ export const processUserComplianceAndPenalties = async (
       return { wasModified: true };
     })();
 
-    if (appliedPenaltyAmount > 0) {
-      await notifySocketServer({
-        room: `user-${userId}`,
-        event: 'penalty-applied-notification',
-        data: {
-          amount: appliedPenaltyAmount,
-          reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
-        }
-      });
-    }
+    // if (appliedPenaltyAmount > 0) {
+    //   await notifySocketServer({
+    //     room: `user-${userId}`,
+    //     event: 'penalty-applied-notification',
+    //     data: {
+    //       amount: appliedPenaltyAmount,
+    //       reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
+    //     }
+    //   });
+    // }
     
     // Calculate timing information for non-compliant users
     let gracePeriodEndTime: number | undefined;
