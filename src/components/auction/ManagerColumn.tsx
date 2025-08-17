@@ -2,7 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 
-import { DollarSign, Lock, Star, User, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  DollarSign,
+  Lock,
+  Star,
+  User,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { ResponseActionModal } from "./ResponseActionModal";
@@ -680,8 +688,19 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
   const availableBudget = currentBudget - lockedCredits;
 
+  const isNonCompliant =
+    isCurrentUser &&
+    complianceResult &&
+    !complianceResult.isNowCompliant &&
+    (complianceResult.appliedPenaltyAmount > 0 ||
+      complianceResult.timeRemainingSeconds === 0);
+
   return (
-    <div className="flex h-full flex-col rounded-lg border-2 border-border bg-card p-2">
+    <div
+      className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${
+        isNonCompliant ? "border-red-500" : "border-border"
+      }`}
+    >
       {/* Header */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -716,6 +735,15 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 {complianceResult.appliedPenaltyAmount > 0 && (
                   <span className="ml-1 text-xs font-bold text-red-500">
                     {complianceResult.appliedPenaltyAmount}
+                  </span>
+                )}
+                {!complianceResult.isNowCompliant ? (
+                  <span title="Team non conforme">
+                    <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
+                  </span>
+                ) : (
+                  <span title="Team conforme">
+                    <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
                   </span>
                 )}
               </div>
