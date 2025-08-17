@@ -113,11 +113,11 @@ export const activateTimersForUser = async (userId: string): Promise<void> => {
     console.log(`[TIMER] Activating ${pendingTimers.length} timers for user ${userId}, deadline: ${deadline}`);
 
     for (const timer of pendingTimers) {
-      await db.run(`
+      db.prepare(`
         UPDATE user_auction_response_timers 
         SET response_deadline = ?, activated_at = ?
         WHERE id = ?
-      `, deadline, loginTime, timer.id);
+      `).run(deadline, loginTime, timer.id);
 
       // Invia notifica Socket.IO per ogni timer attivato
       await notifySocketServer({
@@ -147,16 +147,14 @@ export const activateTimersForUser = async (userId: string): Promise<void> => {
  */
 const activateTimerForUser = async (userId: string, auctionId: number): Promise<void> => {
   try {
-    const loginTime = await getUserLastLogin(userId);
-    if (!loginTime) return;
+    const now = Math.floor(Date.now() / 1000);
+    const deadline = now + (RESPONSE_TIME_HOURS * 3600);
 
-    const deadline = loginTime + (RESPONSE_TIME_HOURS * 3600);
-
-    await db.run(`
+    db.prepare(`
       UPDATE user_auction_response_timers 
       SET response_deadline = ?, activated_at = ?
       WHERE user_id = ? AND auction_id = ? AND status = 'pending'
-    `, deadline, loginTime, userId, auctionId);
+    `).run(deadline, now, userId, auctionId);
 
     console.log(`[TIMER] Activated single timer for user ${userId}, auction ${auctionId}`);
 
@@ -182,13 +180,13 @@ const activateTimerForUser = async (userId: string, auctionId: number): Promise<
  */
 const notifyUserOfActiveTimers = async (userId: string): Promise<void> => {
   try {
-    const activeTimers = await db.all(`
+    const activeTimers = db.prepare(`
       SELECT urt.auction_id, urt.response_deadline, p.name as player_name
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
       JOIN players p ON a.player_id = p.id
       WHERE urt.user_id = ? AND urt.status = 'pending' AND urt.response_deadline IS NOT NULL
-    `, userId);
+    `).all(userId);
 
     if (activeTimers.length > 0) {
       await notifySocketServer({
@@ -386,60 +384,62 @@ export const abandonAuction = async (
 ): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
 
-  try {
-    await db.run('BEGIN TRANSACTION');
-
+  const abandonTransaction = db.transaction(() => {
     // Trova asta attiva
-    const auction = await db.get(`
+    const auction = db.prepare(`
       SELECT id, current_highest_bid_amount 
       FROM auctions 
       WHERE player_id = ? AND league_id = ? AND status = 'active'
-    `, playerId, leagueId) as { id: number; current_highest_bid_amount: number } | undefined;
+    `).get(playerId, leagueId) as { id: number; current_highest_bid_amount: number } | undefined;
 
     if (!auction) {
       throw new Error('Nessuna asta attiva trovata per questo giocatore');
     }
 
     // Verifica che l'utente abbia un timer attivo
-    const timer = await db.get(`
+    const timer = db.prepare(`
       SELECT id FROM user_auction_response_timers 
       WHERE user_id = ? AND auction_id = ? AND status = 'pending'
-    `, userId, auction.id) as { id: number } | undefined;
+    `).get(userId, auction.id) as { id: number } | undefined;
 
     if (!timer) {
       throw new Error('Nessun timer di risposta attivo per questo utente');
     }
 
     // Marca timer come abbandonato
-    await db.run(`
+    db.prepare(`
       UPDATE user_auction_response_timers 
       SET status = 'abandoned', processed_at = ?
       WHERE id = ?
-    `, now, timer.id);
+    `).run(now, timer.id);
 
     // Sblocca crediti
-    await db.run(`
+    db.prepare(`
       UPDATE league_participants 
       SET locked_credits = locked_credits - ?
       WHERE user_id = ? AND league_id = ?
-    `, auction.current_highest_bid_amount, userId, leagueId);
+    `).run(auction.current_highest_bid_amount, userId, leagueId);
 
     // Applica cooldown 48h
     const cooldownExpiry = now + (ABANDON_COOLDOWN_HOURS * 3600);
-    await db.run(`
+    db.prepare(`
       INSERT OR REPLACE INTO user_player_preferences 
       (user_id, player_id, league_id, preference_type, expires_at)
       VALUES (?, ?, ?, 'cooldown', ?)
-    `, userId, playerId, leagueId, cooldownExpiry);
+    `).run(userId, playerId, leagueId, cooldownExpiry);
 
     // Log transazione
-    await db.run(`
+    db.prepare(`
       INSERT INTO budget_transactions 
       (user_id, league_id, amount, transaction_type, description, created_at)
       VALUES (?, ?, 0, 'auction_abandoned', ?, ?)
-    `, userId, leagueId, `Abbandonata asta per giocatore ${playerId} - Cooldown 48h applicato`, now);
+    `).run(userId, leagueId, `Abbandonata asta per giocatore ${playerId} - Cooldown 48h applicato`, now);
 
-    await db.run('COMMIT');
+    return { auction, cooldownExpiry };
+  });
+
+  try {
+    const { auction, cooldownExpiry } = abandonTransaction();
 
     // Notifica real-time
     await notifySocketServer({
@@ -456,7 +456,6 @@ export const abandonAuction = async (
     console.log(`[TIMER] User ${userId} abandoned auction for player ${playerId}`);
 
   } catch (error) {
-    await db.run('ROLLBACK');
     console.error('[TIMER] Error abandoning auction:', error);
     throw error;
   }
@@ -465,16 +464,16 @@ export const abandonAuction = async (
 /**
  * Ottieni i timer di risposta attivi per un utente
  */
-export const getUserActiveResponseTimers = async (userId: string): Promise<Array<ResponseTimer & { player_name: string }>> => {
+export const getUserActiveResponseTimers = (userId: string): Array<ResponseTimer & { player_name: string }> => {
   try {
-    return await db.all(`
+    return db.prepare(`
       SELECT urt.*, p.name as player_name
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
       JOIN players p ON a.player_id = p.id
       WHERE urt.user_id = ? AND urt.status = 'pending' AND a.status = 'active'
       ORDER BY urt.response_deadline ASC
-    `, userId) as Array<ResponseTimer & { player_name: string }>;
+    `).all(userId) as Array<ResponseTimer & { player_name: string }>;
   } catch (error) {
     console.error('[TIMER] Error getting active timers:', error);
     return [];
@@ -484,15 +483,15 @@ export const getUserActiveResponseTimers = async (userId: string): Promise<Array
 /**
  * Verifica se un utente può fare offerte per un giocatore (non in cooldown)
  */
-export const canUserBidOnPlayer = async (userId: string, playerId: number, leagueId: number): Promise<boolean> => {
+export const canUserBidOnPlayer = (userId: string, playerId: number, leagueId: number): boolean => {
   const now = Math.floor(Date.now() / 1000);
   
   try {
-    const cooldownCheck = await db.get(`
+    const cooldownCheck = db.prepare(`
       SELECT 1 FROM user_player_preferences
       WHERE user_id = ? AND player_id = ? AND league_id = ? 
         AND preference_type = 'cooldown' AND expires_at > ?
-    `, userId, playerId, leagueId, now);
+    `).get(userId, playerId, leagueId, now);
 
     return !cooldownCheck;
   } catch (error) {
