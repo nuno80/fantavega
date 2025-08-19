@@ -531,12 +531,17 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
   useEffect(() => {
     const checkCompliance = async () => {
-      if (isCurrentUser && leagueId && manager.user_id) {
+      if (leagueId && manager.user_id) {
         try {
-          const response = await fetch(`/api/leagues/${leagueId}/check-compliance`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
+
+          const response = await fetch(
+            `/api/leagues/${leagueId}/check-compliance`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: manager.user_id }), // Invia l'ID del manager
+            }
+          );
           if (response.ok) {
             const result = await response.json();
             setComplianceResult(result);
@@ -551,10 +556,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     };
 
     checkCompliance();
-    const interval = setInterval(checkCompliance, 60000);
+    const interval = setInterval(checkCompliance, 60000); // Controlla ogni minuto
 
     return () => clearInterval(interval);
-  }, [isCurrentUser, leagueId, manager.user_id]);
+  }, [leagueId, manager.user_id]); // Rimuovi isCurrentUser, riesegui solo se l'ID del manager o della lega cambia
 
   const handleCounterBid = (playerId: number) => {
     console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
@@ -716,38 +721,35 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           >
             {manager.manager_team_name || `Team #${position}`}
           </span>
-          {isCurrentUser &&
-            complianceResult &&
-            (complianceResult.appliedPenaltyAmount > 0 ||
-              (complianceResult.timeRemainingSeconds === 0 &&
-                !complianceResult.isNowCompliant)) && (
-              <div className="ml-1 flex flex-shrink-0 items-center">
-                <div
-                  className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600"
-                  title={
-                    complianceResult.appliedPenaltyAmount > 0
-                      ? `Penalità applicata: ${complianceResult.appliedPenaltyAmount} crediti`
-                      : "Penalità attive (periodo di grazia scaduto)"
-                  }
-                >
-                  <span className="text-xs font-bold text-white">P</span>
-                </div>
-                {complianceResult.appliedPenaltyAmount > 0 && (
-                  <span className="ml-1 text-xs font-bold text-red-500">
-                    {complianceResult.appliedPenaltyAmount}
-                  </span>
-                )}
-                {!complianceResult.isNowCompliant ? (
-                  <span title="Team non conforme">
-                    <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
-                  </span>
-                ) : (
-                  <span title="Team conforme">
-                    <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
-                  </span>
-                )}
+          {/* Penalty Icon - Visible to all */}
+          {complianceResult && complianceResult.appliedPenaltyAmount > 0 && (
+            <div
+              className="ml-1 flex flex-shrink-0 items-center"
+              title={`Penalità applicata: ${complianceResult.appliedPenaltyAmount} crediti`}
+            >
+              <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600">
+                <span className="text-xs font-bold text-white">P</span>
               </div>
-            )}
+              <span className="ml-1 text-xs font-bold text-red-500">
+                {complianceResult.appliedPenaltyAmount}
+              </span>
+            </div>
+          )}
+
+          {/* Compliance Status - Visible only to current user */}
+          {isCurrentUser && complianceResult && (
+            <>
+              {!complianceResult.isNowCompliant ? (
+                <span title="Team non conforme">
+                  <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
+                </span>
+              ) : (
+                <span title="Team conforme">
+                  <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
+                </span>
+              )}
+            </>
+          )}
         </div>
         <div
           className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-foreground"}`}
