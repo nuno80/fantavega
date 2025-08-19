@@ -690,14 +690,9 @@ export async function placeBidOnExistingAuction({
 
     // 3. Applica il risultato della battaglia al database
     
-    // Annulla il lock dei crediti del precedente miglior offerente (se esisteva)
-    if (previousHighestBidderId) {
-      decrementLockedCreditsStmt.run(auction.current_highest_bid_amount, leagueId, previousHighestBidderId);
-      console.log(`[BID_SERVICE] Sbloccati ${auction.current_highest_bid_amount} crediti per l'utente ${previousHighestBidderId}`);
-    }
-
-    // L'offerta manuale non blocca crediti; solo il risultato finale della battaglia lo fa.
-    // La riga che sbloccava i crediti per l'offerente manuale è stata rimossa.
+    // GESTIONE CREDITI RIMOSSA: Secondo la nuova logica, i locked_credits sono legati
+    // all'importo massimo dell'auto-bid e non cambiano durante il processo di offerta.
+    // La modifica dei crediti avviene solo quando un auto-bid viene creato/modificato/rimosso.
 
     // Valida budget e slot per il vincitore finale
     const finalWinnerParticipant = db
@@ -710,13 +705,6 @@ export async function placeBidOnExistingAuction({
 
     checkSlotsAndBudgetOrThrow(league, player, finalWinnerParticipant, finalBidderId, finalAmount, false, playerId);
     console.log(`[BID_SERVICE] Budget e slot validi per il vincitore finale ${finalBidderId}.`);
-
-    // Blocca i crediti per il vincitore finale
-    const lockResult = incrementLockedCreditsStmt.run(finalAmount, leagueId, finalBidderId);
-    if (lockResult.changes === 0) {
-      throw new Error(`Impossibile bloccare i crediti per il vincitore finale ${finalBidderId}.`);
-    }
-    console.log(`[BID_SERVICE] Bloccati ${finalAmount} crediti per il vincitore finale ${finalBidderId}.`);
 
     // Aggiorna l'asta con il risultato finale
     const newScheduledEndTime = Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
@@ -982,15 +970,30 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
 
   for (const auction of expiredAuctions) {
     try {
+      // Determina l'importo corretto da sbloccare
+      const autoBid = db.prepare(
+          "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE"
+        ).get(auction.id, auction.current_highest_bidder_id) as { max_amount: number } | undefined;
+
+      const amountToUnlock = autoBid?.max_amount || auction.current_highest_bid_amount;
+
       db.transaction(() => {
         db.prepare(
           "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?"
         ).run(now, auction.id);
+
+        // Disattiva l'auto-bid dopo l'uso
+        if (autoBid) {
+            db.prepare(
+                "UPDATE auto_bids SET is_active = FALSE, updated_at = ? WHERE auction_id = ? AND user_id = ?"
+            ).run(now, auction.id, auction.current_highest_bidder_id);
+        }
+
         db.prepare(
           "UPDATE league_participants SET current_budget = current_budget - ?, locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?"
         ).run(
-          auction.current_highest_bid_amount,
-          auction.current_highest_bid_amount,
+          auction.current_highest_bid_amount, // Il budget è ridotto del prezzo di acquisto
+          amountToUnlock,                     // I crediti bloccati sono ridotti della promessa originale
           auction.auction_league_id,
           auction.current_highest_bidder_id
         );

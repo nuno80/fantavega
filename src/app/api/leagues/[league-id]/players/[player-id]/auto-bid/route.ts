@@ -68,56 +68,64 @@ export async function POST(
       return NextResponse.json({ error: "Asta non trovata o non attiva" }, { status: 404 });
     }
 
-    // If max_amount is 0, disable auto-bid
-    if (max_amount === 0) {
-      const result = db.transaction(() => {
-        return db
-          .prepare("UPDATE auto_bids SET is_active = FALSE, updated_at = strftime('%s', 'now') WHERE auction_id = ? AND user_id = ?")
-          .run(auction.id, user.id);
-      })();
+    // --- LOGICA TRANSAZIONALE CORRETTA ---
+    const transactionResult = db.transaction(() => {
+      const now = Math.floor(Date.now() / 1000);
 
-      return NextResponse.json({
-        message: "Auto-offerta disattivata",
-        disabled: result.changes > 0
-      });
-    }
+      // 1. Ottieni il vecchio importo dell'auto-bid per calcolare la differenza
+      const oldAutoBid = db
+        .prepare("SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE")
+        .get(auction.id, user.id) as { max_amount: number } | undefined;
+      
+      const oldMaxAmount = oldAutoBid?.max_amount || 0;
 
-    // Validate max_amount
-    if (max_amount <= auction.current_highest_bid_amount) {
-      return NextResponse.json({
-        error: `Il prezzo massimo deve essere superiore all'offerta attuale (${auction.current_highest_bid_amount})`
-      }, { status: 400 });
-    }
+      // Il nuovo importo è quello inviato dall'utente (0 per disattivare)
+      const newMaxAmount = max_amount;
 
-    const availableBudget = participant.current_budget - participant.locked_credits;
-    if (max_amount > availableBudget) {
-      return NextResponse.json({
-        error: `Budget insufficiente. Disponibile: ${availableBudget}, Richiesto: ${max_amount}`
-      }, { status: 400 });
-    }
+      // 2. Calcola la variazione nei crediti bloccati
+      const creditChange = newMaxAmount - oldMaxAmount;
 
-    // Insert or update auto-bid within a transaction
-    const now = Math.floor(Date.now() / 1000);
-    const upsertResult = db.transaction(() => {
-      return db
-        .prepare(`
-          INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
-          VALUES (?, ?, ?, TRUE, ?, ?)
-          ON CONFLICT(auction_id, user_id)
-          DO UPDATE SET
-            max_amount = excluded.max_amount,
-            is_active = TRUE,
-            updated_at = excluded.updated_at
-        `)
-        .run(auction.id, user.id, max_amount, now, now);
+      // 3. Valida se l'utente ha abbastanza budget per la VARIAZIONE
+      const availableBudget = participant.current_budget - participant.locked_credits;
+      if (creditChange > availableBudget) {
+        throw new Error(`Budget insufficiente per bloccare i crediti. Disponibile: ${availableBudget}, Aumento richiesto: ${creditChange}`);
+      }
+
+      // 4. Aggiorna i locked_credits in league_participants
+      if (creditChange !== 0) {
+          db.prepare("UPDATE league_participants SET locked_credits = locked_credits + ? WHERE league_id = ? AND user_id = ?")
+            .run(creditChange, leagueId, user.id);
+      }
+
+      // 5. Inserisci/Aggiorna o Disattiva l'auto-bid
+      if (newMaxAmount > 0) {
+          // Valida che il nuovo importo sia superiore all'offerta attuale
+          if (newMaxAmount <= auction.current_highest_bid_amount) {
+            throw new Error(`Il prezzo massimo deve essere superiore all'offerta attuale (${auction.current_highest_bid_amount})`);
+          }
+          db.prepare(`
+              INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+              VALUES (?, ?, ?, TRUE, ?, ?)
+              ON CONFLICT(auction_id, user_id)
+              DO UPDATE SET
+                max_amount = excluded.max_amount,
+                is_active = TRUE,
+                updated_at = excluded.updated_at
+          `).run(auction.id, user.id, newMaxAmount, now, now);
+      } else {
+          // Se newMaxAmount è 0, disattiva l'auto-bid
+          db.prepare("UPDATE auto_bids SET is_active = FALSE, updated_at = strftime('%s', 'now') WHERE auction_id = ? AND user_id = ?")
+            .run(auction.id, user.id);
+      }
+
+      return {
+          message: newMaxAmount > 0 ? "Auto-offerta impostata con successo" : "Auto-offerta disattivata",
+          max_amount: newMaxAmount,
+          auction_id: auction.id,
+      };
     })();
 
-    return NextResponse.json({
-      message: "Auto-offerta impostata con successo",
-      max_amount,
-      auction_id: auction.id,
-      is_new: upsertResult.changes === 1
-    });
+    return NextResponse.json(transactionResult);
 
   } catch (error) {
     console.error("Error managing auto-bid:", error);

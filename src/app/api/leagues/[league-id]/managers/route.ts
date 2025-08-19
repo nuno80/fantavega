@@ -125,9 +125,11 @@ export async function GET(
 
     const autoBids = autoBidsStmt.all(leagueId) as {player_id: number, auto_bid_count: number}[];
 
-    // Get players for each manager
-    const playersStmt = db.prepare(`
+
+    // Get all players for the league in one go
+    const allPlayersStmt = db.prepare(`
       SELECT 
+        pa.user_id,
         p.id,
         p.name,
         p.role,
@@ -135,14 +137,26 @@ export async function GET(
         pa.purchase_price as assignment_price
       FROM player_assignments pa
       JOIN players p ON pa.player_id = p.id
-      WHERE pa.auction_league_id = ? AND pa.user_id = ?
+      WHERE pa.auction_league_id = ?
       ORDER BY p.role, p.name
     `);
 
-    // Build the complete managers data with their rosters
+    const allPlayersInLeague = allPlayersStmt.all(leagueId) as (PlayerInRoster & { user_id: string })[];
+
+    // Group players by manager
+    const playersByManager = new Map<string, PlayerInRoster[]>();
+    for (const player of allPlayersInLeague) {
+      if (!playersByManager.has(player.user_id)) {
+        playersByManager.set(player.user_id, []);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      playersByManager.get(player.user_id)!.push(player);
+    }
+
+    // Build the complete managers data with their correct rosters
     const managersWithRosters: Manager[] = managers.map(manager => ({
       ...manager,
-      players: playersStmt.all(leagueId, manager.user_id) as PlayerInRoster[]
+      players: playersByManager.get(manager.user_id) || []
     }));
 
     return NextResponse.json({
