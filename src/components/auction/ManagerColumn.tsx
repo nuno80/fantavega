@@ -688,10 +688,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const currentBudget = manager?.current_budget || 0;
   const lockedCredits = manager?.locked_credits || 0;
 
-  const spentBudget = totalBudget - currentBudget + lockedCredits;
-  const budgetPercentage =
-    totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
+  // Calcoli chiari per il nuovo cruscotto
   const availableBudget = currentBudget - lockedCredits;
+  const spentCredits = totalBudget - availableBudget;
+  const spentPercentage = totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
 
   const isNonCompliant =
     isCurrentUser &&
@@ -758,12 +758,44 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         </div>
       </div>
 
-      {/* Budget info */}
-      <div className="mb-1 flex justify-between text-xs text-gray-400">
-        <span>
-          max <span className="text-foreground">${availableBudget}</span>
-        </span>
-        <span className="text-foreground">% {budgetPercentage.toFixed(1)}</span>
+      {/* Nuovo Cruscotto Budget */}
+      <div className="mb-2 space-y-2 rounded-md border border-gray-700 bg-gray-800/50 p-2 text-xs">
+        {/* Riga Disponibili */}
+        <div className="flex items-baseline justify-between">
+          <span className="font-semibold text-gray-300">DISPONIBILI</span>
+          <span className="text-lg font-bold text-green-400">
+            {availableBudget}
+          </span>
+        </div>
+
+        {/* Barra di Progresso */}
+        <div className="h-2 w-full rounded-full bg-gray-600">
+          <div
+            className="h-2 rounded-full bg-red-500"
+            style={{ width: `${spentPercentage}%` }}
+            title={`Speso: ${spentPercentage.toFixed(1)}%`}
+          ></div>
+        </div>
+
+        {/* Riga Dettagli */}
+        <div className="flex justify-between pt-1 text-center">
+          <div>
+            <span className="text-gray-400">Bloccati</span>
+            <span className="block font-semibold text-orange-400">
+              {lockedCredits}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-400">Spesi</span>
+            <span className="block font-semibold text-red-400">
+              {spentCredits}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-400">Iniziale</span>
+            <span className="block font-semibold">{totalBudget}</span>
+          </div>
+        </div>
       </div>
 
       {/* Role counters */}
@@ -784,13 +816,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         })}
       </div>
 
-      {/* Budget bar */}
-      <div className="mb-2 h-2 w-full rounded-full bg-gray-600">
-        <div
-          className={`${getPredominantRoleColor()} h-2 rounded-full transition-all duration-300`}
-          style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
-        />
-      </div>
+      
 
 
       {/* Slots list */}
