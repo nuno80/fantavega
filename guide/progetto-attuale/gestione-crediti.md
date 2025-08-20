@@ -29,22 +29,21 @@ Questa è la fase più critica e l'unico momento in cui i `locked_credits` vengo
   4.  Salva o aggiorna l'auto-bid nella tabella `auto_bids`. Se l'importo è 0, l'auto-bid viene disattivato e i crediti corrispondenti sbloccati.
 
 ### 2. Durante lo Svolgimento di un'Asta
-Quando le offerte vengono piazzate e un auto-bid si attiva per rilanciare, la gestione dei crediti è molto semplice.
+La gestione dei crediti è dinamica e reagisce agli eventi dell'asta in tempo reale.
 
 - **File Responsabile:** `.../lib/db/services/bid.service.ts`
 - **Logica:**
-  1.  L'importo dei `locked_credits` **NON CAMBIA**.
-  2.  La logica precedente che sbloccava e bloccava i crediti a ogni rilancio è stata **rimossa** perché errata. I crediti rimangono bloccati sull'importo massimo promesso, garantendo la copertura fino alla fine.
+  1.  **Se un'offerta supera un auto-bid**: Quando un utente (Utente B) piazza un'offerta che supera il `max_amount` di un altro utente (Utente A), l'auto-bid dell'Utente A viene considerato concluso.
+  2.  **Sblocco Immediato**: Il sistema disattiva immediatamente l'auto-bid dell'Utente A (`is_active = FALSE`) e sblocca i `locked_credits` corrispondenti, restituendoli al suo budget disponibile. La promessa di spesa è terminata.
+  3.  **Nessuna Variazione per il Miglior Offerente**: L'importo dei `locked_credits` dell'utente che detiene l'offerta più alta (o l'auto-bid più alto) non cambia, rimanendo bloccato sulla sua promessa massima.
 
 ### 3. Conclusione di un'Asta
 Quando un'asta termina, la promessa dell'auto-bid viene sciolta.
 
 - **File Responsabile:** `.../lib/db/services/bid.service.ts` (funzione `processExpiredAuctionsAndAssignPlayers`)
 - **Logica:**
-  1.  Il sistema verifica se il vincitore aveva un auto-bid attivo per l'asta conclusa.
-  2.  **Sblocco Crediti**: I `locked_credits` del vincitore vengono diminuiti dell'intero `max_amount` che era stato promesso e bloccato.
-  3.  **Acquisto Giocatore**: Il `current_budget` del vincitore viene ridotto del **prezzo finale di acquisto**.
-  4.  L'auto-bid usato viene contrassegnato come non più attivo (`is_active = FALSE`).
+  1.  Il sistema sblocca i `locked_credits` di **tutti i partecipanti** all'asta che avevano un auto-bid attivo, disattivandoli (`is_active = FALSE`).
+  2.  Per il **vincitore**, il `current_budget` viene ridotto del **prezzo finale di acquisto**.
 
 ---
 
@@ -52,13 +51,15 @@ Quando un'asta termina, la promessa dell'auto-bid viene sciolta.
 
 **Scenario:**
 - Asta per "Player Z".
-- **Utente A** imposta un **auto-bid** con un massimo di **100**.
+- **Utente A** imposta un **auto-bid** con un massimo di **20**.
+- **Utente B** imposta un **auto-bid** con un massimo di **50**.
 
 | Evento | Azione del Sistema | `locked_credits` Utente A | `locked_credits` Utente B | Note |
 | :--- | :--- | :--- | :--- | :--- |
-| 1. **Set Auto-Bid** | Utente A imposta auto-bid a 100. | **100** | 0 | I crediti vengono bloccati **immediatamente** alla promessa. |
-| 2. **Offerta Esterna** | Utente B offre 60. L'auto-bid di A risponde e vince a 61. | **100** | 0 | **NESSUNA VARIAZIONE**. La promessa massima di A è sempre 100. |
-| 3. **Fine Asta** | Utente A vince il giocatore per 75. | **0** | 0 | La promessa è sciolta. I 100 crediti vengono sbloccati. Il budget reale viene ridotto di 75. |
+| 1. **Set Auto-Bid A** | Utente A imposta auto-bid a 20. | **20** | 0 | I crediti di A vengono bloccati sulla sua promessa. |
+| 2. **Set Auto-Bid B** | Utente B imposta auto-bid a 50. | **20** | **50** | Anche i crediti di B vengono bloccati. |
+| 3. **Offerta Esterna** | Utente C offre 21. | **0** | **50** | L'offerta di C (21) supera il `max_amount` di A (20). L'auto-bid di A viene disattivato e i suoi 20 crediti sono **immediatamente sbloccati**. L'auto-bid di B (50) risponde e l'offerta sale a 22. I crediti di B restano bloccati. |
+| 4. **Fine Asta** | Utente B vince il giocatore per 35. | **0** | **0** | La promessa di B è sciolta. I 50 crediti vengono sbloccati e il suo budget reale viene ridotto di 35. |
 
 ---
 

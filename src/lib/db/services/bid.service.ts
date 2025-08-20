@@ -767,6 +767,36 @@ export async function placeBidOnExistingAuction({
     }
     console.log(`[BID_SERVICE] Asta ${auction.id} aggiornata. Vincitore: ${finalBidderId}, Importo: ${finalAmount}`);
 
+    // Sblocco crediti per auto-bid superati
+    const outbidAutoBids = db
+      .prepare(
+        `SELECT user_id, max_amount
+         FROM auto_bids
+         WHERE auction_id = ? AND is_active = TRUE AND max_amount < ?`
+      )
+      .all(auction.id, finalAmount) as { user_id: string; max_amount: number }[];
+
+    if (outbidAutoBids.length > 0) {
+      const userIDsToDeactivate = outbidAutoBids.map((b) => b.user_id);
+      const placeholders = userIDsToDeactivate.map(() => '?').join(',');
+
+      const deactivateStmt = db.prepare(
+        `UPDATE auto_bids
+         SET is_active = FALSE, updated_at = strftime('%s', 'now')
+         WHERE auction_id = ? AND user_id IN (${placeholders})`
+      );
+      deactivateStmt.run(auction.id, ...userIDsToDeactivate);
+
+      for (const bid of outbidAutoBids) {
+        db.prepare(
+          `UPDATE league_participants
+           SET locked_credits = locked_credits - ?
+           WHERE user_id = ? AND league_id = ?`
+        ).run(bid.max_amount, bid.user_id, leagueId);
+      }
+      console.log(`[BID_SERVICE] Sbloccati crediti per ${outbidAutoBids.length} utenti con auto-bid superato.`);
+    }
+
     // Inserisci solo l'offerta finale nel DB per mantenere la cronologia pulita
     const finalBidType = battleResult.initialBidderHadWinningManualBid ? bidType : 'auto';
     db.prepare(
