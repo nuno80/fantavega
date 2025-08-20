@@ -150,6 +150,12 @@ export function QuickBidModal({
       requestBody.max_amount = maxAmount;
     }
 
+    console.log("[DEBUG QUICK BID] About to submit bid with:");
+    console.log("[DEBUG QUICK BID] bidAmount:", bidAmount);
+    console.log("[DEBUG QUICK BID] useAutoBid:", useAutoBid);
+    console.log("[DEBUG QUICK BID] maxAmount:", maxAmount);
+    console.log("[DEBUG QUICK BID] requestBody:", requestBody);
+
     try {
       // Esegue una singola chiamata API per l'offerta e l'auto-bid
       const response = await fetch(

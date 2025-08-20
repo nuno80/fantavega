@@ -55,3 +55,70 @@
 
 -- COMPLETATO: Fix CHECK constraint per 'timer_expired' (Gennaio 2025)
 -- Tabella budget_transactions ricreata con supporto completo per 'timer_expired'
+
+-- COMPLETATO: FIX CREDITI BLOCCATI (Gennaio 2025)
+-- Corregge i locked_credits per riflettere la somma dei max_amount degli auto_bids attivi
+-- Problema: I crediti bloccati non riflettevano correttamente gli importi massimi degli auto-bid
+
+-- Prima, vediamo lo stato attuale (query di verifica)
+-- SELECT 
+--     lp.user_id,
+--     u.username,
+--     lp.current_budget,
+--     lp.locked_credits as current_locked_credits,
+--     COALESCE(SUM(ab.max_amount), 0) as calculated_locked_credits,
+--     (lp.locked_credits - COALESCE(SUM(ab.max_amount), 0)) as difference
+-- FROM league_participants lp
+-- LEFT JOIN users u ON lp.user_id = u.id
+-- LEFT JOIN auctions a ON a.auction_league_id = lp.league_id AND a.status = 'active'
+-- LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = lp.user_id AND ab.is_active = TRUE
+-- GROUP BY lp.user_id, lp.league_id, u.username, lp.current_budget, lp.locked_credits
+-- ORDER BY u.username;
+
+-- QUERY ESEGUITA CON SUCCESSO - COMMENTATA PER EVITARE RIESECUZIONE
+-- UPDATE league_participants 
+-- SET locked_credits = (
+--     SELECT COALESCE(SUM(ab.max_amount), 0)
+--     FROM auctions a
+--     LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = league_participants.user_id AND ab.is_active = TRUE
+--     WHERE a.auction_league_id = league_participants.league_id 
+--     AND a.status = 'active'
+-- ),
+-- updated_at = strftime('%s', 'now');
+
+-- COMPLETATO: FIX AGGIUNTIVO per inconsistenze residue (Gennaio 2025)
+-- Alcuni utenti potrebbero avere ancora crediti bloccati errati dopo la correzione automatica
+-- Rieseguita la correzione per essere sicuri
+
+-- QUERY ESEGUITA CON SUCCESSO - COMMENTATA PER EVITARE RIESECUZIONE
+-- UPDATE league_participants 
+-- SET locked_credits = (
+--     SELECT COALESCE(SUM(ab.max_amount), 0)
+--     FROM auctions a
+--     LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = league_participants.user_id AND ab.is_active = TRUE
+--     WHERE a.auction_league_id = league_participants.league_id 
+--     AND a.status = 'active'
+-- ),
+-- updated_at = strftime('%s', 'now');
+-- COMPLETATO: FIX AUTO-BID SU ASTE VENDUTE (Gennaio 2025)
+-- Disattiva tutti gli auto-bid su aste che hanno status 'sold' e sblocca i crediti corrispondenti
+-- Problema: Gli auto-bid rimanevano attivi anche dopo che le aste erano finite
+
+-- QUERY ESEGUITA CON SUCCESSO - COMMENTATA PER EVITARE RIESECUZIONE
+-- 1. Disattiva tutti gli auto-bid su aste vendute
+-- UPDATE auto_bids 
+-- SET is_active = FALSE, updated_at = strftime('%s', 'now')
+-- WHERE auction_id IN (
+--     SELECT id FROM auctions WHERE status = 'sold'
+-- ) AND is_active = TRUE;
+
+-- 2. Ricalcola i locked_credits per tutti gli utenti (solo aste attive)
+-- UPDATE league_participants 
+-- SET locked_credits = (
+--     SELECT COALESCE(SUM(ab.max_amount), 0)
+--     FROM auctions a
+--     LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = league_participants.user_id AND ab.is_active = TRUE
+--     WHERE a.auction_league_id = league_participants.league_id 
+--     AND a.status = 'active'
+-- ),
+-- updated_at = strftime('%s', 'now');

@@ -255,16 +255,21 @@ export function CallPlayerInterface({
     if (!selectedPlayerForStartAuction) return;
 
     try {
+      const requestBody = {
+        amount: amount,
+        bid_type: bidType,
+        max_amount: maxAmount, // Corretto: usa 'max_amount' come si aspetta l'API
+      };
+      console.log("[DEBUG FRONT-END] Sending request body:", requestBody);
+      console.log("[DEBUG FRONT-END] maxAmount value:", maxAmount);
+      console.log("[DEBUG FRONT-END] maxAmount type:", typeof maxAmount);
+      
       const response = await fetch(
         `/api/leagues/${leagueId}/players/${selectedPlayerForStartAuction.id}/bids`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: amount,
-            bid_type: bidType,
-            auto_bid_max_amount: maxAmount, // Passa il maxAmount per l'auto-bid
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 

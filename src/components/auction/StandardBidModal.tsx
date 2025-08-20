@@ -144,6 +144,12 @@ export function StandardBidModal({
     setIsSubmitting(true);
     try {
       // Il modale passa i dati al genitore, che gestisce la logica API.
+      console.log("[DEBUG MODAL] About to call onBidSuccess with:");
+      console.log("[DEBUG MODAL] bidAmount:", bidAmount);
+      console.log("[DEBUG MODAL] bidType:", useAutoBid ? "quick" : "manual");
+      console.log("[DEBUG MODAL] maxAmount:", useAutoBid ? maxAmount : undefined);
+      console.log("[DEBUG MODAL] useAutoBid:", useAutoBid);
+      
       if (onBidSuccess) {
         await onBidSuccess(bidAmount, useAutoBid ? "quick" : "manual", useAutoBid ? maxAmount : undefined);
         // Il genitore gestirà la notifica di successo e la chiusura del modale.

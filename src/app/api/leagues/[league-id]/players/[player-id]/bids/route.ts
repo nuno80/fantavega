@@ -45,6 +45,9 @@ export async function POST(request: Request, context: RouteContext) {
     const body: PlaceBidRequestBody = await request.json();
     console.log(`[API BIDS POST] Request body:`, body);
     console.log(`[DEBUG AUTO-BID] max_amount received:`, body.max_amount);
+    console.log(`[DEBUG AUTO-BID] max_amount type:`, typeof body.max_amount);
+    console.log(`[DEBUG AUTO-BID] max_amount is undefined:`, body.max_amount === undefined);
+    console.log(`[DEBUG AUTO-BID] max_amount is null:`, body.max_amount === null);
 
     // 2.1.1. Rate Limiting per offerte
     const bidType = body.bid_type || 'manual';
@@ -160,6 +163,7 @@ export async function POST(request: Request, context: RouteContext) {
       console.log(
         `[API BIDS POST] Active auction found (ID: ${existingAuctionStatus.id}). Placing bid on existing auction.`
       );
+      console.log(`[DEBUG AUTO-BID] Passing autoBidMaxAmount to placeBidOnExistingAuction:`, body.max_amount);
       result = await placeBidOnExistingAuction({
         leagueId: leagueIdNum,
         playerId: playerIdNum,

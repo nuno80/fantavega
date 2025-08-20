@@ -413,18 +413,24 @@ export const placeInitialBidAndCreateAuction = async (
       );
     }
 
+    // Determina l'importo da validare per il budget: se c'è un auto-bid, valida il max_amount
+    const amountToValidate = autoBidMaxAmount && autoBidMaxAmount > bidAmountParam ? autoBidMaxAmount : bidAmountParam;
+    
     checkSlotsAndBudgetOrThrow(
       league,
       player,
       participant,
       bidderUserIdParam,
-      bidAmountParam,
+      amountToValidate,
       true,
       playerIdParam
     );
 
+    // Determina l'importo da bloccare: se c'è un auto-bid, blocca il max_amount, altrimenti l'offerta iniziale
+    const amountToLock = autoBidMaxAmount && autoBidMaxAmount > bidAmountParam ? autoBidMaxAmount : bidAmountParam;
+    
     const lockResult = incrementLockedCreditsStmt.run(
-      bidAmountParam,
+      amountToLock,
       leagueIdParam,
       bidderUserIdParam
     );
@@ -654,18 +660,62 @@ export async function placeBidOnExistingAuction({
     console.log(`[BID_SERVICE] Avvio logica di simulazione auto-bid...`);
 
     // NEW: Upsert auto-bid within the same transaction if provided
+    console.log(`[DEBUG AUTO-BID] placeBidOnExistingAuction received autoBidMaxAmount:`, autoBidMaxAmount);
+    console.log(`[DEBUG AUTO-BID] autoBidMaxAmount type:`, typeof autoBidMaxAmount);
+    console.log(`[DEBUG AUTO-BID] autoBidMaxAmount > 0:`, autoBidMaxAmount && autoBidMaxAmount > 0);
+    
     if (autoBidMaxAmount && autoBidMaxAmount > 0) {
       const now = Math.floor(Date.now() / 1000);
-      db.prepare(`
-        INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, TRUE, ?, ?)
-        ON CONFLICT(auction_id, user_id) 
-        DO UPDATE SET 
-          max_amount = excluded.max_amount,
-          is_active = TRUE,
-          updated_at = excluded.updated_at
-      `).run(auction.id, userId, autoBidMaxAmount, now, now);
-      console.log(`[BID_SERVICE] Auto-bid for user ${userId} upserted to ${autoBidMaxAmount}`);
+      console.log(`[DEBUG AUTO-BID] About to insert auto-bid for auction ${auction.id}, user ${userId}, amount ${autoBidMaxAmount}`);
+      
+      try {
+        // 1. Ottieni il vecchio importo dell'auto-bid per calcolare la differenza nei crediti bloccati
+        const oldAutoBid = db
+          .prepare("SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE")
+          .get(auction.id, userId) as { max_amount: number } | undefined;
+        
+        const oldMaxAmount = oldAutoBid?.max_amount || 0;
+        const creditChange = autoBidMaxAmount - oldMaxAmount;
+        
+        console.log(`[DEBUG AUTO-BID] Credit change calculation: old=${oldMaxAmount}, new=${autoBidMaxAmount}, change=${creditChange}`);
+        
+        // 2. Aggiorna i locked_credits se c'è una variazione
+        if (creditChange !== 0) {
+          // Verifica che l'utente abbia abbastanza budget per l'aumento
+          const currentParticipant = db
+            .prepare("SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?")
+            .get(leagueId, userId) as { current_budget: number, locked_credits: number } | undefined;
+          
+          if (currentParticipant) {
+            const availableBudget = currentParticipant.current_budget - currentParticipant.locked_credits;
+            if (creditChange > availableBudget) {
+              throw new Error(`Budget insufficiente per bloccare i crediti. Disponibile: ${availableBudget}, Aumento richiesto: ${creditChange}`);
+            }
+            
+            db.prepare("UPDATE league_participants SET locked_credits = locked_credits + ? WHERE league_id = ? AND user_id = ?")
+              .run(creditChange, leagueId, userId);
+            console.log(`[DEBUG AUTO-BID] Updated locked_credits by ${creditChange} for user ${userId}`);
+          }
+        }
+        
+        // 3. Inserisci/Aggiorna l'auto-bid
+        const result = db.prepare(`
+          INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, TRUE, ?, ?)
+          ON CONFLICT(auction_id, user_id) 
+          DO UPDATE SET 
+            max_amount = excluded.max_amount,
+            is_active = TRUE,
+            updated_at = excluded.updated_at
+        `).run(auction.id, userId, autoBidMaxAmount, now, now);
+        console.log(`[DEBUG AUTO-BID] Auto-bid insert/update result:`, result);
+        console.log(`[BID_SERVICE] Auto-bid for user ${userId} upserted to ${autoBidMaxAmount}`);
+      } catch (error) {
+        console.error(`[DEBUG AUTO-BID] Error inserting auto-bid:`, error);
+        throw error;
+      }
+    } else {
+      console.log(`[DEBUG AUTO-BID] Auto-bid not saved because autoBidMaxAmount is:`, autoBidMaxAmount);
     }
 
     // 1. Raccogli tutti gli auto-bid attivi per l'asta, inclusi quelli dell'offerente attuale
@@ -982,11 +1032,21 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
           "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?"
         ).run(now, auction.id);
 
-        // Disattiva l'auto-bid dopo l'uso
-        if (autoBid) {
+        // Disattiva TUTTI gli auto-bid per questa asta (non solo quello del vincitore)
+        // Quando un'asta finisce, tutti gli auto-bid devono essere disattivati
+        db.prepare(
+            "UPDATE auto_bids SET is_active = FALSE, updated_at = ? WHERE auction_id = ?"
+        ).run(now, auction.id);
+        
+        // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
+        const allAutoBidsForAuction = db.prepare(
+            "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ?"
+        ).all(auction.id, auction.current_highest_bidder_id) as { user_id: string, max_amount: number }[];
+        
+        for (const otherAutoBid of allAutoBidsForAuction) {
             db.prepare(
-                "UPDATE auto_bids SET is_active = FALSE, updated_at = ? WHERE auction_id = ? AND user_id = ?"
-            ).run(now, auction.id, auction.current_highest_bidder_id);
+                "UPDATE league_participants SET locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?"
+            ).run(otherAutoBid.max_amount, auction.auction_league_id, otherAutoBid.user_id);
         }
 
         db.prepare(

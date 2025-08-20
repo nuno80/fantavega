@@ -585,6 +585,11 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     bypassComplianceCheck = false,
     maxAmount?: number
   ) => {
+    console.log("[DEBUG AUCTION PAGE] handlePlaceBid called with:");
+    console.log("[DEBUG AUCTION PAGE] amount:", amount);
+    console.log("[DEBUG AUCTION PAGE] bidType:", bidType);
+    console.log("[DEBUG AUCTION PAGE] targetPlayerId:", targetPlayerId);
+    console.log("[DEBUG AUCTION PAGE] maxAmount:", maxAmount);
     const playerId = targetPlayerId || currentAuction?.player_id;
     if (!playerId || !selectedLeagueId) {
       toast.error("Impossibile piazzare l'offerta: dati mancanti.");
@@ -611,16 +616,19 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
 
     try {
+      const requestBody = { 
+        amount: amount,
+        bid_type: bidType,
+        max_amount: maxAmount,
+      };
+      console.log("[DEBUG AUCTION PAGE] Sending HTTP request with body:", requestBody);
+      
       const response = await fetch(
         `/api/leagues/${selectedLeagueId}/players/${playerId}/bids`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            amount: amount,
-            bid_type: bidType,
-            max_amount: maxAmount,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 

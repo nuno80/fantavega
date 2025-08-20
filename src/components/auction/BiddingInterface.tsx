@@ -19,7 +19,7 @@ interface BiddingInterfaceProps {
   playerId: number;
   leagueId: number;
   playerName: string;
-  onPlaceBid: (amount: number, bidType?: "manual" | "quick") => Promise<void>;
+  onPlaceBid: (amount: number, bidType?: "manual" | "quick", maxAmount?: number) => Promise<void>;
   existingAutoBid?: {
     max_amount: number;
     is_active: boolean;
@@ -48,6 +48,8 @@ export function BiddingInterface({
   const minValidBid = Math.max(currentBid + 1, minBid);
   const [bidAmount, setBidAmount] = useState(defaultBidAmount || minValidBid);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useAutoBid, setUseAutoBid] = useState(false);
+  const [maxAmount, setMaxAmount] = useState(minValidBid + 10);
 
   useEffect(() => {
     const newMinValidBid = Math.max(currentBid + 1, minBid);
@@ -70,9 +72,20 @@ export function BiddingInterface({
       return;
     }
 
+    if (useAutoBid && maxAmount <= bidAmount) {
+      toast.error("Il prezzo massimo deve essere superiore all'offerta attuale");
+      return;
+    }
+
+    console.log("[DEBUG BIDDING] About to call onPlaceBid with:");
+    console.log("[DEBUG BIDDING] bidAmount:", bidAmount);
+    console.log("[DEBUG BIDDING] bidType:", bidType);
+    console.log("[DEBUG BIDDING] useAutoBid:", useAutoBid);
+    console.log("[DEBUG BIDDING] maxAmount:", useAutoBid ? maxAmount : undefined);
+
     setIsSubmitting(true);
     try {
-      await onPlaceBid(bidAmount, bidType);
+      await onPlaceBid(bidAmount, bidType, useAutoBid ? maxAmount : undefined);
       toast.success("Offerta piazzata con successo!");
     } catch (error) {
       toast.error(
@@ -190,6 +203,50 @@ export function BiddingInterface({
           />
         </div>
 
+        {/* Auto-bid Section */}
+        <div className="space-y-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="useAutoBid"
+                checked={useAutoBid}
+                onChange={(e) => setUseAutoBid(e.target.checked)}
+                className="rounded"
+              />
+              <Label htmlFor="useAutoBid" className="text-sm font-medium">
+                Abilita Offerta Automatica
+              </Label>
+            </div>
+            
+            {existingAutoBid?.is_active && (
+              <div className="text-xs text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+                Auto-bid attivo: {existingAutoBid.max_amount} crediti
+              </div>
+            )}
+          </div>
+          
+          {useAutoBid && (
+            <div className="space-y-2">
+              <Label htmlFor="maxAmount" className="text-sm">
+                Prezzo massimo per rilanci automatici
+              </Label>
+              <Input
+                id="maxAmount"
+                type="number"
+                value={maxAmount}
+                onChange={(e) => setMaxAmount(Number(e.target.value))}
+                min={bidAmount + 1}
+                max={availableBudget}
+                placeholder={`Min: ${bidAmount + 1}`}
+              />
+              <p className="text-xs text-blue-600">
+                Il sistema rilancerà automaticamente fino a {maxAmount} crediti quando altri utenti fanno offerte superiori alla tua.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Submit Button */}
         <Button
           onClick={() => handleBidSubmit("manual")}
@@ -197,12 +254,15 @@ export function BiddingInterface({
             isSubmitting ||
             isLoading ||
             bidAmount <= currentBid ||
-            bidAmount > availableBudget
+            bidAmount > availableBudget ||
+            (useAutoBid && maxAmount <= bidAmount)
           }
           className="w-full"
           size="lg"
         >
-          {isSubmitting ? "Piazzando offerta..." : `Offri ${bidAmount} crediti`}
+          {isSubmitting ? "Piazzando offerta..." : 
+           useAutoBid ? `Offri ${bidAmount} (max ${maxAmount})` : 
+           `Offri ${bidAmount} crediti`}
         </Button>
 
         {/* Auto-Bid Modal */}
