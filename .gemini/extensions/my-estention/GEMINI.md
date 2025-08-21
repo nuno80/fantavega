@@ -12,14 +12,6 @@ L'esecuzione dei task deve seguire **esclusivamente** l'ordine sequenziale defin
 
 Al completamento di **ogni sub-task**, DEVI eseguire i seguenti passi:
 
-1. **Esegui i Controlli di Qualità**: Lancia questi comandi in sequenza per validare le modifiche. Se uno fallisce, correggi il codice e rieseguili finché non passano tutti.
-
-   ```bash
-   pnpm run format
-   pnpm run lint
-   pnpm run type-check
-   ```
-
 2. **Aggiorna i File di Stato**: Una volta superati i controlli, genera e fornisci INSIEME, in un unico messaggio, le versioni aggiornate dei seguenti tre file JSON.
 
    - **`tasks.json`**: Aggiorna lo stato del sub-task/task completato da "pending" a "completed".
@@ -137,8 +129,6 @@ Fantavega è un sistema di asta per fantacalcio basato su Next.js 15. Gestisce l
 - `pnpm run db:seed`: Popola il database con dati di test.
 - `pnpm run db:backup`: Crea un backup manuale.
 - `pnpm run db:apply-changes`: Esegue modifiche SQL ad-hoc.
-
-
 
 ### 3.4. Struttura Directory Chiave
 

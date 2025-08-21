@@ -84,6 +84,7 @@ export async function POST(
       {
         message: result.message,
         appliedPenaltyAmount: result.appliedPenaltyAmount,
+        totalPenaltyAmount: result.totalPenaltyAmount,
         isNowCompliant: result.isNowCompliant,
         gracePeriodEndTime: result.gracePeriodEndTime,
         timeRemainingSeconds: result.timeRemainingSeconds,

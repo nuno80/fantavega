@@ -497,6 +497,7 @@ function EmptySlot() {
 
 interface ComplianceResult {
   appliedPenaltyAmount: number;
+  totalPenaltyAmount: number;
   isNowCompliant: boolean;
   message: string;
   gracePeriodEndTime?: number;
@@ -698,7 +699,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     isCurrentUser &&
     complianceResult &&
     !complianceResult.isNowCompliant &&
-    (complianceResult.appliedPenaltyAmount > 0 ||
+    (complianceResult.totalPenaltyAmount > 0 ||
       complianceResult.timeRemainingSeconds === 0);
 
   return (
@@ -723,16 +724,16 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
             {manager.manager_team_name || `Team #${position}`}
           </span>
           {/* Penalty Icon - Visible to all */}
-          {complianceResult && complianceResult.appliedPenaltyAmount > 0 && (
+          {complianceResult && complianceResult.totalPenaltyAmount > 0 && (
             <div
               className="ml-1 flex flex-shrink-0 items-center"
-              title={`Penalità applicata: ${complianceResult.appliedPenaltyAmount} crediti`}
+              title={`Penalità totali applicate: ${complianceResult.totalPenaltyAmount} crediti`}
             >
               <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600">
                 <span className="text-xs font-bold text-white">P</span>
               </div>
               <span className="ml-1 text-xs font-bold text-red-500">
-                {complianceResult.appliedPenaltyAmount}
+                {complianceResult.totalPenaltyAmount}
               </span>
             </div>
           )}

@@ -361,8 +361,18 @@ export const processUserComplianceAndPenalties = async (
       }
     }
 
+    // Calculate total historical penalties for this user in this league
+    const totalPenaltiesResult = db
+      .prepare(
+        "SELECT COALESCE(SUM(amount), 0) as total_penalties FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
+      )
+      .get(leagueId, userId) as { total_penalties: number };
+    
+    const totalPenaltyAmount = totalPenaltiesResult.total_penalties;
+
     return {
       appliedPenaltyAmount,
+      totalPenaltyAmount,
       isNowCompliant,
       message: finalMessage,
       gracePeriodEndTime,
