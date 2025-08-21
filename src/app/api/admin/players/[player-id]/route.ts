@@ -61,7 +61,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(updatedPlayer, { status: 200 });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error(
       `[API ADMIN_PLAYERS PUT] Error updating player ID ${playerIdStr}:`,
       errorMessage
@@ -121,7 +122,8 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       { status: 200 }
     ); // o 204 No Content
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error(
       `[API ADMIN_PLAYERS DELETE] Error deleting player ID ${playerIdStr}:`,
       errorMessage

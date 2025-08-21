@@ -1,34 +1,40 @@
 // src/app/api/user/auction-states/route.ts
 // API per ottenere gli stati delle aste dell'utente e attivare i timer di risposta.
-
 import { NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
 import { recordUserLogin } from "@/lib/db/services/session.service";
 
 export async function GET(request: Request) {
   try {
-    console.log('[USER_AUCTION_STATES] API call started...');
-    
+    console.log("[USER_AUCTION_STATES] API call started...");
+
     const user = await currentUser();
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(request.url);
-    const leagueId = url.searchParams.get('leagueId');
+    const leagueId = url.searchParams.get("leagueId");
     if (!leagueId) {
-      return NextResponse.json({ error: "leagueId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "leagueId is required" },
+        { status: 400 }
+      );
     }
 
-    console.log(`[USER_AUCTION_STATES] Processing for user: ${user.id}, league: ${leagueId}`);
+    console.log(
+      `[USER_AUCTION_STATES] Processing for user: ${user.id}, league: ${leagueId}`
+    );
 
     // **FASE 0: Registra login utente**
     try {
       await recordUserLogin(user.id);
     } catch (error) {
-      console.error('[USER_AUCTION_STATES] Error recording login:', error);
+      console.error("[USER_AUCTION_STATES] Error recording login:", error);
       // Non bloccare la richiesta per errori di sessione
     }
 
@@ -37,7 +43,9 @@ export async function GET(request: Request) {
     await activateTimersForUser(user.id);
 
     // **FASE 2: Recupera lo stato di tutte le aste attive in cui l'utente è coinvolto**
-    const involvedAuctions = db.prepare(`
+    const involvedAuctions = db
+      .prepare(
+        `
       SELECT 
         a.id as auction_id,
         a.player_id,
@@ -57,7 +65,15 @@ export async function GET(request: Request) {
       LEFT JOIN user_player_preferences upp ON a.player_id = upp.player_id AND upp.user_id = ? AND upp.league_id = a.auction_league_id AND upp.preference_type = 'cooldown' AND upp.expires_at > ?
       WHERE a.auction_league_id = ? AND a.status = 'active'
       GROUP BY a.id
-    `).all(user.id, user.id, user.id, Math.floor(Date.now() / 1000), leagueId) as Array<{
+    `
+      )
+      .all(
+        user.id,
+        user.id,
+        user.id,
+        Math.floor(Date.now() / 1000),
+        leagueId
+      ) as Array<{
       auction_id: number;
       player_id: number;
       player_name: string;
@@ -70,18 +86,19 @@ export async function GET(request: Request) {
 
     const now = Math.floor(Date.now() / 1000);
 
-    const statesWithDetails = involvedAuctions.map(auction => {
+    const statesWithDetails = involvedAuctions.map((auction) => {
       let user_state: string;
       const isHighestBidder = auction.current_highest_bidder_id === user.id;
-      const isInCooldown = auction.cooldown_ends_at && auction.cooldown_ends_at > now;
+      const isInCooldown =
+        auction.cooldown_ends_at && auction.cooldown_ends_at > now;
 
       if (isInCooldown) {
-        user_state = 'asta_abbandonata';
+        user_state = "asta_abbandonata";
       } else if (isHighestBidder) {
-        user_state = 'miglior_offerta';
+        user_state = "miglior_offerta";
       } else {
         // Se non è il migliore offerente e non è in cooldown, deve rispondere
-        user_state = 'rilancio_possibile';
+        user_state = "rilancio_possibile";
       }
 
       return {
@@ -91,20 +108,23 @@ export async function GET(request: Request) {
         current_bid: auction.current_highest_bid_amount,
         user_state: user_state,
         response_deadline: auction.response_deadline,
-        time_remaining: auction.response_deadline ? Math.max(0, auction.response_deadline - now) : null,
-        is_highest_bidder: isHighestBidder
+        time_remaining: auction.response_deadline
+          ? Math.max(0, auction.response_deadline - now)
+          : null,
+        is_highest_bidder: isHighestBidder,
       };
     });
 
-    console.log(`[USER_AUCTION_STATES] Returning ${statesWithDetails.length} auction states for user ${user.id}`);
+    console.log(
+      `[USER_AUCTION_STATES] Returning ${statesWithDetails.length} auction states for user ${user.id}`
+    );
 
     return NextResponse.json({
       states: statesWithDetails,
-      count: statesWithDetails.length
+      count: statesWithDetails.length,
     });
-
   } catch (error) {
-    console.error('[USER_AUCTION_STATES] API Error:', error);
+    console.error("[USER_AUCTION_STATES] API Error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

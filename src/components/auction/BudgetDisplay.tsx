@@ -1,9 +1,8 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { ComplianceChecker } from "./ComplianceChecker";
 
 interface BudgetDisplayProps {
   totalBudget: number;
@@ -32,7 +31,8 @@ export function BudgetDisplay({
   const getBudgetStatus = () => {
     const percentage = budgetUsedPercentage;
     if (percentage < 50) return { color: "text-green-600", status: "Ottimo" };
-    if (percentage < 75) return { color: "text-yellow-600", status: "Attenzione" };
+    if (percentage < 75)
+      return { color: "text-yellow-600", status: "Attenzione" };
     return { color: "text-red-600", status: "Critico" };
   };
 
@@ -52,8 +52,8 @@ export function BudgetDisplay({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Available Budget - Main Display */}
-        <div className="text-center p-4 bg-primary/10 rounded-lg">
-          <p className="text-sm text-muted-foreground mb-1">Disponibile</p>
+        <div className="rounded-lg bg-primary/10 p-4 text-center">
+          <p className="mb-1 text-sm text-muted-foreground">Disponibile</p>
           <p className="text-3xl font-bold text-primary">
             {availableBudget.toString()}
           </p>
@@ -72,7 +72,9 @@ export function BudgetDisplay({
           </div>
           <div className="flex justify-between text-sm">
             <span>Crediti bloccati:</span>
-            <span className="font-semibold text-yellow-600">{lockedCredits}</span>
+            <span className="font-semibold text-yellow-600">
+              {lockedCredits}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span>Spesi:</span>
@@ -99,7 +101,7 @@ export function BudgetDisplay({
         </div>
 
         {/* Budget Status */}
-        <div className="flex items-center justify-between p-2 bg-muted rounded">
+        <div className="flex items-center justify-between rounded bg-muted p-2">
           <span className="text-sm">Stato Budget:</span>
           <Badge className={status.color} variant="outline">
             {status.status}
@@ -108,47 +110,17 @@ export function BudgetDisplay({
 
         {/* Warnings */}
         {availableBudget < 50 && (
-          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded text-sm text-yellow-800 dark:text-yellow-200">
+          <div className="rounded bg-yellow-100 p-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
             ⚠️ Budget disponibile basso
           </div>
         )}
-        
+
         {lockedCredits > availableBudget && (
-          <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded text-sm text-red-800 dark:text-red-200">
+          <div className="rounded bg-red-100 p-2 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
             🚨 Crediti bloccati superiori al disponibile
           </div>
         )}
       </CardContent>
     </Card>
-  );
-}
-
-// Wrapper component that includes ComplianceChecker
-export function BudgetDisplayWithCompliance({
-  totalBudget,
-  currentBudget,
-  lockedCredits,
-  teamName,
-  leagueId,
-  userId,
-  onBudgetUpdate,
-}: BudgetDisplayProps) {
-  return (
-    <div className="space-y-4">
-      <BudgetDisplay
-        totalBudget={totalBudget}
-        currentBudget={currentBudget}
-        lockedCredits={lockedCredits}
-        teamName={teamName}
-      />
-      
-      {leagueId && userId && (
-        <ComplianceChecker
-          leagueId={leagueId}
-          userId={userId}
-          onComplianceChecked={onBudgetUpdate}
-        />
-      )}
-    </div>
   );
 }

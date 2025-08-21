@@ -1,7 +1,14 @@
 // API per eliminazione diretta lega via SQLite (bypass React hooks)
 import { NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
+
+interface League {
+  id: number;
+  name: string;
+}
 
 export async function POST(
   request: Request,
@@ -16,33 +23,47 @@ export async function POST(
 
     const leagueId = parseInt(params["league-id"]);
     if (isNaN(leagueId)) {
-      return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID lega non valido" },
+        { status: 400 }
+      );
     }
 
     // Verifica che la lega esista
-    const league = db.prepare("SELECT id, name FROM auction_leagues WHERE id = ?").get(leagueId);
+    const league = db
+      .prepare("SELECT id, name FROM auction_leagues WHERE id = ?")
+      .get(leagueId) as League | undefined;
     if (!league) {
       return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
     }
 
     // Eliminazione diretta via SQLite (cascade delete)
-    const deleteResult = db.prepare("DELETE FROM auction_leagues WHERE id = ?").run(leagueId);
-    
+    const deleteResult = db
+      .prepare("DELETE FROM auction_leagues WHERE id = ?")
+      .run(leagueId);
+
     if (deleteResult.changes > 0) {
-      console.log(`[FORCE_DELETE] Admin ${user.id} deleted league ${leagueId} (${league.name})`);
-      return NextResponse.json({ 
-        success: true, 
-        message: `Lega "${league.name}" eliminata con successo` 
+      console.log(
+        `[FORCE_DELETE] Admin ${user.id} deleted league ${leagueId} (${league.name})`
+      );
+      return NextResponse.json({
+        success: true,
+        message: `Lega "${league.name}" eliminata con successo`,
       });
     } else {
-      return NextResponse.json({ error: "Nessuna lega eliminata" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Nessuna lega eliminata" },
+        { status: 400 }
+      );
     }
-
   } catch (error) {
     console.error("[FORCE_DELETE] Error:", error);
-    return NextResponse.json({ 
-      error: "Errore interno del server" 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Errore interno del server",
+      },
+      { status: 500 }
+    );
   }
 }
 

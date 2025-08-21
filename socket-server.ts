@@ -5,7 +5,8 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 
 // Import dinamico per i servizi (ESM compatibility)
-let recordUserLogout: ((userId: string) => Promise<void>) | null = null;
+
+let recordUserLogout: ((userId: string) => void) | null = null;
 let startScheduler: (() => void) | null = null;
 
 (async () => {
@@ -114,14 +115,14 @@ io.on("connection", (socket: Socket) => {
   });
 
   // Gestione della disconnessione
-  socket.on("disconnect", async () => {
+  socket.on("disconnect", () => {
     console.log(`❌ Utente disconnesso: ${socket.id}`);
     
     // Registra logout se abbiamo l'userId
     const userId = (socket as any).userId;
     if (userId && recordUserLogout) {
       try {
-        await recordUserLogout(userId);
+        recordUserLogout(userId);
       } catch (error) {
         console.error('[SOCKET] Error recording logout:', error);
       }

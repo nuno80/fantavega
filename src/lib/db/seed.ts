@@ -36,7 +36,6 @@ const users = [
   },
 ];
 
-
 // Funzione di seeding
 function seedDatabase() {
   console.log("--- [SEED SCRIPT] LOG B: Funzione seedDatabase() INVOCATA ---");

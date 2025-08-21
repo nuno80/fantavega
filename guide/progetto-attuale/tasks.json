@@ -1,6 +1,6 @@
 {
   "project_name": "Fantavega - Fantacalcio Auction System",
-  "current_phase": "Task 9 - UI Development",
+  "current_phase": "Task 10 - Testing and Quality Assurance",
   "tasks": {
     "task_1": {
       "name": "Project Setup and Database Schema",
@@ -93,7 +93,7 @@
     },
     "task_10": {
       "name": "Testing and Quality Assurance",
-      "status": "pending",
+      "status": "in-progress",
       "description": "Comprehensive testing, bug fixes, performance optimization"
     },
     "task_11": {
@@ -103,6 +103,14 @@
     }
   },
   "recent_fixes": {
+    "penalty_system_bug": {
+      "date": "2025-08-21",
+      "description": "Fixed a bug where the penalty icon was displayed for users who never logged in.",
+      "solution": "Added a check in the penalty service to verify if a user has a session record before applying penalties.",
+      "files_modified": [
+        "src/lib/db/services/penalty.service.ts"
+      ]
+    },
     "bid_validation_race_condition": {
       "date": "2025-01-20",
       "description": "Fixed 'L'offerta deve essere superiore all'offerta attuale' error caused by race condition between client-side validation and real-time updates",

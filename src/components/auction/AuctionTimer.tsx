@@ -25,9 +25,9 @@ export function AuctionTimer({
     const updateTimer = () => {
       const now = Math.floor(Date.now() / 1000);
       const remaining = Math.max(0, scheduledEndTime - now);
-      
+
       setTimeRemaining(remaining);
-      
+
       if (remaining === 0 && !isExpired) {
         setIsExpired(true);
         onTimeExpired?.();
@@ -73,7 +73,7 @@ export function AuctionTimer({
 
   if (status !== "active") {
     return (
-      <div className="text-center p-4">
+      <div className="p-4 text-center">
         <Badge variant={status === "sold" ? "default" : "secondary"}>
           {status === "sold" ? "Asta Conclusa" : "Asta Non Attiva"}
         </Badge>
@@ -83,26 +83,23 @@ export function AuctionTimer({
 
   if (isExpired || timeRemaining === 0) {
     return (
-      <div className="text-center p-4">
+      <div className="p-4 text-center">
         <Badge variant="destructive">Tempo Scaduto</Badge>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+    <div className="space-y-3 rounded-lg bg-muted/50 p-4">
       <div className="text-center">
-        <p className="text-sm text-muted-foreground mb-1">Tempo Rimanente</p>
-        <p className={`text-2xl font-mono font-bold ${getTimerColor()}`}>
+        <p className="mb-1 text-sm text-muted-foreground">Tempo Rimanente</p>
+        <p className={`font-mono text-2xl font-bold ${getTimerColor()}`}>
           {formatTime(timeRemaining)}
         </p>
       </div>
-      
-      <Progress 
-        value={getProgressValue()} 
-        className="h-2"
-      />
-      
+
+      <Progress value={getProgressValue()} className="h-2" />
+
       {timeRemaining <= 300 && (
         <div className="text-center">
           <Badge variant="destructive" className="animate-pulse">

@@ -1,6 +1,8 @@
 // src/app/api/leagues/[league-id]/auto-bids/route.ts
 import { type NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 
 export async function GET(
@@ -17,10 +19,7 @@ export async function GET(
 
     const leagueId = parseInt(params["league-id"], 10);
     if (isNaN(leagueId)) {
-      return NextResponse.json(
-        { error: "Invalid league ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
     }
 
     // Verifica che l'utente partecipi alla lega

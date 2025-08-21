@@ -1,10 +1,13 @@
 // src/components/admin/LeagueActiveRolesManager.tsx v.1.1
 // Componente client per la gestione dei ruoli attivi in un'asta.
 "use client";
+
 // 1. Importazioni
 import { useActionState, useEffect, useState } from "react";
+
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
+
 // Componenti UI
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +23,28 @@ import {
   type UpdateActiveRolesFormState,
   updateActiveRolesAction,
 } from "@/lib/actions/league.actions";
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
 // 2. Props del componente
 interface LeagueActiveRolesManagerProps {
   leagueId: number;

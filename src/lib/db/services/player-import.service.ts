@@ -190,10 +190,10 @@ export const processPlayersExcel = async (
           result.successfullyUpsertedRows++;
         } catch (dbError: unknown) {
           console.error(
-            `[SERVICE PLAYER_IMPORT] DB Error for player ID ${playerDataToUpsert.id}: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`
+            `[SERVICE PLAYER_IMPORT] DB Error for player ID ${playerDataToUpsert.id}: ${dbError instanceof Error ? dbError.message : "Unknown error"}`
           );
           result.errors.push(
-            `DB Error for player ID ${playerDataToUpsert.id} (${playerDataToUpsert.name}): ${dbError instanceof Error ? dbError.message : 'Unknown error'}`
+            `DB Error for player ID ${playerDataToUpsert.id} (${playerDataToUpsert.name}): ${dbError instanceof Error ? dbError.message : "Unknown error"}`
           );
           result.failedDbOperationsRows++;
         }
@@ -302,7 +302,9 @@ export const processPlayersExcel = async (
     );
     result.message = "Failed to process Excel file due to a critical error.";
     result.errors.push(
-      error instanceof Error ? error.message : "Unknown error during Excel processing."
+      error instanceof Error
+        ? error.message
+        : "Unknown error during Excel processing."
     );
     result.success = false; // Assicura che success sia false in caso di eccezione generale
   }

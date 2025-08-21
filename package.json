@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier src/ --write",
+    "type-check": "tsc --noEmit",
     "socket:dev": "tsx watch socket-server.ts",
     "db:seed": "pnpm exec tsx src/lib/db/seed.ts",
     "db:backup": "pnpm exec tsx src/lib/db/backup.ts",

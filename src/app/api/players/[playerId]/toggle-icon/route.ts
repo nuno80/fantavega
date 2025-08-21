@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { updatePlayer } from "@/lib/db/services/player.service";
 
 export async function POST(
@@ -11,7 +13,7 @@ export async function POST(
   const playerIdParam = params_resolved.playerId;
   try {
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Non sei autenticato" },
@@ -49,18 +51,18 @@ export async function POST(
 
     // Prepara i dati per l'aggiornamento
     const updateData: Record<string, unknown> = {};
-    
+
     switch (iconType) {
-      case 'isStarter':
+      case "isStarter":
         updateData.is_starter = value;
         break;
-      case 'isFavorite':
+      case "isFavorite":
         updateData.is_favorite = value;
         break;
-      case 'integrityValue':
+      case "integrityValue":
         updateData.integrity_value = value;
         break;
-      case 'hasFmv':
+      case "hasFmv":
         updateData.has_fmv = value;
         break;
       default:
@@ -72,7 +74,7 @@ export async function POST(
 
     // Aggiorna il giocatore utilizzando il servizio
     const updatedPlayer = updatePlayer(playerId, updateData);
-    
+
     if (!updatedPlayer) {
       return NextResponse.json(
         { error: "Giocatore non trovato" },
@@ -82,7 +84,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      player: updatedPlayer
+      player: updatedPlayer,
     });
   } catch (error) {
     console.error("Errore nell'aggiornare l'icona:", error);

@@ -24,7 +24,7 @@ const isAdminRoute = createRouteMatcher([
 const isAuthenticatedRoute = createRouteMatcher([
   "/features(.*)",
   "/api/user/(.*)",
-  "/api/leagues/(.*)"
+  "/api/leagues/(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

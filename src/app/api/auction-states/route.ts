@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
+
 import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const leagueId = url.searchParams.get('leagueId');
+    const leagueId = url.searchParams.get("leagueId");
 
     if (!leagueId) {
       return NextResponse.json({ error: "leagueId required" }, { status: 400 });
     }
 
     // Fetch all active auctions in the league
-    const activeAuctions = db.prepare(`
+    const activeAuctions = db
+      .prepare(
+        `
       SELECT 
         a.id as auction_id,
         a.player_id,
@@ -21,7 +24,9 @@ export async function GET(request: Request) {
       FROM auctions a
       JOIN players p ON a.player_id = p.id
       WHERE a.auction_league_id = ? AND a.status = 'active'
-    `).all(leagueId) as Array<{
+    `
+      )
+      .all(leagueId) as Array<{
       auction_id: number;
       player_id: number;
       player_name: string;
@@ -30,12 +35,18 @@ export async function GET(request: Request) {
     }>;
 
     // Fetch all participants (managers) in the league
-    const leagueParticipants = db.prepare(`
+    const leagueParticipants = db
+      .prepare(
+        `
       SELECT user_id FROM league_participants WHERE league_id = ?
-    `).all(leagueId) as Array<{ user_id: string }>;
+    `
+      )
+      .all(leagueId) as Array<{ user_id: string }>;
 
     // Fetch all relevant response timers for active auctions in this league, for all users
-    const allResponseTimers = db.prepare(`
+    const allResponseTimers = db
+      .prepare(
+        `
       SELECT 
         urt.auction_id,
         urt.user_id,
@@ -45,7 +56,9 @@ export async function GET(request: Request) {
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
       WHERE a.auction_league_id = ? AND a.status = 'active'
-    `).all(leagueId) as Array<{
+    `
+      )
+      .all(leagueId) as Array<{
       auction_id: number;
       user_id: string;
       response_deadline: number | null;
@@ -60,7 +73,7 @@ export async function GET(request: Request) {
       user_id: string;
       player_name: string;
       current_bid: number;
-      user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
+      user_state: "miglior_offerta" | "rilancio_possibile" | "asta_abbandonata";
       response_deadline: number | null;
       time_remaining: number | null;
       is_highest_bidder: boolean;
@@ -71,7 +84,10 @@ export async function GET(request: Request) {
       // For each auction, iterate through each manager to determine their state
       for (const participant of leagueParticipants) {
         const user_id = participant.user_id;
-        let user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata' = 'asta_abbandonata'; // Default
+        let user_state:
+          | "miglior_offerta"
+          | "rilancio_possibile"
+          | "asta_abbandonata" = "asta_abbandonata"; // Default
         let response_deadline: number | null = null;
         let activated_at: number | null = null;
         let time_remaining: number | null = null;
@@ -80,12 +96,12 @@ export async function GET(request: Request) {
         // Check if this manager is the highest bidder for this auction
         if (auction.current_highest_bidder_id === user_id) {
           is_highest_bidder = true;
-          user_state = 'miglior_offerta';
+          user_state = "miglior_offerta";
         }
 
         // Find response timer for this specific user and auction
         const timer = allResponseTimers.find(
-          t => t.auction_id === auction.auction_id && t.user_id === user_id
+          (t) => t.auction_id === auction.auction_id && t.user_id === user_id
         );
 
         if (timer) {
@@ -95,8 +111,8 @@ export async function GET(request: Request) {
             time_remaining = Math.max(0, response_deadline - now);
           }
           // If there's a pending timer and the user is not the highest bidder, it's 'rilancio_possibile'
-          if (timer.status === 'pending' && !is_highest_bidder) {
-            user_state = 'rilancio_possibile';
+          if (timer.status === "pending" && !is_highest_bidder) {
+            user_state = "rilancio_possibile";
           }
         }
 
@@ -116,11 +132,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       states: states,
-      count: states.length
+      count: states.length,
     });
-
   } catch (error) {
-    console.error('[ALL_AUCTION_STATES] Error:', error);
+    console.error("[ALL_AUCTION_STATES] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

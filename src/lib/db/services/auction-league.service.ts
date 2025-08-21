@@ -676,55 +676,82 @@ export async function removeParticipantFromLeague(
   adminUserId: string, // L'ID dell'admin che esegue l'azione
   userIdToRemove: string // L'ID dell'utente da rimuovere
 ): Promise<{ success: boolean; message: string }> {
-  console.log(`[SERVICE] removeParticipantFromLeague called for league ID: ${leagueId}, user to remove: ${userIdToRemove}, by admin ID: ${adminUserId}`);
-  
+  console.log(
+    `[SERVICE] removeParticipantFromLeague called for league ID: ${leagueId}, user to remove: ${userIdToRemove}, by admin ID: ${adminUserId}`
+  );
+
   try {
     // --- FASE 1: Controlli di Prevenzione (FUORI dalla transazione) ---
-    
+
     // 1.1. Verifica che la lega esista e che l'esecutore sia l'admin
-    const league = db.prepare(
-      "SELECT admin_creator_id, status FROM auction_leagues WHERE id = ?"
-    ).get(leagueId) as { admin_creator_id: string; status: string; } | undefined;
+    const league = db
+      .prepare(
+        "SELECT admin_creator_id, status FROM auction_leagues WHERE id = ?"
+      )
+      .get(leagueId) as
+      | { admin_creator_id: string; status: string }
+      | undefined;
 
     if (!league) {
       throw new Error("Lega non trovata.");
     }
     if (league.admin_creator_id !== adminUserId) {
-      throw new Error("Azione non autorizzata: solo l'admin della lega può rimuovere partecipanti.");
+      throw new Error(
+        "Azione non autorizzata: solo l'admin della lega può rimuovere partecipanti."
+      );
     }
 
     // 1.2. REGOLA DI BUSINESS CRITICA: Controlla lo stato della lega
-    if (league.status !== 'participants_joining') {
-      throw new Error(`Impossibile rimuovere partecipanti quando la lega è nello stato '${league.status}'.`);
+    if (league.status !== "participants_joining") {
+      throw new Error(
+        `Impossibile rimuovere partecipanti quando la lega è nello stato '${league.status}'.`
+      );
     }
 
     // 1.3. Controlla se l'utente è il miglior offerente in un'asta (sicurezza aggiuntiva)
-    const activeBidCheck = db.prepare(
-      `SELECT COUNT(*) as count FROM auctions WHERE auction_league_id = ? AND current_highest_bidder_id = ? AND status = 'active'`
-    ).get(leagueId, userIdToRemove) as { count: number };
+    const activeBidCheck = db
+      .prepare(
+        `SELECT COUNT(*) as count FROM auctions WHERE auction_league_id = ? AND current_highest_bidder_id = ? AND status = 'active'`
+      )
+      .get(leagueId, userIdToRemove) as { count: number };
 
     if (activeBidCheck.count > 0) {
-      throw new Error(`Impossibile rimuovere: il partecipante è il miglior offerente in un'asta attiva.`);
+      throw new Error(
+        `Impossibile rimuovere: il partecipante è il miglior offerente in un'asta attiva.`
+      );
     }
 
     // --- FASE 2: Esecuzione della Rimozione Atomica (DENTRO la transazione) ---
     db.transaction(() => {
       // Rimuovi tutte le dipendenze prima di rimuovere il partecipante
-      db.prepare(`DELETE FROM player_assignments WHERE auction_league_id = ? AND user_id = ?`).run(leagueId, userIdToRemove);
-      db.prepare(`DELETE FROM budget_transactions WHERE auction_league_id = ? AND user_id = ?`).run(leagueId, userIdToRemove);
-      db.prepare(`DELETE FROM bids WHERE user_id = ? AND auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ?)`).run(userIdToRemove, leagueId);
-      
-      const deletedParticipant = db.prepare(`DELETE FROM league_participants WHERE league_id = ? AND user_id = ?`).run(leagueId, userIdToRemove).changes;
+      db.prepare(
+        `DELETE FROM player_assignments WHERE auction_league_id = ? AND user_id = ?`
+      ).run(leagueId, userIdToRemove);
+      db.prepare(
+        `DELETE FROM budget_transactions WHERE auction_league_id = ? AND user_id = ?`
+      ).run(leagueId, userIdToRemove);
+      db.prepare(
+        `DELETE FROM bids WHERE user_id = ? AND auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ?)`
+      ).run(userIdToRemove, leagueId);
+
+      const deletedParticipant = db
+        .prepare(
+          `DELETE FROM league_participants WHERE league_id = ? AND user_id = ?`
+        )
+        .run(leagueId, userIdToRemove).changes;
       if (deletedParticipant === 0) {
         throw new Error("Partecipante non trovato in questa lega.");
       }
     })();
 
-    return { success: true, message: 'Partecipante rimosso con successo.' };
-
+    return { success: true, message: "Partecipante rimosso con successo." };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto.';
-    console.error(`Errore durante la rimozione del partecipante ${userIdToRemove} dalla lega ${leagueId}:`, errorMessage);
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    console.error(
+      `Errore durante la rimozione del partecipante ${userIdToRemove} dalla lega ${leagueId}:`,
+      errorMessage
+    );
     return { success: false, message: errorMessage };
   }
 }

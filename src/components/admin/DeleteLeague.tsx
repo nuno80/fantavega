@@ -4,23 +4,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Trash2, AlertTriangle } from "lucide-react";
+
+import { AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Componenti UI
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,10 +19,45 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+// Componenti UI
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   type DeleteLeagueFormState,
   deleteLeagueAction,
 } from "@/lib/actions/league.actions";
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
 
 interface DeleteLeagueProps {
   leagueId: number;
@@ -70,7 +92,7 @@ export function DeleteLeague({
           { success: false, message: "" },
           formData
         );
-        
+
         if (result.success) {
           toast.success("Successo!", { description: result.message });
           setIsDialogOpen(false);
@@ -80,8 +102,8 @@ export function DeleteLeague({
           toast.error("Errore", { description: result.message });
         }
       } catch (error) {
-        toast.error("Errore", { 
-          description: "Si è verificato un errore durante l&apos;eliminazione" 
+        toast.error("Errore", {
+          description: "Si è verificato un errore durante l&apos;eliminazione",
         });
       }
     });
@@ -118,26 +140,31 @@ export function DeleteLeague({
             Elimina Lega
           </DialogTitle>
           <DialogDescription>
-            Questa azione eliminerà definitivamente la lega e tutti i dati associati.
+            Questa azione eliminerà definitivamente la lega e tutti i dati
+            associati.
           </DialogDescription>
         </DialogHeader>
 
         {!showFinalConfirm ? (
           // Prima fase: Warning e informazioni
           <div className="space-y-4 py-4">
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <h4 className="font-semibold text-destructive mb-2">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+              <h4 className="mb-2 font-semibold text-destructive">
                 ⚠️ ATTENZIONE: Questa azione è irreversibile!
               </h4>
               <div className="space-y-2 text-sm">
-                <p><strong>Lega:</strong> {leagueName}</p>
-                <p><strong>Partecipanti:</strong> {participantCount}</p>
+                <p>
+                  <strong>Lega:</strong> {leagueName}
+                </p>
+                <p>
+                  <strong>Partecipanti:</strong> {participantCount}
+                </p>
               </div>
             </div>
 
-            <div className="bg-muted rounded-lg p-4">
-              <h5 className="font-medium mb-2">Verranno eliminati:</h5>
-              <ul className="text-sm space-y-1 list-disc list-inside">
+            <div className="rounded-lg bg-muted p-4">
+              <h5 className="mb-2 font-medium">Verranno eliminati:</h5>
+              <ul className="list-inside list-disc space-y-1 text-sm">
                 <li>Tutti i partecipanti e le loro rose</li>
                 <li>Tutte le aste e le offerte</li>
                 <li>Tutte le transazioni di budget</li>
@@ -158,13 +185,18 @@ export function DeleteLeague({
           // Seconda fase: Conferma finale con digitazione
           <form action={handleSubmit} className="space-y-4 py-4">
             <input type="hidden" name="leagueId" value={leagueId} />
-            <input type="hidden" name="confirmationText" value={confirmationText} />
+            <input
+              type="hidden"
+              name="confirmationText"
+              value={confirmationText}
+            />
 
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <p className="text-sm font-medium text-destructive mb-3">
-                Per confermare l&apos;eliminazione, digita esattamente: <code className="bg-background px-1 rounded">ELIMINA</code>
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+              <p className="mb-3 text-sm font-medium text-destructive">
+                Per confermare l&apos;eliminazione, digita esattamente:{" "}
+                <code className="rounded bg-background px-1">ELIMINA</code>
               </p>
-              
+
               <Label htmlFor="confirmText">Conferma eliminazione</Label>
               <Input
                 id="confirmText"

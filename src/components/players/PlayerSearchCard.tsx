@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import {
   Ban,
   Clock,
+  Dumbbell,
   Gavel,
   Shield,
   Timer,
   TrendingUp,
   User,
   Users,
-  Dumbbell,
 } from "lucide-react";
 
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
@@ -27,7 +27,7 @@ import {
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
-  
+
   userRole: string;
   userId: string;
   onTogglePlayerIcon?: (
@@ -41,7 +41,7 @@ interface PlayerSearchCardProps {
 export function PlayerSearchCard({
   player,
   onBidOnPlayer,
-  
+
   userRole,
   userId,
   onTogglePlayerIcon,
@@ -172,7 +172,6 @@ export function PlayerSearchCard({
       player.auctionStatus === "no_auction") &&
     !player.isAssignedToUser &&
     !hasCooldown;
-  
 
   return (
     <Card className="relative flex h-full flex-col">
@@ -285,9 +284,7 @@ export function PlayerSearchCard({
           <div>
             <div
               className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.hasFmv ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
-              onClick={() =>
-                handleTogglePreference("hasFmv", !player.hasFmv)
-              }
+              onClick={() => handleTogglePreference("hasFmv", !player.hasFmv)}
               title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
             >
               <TrendingUp

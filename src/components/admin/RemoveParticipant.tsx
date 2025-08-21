@@ -30,6 +30,27 @@ import {
 // src/components/admin/RemoveParticipant.tsx v.1.0
 // Componente client per la rimozione di un partecipante da una lega.
 
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
 // 2. Props del componente
 interface RemoveParticipantProps {
   leagueId: number;
@@ -65,15 +86,15 @@ export function RemoveParticipant({
           { success: false, message: "" },
           formData
         );
-        
+
         if (result.success) {
           toast.success(result.message);
         } else {
           toast.error("Errore", { description: result.message });
         }
       } catch (error) {
-        toast.error("Errore", { 
-          description: "Si è verificato un errore durante la rimozione" 
+        toast.error("Errore", {
+          description: "Si è verificato un errore durante la rimozione",
         });
       }
     });
@@ -107,7 +128,8 @@ export function RemoveParticipant({
               <span className="font-bold">
                 {participantUsername || participantUserId}
               </span>
-              . Questa operazione è permessa solo prima dell&apos;inizio dell&apos;asta.
+              . Questa operazione è permessa solo prima dell&apos;inizio
+              dell&apos;asta.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

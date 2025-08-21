@@ -31,6 +31,27 @@ import {
 } from "@/components/ui/select";
 import { createLeague } from "@/lib/actions/league.actions";
 
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
+// src/components/forms/CreateLeagueForm.tsx v.1.2
+// Correzione definitiva: useActionState importato da 'react' e useFormStatus da 'react-dom'.
+
 // Define FormState type locally
 type FormState = {
   success: boolean;
@@ -67,9 +88,7 @@ export function CreateLeagueForm() {
   const initialState: FormState = { success: false, message: "" };
   const [state, formAction] = useActionState(createLeague, initialState);
 
-  const [minBidRule, setMinBidRule] = useState<"fixed" | "percentage">(
-    "fixed"
-  );
+  const [minBidRule, setMinBidRule] = useState<"fixed" | "percentage">("fixed");
 
   useEffect(() => {
     if (state && state.message) {
@@ -161,7 +180,9 @@ export function CreateLeagueForm() {
               <Select
                 name="min_bid_rule"
                 defaultValue="fixed"
-                onValueChange={(value) => setMinBidRule(value as "fixed" | "percentage")}
+                onValueChange={(value) =>
+                  setMinBidRule(value as "fixed" | "percentage")
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -184,7 +205,7 @@ export function CreateLeagueForm() {
                   defaultValue="1"
                   required
                 />
-                 {state.errors?.min_bid && (
+                {state.errors?.min_bid && (
                   <p className="mt-1 text-sm text-red-500">
                     {state.errors.min_bid[0]}
                   </p>

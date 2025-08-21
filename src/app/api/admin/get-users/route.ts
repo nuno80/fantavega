@@ -1,13 +1,18 @@
 // src/app/api/admin/get-users/route.ts
 import { NextResponse } from "next/server";
+
 import { auth } from "@clerk/nextjs/server";
+
 import { getUsersWithLeagueDetails } from "@/lib/db/services/user.service";
 
 export async function GET() {
   const { userId, sessionClaims } = await auth();
 
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized: Login required." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized: Login required." },
+      { status: 401 }
+    );
   }
 
   const isAdmin = sessionClaims?.metadata?.role === "admin";
@@ -16,14 +21,19 @@ export async function GET() {
     console.warn(
       `API access denied for get-users for user ${userId}. Role (from claims): ${sessionClaims?.metadata?.role}`
     );
-    return NextResponse.json({ error: "Access denied: Insufficient privileges." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Access denied: Insufficient privileges." },
+      { status: 403 }
+    );
   }
 
   try {
-    console.log(`Admin ${userId} confirmed via sessionClaims. Fetching user list with league details...`);
-    
+    console.log(
+      `Admin ${userId} confirmed via sessionClaims. Fetching user list with league details...`
+    );
+
     const users = await getUsersWithLeagueDetails();
-    
+
     console.log(`Successfully fetched ${users.length} users with details.`);
     return NextResponse.json({ users });
   } catch (error: unknown) {

@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
+
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 
 interface AutoBidModalProps {
   currentBid: number;
@@ -45,7 +52,9 @@ export function AutoBidModal({
 
   const handleSubmit = async () => {
     if (maxAmount <= currentBid) {
-      toast.error("Il prezzo massimo deve essere superiore all&apos;offerta attuale");
+      toast.error(
+        "Il prezzo massimo deve essere superiore all&apos;offerta attuale"
+      );
       return;
     }
 
@@ -57,12 +66,16 @@ export function AutoBidModal({
     setIsSubmitting(true);
     try {
       // This logic is now handled by the bid submission modal
-      console.warn("handleSubmit in AutoBidModal is deprecated and should not be called directly.");
+      console.warn(
+        "handleSubmit in AutoBidModal is deprecated and should not be called directly."
+      );
       toast.info("Per impostare un'auto-offerta, usa il modale di offerta.");
       setIsOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Errore nell'impostare l'auto-offerta"
+        error instanceof Error
+          ? error.message
+          : "Errore nell'impostare l'auto-offerta"
       );
     } finally {
       setIsSubmitting(false);
@@ -72,7 +85,7 @@ export function AutoBidModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button 
+        <Button
           variant={existingAutoBid?.is_active ? "default" : "outline"}
           className="w-full"
         >
@@ -88,12 +101,12 @@ export function AutoBidModal({
           )}
         </Button>
       </DialogTrigger>
-      
+
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Auto-offerta per {playerName}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Info Card */}
           <Card>
@@ -105,12 +118,16 @@ export function AutoBidModal({
                 </div>
                 <div className="flex justify-between">
                   <span>Budget disponibile:</span>
-                  <span className="font-semibold">{availableBudget} crediti</span>
+                  <span className="font-semibold">
+                    {availableBudget} crediti
+                  </span>
                 </div>
                 {existingAutoBid?.is_active && (
                   <div className="flex justify-between text-blue-600">
                     <span>Auto-offerta attuale:</span>
-                    <span className="font-semibold">Max {existingAutoBid.max_amount}</span>
+                    <span className="font-semibold">
+                      Max {existingAutoBid.max_amount}
+                    </span>
                   </div>
                 )}
               </div>
@@ -118,10 +135,15 @@ export function AutoBidModal({
           </Card>
 
           {/* Auto-bid explanation */}
-          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg text-sm">
-            <p className="font-medium mb-1">Come funziona l&apos;auto-offerta:</p>
-            <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Il sistema rilancerà automaticamente fino al tuo prezzo massimo</li>
+          <div className="rounded-lg bg-blue-50 p-3 text-sm dark:bg-blue-950">
+            <p className="mb-1 font-medium">
+              Come funziona l&apos;auto-offerta:
+            </p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              <li>
+                • Il sistema rilancerà automaticamente fino al tuo prezzo
+                massimo
+              </li>
               <li>• Rilanci di +1 credito quando qualcuno ti supera</li>
               <li>• Si ferma se raggiungi il prezzo massimo</li>
               <li>• Puoi modificare o disattivare in qualsiasi momento</li>
@@ -184,16 +206,21 @@ export function AutoBidModal({
               }
               className="flex-1"
             >
-              {isSubmitting ? "Impostando..." : 
-               existingAutoBid?.is_active ? "Aggiorna Auto-offerta" : "Imposta Auto-offerta"}
+              {isSubmitting
+                ? "Impostando..."
+                : existingAutoBid?.is_active
+                  ? "Aggiorna Auto-offerta"
+                  : "Imposta Auto-offerta"}
             </Button>
-            
+
             {existingAutoBid?.is_active && (
               <Button
                 variant="outline"
                 onClick={() => {
                   // This logic is now handled by the bid submission modal
-                  toast.info("Per disattivare un'auto-offerta, imposta il valore a 0 nel modale di offerta.");
+                  toast.info(
+                    "Per disattivare un'auto-offerta, imposta il valore a 0 nel modale di offerta."
+                  );
                 }}
                 disabled={isSubmitting}
               >

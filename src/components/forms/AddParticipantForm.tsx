@@ -41,6 +41,27 @@ import { type EligibleUser } from "@/lib/db/services/user.service";
 // src/components/forms/AddParticipantForm.tsx v.1.1
 // Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
 
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
 // 2. Props del componente (aggiornate)
 interface AddParticipantFormProps {
   leagueId: number;
@@ -110,24 +131,24 @@ export function AddParticipantForm({
                   {eligibleUsers.map((user) => {
                     // Costruisce un nome leggibile, con fallback migliorato
                     let displayName = "";
-                    
+
                     // Prova prima nome e cognome
                     if (user.firstName || user.lastName) {
                       displayName = [user.firstName, user.lastName]
                         .filter(Boolean)
                         .join(" ");
                     }
-                    
+
                     // Se non ha nome/cognome, usa username
                     if (!displayName && user.username) {
                       displayName = user.username;
                     }
-                    
+
                     // Ultimo fallback: mostra ID ma in formato piu leggibile
                     if (!displayName) {
                       displayName = `Utente ${user.id.slice(-8)}`;
                     }
-                    
+
                     return (
                       <SelectItem key={user.id} value={user.id}>
                         {displayName}

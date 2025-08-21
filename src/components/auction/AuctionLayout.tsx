@@ -1,8 +1,10 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+
 import { Users } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 interface AuctionLayoutProps {
   children: ReactNode;
@@ -28,7 +30,7 @@ export function AuctionLayout({
               </span>
             )}
           </div>
-          
+
           {onTeamManagement && (
             <Button
               onClick={onTeamManagement}
@@ -44,9 +46,7 @@ export function AuctionLayout({
       </header>
 
       {/* Main Content */}
-      <main className="container px-4 py-6">
-        {children}
-      </main>
+      <main className="container px-4 py-6">{children}</main>
     </div>
   );
 }

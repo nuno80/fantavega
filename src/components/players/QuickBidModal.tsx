@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import { Clock, Gavel, User } from "lucide-react";
 import { toast } from "sonner";
 
+import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Clock, User, Gavel } from "lucide-react";
-import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 
 interface QuickBidModalProps {
   isOpen: boolean;
@@ -71,26 +72,29 @@ export function QuickBidModal({
 
   // Set initial bid amount when player changes
   useEffect(() => {
-    console.log('[QuickBidModal] Player data:', {
+    console.log("[QuickBidModal] Player data:", {
       name: player?.name,
       currentBid: player?.currentBid,
       qtA: player?.qtA,
-      auctionStatus: player?.auctionStatus
+      auctionStatus: player?.auctionStatus,
     });
-    
+
     if (player?.currentBid) {
       // Asta attiva: offerta attuale + 1
-      console.log('[QuickBidModal] Using currentBid + 1:', player.currentBid + 1);
+      console.log(
+        "[QuickBidModal] Using currentBid + 1:",
+        player.currentBid + 1
+      );
       setBidAmount(player.currentBid + 1);
       setMaxAmount(player.currentBid + 10);
     } else if (player?.qtA) {
       // Nessuna asta attiva: usa QtA come valore di default
-      console.log('[QuickBidModal] Using qtA:', player.qtA);
+      console.log("[QuickBidModal] Using qtA:", player.qtA);
       setBidAmount(player.qtA);
       setMaxAmount(player.qtA + 10);
     } else {
       // Fallback: 1 credito
-      console.log('[QuickBidModal] Using fallback: 1');
+      console.log("[QuickBidModal] Using fallback: 1");
       setBidAmount(1);
       setMaxAmount(10);
     }
@@ -98,11 +102,11 @@ export function QuickBidModal({
 
   const formatTimeRemaining = (seconds?: number) => {
     if (!seconds) return "Scaduta";
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m ${secs}s`;
     }
@@ -111,20 +115,28 @@ export function QuickBidModal({
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case "P": return "bg-yellow-500 text-yellow-900";
-      case "D": return "bg-green-500 text-green-900";
-      case "C": return "bg-blue-500 text-blue-900";
-      case "A": return "bg-red-500 text-red-900";
-      default: return "bg-gray-500 text-gray-900";
+      case "P":
+        return "bg-yellow-500 text-yellow-900";
+      case "D":
+        return "bg-green-500 text-green-900";
+      case "C":
+        return "bg-blue-500 text-blue-900";
+      case "A":
+        return "bg-red-500 text-red-900";
+      default:
+        return "bg-gray-500 text-gray-900";
     }
   };
 
-  const availableBudget = userBudget ? userBudget.current_budget - userBudget.locked_credits : 0;
+  const availableBudget = userBudget
+    ? userBudget.current_budget - userBudget.locked_credits
+    : 0;
   // Calcola l'offerta minima valida
-  const minValidBid = player.currentBid 
-    ? player.currentBid + 1  // Asta attiva: offerta attuale + 1
-    : player.qtA || 1;       // Nessuna asta: QtA o 1 come fallback
-  const canSubmitBid = bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
+  const minValidBid = player.currentBid
+    ? player.currentBid + 1 // Asta attiva: offerta attuale + 1
+    : player.qtA || 1; // Nessuna asta: QtA o 1 come fallback
+  const canSubmitBid =
+    bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
     const baseAmount = player.currentBid || player.qtA || 0;
@@ -211,12 +223,12 @@ export function QuickBidModal({
 
         <div className="space-y-4">
           {/* Player Info */}
-          <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-            <div className="h-12 w-12 rounded-full bg-background flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
               <User className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="mb-1 flex items-center gap-2">
                 <Badge className={getRoleBadgeColor(player.role)}>
                   {player.role}
                 </Badge>
@@ -230,11 +242,13 @@ export function QuickBidModal({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Offerta Attuale:</span>
-              <p className="font-bold text-lg">{player.currentBid || 0} crediti</p>
+              <p className="text-lg font-bold">
+                {player.currentBid || 0} crediti
+              </p>
             </div>
             <div>
               <span className="text-muted-foreground">Tempo Rimanente:</span>
-              <p className="font-medium flex items-center gap-1">
+              <p className="flex items-center gap-1 font-medium">
                 <Clock className="h-3 w-3" />
                 {formatTimeRemaining(player.timeRemaining)}
               </p>
@@ -243,17 +257,25 @@ export function QuickBidModal({
 
           {/* Budget Info */}
           {isLoadingBudget ? (
-            <div className="h-16 bg-muted animate-pulse rounded-lg" />
+            <div className="h-16 animate-pulse rounded-lg bg-muted" />
           ) : userBudget ? (
-            <div className="p-3 bg-primary/10 rounded-lg">
+            <div className="rounded-lg bg-primary/10 p-3">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Budget Disponibile:</span>
-                  <p className="font-bold text-primary">{availableBudget} crediti</p>
+                  <span className="text-muted-foreground">
+                    Budget Disponibile:
+                  </span>
+                  <p className="font-bold text-primary">
+                    {availableBudget} crediti
+                  </p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Crediti Bloccati:</span>
-                  <p className="font-medium">{userBudget.locked_credits} crediti</p>
+                  <span className="text-muted-foreground">
+                    Crediti Bloccati:
+                  </span>
+                  <p className="font-medium">
+                    {userBudget.locked_credits} crediti
+                  </p>
                 </div>
               </div>
             </div>
@@ -275,7 +297,9 @@ export function QuickBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(5)}
-                disabled={(player.currentBid || player.qtA || 0) + 5 > availableBudget}
+                disabled={
+                  (player.currentBid || player.qtA || 0) + 5 > availableBudget
+                }
               >
                 +5
               </Button>
@@ -283,7 +307,9 @@ export function QuickBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(10)}
-                disabled={(player.currentBid || player.qtA || 0) + 10 > availableBudget}
+                disabled={
+                  (player.currentBid || player.qtA || 0) + 10 > availableBudget
+                }
               >
                 +10
               </Button>
@@ -305,7 +331,7 @@ export function QuickBidModal({
           </div>
 
           {/* Auto-bid Section */}
-          <div className="space-y-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+          <div className="space-y-3 rounded-lg border bg-blue-50 p-3 dark:bg-blue-950/20">
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -318,7 +344,7 @@ export function QuickBidModal({
                 Abilita Offerta Automatica
               </Label>
             </div>
-            
+
             {useAutoBid && (
               <div className="space-y-2">
                 <Label htmlFor="maxAmount" className="text-sm">
@@ -334,7 +360,8 @@ export function QuickBidModal({
                   placeholder={`Min: ${bidAmount + 1}`}
                 />
                 <p className="text-xs text-blue-600">
-                  Il sistema rilancera automaticamente fino a {maxAmount} crediti quando altri utenti fanno offerte superiori alla tua.
+                  Il sistema rilancera automaticamente fino a {maxAmount}{" "}
+                  crediti quando altri utenti fanno offerte superiori alla tua.
                 </p>
               </div>
             )}
@@ -366,8 +393,11 @@ export function QuickBidModal({
             onClick={handleSubmitBid}
             disabled={!canSubmitBid || (useAutoBid && maxAmount <= bidAmount)}
           >
-            {isSubmitting ? "Piazzando..." : 
-             useAutoBid ? `Offri ${bidAmount} (max ${maxAmount})` : `Offri ${bidAmount} crediti`}
+            {isSubmitting
+              ? "Piazzando..."
+              : useAutoBid
+                ? `Offri ${bidAmount} (max ${maxAmount})`
+                : `Offri ${bidAmount} crediti`}
           </Button>
         </DialogFooter>
       </DialogContent>

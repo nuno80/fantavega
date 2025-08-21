@@ -51,7 +51,10 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const body = (await request.json()) as { userIdToAdd?: string; teamName?: string }; // userIdToAdd è opzionale per il check
+    const body = (await request.json()) as {
+      userIdToAdd?: string;
+      teamName?: string;
+    }; // userIdToAdd è opzionale per il check
     const participantUserIdToAdd = body.userIdToAdd;
 
     if (!participantUserIdToAdd || typeof participantUserIdToAdd !== "string") {

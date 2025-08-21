@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { toast } from "sonner";
 
-import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
 import { PlayerAdvancedFilters } from "@/components/players/PlayerAdvancedFilters";
+import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
 import { PlayerSearchResults } from "@/components/players/PlayerSearchResults";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
 import { useSocket } from "@/contexts/SocketContext";
@@ -13,7 +14,7 @@ import { useSocket } from "@/contexts/SocketContext";
 export interface Player {
   id: number;
   role: string; // R column
-  roleDetail: string; // RM column  
+  roleDetail: string; // RM column
   name: string; // Nome column
   team: string; // Squadra column
   qtA: number; // Qt.A column
@@ -37,7 +38,7 @@ export interface PlayerWithAuctionStatus extends Player {
   timeRemaining?: number; // in seconds
   isAssignedToUser?: boolean;
   assignedToTeam?: string;
-  
+
   currentHighestBidderName?: string;
   cooldownInfo?: {
     timeRemaining: number;
@@ -75,14 +76,20 @@ interface PlayerSearchInterfaceProps {
   userRole: string;
 }
 
-export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfaceProps) {
+export function PlayerSearchInterface({
+  userId,
+  userRole,
+}: PlayerSearchInterfaceProps) {
   const [players, setPlayers] = useState<PlayerWithAuctionStatus[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<PlayerWithAuctionStatus[]>([]);
+  const [filteredPlayers, setFilteredPlayers] = useState<
+    PlayerWithAuctionStatus[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithAuctionStatus | null>(null);
+  const [selectedPlayer, setSelectedPlayer] =
+    useState<PlayerWithAuctionStatus | null>(null);
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
-  
+
   const [filters, setFilters] = useState<SearchFilters>({
     searchTerm: "",
     roles: [],
@@ -93,7 +100,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     isStarter: false,
     isFavorite: false,
     hasIntegrity: false,
-    hasFmv: false
+    hasFmv: false,
   });
 
   const { socket, isConnected } = useSocket();
@@ -103,33 +110,35 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     const fetchPlayersData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Get user's leagues first
         const leaguesResponse = await fetch("/api/user/leagues");
         if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
-        
+
         const leagues = await leaguesResponse.json();
-        
+
         if (leagues.length === 0) {
           // Se l'utente non ha leghe, carica solo i dati base dei giocatori
           const playersResponse = await fetch(`/api/players`, {
-            credentials: 'include', // Include cookies per autenticazione Clerk
+            credentials: "include", // Include cookies per autenticazione Clerk
             headers: {
-              'Content-Type': 'application/json',
-            }
+              "Content-Type": "application/json",
+            },
           });
           if (!playersResponse.ok) throw new Error("Failed to fetch players");
-          
+
           const playersData = await playersResponse.json();
           // Adatta i dati al formato PlayerWithAuctionStatus
           const adaptedPlayers = playersData.players.map((p: Player) => ({
             ...p,
             auctionStatus: "no_auction" as const,
           }));
-          
+
           setPlayers(adaptedPlayers);
           setFilteredPlayers(adaptedPlayers);
-          toast.info("Stai visualizzando i giocatori in modalità sola lettura perché non sei iscritto a nessuna lega");
+          toast.info(
+            "Stai visualizzando i giocatori in modalità sola lettura perché non sei iscritto a nessuna lega"
+          );
           return;
         }
 
@@ -139,7 +148,6 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
 
         // Use the existing refresh function to load player data, passing the league ID directly
         await refreshPlayersData(league.id);
-
       } catch (error) {
         console.error("Error fetching players:", error);
         toast.error("Errore nel caricamento dei giocatori");
@@ -160,10 +168,13 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     // Auto-process expired auctions every 30 seconds
     const processExpiredAuctions = async () => {
       try {
-        const response = await fetch(`/api/leagues/${selectedLeagueId}/process-expired-auctions`, {
-          method: "POST",
-        });
-        
+        const response = await fetch(
+          `/api/leagues/${selectedLeagueId}/process-expired-auctions`,
+          {
+            method: "POST",
+          }
+        );
+
         if (response.ok) {
           const result = await response.json();
           if (result.processedCount > 0) {
@@ -194,19 +205,27 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
         isActive: boolean;
       }>;
     }) => {
-      setPlayers(prev => prev.map(player => 
-        player.id === data.playerId 
-          ? { 
-              ...player, 
-              auctionStatus: "active_auction", // <-- CORREZIONE: Assicura che lo stato sia sempre attivo su un update
-              currentBid: data.newPrice,
-              currentHighestBidderName: data.highestBidderName || data.highestBidderId,
-              timeRemaining: Math.max(0, data.scheduledEndTime - Math.floor(Date.now() / 1000)),
-              autoBids: data.autoBids || player.autoBids,
-              userAutoBid: data.autoBids?.find(ab => ab.userId === userId) || player.userAutoBid
-            }
-          : player
-      ));
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "active_auction", // <-- CORREZIONE: Assicura che lo stato sia sempre attivo su un update
+                currentBid: data.newPrice,
+                currentHighestBidderName:
+                  data.highestBidderName || data.highestBidderId,
+                timeRemaining: Math.max(
+                  0,
+                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
+                ),
+                autoBids: data.autoBids || player.autoBids,
+                userAutoBid:
+                  data.autoBids?.find((ab) => ab.userId === userId) ||
+                  player.userAutoBid,
+              }
+            : player
+        )
+      );
     };
 
     const handleAuctionClosed = (data: {
@@ -214,17 +233,19 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       winnerId: string;
       finalPrice: number;
     }) => {
-      setPlayers(prev => prev.map(player => 
-        player.id === data.playerId 
-          ? { 
-              ...player, 
-              auctionStatus: "assigned",
-              assignedToTeam: data.winnerId,
-              currentBid: data.finalPrice,
-              timeRemaining: 0
-            }
-          : player
-      ));
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "assigned",
+                assignedToTeam: data.winnerId,
+                currentBid: data.finalPrice,
+                timeRemaining: 0,
+              }
+            : player
+        )
+      );
     };
 
     const handleAuctionCreated = (data: {
@@ -234,17 +255,22 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
       highestBidderId: string;
       scheduledEndTime: number;
     }) => {
-      setPlayers(prev => prev.map(player => 
-        player.id === data.playerId 
-          ? { 
-              ...player, 
-              auctionStatus: "active_auction",
-              auctionId: data.auctionId,
-              currentBid: data.newPrice,
-              timeRemaining: Math.max(0, data.scheduledEndTime - Math.floor(Date.now() / 1000)),
-            }
-          : player
-      ));
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "active_auction",
+                auctionId: data.auctionId,
+                currentBid: data.newPrice,
+                timeRemaining: Math.max(
+                  0,
+                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
+                ),
+              }
+            : player
+        )
+      );
     };
 
     socket.on("auction-created", handleAuctionCreated);
@@ -267,40 +293,53 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     // Search term filter
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
-      filtered = filtered.filter(player =>
-        player.name.toLowerCase().includes(term) ||
-        player.team.toLowerCase().includes(term)
+      filtered = filtered.filter(
+        (player) =>
+          player.name.toLowerCase().includes(term) ||
+          player.team.toLowerCase().includes(term)
       );
     }
 
     // Role filter
     if (filters.roles.length > 0) {
-      filtered = filtered.filter(player => filters.roles.includes(player.role));
+      filtered = filtered.filter((player) =>
+        filters.roles.includes(player.role)
+      );
     }
 
     // Team filter
     if (filters.teams.length > 0) {
-      filtered = filtered.filter(player => filters.teams.includes(player.team));
+      filtered = filtered.filter((player) =>
+        filters.teams.includes(player.team)
+      );
     }
 
     // Auction status filter
     if (filters.auctionStatus.length > 0) {
-      filtered = filtered.filter(player => filters.auctionStatus.includes(player.auctionStatus));
+      filtered = filtered.filter((player) =>
+        filters.auctionStatus.includes(player.auctionStatus)
+      );
     }
 
     // Time remaining filter
     if (filters.timeRemaining.length > 0) {
-      filtered = filtered.filter(player => {
-        if (!player.timeRemaining) return filters.timeRemaining.includes("no_auction");
-        
+      filtered = filtered.filter((player) => {
+        if (!player.timeRemaining)
+          return filters.timeRemaining.includes("no_auction");
+
         const hours = player.timeRemaining / 3600;
-        return filters.timeRemaining.some(range => {
+        return filters.timeRemaining.some((range) => {
           switch (range) {
-            case "less_1h": return hours < 1;
-            case "1_6h": return hours >= 1 && hours <= 6;
-            case "6_24h": return hours > 6 && hours <= 24;
-            case "more_24h": return hours > 24;
-            default: return false;
+            case "less_1h":
+              return hours < 1;
+            case "1_6h":
+              return hours >= 1 && hours <= 6;
+            case "6_24h":
+              return hours > 6 && hours <= 24;
+            case "more_24h":
+              return hours > 24;
+            default:
+              return false;
           }
         });
       });
@@ -308,24 +347,28 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
 
     // Show/hide assigned players
     if (!filters.showAssigned) {
-      filtered = filtered.filter(player => player.auctionStatus !== "assigned");
+      filtered = filtered.filter(
+        (player) => player.auctionStatus !== "assigned"
+      );
     }
 
     // Player characteristics filters
     if (filters.isStarter) {
-      filtered = filtered.filter(player => player.isStarter);
+      filtered = filtered.filter((player) => player.isStarter);
     }
 
     if (filters.isFavorite) {
-      filtered = filtered.filter(player => player.isFavorite);
+      filtered = filtered.filter((player) => player.isFavorite);
     }
 
     if (filters.hasIntegrity) {
-      filtered = filtered.filter(player => player.integrityValue && player.integrityValue > 0);
+      filtered = filtered.filter(
+        (player) => player.integrityValue && player.integrityValue > 0
+      );
     }
 
     if (filters.hasFmv) {
-      filtered = filtered.filter(player => player.hasFmv);
+      filtered = filtered.filter((player) => player.hasFmv);
     }
 
     setFilteredPlayers(filtered);
@@ -336,12 +379,19 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     setIsBidModalOpen(true);
   };
 
+  const handleStartAuction = (player: PlayerWithAuctionStatus) => {
+    // TODO: Implement start auction logic
+    console.log("Start auction for player:", player);
+  };
+
   const refreshPlayersData = async (leagueIdToLoad?: number) => {
     const leagueId = leagueIdToLoad || selectedLeagueId;
     if (!leagueId) return;
-    
+
     try {
-      const playersResponse = await fetch(`/api/leagues/${leagueId}/players-with-status`);
+      const playersResponse = await fetch(
+        `/api/leagues/${leagueId}/players-with-status`
+      );
       if (playersResponse.ok) {
         const playersData = await playersResponse.json();
         setPlayers(playersData);
@@ -352,41 +402,53 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
     }
   };
 
-  
-
-  const handleTogglePlayerIcon = async (playerId: number, iconType: 'isStarter' | 'isFavorite' | 'integrityValue' | 'hasFmv', value: boolean | number) => {
+  const handleTogglePlayerIcon = async (
+    playerId: number,
+    iconType: "isStarter" | "isFavorite" | "integrityValue" | "hasFmv",
+    value: boolean | number
+  ) => {
     try {
       if (!selectedLeagueId) return;
 
       // Usa il nuovo endpoint per le preferenze
-      const response = await fetch(`/api/leagues/${selectedLeagueId}/players/${playerId}/preferences`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          iconType,
-          value
-        }),
-      });
+      const response = await fetch(
+        `/api/leagues/${selectedLeagueId}/players/${playerId}/preferences`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            iconType,
+            value,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || error.message || "Errore nell'aggiornare la preferenza");
+        throw new Error(
+          error.error || error.message || "Errore nell'aggiornare la preferenza"
+        );
       }
 
       // Aggiorna lo stato locale del giocatore
-      setPlayers(prev => prev.map(player =>
-        player.id === playerId
-          ? {
-              ...player,
-              [iconType]: value
-            }
-          : player
-      ));
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === playerId
+            ? {
+                ...player,
+                [iconType]: value,
+              }
+            : player
+        )
+      );
 
       toast.success("Preferenza salvata con successo!");
-      
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Errore nell'aggiornare la preferenza");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Errore nell'aggiornare la preferenza"
+      );
     }
   };
 
@@ -395,7 +457,7 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
   }
 
   return (
-    <div className="container px-4 py-6 space-y-6">
+    <div className="container space-y-6 px-4 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Cerca Giocatori</h1>
         <div className="text-sm text-muted-foreground">
@@ -405,19 +467,21 @@ export function PlayerSearchInterface({ userId, userRole }: PlayerSearchInterfac
 
       <PlayerSearchBar
         searchTerm={filters.searchTerm}
-        onSearchChange={(term) => setFilters(prev => ({ ...prev, searchTerm: term }))}
+        onSearchChange={(term) =>
+          setFilters((prev) => ({ ...prev, searchTerm: term }))
+        }
       />
 
       <PlayerAdvancedFilters
         filters={filters}
         onFiltersChange={setFilters}
-        availableTeams={Array.from(new Set(players.map(p => p.team))).sort()}
+        availableTeams={Array.from(new Set(players.map((p) => p.team))).sort()}
       />
 
       <PlayerSearchResults
         players={filteredPlayers}
         onBidOnPlayer={handleBidOnPlayer}
-        
+        onStartAuction={handleStartAuction}
         onTogglePlayerIcon={handleTogglePlayerIcon}
         userRole={userRole}
         userId={userId}

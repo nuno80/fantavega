@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import { AutoBidModal } from "./AutoBidModal";
 
 interface BiddingInterfaceProps {
@@ -19,7 +21,11 @@ interface BiddingInterfaceProps {
   playerId: number;
   leagueId: number;
   playerName: string;
-  onPlaceBid: (amount: number, bidType?: "manual" | "quick", maxAmount?: number) => Promise<void>;
+  onPlaceBid: (
+    amount: number,
+    bidType?: "manual" | "quick",
+    maxAmount?: number
+  ) => Promise<void>;
   existingAutoBid?: {
     max_amount: number;
     is_active: boolean;
@@ -59,11 +65,14 @@ export function BiddingInterface({
   }, [currentBid, minBid]);
 
   const availableBudget = userBudget - lockedCredits;
-  const canBid = auctionStatus === "active" && (!isUserHighestBidder || isCounterBid);
+  const canBid =
+    auctionStatus === "active" && (!isUserHighestBidder || isCounterBid);
 
   const handleBidSubmit = async (bidType: "manual" | "quick" = "manual") => {
     if (bidAmount <= currentBid) {
-      toast.error("L&apos;offerta deve essere superiore all&apos;offerta attuale");
+      toast.error(
+        "L&apos;offerta deve essere superiore all&apos;offerta attuale"
+      );
       return;
     }
 
@@ -73,7 +82,9 @@ export function BiddingInterface({
     }
 
     if (useAutoBid && maxAmount <= bidAmount) {
-      toast.error("Il prezzo massimo deve essere superiore all'offerta attuale");
+      toast.error(
+        "Il prezzo massimo deve essere superiore all'offerta attuale"
+      );
       return;
     }
 
@@ -81,7 +92,10 @@ export function BiddingInterface({
     console.log("[DEBUG BIDDING] bidAmount:", bidAmount);
     console.log("[DEBUG BIDDING] bidType:", bidType);
     console.log("[DEBUG BIDDING] useAutoBid:", useAutoBid);
-    console.log("[DEBUG BIDDING] maxAmount:", useAutoBid ? maxAmount : undefined);
+    console.log(
+      "[DEBUG BIDDING] maxAmount:",
+      useAutoBid ? maxAmount : undefined
+    );
 
     setIsSubmitting(true);
     try {
@@ -98,7 +112,7 @@ export function BiddingInterface({
 
   const handleQuickBid = async (increment: number) => {
     const quickBidAmount = currentBid + increment;
-    
+
     if (quickBidAmount > availableBudget) {
       toast.error("Budget insufficiente per questa offerta rapida");
       return;
@@ -124,9 +138,9 @@ export function BiddingInterface({
           <CardTitle>Offerte</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
+          <div className="py-8 text-center">
             {isUserHighestBidder ? (
-              <p className="text-green-600 font-semibold">
+              <p className="font-semibold text-green-600">
                 Sei il miglior offerente!
               </p>
             ) : auctionStatus !== "active" ? (
@@ -147,7 +161,7 @@ export function BiddingInterface({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Budget Info */}
-        <div className="bg-muted p-3 rounded-lg">
+        <div className="rounded-lg bg-muted p-3">
           <div className="flex justify-between text-sm">
             <span>Budget disponibile:</span>
             <span className="font-semibold">{availableBudget} crediti</span>
@@ -204,7 +218,7 @@ export function BiddingInterface({
         </div>
 
         {/* Auto-bid Section */}
-        <div className="space-y-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+        <div className="space-y-3 rounded-lg border bg-blue-50 p-3 dark:bg-blue-950/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <input
@@ -218,14 +232,14 @@ export function BiddingInterface({
                 Abilita Offerta Automatica
               </Label>
             </div>
-            
+
             {existingAutoBid?.is_active && (
-              <div className="text-xs text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
+              <div className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-600 dark:bg-blue-900/30">
                 Auto-bid attivo: {existingAutoBid.max_amount} crediti
               </div>
             )}
           </div>
-          
+
           {useAutoBid && (
             <div className="space-y-2">
               <Label htmlFor="maxAmount" className="text-sm">
@@ -241,7 +255,8 @@ export function BiddingInterface({
                 placeholder={`Min: ${bidAmount + 1}`}
               />
               <p className="text-xs text-blue-600">
-                Il sistema rilancerà automaticamente fino a {maxAmount} crediti quando altri utenti fanno offerte superiori alla tua.
+                Il sistema rilancerà automaticamente fino a {maxAmount} crediti
+                quando altri utenti fanno offerte superiori alla tua.
               </p>
             </div>
           )}
@@ -260,9 +275,11 @@ export function BiddingInterface({
           className="w-full"
           size="lg"
         >
-          {isSubmitting ? "Piazzando offerta..." : 
-           useAutoBid ? `Offri ${bidAmount} (max ${maxAmount})` : 
-           `Offri ${bidAmount} crediti`}
+          {isSubmitting
+            ? "Piazzando offerta..."
+            : useAutoBid
+              ? `Offri ${bidAmount} (max ${maxAmount})`
+              : `Offri ${bidAmount} crediti`}
         </Button>
 
         {/* Auto-Bid Modal */}

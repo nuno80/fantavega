@@ -1,8 +1,9 @@
 // src/app/api/leagues/[league-id]/budget/route.ts
 // API endpoint to get user's budget information for a specific league
-
 import { NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 
 export async function GET(
@@ -11,16 +12,19 @@ export async function GET(
 ) {
   try {
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
     const resolvedParams = await params;
     const leagueId = parseInt(resolvedParams["league-id"]);
-    
+
     if (isNaN(leagueId)) {
-      return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID lega non valido" },
+        { status: 400 }
+      );
     }
 
     // Get user's budget information for this league

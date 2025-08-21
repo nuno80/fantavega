@@ -47,7 +47,7 @@ export function AuctionPlayerCard({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m ${secs}s`;
     }
@@ -60,7 +60,7 @@ export function AuctionPlayerCard({
         <div className="flex flex-col items-center space-y-4">
           {/* Player Image */}
           <div className="relative">
-            <div className="h-24 w-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               {playerImage ? (
                 <img
                   src={playerImage}
@@ -75,14 +75,14 @@ export function AuctionPlayerCard({
             </div>
             {/* Role Badge */}
             <Badge
-              className={`absolute -top-1 -right-1 ${getRoleBadgeColor(playerRole)}`}
+              className={`absolute -right-1 -top-1 ${getRoleBadgeColor(playerRole)}`}
             >
               {playerRole}
             </Badge>
           </div>
 
           {/* Player Info */}
-          <div className="text-center space-y-2">
+          <div className="space-y-2 text-center">
             <h3 className="text-xl font-bold">{playerName || "Giocatore"}</h3>
             {playerTeam && (
               <p className="text-sm text-muted-foreground">{playerTeam}</p>
@@ -90,12 +90,13 @@ export function AuctionPlayerCard({
           </div>
 
           {/* Auto-Bid and Current Bid */}
-          <div className="text-center space-y-2">
+          <div className="space-y-2 text-center">
             {userAutoBid && userAutoBid.is_active && (
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">La tua Auto-Bid</p>
                 <p className="text-2xl font-bold text-blue-500">
-                  {userAutoBid.max_amount} <span className="text-sm">crediti</span>
+                  {userAutoBid.max_amount}{" "}
+                  <span className="text-sm">crediti</span>
                 </p>
               </div>
             )}
@@ -109,7 +110,7 @@ export function AuctionPlayerCard({
 
           {/* Timer */}
           {status === "active" && (
-            <div className="text-center space-y-1">
+            <div className="space-y-1 text-center">
               <p className="text-sm text-muted-foreground">Tempo Rimanente</p>
               <p className="text-lg font-semibold">
                 {formatTimeRemaining(timeRemaining)}

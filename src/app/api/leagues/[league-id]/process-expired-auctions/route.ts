@@ -1,8 +1,9 @@
 // src/app/api/leagues/[league-id]/process-expired-auctions/route.ts
 // API endpoint to automatically process expired auctions for a specific league
-
 import { NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { processExpiredAuctionsAndAssignPlayers } from "@/lib/db/services/bid.service";
 
 interface RouteContext {
@@ -11,13 +12,10 @@ interface RouteContext {
   }>;
 }
 
-export async function POST(
-  _request: Request,
-  context: RouteContext
-) {
+export async function POST(_request: Request, context: RouteContext) {
   try {
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
@@ -36,11 +34,13 @@ export async function POST(
     // Verify user is participant in this league (or admin)
     const { db } = await import("@/lib/db");
     const participantCheck = db
-      .prepare("SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?")
+      .prepare(
+        "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
+      )
       .get(leagueIdNum, user.id);
 
     const userRole = user.publicMetadata?.role as string | undefined;
-    
+
     if (!participantCheck && userRole !== "admin") {
       return NextResponse.json(
         { error: "Non autorizzato per questa lega" },
@@ -48,12 +48,16 @@ export async function POST(
       );
     }
 
-    console.log(`[API PROCESS_EXPIRED_AUCTIONS] Processing expired auctions for league ${leagueIdNum}`);
+    console.log(
+      `[API PROCESS_EXPIRED_AUCTIONS] Processing expired auctions for league ${leagueIdNum}`
+    );
 
     // Process expired auctions
     const result = await processExpiredAuctionsAndAssignPlayers();
 
-    console.log(`[API PROCESS_EXPIRED_AUCTIONS] Processed ${result.processedCount} auctions, ${result.failedCount} failed`);
+    console.log(
+      `[API PROCESS_EXPIRED_AUCTIONS] Processed ${result.processedCount} auctions, ${result.failedCount} failed`
+    );
 
     return NextResponse.json({
       message: "Aste scadute processate con successo",
@@ -61,7 +65,6 @@ export async function POST(
       failedCount: result.failedCount,
       errors: result.errors,
     });
-
   } catch (error) {
     console.error("[API PROCESS_EXPIRED_AUCTIONS] Error:", error);
     return NextResponse.json(

@@ -1,16 +1,17 @@
 // src/app/auctions/page.tsx
 // Main auction page with responsive layout for live bidding
-
-import { Suspense } from "react";
-import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import { currentUser } from "@clerk/nextjs/server";
 
 import { Navbar } from "@/components/navbar";
+
 import { AuctionPageContent } from "./AuctionPageContent";
 
 export default async function AuctionsPage() {
   const user = await currentUser();
-  
+
   if (!user) {
     redirect("/devi-autenticarti");
   }
@@ -20,13 +21,11 @@ export default async function AuctionsPage() {
   try {
     // Utilizziamo il servizio DB direttamente per verificare la partecipazione
     const { db } = await import("@/lib/db");
-    
+
     const userLeagues = db
-      .prepare(
-        `SELECT 1 FROM league_participants WHERE user_id = ? LIMIT 1`
-      )
+      .prepare(`SELECT 1 FROM league_participants WHERE user_id = ? LIMIT 1`)
       .get(user.id);
-    
+
     hasLeagues = !!userLeagues;
   } catch (error) {
     console.error("Errore nel verificare la partecipazione alle leghe:", error);
@@ -34,7 +33,7 @@ export default async function AuctionsPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex h-screen flex-col bg-background">
       <Navbar />
       <div className="flex-1 overflow-y-auto">
         {hasLeagues ? (
@@ -55,15 +54,14 @@ function AuctionPageSkeleton() {
       <div className="grid grid-cols-1 gap-6">
         {/* Top Panel Skeleton */}
         <div className="space-y-6">
-          <div className="h-48 bg-muted animate-pulse rounded-lg" />
-          <div className="h-64 bg-muted animate-pulse rounded-lg" />
-          <div className="h-32 bg-muted animate-pulse rounded-lg" />
+          <div className="h-48 animate-pulse rounded-lg bg-muted" />
+          <div className="h-64 animate-pulse rounded-lg bg-muted" />
+          <div className="h-32 animate-pulse rounded-lg bg-muted" />
         </div>
         {/* Bottom Panel Skeleton */}
         <div className="space-y-6">
-
-          <div className="h-96 bg-muted animate-pulse rounded-lg" />
-          <div className="h-64 bg-muted animate-pulse rounded-lg" />
+          <div className="h-96 animate-pulse rounded-lg bg-muted" />
+          <div className="h-64 animate-pulse rounded-lg bg-muted" />
         </div>
       </div>
     </div>
@@ -73,12 +71,12 @@ function AuctionPageSkeleton() {
 function NoLeagueMessage() {
   return (
     <div className="container px-4 py-6">
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="max-w-md mx-auto">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="mx-auto max-w-md">
           <div className="mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <svg
-                className="w-8 h-8 text-muted-foreground"
+                className="h-8 w-8 text-muted-foreground"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -93,20 +91,21 @@ function NoLeagueMessage() {
               </svg>
             </div>
           </div>
-          
-          <h2 className="text-2xl font-bold text-foreground mb-3">
+
+          <h2 className="mb-3 text-2xl font-bold text-foreground">
             Accesso Limitato
           </h2>
-          
-          <p className="text-muted-foreground mb-6 leading-relaxed">
-            Questa pagina puo essere visualizzata solo da utenti iscritti a una lega. 
-            Contatta un amministratore per essere aggiunto a una lega esistente.
+
+          <p className="mb-6 leading-relaxed text-muted-foreground">
+            Questa pagina puo essere visualizzata solo da utenti iscritti a una
+            lega. Contatta un amministratore per essere aggiunto a una lega
+            esistente.
           </p>
-          
+
           <div className="space-y-3">
             <a
               href="/dashboard"
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               Torna alla Dashboard
             </a>

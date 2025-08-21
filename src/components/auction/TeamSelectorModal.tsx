@@ -1,12 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 
 interface TeamSelectorModalProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ export function TeamSelectorModal({
 }: TeamSelectorModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-gray-800 text-white border-gray-700">
+      <DialogContent className="border-gray-700 bg-gray-800 text-white">
         <DialogHeader>
           <DialogTitle>Seleziona una squadra</DialogTitle>
         </DialogHeader>

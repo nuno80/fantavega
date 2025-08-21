@@ -2,8 +2,8 @@
 // Pagina per visualizzare e gestire tutte le leghe create.
 // 1. Importazioni
 import Link from "next/link";
-import { currentUser } from "@clerk/nextjs/server";
 
+import { currentUser } from "@clerk/nextjs/server";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
@@ -56,7 +56,8 @@ export default async function AdminLeaguesPage() {
           <CardHeader>
             <CardTitle>Tutte le Leghe</CardTitle>
             <CardDescription>
-              Visualizza e gestisci tutte le leghe d&apos;asta create nel sistema.
+              Visualizza e gestisci tutte le leghe d&apos;asta create nel
+              sistema.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -99,11 +100,11 @@ export default async function AdminLeaguesPage() {
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/admin/leagues/${league.id}/dashboard`}>
                             <Button variant="outline" size="sm">
-                              <ArrowRight className="h-4 w-4 mr-1" />
+                              <ArrowRight className="mr-1 h-4 w-4" />
                               Gestisci
                             </Button>
                           </Link>
-                          <code className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded">
+                          <code className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">
                             ID: {league.id}
                           </code>
                         </div>

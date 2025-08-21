@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 
 export async function POST(
@@ -12,7 +14,7 @@ export async function POST(
 
   try {
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Non sei autenticato" },
@@ -22,7 +24,9 @@ export async function POST(
 
     // Verifica che l'utente appartenga alla lega
     const participantCheck = db
-      .prepare("SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?")
+      .prepare(
+        "SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?"
+      )
       .get(user.id, leagueId);
 
     if (!participantCheck) {
@@ -51,7 +55,12 @@ export async function POST(
     }
 
     // Validazione iconType
-    const validIconTypes = ['isStarter', 'isFavorite', 'integrityValue', 'hasFmv'];
+    const validIconTypes = [
+      "isStarter",
+      "isFavorite",
+      "integrityValue",
+      "hasFmv",
+    ];
     if (!validIconTypes.includes(iconType)) {
       return NextResponse.json(
         { error: "Tipo di preferenza non valido" },
@@ -61,22 +70,22 @@ export async function POST(
 
     // Mappa iconType a colonna database
     const columnMap: Record<string, string> = {
-      'isStarter': 'is_starter',
-      'isFavorite': 'is_favorite', 
-      'integrityValue': 'integrity_value',
-      'hasFmv': 'has_fmv'
+      isStarter: "is_starter",
+      isFavorite: "is_favorite",
+      integrityValue: "integrity_value",
+      hasFmv: "has_fmv",
     };
 
     const column = columnMap[iconType];
-    
+
     // Converti il valore per SQLite (boolean -> number)
     let sqliteValue: number | string;
-    if (typeof value === 'boolean') {
+    if (typeof value === "boolean") {
       sqliteValue = value ? 1 : 0;
     } else {
       sqliteValue = value as number;
     }
-    
+
     // Upsert della preferenza
     const upsertStmt = db.prepare(`
       INSERT INTO user_player_preferences (user_id, player_id, league_id, ${column}, updated_at)
@@ -89,17 +98,18 @@ export async function POST(
 
     // Recupera la preferenza aggiornata
     const updatedPreference = db
-      .prepare(`
+      .prepare(
+        `
         SELECT * FROM user_player_preferences 
         WHERE user_id = ? AND player_id = ? AND league_id = ?
-      `)
+      `
+      )
       .get(user.id, playerId, leagueId);
 
     return NextResponse.json({
       success: true,
-      preference: updatedPreference
+      preference: updatedPreference,
     });
-
   } catch (error) {
     console.error("Errore nell'aggiornare la preferenza:", error);
     return NextResponse.json(
@@ -119,7 +129,7 @@ export async function GET(
 
   try {
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Non sei autenticato" },
@@ -129,7 +139,9 @@ export async function GET(
 
     // Verifica che l'utente appartenga alla lega
     const participantCheck = db
-      .prepare("SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?")
+      .prepare(
+        "SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?"
+      )
       .get(user.id, leagueId);
 
     if (!participantCheck) {
@@ -149,10 +161,12 @@ export async function GET(
 
     // Recupera le preferenze dell'utente per questo giocatore in questa lega
     const preference = db
-      .prepare(`
+      .prepare(
+        `
         SELECT * FROM user_player_preferences 
         WHERE user_id = ? AND player_id = ? AND league_id = ?
-      `)
+      `
+      )
       .get(user.id, playerId, leagueId);
 
     return NextResponse.json({
@@ -163,10 +177,9 @@ export async function GET(
         is_starter: false,
         is_favorite: false,
         integrity_value: 0,
-        has_fmv: false
-      }
+        has_fmv: false,
+      },
     });
-
   } catch (error) {
     console.error("Errore nel recuperare le preferenze:", error);
     return NextResponse.json(

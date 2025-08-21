@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+
 import { AlertTriangle, DollarSign, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -92,7 +93,9 @@ export function ResponseActionModal({
         onClose();
         onCounterBid(); // Apre il modal di offerta
       } else {
-        toast.error(data.error || "Errore durante la preparazione dell'offerta");
+        toast.error(
+          data.error || "Errore durante la preparazione dell'offerta"
+        );
       }
     } catch (error) {
       toast.error("Errore di connessione");
@@ -115,23 +118,32 @@ export function ResponseActionModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="bg-muted p-4 rounded-lg">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-muted-foreground">Offerta attuale:</span>
-              <span className="font-semibold text-lg">{currentBid} crediti</span>
+          <div className="rounded-lg bg-muted p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Offerta attuale:
+              </span>
+              <span className="text-lg font-semibold">
+                {currentBid} crediti
+              </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Tempo rimanente:</span>
-              <span className={`font-semibold ${timeRemaining < 300 ? 'text-red-500' : 'text-orange-500'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Tempo rimanente:
+              </span>
+              <span
+                className={`font-semibold ${timeRemaining < 300 ? "text-red-500" : "text-orange-500"}`}
+              >
                 {formatTimeRemaining(timeRemaining)}
               </span>
             </div>
           </div>
 
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3 rounded-lg">
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Attenzione:</strong> Hai 1 ora per decidere. Se non agisci, l&apos;asta verrà abbandonata automaticamente 
-              e non potrai fare offerte per questo giocatore per 48 ore.
+              <strong>Attenzione:</strong> Hai 1 ora per decidere. Se non
+              agisci, l&apos;asta verrà abbandonata automaticamente e non potrai
+              fare offerte per questo giocatore per 48 ore.
             </p>
           </div>
 
@@ -142,7 +154,7 @@ export function ResponseActionModal({
               disabled={isLoading}
               className="flex-1"
             >
-              <X className="h-4 w-4 mr-2" />
+              <X className="mr-2 h-4 w-4" />
               Abbandona
             </Button>
             <Button
@@ -150,7 +162,7 @@ export function ResponseActionModal({
               disabled={isLoading}
               className="flex-1"
             >
-              <DollarSign className="h-4 w-4 mr-2" />
+              <DollarSign className="mr-2 h-4 w-4" />
               Rilancia
             </Button>
           </div>

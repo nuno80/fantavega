@@ -24,6 +24,27 @@ import { CreateLeagueSchema } from "@/lib/validators/league.validators";
 // src/lib/actions/league.actions.ts v.1.8 (Definitivo)
 // Corretto il tipo nel blocco catch di removeParticipantAction.
 
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
+// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
+// Corretto il tipo nel blocco catch di removeParticipantAction.
+
 // 2. Action: Creare una Lega
 export type CreateLeagueFormState = {
   success: boolean;
@@ -79,7 +100,7 @@ export async function createLeague(
 
     // eslint-disable-next-line prefer-const
     let newLeagueId: number;
-    
+
     const transaction = db.transaction(() => {
       const fields = [
         "name",
@@ -124,7 +145,7 @@ export async function createLeague(
 
       console.log("[createLeague] Query SQL:", leagueStmt.source);
       console.log("[createLeague] Valori:", values);
-      
+
       const leagueResult = leagueStmt.run(...values);
       const id = leagueResult.lastInsertRowid as number;
       return id;
@@ -133,12 +154,15 @@ export async function createLeague(
     newLeagueId = transaction();
     console.log("[createLeague] Lega creata con ID:", newLeagueId);
     revalidatePath("/admin/leagues");
-    return { 
-      success: true, 
-      message: `Lega creata con successo.` 
+    return {
+      success: true,
+      message: `Lega creata con successo.`,
     };
   } catch (error) {
-    console.error("[createLeague] Errore durante la creazione della lega:", error);
+    console.error(
+      "[createLeague] Errore durante la creazione della lega:",
+      error
+    );
     if (
       error instanceof Error &&
       error.message.includes("UNIQUE constraint failed")
@@ -325,46 +349,52 @@ export async function deleteLeagueAction(
 
   // Verifica che l'utente abbia digitato "ELIMINA" per confermare
   if (confirmationText !== "ELIMINA") {
-    return { 
-      success: false, 
-      message: "Devi digitare 'ELIMINA' per confermare l'eliminazione." 
+    return {
+      success: false,
+      message: "Devi digitare 'ELIMINA' per confermare l'eliminazione.",
     };
   }
 
   try {
     // Verifica che l'admin sia il creatore della lega
-    const leagueCheck = db.prepare(
-      `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`
-    ).get(leagueId) as { admin_creator_id: string; name: string } | undefined;
+    const leagueCheck = db
+      .prepare(
+        `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`
+      )
+      .get(leagueId) as { admin_creator_id: string; name: string } | undefined;
 
     if (!leagueCheck) {
       return { success: false, message: "Lega non trovata." };
     }
 
     if (leagueCheck.admin_creator_id !== adminUserId) {
-      return { 
-        success: false, 
-        message: "Solo il creatore della lega può eliminarla." 
+      return {
+        success: false,
+        message: "Solo il creatore della lega può eliminarla.",
       };
     }
 
     // Elimina la lega (le foreign key CASCADE elimineranno automaticamente i dati correlati)
-    const deleteResult = db.prepare(
-      `DELETE FROM auction_leagues WHERE id = ?`
-    ).run(leagueId);
+    const deleteResult = db
+      .prepare(`DELETE FROM auction_leagues WHERE id = ?`)
+      .run(leagueId);
 
     if (deleteResult.changes === 0) {
       return { success: false, message: "Errore durante l'eliminazione." };
     }
 
     revalidatePath("/admin/leagues");
-    return { 
-      success: true, 
-      message: `Lega "${leagueCheck.name}" eliminata con successo.` 
+    return {
+      success: true,
+      message: `Lega "${leagueCheck.name}" eliminata con successo.`,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Errore sconosciuto.";
-    return { success: false, message: `Errore durante l'eliminazione: ${errorMessage}` };
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    return {
+      success: false,
+      message: `Errore durante l'eliminazione: ${errorMessage}`,
+    };
   }
 }
 

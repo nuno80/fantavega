@@ -100,7 +100,7 @@ export const getPlayers = async (
 
   let selectClause = "";
   const selectParams: (string | number)[] = [];
-  
+
   if (leagueId) {
     selectClause = `
       SELECT 
@@ -133,10 +133,11 @@ export const getPlayers = async (
     filterParams.push(`%${team}%`);
   }
 
-  const whereString = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(" AND ")}` : "";
-  
+  const whereString =
+    whereClauses.length > 0 ? ` WHERE ${whereClauses.join(" AND ")}` : "";
+
   const countQuery = `SELECT COUNT(*) as total ${fromClause}${whereString}`;
-  
+
   const validSortByFields: { [key: string]: string } = {
     name: "p.name",
     role: "p.role",
@@ -147,22 +148,29 @@ export const getPlayers = async (
   const dbSortByField = validSortByFields[sortBy] || "p.name";
   const dbSortOrder = sortOrder === "desc" ? "DESC" : "ASC";
   const orderByClause = ` ORDER BY ${dbSortByField} ${dbSortOrder}, p.id ${dbSortOrder}`;
-  
+
   const limitOffsetClause = ` LIMIT ? OFFSET ?`;
-  
+
   const baseQuery = `${selectClause} ${fromClause}${whereString}${orderByClause}${limitOffsetClause}`;
-  
-  const finalBaseParams = [...selectParams, ...filterParams, validatedLimit, offset];
+
+  const finalBaseParams = [
+    ...selectParams,
+    ...filterParams,
+    validatedLimit,
+    offset,
+  ];
   const finalCountParams = [...filterParams];
 
   try {
     const totalPlayersStmt = db.prepare(countQuery);
-    const totalResult = totalPlayersStmt.get(...finalCountParams) as { total: number; };
+    const totalResult = totalPlayersStmt.get(...finalCountParams) as {
+      total: number;
+    };
     const totalPlayers = totalResult.total;
 
     const playersStmt = db.prepare(baseQuery);
     const players = playersStmt.all(...finalBaseParams) as Player[];
-    
+
     const totalPages = Math.ceil(totalPlayers / validatedLimit);
 
     return {
@@ -238,12 +246,18 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
       error
     );
     if (
-      (error && typeof error === 'object' && 'code' in error && error.code === "SQLITE_CONSTRAINT_PRIMARYKEY") ||
-      (error instanceof Error && error.message.includes("UNIQUE constraint failed: players.id"))
+      (error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "SQLITE_CONSTRAINT_PRIMARYKEY") ||
+      (error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed: players.id"))
     ) {
       throw new Error(`Player with ID ${playerData.id} already exists.`);
     }
-    throw new Error(`Failed to create player: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `Failed to create player: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
   }
 };
 
@@ -264,9 +278,12 @@ export const updatePlayer = (
     const key = keyStr as keyof UpdatePlayerData;
     if (playerData[key] !== undefined) {
       setClauses.push(`${key} = @${key}`);
-      if (typeof playerData[key] === 'boolean') {
+      if (typeof playerData[key] === "boolean") {
         params[key] = playerData[key] ? 1 : 0;
-      } else if (playerData[key] === "" && ["role_mantra", "photo_url"].includes(key)) {
+      } else if (
+        playerData[key] === "" &&
+        ["role_mantra", "photo_url"].includes(key)
+      ) {
         params[key] = null;
       } else {
         params[key] = playerData[key];
@@ -310,7 +327,9 @@ export const updatePlayer = (
       error instanceof Error ? error.message : "Unknown error",
       error
     );
-    throw new Error(`Failed to update player: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `Failed to update player: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
   }
 };
 
@@ -343,11 +362,18 @@ export const deletePlayer = (
       error instanceof Error ? error.message : "Unknown error",
       error
     );
-    if (error && typeof error === 'object' && 'code' in error && error.code === "SQLITE_CONSTRAINT_FOREIGNKEY") {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "SQLITE_CONSTRAINT_FOREIGNKEY"
+    ) {
       throw new Error(
         `Failed to delete player ID ${playerId}: It is still referenced in other tables (e.g., active auctions, assignments). Please resolve these dependencies first.`
       );
     }
-    throw new Error(`Failed to delete player: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `Failed to delete player: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
   }
 };

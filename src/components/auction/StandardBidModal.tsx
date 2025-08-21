@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import { Clock, Gavel, User } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Clock, User, Gavel } from "lucide-react";
 
 interface StandardBidModalProps {
   isOpen: boolean;
@@ -27,7 +28,11 @@ interface StandardBidModalProps {
   leagueId: number;
   currentBid?: number;
   isNewAuction?: boolean; // true per "Avvia asta", false per rilanci
-  onBidSuccess?: (amount: number, bidType?: "manual" | "quick", maxAmount?: number) => Promise<void>;
+  onBidSuccess?: (
+    amount: number,
+    bidType?: "manual" | "quick",
+    maxAmount?: number
+  ) => Promise<void>;
   title?: string; // Custom title (es. "Rilancia", "Avvia asta", "Fai offerta")
   existingAutoBid?: {
     max_amount: number;
@@ -44,12 +49,12 @@ interface UserBudgetInfo {
 
 const getRoleBadgeColor = (role: string) => {
   const roleColors: { [key: string]: string } = {
-    'P': 'bg-yellow-500 text-yellow-50',
-    'D': 'bg-blue-500 text-blue-50', 
-    'C': 'bg-green-500 text-green-50',
-    'A': 'bg-red-500 text-red-50'
+    P: "bg-yellow-500 text-yellow-50",
+    D: "bg-blue-500 text-blue-50",
+    C: "bg-green-500 text-green-50",
+    A: "bg-red-500 text-red-50",
   };
-  return roleColors[role] || 'bg-gray-500 text-gray-50';
+  return roleColors[role] || "bg-gray-500 text-gray-50";
 };
 
 export function StandardBidModal({
@@ -65,7 +70,7 @@ export function StandardBidModal({
   onBidSuccess,
   title = "Fai un'offerta",
   existingAutoBid = null,
-  playerQtA = 1
+  playerQtA = 1,
 }: StandardBidModalProps) {
   const [bidAmount, setBidAmount] = useState(currentBid + 1);
   const [maxAmount, setMaxAmount] = useState(currentBid + 10);
@@ -73,7 +78,10 @@ export function StandardBidModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
   const [isLoadingBudget, setIsLoadingBudget] = useState(true);
-  const [fetchedAutoBid, setFetchedAutoBid] = useState<{max_amount: number, is_active: boolean} | null>(null);
+  const [fetchedAutoBid, setFetchedAutoBid] = useState<{
+    max_amount: number;
+    is_active: boolean;
+  } | null>(null);
 
   // Fetch user budget and auto-bid data
   useEffect(() => {
@@ -82,7 +90,7 @@ export function StandardBidModal({
     const fetchData = async () => {
       try {
         setIsLoadingBudget(true);
-        
+
         // Fetch budget
         const budgetResponse = await fetch(`/api/leagues/${leagueId}/budget`);
         if (budgetResponse.ok) {
@@ -92,7 +100,9 @@ export function StandardBidModal({
 
         // Fetch auto-bid only if not provided and not a new auction
         if (!isNewAuction && !existingAutoBid) {
-          const autoBidResponse = await fetch(`/api/leagues/${leagueId}/players/${playerId}/auto-bid`);
+          const autoBidResponse = await fetch(
+            `/api/leagues/${leagueId}/players/${playerId}/auto-bid`
+          );
           if (autoBidResponse.ok) {
             const autoBidData = await autoBidResponse.json();
             setFetchedAutoBid(autoBidData.auto_bid);
@@ -114,7 +124,7 @@ export function StandardBidModal({
     if (isOpen) {
       const initialBid = isNewAuction ? playerQtA : currentBid + 1;
       setBidAmount(initialBid);
-      
+
       // Use existing auto-bid data if available
       const currentAutoBid = existingAutoBid || fetchedAutoBid;
       if (currentAutoBid && currentAutoBid.is_active) {
@@ -124,14 +134,24 @@ export function StandardBidModal({
         setMaxAmount(initialBid + 10);
         setUseAutoBid(false);
       }
-      
+
       setIsSubmitting(false);
     }
-  }, [isOpen, currentBid, isNewAuction, existingAutoBid, fetchedAutoBid, playerQtA]);
+  }, [
+    isOpen,
+    currentBid,
+    isNewAuction,
+    existingAutoBid,
+    fetchedAutoBid,
+    playerQtA,
+  ]);
 
-  const availableBudget = userBudget ? userBudget.current_budget - userBudget.locked_credits : 0;
+  const availableBudget = userBudget
+    ? userBudget.current_budget - userBudget.locked_credits
+    : 0;
   const minValidBid = isNewAuction ? playerQtA : currentBid + 1;
-  const canSubmitBid = bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
+  const canSubmitBid =
+    bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
     const baseAmount = isNewAuction ? playerQtA : currentBid;
@@ -147,22 +167,35 @@ export function StandardBidModal({
       console.log("[DEBUG MODAL] About to call onBidSuccess with:");
       console.log("[DEBUG MODAL] bidAmount:", bidAmount);
       console.log("[DEBUG MODAL] bidType:", useAutoBid ? "quick" : "manual");
-      console.log("[DEBUG MODAL] maxAmount:", useAutoBid ? maxAmount : undefined);
+      console.log(
+        "[DEBUG MODAL] maxAmount:",
+        useAutoBid ? maxAmount : undefined
+      );
       console.log("[DEBUG MODAL] useAutoBid:", useAutoBid);
-      
+
       if (onBidSuccess) {
-        await onBidSuccess(bidAmount, useAutoBid ? "quick" : "manual", useAutoBid ? maxAmount : undefined);
+        await onBidSuccess(
+          bidAmount,
+          useAutoBid ? "quick" : "manual",
+          useAutoBid ? maxAmount : undefined
+        );
         // Il genitore gestirà la notifica di successo e la chiusura del modale.
-        onClose(); 
+        onClose();
       } else {
-        console.error("StandardBidModal requires an onBidSuccess handler to function.");
+        console.error(
+          "StandardBidModal requires an onBidSuccess handler to function."
+        );
         toast.error("Errore di configurazione", {
-          description: "L'azione di offerta non è stata collegata correttamente.",
+          description:
+            "L'azione di offerta non è stata collegata correttamente.",
         });
       }
     } catch (error) {
       // MOSTRA L'ERRORE ALL'UTENTE INVECE DI NASCONDERLO
-      const errorMessage = error instanceof Error ? error.message : "Si è verificato un errore sconosciuto";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Si è verificato un errore sconosciuto";
       toast.error("Offerta Fallita", {
         description: errorMessage,
       });
@@ -181,8 +214,10 @@ export function StandardBidModal({
           </DialogHeader>
           <div className="flex items-center justify-center p-6">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-              <p className="text-sm text-muted-foreground">Caricamento budget...</p>
+              <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+              <p className="text-sm text-muted-foreground">
+                Caricamento budget...
+              </p>
             </div>
           </div>
         </DialogContent>
@@ -199,18 +234,20 @@ export function StandardBidModal({
             {title}
           </DialogTitle>
           <DialogDescription>
-            {isNewAuction ? "Avvia l'asta per questo giocatore" : "Rilancia la tua offerta"}
+            {isNewAuction
+              ? "Avvia l'asta per questo giocatore"
+              : "Rilancia la tua offerta"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Player Info */}
-          <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-            <div className="h-12 w-12 rounded-full bg-background flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-lg bg-muted p-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
               <User className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="mb-1 flex items-center gap-2">
                 <Badge className={getRoleBadgeColor(playerRole)}>
                   {playerRole}
                 </Badge>
@@ -219,7 +256,8 @@ export function StandardBidModal({
               <p className="text-sm text-muted-foreground">{playerTeam}</p>
               {!isNewAuction && (
                 <p className="text-sm">
-                  Offerta attuale: <span className="font-semibold">{currentBid} crediti</span>
+                  Offerta attuale:{" "}
+                  <span className="font-semibold">{currentBid} crediti</span>
                 </p>
               )}
             </div>
@@ -227,7 +265,7 @@ export function StandardBidModal({
 
           {/* Budget Info */}
           {userBudget && (
-            <div className="flex justify-between text-sm p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+            <div className="flex justify-between rounded bg-blue-50 p-2 text-sm dark:bg-blue-950/20">
               <span>Budget disponibile:</span>
               <span className="font-semibold">{availableBudget} crediti</span>
             </div>
@@ -241,7 +279,9 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(1)}
-                disabled={(isNewAuction ? playerQtA : currentBid) + 1 > availableBudget}
+                disabled={
+                  (isNewAuction ? playerQtA : currentBid) + 1 > availableBudget
+                }
               >
                 +1
               </Button>
@@ -249,7 +289,9 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(5)}
-                disabled={(isNewAuction ? playerQtA : currentBid) + 5 > availableBudget}
+                disabled={
+                  (isNewAuction ? playerQtA : currentBid) + 5 > availableBudget
+                }
               >
                 +5
               </Button>
@@ -257,7 +299,9 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(10)}
-                disabled={(isNewAuction ? playerQtA : currentBid) + 10 > availableBudget}
+                disabled={
+                  (isNewAuction ? playerQtA : currentBid) + 10 > availableBudget
+                }
               >
                 +10
               </Button>
@@ -265,7 +309,9 @@ export function StandardBidModal({
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickBid(20)}
-                disabled={(isNewAuction ? playerQtA : currentBid) + 20 > availableBudget}
+                disabled={
+                  (isNewAuction ? playerQtA : currentBid) + 20 > availableBudget
+                }
               >
                 +20
               </Button>
@@ -287,7 +333,7 @@ export function StandardBidModal({
           </div>
 
           {/* Auto-bid Section */}
-          <div className="space-y-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+          <div className="space-y-3 rounded-lg border bg-blue-50 p-3 dark:bg-blue-950/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <input
@@ -301,15 +347,18 @@ export function StandardBidModal({
                   Abilita Offerta Automatica
                 </Label>
               </div>
-              
+
               {/* Show existing auto-bid info */}
-              {!isNewAuction && (existingAutoBid || fetchedAutoBid) && (existingAutoBid?.is_active || fetchedAutoBid?.is_active) && (
-                <div className="text-xs text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded">
-                  Auto-bid attivo: {(existingAutoBid || fetchedAutoBid)?.max_amount} crediti
-                </div>
-              )}
+              {!isNewAuction &&
+                (existingAutoBid || fetchedAutoBid) &&
+                (existingAutoBid?.is_active || fetchedAutoBid?.is_active) && (
+                  <div className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-600 dark:bg-blue-900/30">
+                    Auto-bid attivo:{" "}
+                    {(existingAutoBid || fetchedAutoBid)?.max_amount} crediti
+                  </div>
+                )}
             </div>
-            
+
             {useAutoBid && (
               <div className="space-y-2">
                 <Label htmlFor="maxAmount" className="text-sm">
@@ -325,7 +374,8 @@ export function StandardBidModal({
                   placeholder={`Min: ${bidAmount + 1}`}
                 />
                 <p className="text-xs text-blue-600">
-                  Il sistema rilancerà automaticamente fino a {maxAmount} crediti quando altri utenti fanno offerte superiori alla tua.
+                  Il sistema rilancerà automaticamente fino a {maxAmount}{" "}
+                  crediti quando altri utenti fanno offerte superiori alla tua.
                 </p>
               </div>
             )}
@@ -357,9 +407,13 @@ export function StandardBidModal({
             onClick={handleSubmitBid}
             disabled={!canSubmitBid || (useAutoBid && maxAmount <= bidAmount)}
           >
-            {isSubmitting ? "Piazzando..." : 
-             useAutoBid ? `Offri ${bidAmount} (max ${maxAmount})` : 
-             isNewAuction ? `Avvia asta a ${bidAmount} crediti` : `Offri ${bidAmount} crediti`}
+            {isSubmitting
+              ? "Piazzando..."
+              : useAutoBid
+                ? `Offri ${bidAmount} (max ${maxAmount})`
+                : isNewAuction
+                  ? `Avvia asta a ${bidAmount} crediti`
+                  : `Offri ${bidAmount} crediti`}
           </Button>
         </DialogFooter>
       </DialogContent>

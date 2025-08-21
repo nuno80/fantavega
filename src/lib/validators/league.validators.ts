@@ -44,7 +44,7 @@ const baseSchema = z.object({
     .number()
     .int()
     .positive({ message: "L'offerta minima deve essere positiva." })
-    .optional()
+    .optional(),
 });
 
 // 3. Schema raffinato per la validazione condizionale

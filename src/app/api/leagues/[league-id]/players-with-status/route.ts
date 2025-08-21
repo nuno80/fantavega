@@ -1,8 +1,9 @@
 // src/app/api/leagues/[league-id]/players-with-status/route.ts
 // API endpoint to get players with their auction status for a specific league
-
 import { NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
 
@@ -12,25 +13,33 @@ export async function GET(
 ) {
   try {
     const resolvedParams = await params;
-    
+
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
     const leagueId = parseInt(resolvedParams["league-id"]);
-    
+
     if (isNaN(leagueId)) {
-      return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID lega non valido" },
+        { status: 400 }
+      );
     }
 
     // Verify user is participant in this league
     const participation = db
-      .prepare("SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?")
+      .prepare(
+        "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
+      )
       .get(leagueId, user.id);
 
     if (!participation) {
-      return NextResponse.json({ error: "Non autorizzato per questa lega" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Non autorizzato per questa lega" },
+        { status: 403 }
+      );
     }
 
     // Get all players with their auction status and user preferences
@@ -88,7 +97,6 @@ export async function GET(
          ORDER BY p.name ASC`
       )
       .all(user.id, leagueId, leagueId, user.id, leagueId);
-    
 
     // Get only the current user's auto-bid information for active auctions
     const userAutoBidsData = db
@@ -108,34 +116,47 @@ export async function GET(
       maxAmount: number;
       isActive: boolean;
     }
-    
+
     interface UserAutoBidsByPlayer {
       [key: number]: UserAutoBid;
     }
 
-    const userAutoBidsByPlayer = (userAutoBidsData as Array<{player_id: number; max_amount: number; is_active: number}>).reduce((acc: UserAutoBidsByPlayer, autoBid) => {
+    const userAutoBidsByPlayer = (
+      userAutoBidsData as Array<{
+        player_id: number;
+        max_amount: number;
+        is_active: number;
+      }>
+    ).reduce((acc: UserAutoBidsByPlayer, autoBid) => {
       acc[autoBid.player_id] = {
         maxAmount: autoBid.max_amount,
-        isActive: autoBid.is_active === 1
+        isActive: autoBid.is_active === 1,
       };
       return acc;
     }, {});
 
     // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = (playersWithStatus as Array<{id: number; scheduled_end_time?: number; [key: string]: unknown}>).map((player, index) => {
-      
+    const processedPlayers = (
+      playersWithStatus as Array<{
+        id: number;
+        scheduled_end_time?: number;
+        [key: string]: unknown;
+      }>
+    ).map((player, index) => {
       const cooldownInfo = getUserCooldownInfo(user.id, player.id, leagueId);
       return {
         ...player,
-        timeRemaining: player.scheduled_end_time 
+        timeRemaining: player.scheduled_end_time
           ? Math.max(0, player.scheduled_end_time - now)
           : undefined,
         userAutoBid: userAutoBidsByPlayer[player.id] || null,
-        cooldownInfo: cooldownInfo.canBid ? null : {
-          timeRemaining: cooldownInfo.timeRemaining,
-          message: cooldownInfo.message
-        }
+        cooldownInfo: cooldownInfo.canBid
+          ? null
+          : {
+              timeRemaining: cooldownInfo.timeRemaining,
+              message: cooldownInfo.message,
+            },
       };
     });
 

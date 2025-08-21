@@ -11,7 +11,7 @@ import {
   placeBidOnExistingAuction,
   placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limiter";
 
 interface RouteContext {
   params: Promise<{
@@ -46,47 +46,53 @@ export async function POST(request: Request, context: RouteContext) {
     console.log(`[API BIDS POST] Request body:`, body);
     console.log(`[DEBUG AUTO-BID] max_amount received:`, body.max_amount);
     console.log(`[DEBUG AUTO-BID] max_amount type:`, typeof body.max_amount);
-    console.log(`[DEBUG AUTO-BID] max_amount is undefined:`, body.max_amount === undefined);
-    console.log(`[DEBUG AUTO-BID] max_amount is null:`, body.max_amount === null);
+    console.log(
+      `[DEBUG AUTO-BID] max_amount is undefined:`,
+      body.max_amount === undefined
+    );
+    console.log(
+      `[DEBUG AUTO-BID] max_amount is null:`,
+      body.max_amount === null
+    );
 
     // 2.1.1. Rate Limiting per offerte
-    const bidType = body.bid_type || 'manual';
+    const bidType = body.bid_type || "manual";
     let rateLimitConfig;
-    
+
     switch (bidType) {
-      case 'auto':
+      case "auto":
         rateLimitConfig = RATE_LIMITS.BID_AUTO;
         break;
-      case 'quick':
+      case "quick":
         rateLimitConfig = RATE_LIMITS.BID_QUICK;
         break;
       default:
         rateLimitConfig = RATE_LIMITS.BID_MANUAL;
     }
-    
+
     const rateCheck = checkRateLimit(
-      user.id, 
-      `bid_${bidType}`, 
-      rateLimitConfig.limit, 
+      user.id,
+      `bid_${bidType}`,
+      rateLimitConfig.limit,
       rateLimitConfig.windowMs
     );
-    
+
     if (!rateCheck.allowed) {
       const waitTime = Math.ceil((rateCheck.resetTime! - Date.now()) / 1000);
       return NextResponse.json(
-        { 
+        {
           error: `Troppe offerte ${bidType}! Riprova tra ${waitTime} secondi.`,
           retryAfter: waitTime,
-          type: 'rate_limit_exceeded'
-        }, 
-        { 
+          type: "rate_limit_exceeded",
+        },
+        {
           status: 429,
           headers: {
-            'Retry-After': waitTime.toString(),
-            'X-RateLimit-Limit': rateLimitConfig.limit.toString(),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': rateCheck.resetTime!.toString()
-          }
+            "Retry-After": waitTime.toString(),
+            "X-RateLimit-Limit": rateLimitConfig.limit.toString(),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": rateCheck.resetTime!.toString(),
+          },
         }
       );
     }
@@ -108,7 +114,12 @@ export async function POST(request: Request, context: RouteContext) {
     // Body già parsato sopra per rate limiting
     const bidAmount = body.amount;
     // bidType già definito sopra per rate limiting
-    console.log("[API BIDS POST] Parsed - bidAmount:", bidAmount, "bidType:", bidType);
+    console.log(
+      "[API BIDS POST] Parsed - bidAmount:",
+      bidAmount,
+      "bidType:",
+      bidType
+    );
 
     if (bidType !== "manual" && bidType !== "quick" && bidType !== "auto") {
       return NextResponse.json(
@@ -152,7 +163,7 @@ export async function POST(request: Request, context: RouteContext) {
       playerIdNum
     );
 
-    let result: AuctionCreationResult | {message: string};
+    let result: AuctionCreationResult | { message: string };
     let httpStatus = 201;
 
     if (
@@ -163,7 +174,10 @@ export async function POST(request: Request, context: RouteContext) {
       console.log(
         `[API BIDS POST] Active auction found (ID: ${existingAuctionStatus.id}). Placing bid on existing auction.`
       );
-      console.log(`[DEBUG AUTO-BID] Passing autoBidMaxAmount to placeBidOnExistingAuction:`, body.max_amount);
+      console.log(
+        `[DEBUG AUTO-BID] Passing autoBidMaxAmount to placeBidOnExistingAuction:`,
+        body.max_amount
+      );
       result = await placeBidOnExistingAuction({
         leagueId: leagueIdNum,
         playerId: playerIdNum,
@@ -237,14 +251,15 @@ export async function POST(request: Request, context: RouteContext) {
         // Cattura "Player not found", "League not found", "Auction not found"
         statusCode = 404;
       } else if (
-
         error.message.includes("non sono attualmente attive") || // Mercato per ruolo non attivo
         error.message.includes("Bidding is not currently active") ||
         (error.message.includes("Player's role") &&
           error.message.includes("is not currently active for bidding")) ||
         error.message.includes("has already been assigned") ||
         error.message.includes("must be > current bid") ||
-        error.message.includes("L'offerta deve essere superiore all'offerta attuale") || // Auto-bid sync issue
+        error.message.includes(
+          "L'offerta deve essere superiore all'offerta attuale"
+        ) || // Auto-bid sync issue
         error.message.includes("is already the highest bidder") ||
         error.message.includes("Sei già il miglior offerente") ||
         error.message.includes("Auction is not active or closing") ||
@@ -269,7 +284,9 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
-    console.error(`[API BIDS POST] Returning error to client: Status ${statusCode}, Message: "${clientErrorMessage}"`);
+    console.error(
+      `[API BIDS POST] Returning error to client: Status ${statusCode}, Message: "${clientErrorMessage}"`
+    );
     return NextResponse.json(
       { error: clientErrorMessage },
       { status: statusCode }

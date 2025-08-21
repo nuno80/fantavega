@@ -64,6 +64,21 @@ interface CallPlayerInterfaceProps {
   onStartAuction?: (playerId: number) => void;
 }
 
+interface ApiPlayer {
+  id: number;
+  role: string;
+  role_mantra?: string;
+  name: string;
+  team: string;
+  current_quotation?: number;
+  initial_quotation?: number;
+  current_quotation_mantra?: number;
+  initial_quotation_mantra?: number;
+  fvm?: number;
+  fvm_mantra?: number;
+  auction_status?: "no_auction" | "active_auction" | "assigned";
+}
+
 export function CallPlayerInterface({
   leagueId,
   userId,
@@ -116,31 +131,33 @@ export function CallPlayerInterface({
       if (response.ok) {
         const data = await response.json();
         // Transform API data to match our interface
-        const playersWithStatus = (data.players || []).map((player: any) => ({
-          id: player.id,
-          role: player.role,
-          roleDetail: player.role_mantra || "",
-          name: player.name,
-          team: player.team,
-          qtA: player.current_quotation || 0,
-          qtI: player.initial_quotation || 0,
-          diff:
-            (player.current_quotation || 0) - (player.initial_quotation || 0),
-          qtAM: player.current_quotation_mantra || 0,
-          qtIM: player.initial_quotation_mantra || 0,
-          diffM:
-            (player.current_quotation_mantra || 0) -
-            (player.initial_quotation_mantra || 0),
-          fvm: player.fvm || 0,
-          fvmM: player.fvm_mantra || 0,
-          // Auction status is now fetched from the API
-          auctionStatus: player.auction_status || ("no_auction" as const),
-          // Default preferences - these would come from user preferences API
-          isStarter: false,
-          isFavorite: false,
-          integrityValue: 0,
-          hasFmv: !!(player.fvm && player.fvm > 0),
-        }));
+        const playersWithStatus = (data.players || []).map(
+          (player: ApiPlayer) => ({
+            id: player.id,
+            role: player.role,
+            roleDetail: player.role_mantra || "",
+            name: player.name,
+            team: player.team,
+            qtA: player.current_quotation || 0,
+            qtI: player.initial_quotation || 0,
+            diff:
+              (player.current_quotation || 0) - (player.initial_quotation || 0),
+            qtAM: player.current_quotation_mantra || 0,
+            qtIM: player.initial_quotation_mantra || 0,
+            diffM:
+              (player.current_quotation_mantra || 0) -
+              (player.initial_quotation_mantra || 0),
+            fvm: player.fvm || 0,
+            fvmM: player.fvm_mantra || 0,
+            // Auction status is now fetched from the API
+            auctionStatus: player.auction_status || ("no_auction" as const),
+            // Default preferences - these would come from user preferences API
+            isStarter: false,
+            isFavorite: false,
+            integrityValue: 0,
+            hasFmv: !!(player.fvm && player.fvm > 0),
+          })
+        );
         setPlayers(playersWithStatus);
       } else {
         console.error("Failed to fetch players:", response.status);
@@ -226,7 +243,7 @@ export function CallPlayerInterface({
   const handleMainAction = () => {
     if (!selectedPlayerDetails) return;
 
-    if (selectedPlayerDetails.auctionStatus === 'active_auction') {
+    if (selectedPlayerDetails.auctionStatus === "active_auction") {
       handleBidOnPlayer(selectedPlayerDetails);
     } else {
       handleStartAuction();
@@ -263,7 +280,7 @@ export function CallPlayerInterface({
       console.log("[DEBUG FRONT-END] Sending request body:", requestBody);
       console.log("[DEBUG FRONT-END] maxAmount value:", maxAmount);
       console.log("[DEBUG FRONT-END] maxAmount type:", typeof maxAmount);
-      
+
       const response = await fetch(
         `/api/leagues/${leagueId}/players/${selectedPlayerForStartAuction.id}/bids`,
         {
@@ -314,8 +331,8 @@ export function CallPlayerInterface({
           onClick={() => setActiveTab("chiama")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === "chiama"
-              ? "bg-muted border-primary text-primary"
-              : "hover:bg-muted border-transparent text-muted-foreground hover:text-foreground"
+              ? "border-primary bg-muted text-primary"
+              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
           }`}
         >
           <Gavel className="h-4 w-4" />
@@ -325,8 +342,8 @@ export function CallPlayerInterface({
           onClick={() => setActiveTab("stats")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === "stats"
-              ? "bg-muted border-primary text-primary"
-              : "hover:bg-muted border-transparent text-muted-foreground hover:text-foreground"
+              ? "border-primary bg-muted text-primary"
+              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
           }`}
         >
           <TrendingUp className="h-4 w-4" />
@@ -336,8 +353,8 @@ export function CallPlayerInterface({
           onClick={() => setActiveTab("filtri")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === "filtri"
-              ? "bg-muted border-primary text-primary"
-              : "hover:bg-muted border-transparent text-muted-foreground hover:text-foreground"
+              ? "border-primary bg-muted text-primary"
+              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
           }`}
         >
           <Search className="h-4 w-4" />
@@ -353,7 +370,7 @@ export function CallPlayerInterface({
       {/* Tab Content */}
       <div className="p-4">
         {activeTab === "chiama" && (
-          <div className="flex flex-col md:flex-row items-center gap-3">
+          <div className="flex flex-col items-center gap-3 md:flex-row">
             {/* Search Bar */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
@@ -469,7 +486,7 @@ export function CallPlayerInterface({
 
             {/* Player Info Inline */}
             {selectedPlayerDetails && (
-              <div className="flex flex-col md:flex-row items-center gap-3 md:border-l md:border-gray-600 md:pl-3 text-sm mt-3 md:mt-0">
+              <div className="mt-3 flex flex-col items-center gap-3 text-sm md:mt-0 md:flex-row md:border-l md:border-gray-600 md:pl-3">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-purple-400" />
                   <span className="font-medium text-white">

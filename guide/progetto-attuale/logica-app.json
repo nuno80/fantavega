@@ -1,123 +1,30 @@
 {
-  "project_name": "Fantavega - Fantacalcio Auction System",
-  "last_updated": "2025-01-20",
-  "version": "2.3",
-  "core_systems": {
-    "authentication": {
-      "provider": "Clerk",
-      "roles": ["admin", "manager"],
-      "middleware": "src/middleware.tsx",
-      "role_storage": "user.publicMetadata.role"
+  "last_update": "2025-08-21T10:00:00Z",
+  "task_completed": "FN-10 - Bug Fixing and Quality Assurance",
+  "feature_logic": {
+    "feature_name": "Penalty System Bug Fix",
+    "summary": "Fixed a bug where the penalty icon was displayed for users who never logged in. The penalty system should only be active for users who have logged in and are not compliant with the roster requirements.",
+    "architectural_pattern": "The fix was implemented in the `penalty.service.ts` by adding a check to verify if a user has a session record in the `user_sessions` table before applying penalties.",
+    "user_flow": [
+      "1. A user logs in.",
+      "2. The frontend calls the `/api/leagues/[id]/check-compliance/` endpoint for each manager in the league.",
+      "3. The `processUserComplianceAndPenalties` function in `penalty.service.ts` is called.",
+      "4. The function now checks if the user has any session records in the `user_sessions` table.",
+      "5. If the user has no session records, the function returns immediately, and no penalty is applied.",
+      "6. If the user has session records, the penalty logic proceeds as before."
+    ],
+    "core_components_interaction": {
+      "src/lib/db/services/penalty.service.ts": "Contains the business logic for the penalty system. The `processUserComplianceAndPenalties` function was modified to include the session check.",
+      "src/components/auction/ManagerColumn.tsx": "Frontend component that displays the penalty icon. No changes were made here.",
+      "src/app/api/leagues/[league-id]/check-compliance/route.ts": "API route that triggers the compliance check. No changes were made here.",
+      "database/schema.sql": "The `user_sessions` table was used to check if a user has ever logged in."
     },
-    "database": {
-      "type": "BetterSQLite3",
-      "schema": "database/schema.sql",
-      "location": "database/starter_default.db",
-      "services_pattern": "src/lib/db/services/*.service.ts"
-    },
-    "real_time": {
-      "technology": "Socket.IO",
-      "server": "socket-server.ts",
-      "client_context": "src/contexts/SocketContext.tsx",
-      "communication": "HTTP bridge via socket-emitter.ts"
-    }
-  },
-  "auction_system": {
-    "core_logic": {
-      "service": "src/lib/db/services/bid.service.ts",
-      "auction_creation": "placeInitialBidAndCreateAuction",
-      "bid_placement": "placeBidOnExistingAuction",
-      "auto_bid_simulation": "simulateAutoBidBattle"
-    },
-    "auto_bid_system": {
-      "version": "2.0",
-      "approach": "Black Box - Backend Only",
-      "logic": "eBay-style: highest auto-bid wins, pays 1+ of second highest",
-      "storage": "auto_bids table",
-      "activation": "Automatic when manual bid triggers battle",
-      "timing_fix": {
-        "problem": "Race condition between manual bid and auto-bid setting",
-        "solution": "Single atomic transaction with autoBidMaxAmount in bid request",
-        "implementation": "UPSERT auto-bid within same transaction as bid placement"
+    "database_interactions": [
+      {
+        "table": "user_sessions",
+        "operation": "SELECT",
+        "description": "Check if a user has any session records."
       }
-    },
-    "response_timers": {
-      "service": "src/lib/db/services/response-timer.service.ts",
-      "storage": "user_auction_response_timers table",
-      "cooldown_logic": "48h cooldown after abandoning auction",
-      "states": ["pending", "completed", "expired"]
-    },
-    "penalty_system": {
-      "service": "src/lib/db/services/penalty.service.ts",
-      "trigger": "Lazy evaluation on user actions",
-      "grace_period": "1 hour",
-      "penalty_amount": "5 credits per hour",
-      "max_penalties": "5 per cycle",
-      "compliance_tracking": "user_league_compliance_status table"
-    }
-  },
-  "ui_architecture": {
-    "pattern": "Server Components + Client Components",
-    "real_time_updates": "Socket.IO events trigger state updates",
-    "auction_interface": {
-      "main_component": "src/app/auctions/AuctionPageContent.tsx",
-      "manager_columns": "src/components/auction/ManagerColumn.tsx",
-      "bidding_interface": "src/components/auction/BiddingInterface.tsx",
-      "modals": [
-        "StandardBidModal.tsx",
-        "AutoBidModal.tsx",
-        "QuickBidModal.tsx"
-      ]
-    },
-    "data_flow": {
-      "consolidated_api": "Feature flag controlled",
-      "fallback_method": "4 separate API calls",
-      "real_time_sync": "Socket events trigger data refresh"
-    }
-  },
-  "api_structure": {
-    "admin_routes": "/api/admin/*",
-    "league_routes": "/api/leagues/[league-id]/*",
-    "user_routes": "/api/user/*",
-    "key_endpoints": {
-      "bid_placement": "/api/leagues/[league-id]/players/[player-id]/bids",
-      "auto_bid_management": "/api/leagues/[league-id]/players/[player-id]/auto-bid",
-      "auction_realtime": "/api/leagues/[league-id]/auction-realtime",
-      "compliance_check": "/api/leagues/[league-id]/check-compliance"
-    }
-  },
-  "recent_implementations": {
-    "auto_bid_timing_fix": {
-      "date": "2025-01-20",
-      "description": "Fixed race condition in auto-bid system",
-      "technical_approach": {
-        "unified_request": "Single API call with both bid amount and auto-bid max",
-        "atomic_transaction": "Auto-bid UPSERT within bid placement transaction",
-        "eliminated_race": "No more separate API calls for auto-bid setting"
-      },
-      "code_changes": {
-        "backend_service": "Added autoBidMaxAmount parameter to placeBidOnExistingAuction",
-        "api_route": "Modified to accept and pass max_amount to service",
-        "frontend_modal": "Sends auto-bid amount in same request as manual bid",
-        "cleanup": "Removed unused onAutoBidSet props and handlers"
-      }
-    },
-    "black_box_auto_bid": {
-      "date": "2025-01-20",
-      "description": "Simplified auto-bid UI to hide internal mechanics",
-      "approach": "Frontend shows only personal auto-bid and final results",
-      "removed_features": [
-        "Auto-bid counters",
-        "Competitor auto-bid indicators",
-        "Complex battle step visualization"
-      ]
-    }
-  },
-  "development_patterns": {
-    "error_handling": "Typed errors at service level, consistent JSON responses",
-    "validation": "Input validation, parameterized queries, role checks",
-    "transactions": "Database transactions for multi-step operations",
-    "real_time": "Socket.IO events for immediate UI updates",
-    "testing_approach": "Multi-role testing, responsive design validation"
+    ]
   }
 }

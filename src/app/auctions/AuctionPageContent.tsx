@@ -1,26 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
+import { toast } from "sonner";
+
+import { AuctionLayout } from "@/components/auction/AuctionLayout";
 import { AuctionPlayerCard } from "@/components/auction/AuctionPlayerCard";
-import { BiddingInterface } from "@/components/auction/BiddingInterface";
 import { AuctionTimer } from "@/components/auction/AuctionTimer";
 import { BidHistory } from "@/components/auction/BidHistory";
-import { BudgetDisplayWithCompliance } from "@/components/auction/BudgetDisplay";
-import { AuctionLayout } from "@/components/auction/AuctionLayout";
-import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
+import { BiddingInterface } from "@/components/auction/BiddingInterface";
+import { BudgetDisplay } from "@/components/auction/BudgetDisplay";
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
+import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
+import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/contexts/SocketContext";
+import { useMobile } from "@/hooks/use-mobile";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
 import { getUserActiveResponseTimers } from "@/lib/db/services/response-timer.service";
-import { useMobile } from "@/hooks/use-mobile";
-import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
 
 interface AuctionPageContentProps {
   userId: string;
@@ -56,7 +57,7 @@ interface UserAuctionState {
   player_id: number;
   player_name: string;
   current_bid: number;
-  user_state: 'miglior_offerta' | 'rilancio_possibile' | 'asta_abbandonata';
+  user_state: "miglior_offerta" | "rilancio_possibile" | "asta_abbandonata";
   response_deadline: number | null;
   time_remaining: number | null;
   is_highest_bidder: boolean;
@@ -99,27 +100,41 @@ interface AutoBid {
 }
 
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
-  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(null);
+  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(
+    null
+  );
   const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]); // Changed type to AutoBid[]
-  const [bidHistory, setBidHistory] = useState<Array<{id: number; amount: number; user_id: string; created_at: string; [key: string]: unknown}>>([]);
+  const [bidHistory, setBidHistory] = useState<
+    Array<{
+      id: number;
+      amount: number;
+      user_id: string;
+      created_at: string;
+      [key: string]: unknown;
+    }>
+  >([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [showLeagueSelector, setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
-  const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
+  const [userAuctionStates, setUserAuctionStates] = useState<
+    UserAuctionState[]
+  >([]);
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
-  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
+  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(
+    null
+  );
   const [userComplianceStatus, setUserComplianceStatus] = useState({
     isCompliant: true,
     isInGracePeriod: true,
   });
   const isMobile = useMobile();
-  
+
   const { socket, isConnected } = useSocket();
   const router = useRouter();
 
@@ -153,13 +168,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     const fetchInitialData = async () => {
       try {
         setIsLoading(true);
-        
+
         // First, get user's leagues
         const leaguesResponse = await fetch("/api/user/leagues");
         if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
-        
+
         const leagues = await leaguesResponse.json();
-        
+
         if (leagues.length === 0) {
           toast.error("Non sei iscritto a nessuna lega");
           return;
@@ -173,24 +188,30 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
         // Feature flag for consolidated API (INITIAL LOAD)
         const USE_CONSOLIDATED_API = false; //process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
-        console.log('[PERFORMANCE] Initial load - Feature flag check:', {
+        console.log("[PERFORMANCE] Initial load - Feature flag check:", {
           env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
           USE_CONSOLIDATED_API,
-          leagueId: league.id
+          leagueId: league.id,
         });
 
         if (USE_CONSOLIDATED_API) {
           // NEW: Single consolidated API call for initial load
-          console.log('[PERFORMANCE] Using consolidated API for initial load');
-          const success = await refreshAllDataConsolidated(league.id.toString());
+          console.log("[PERFORMANCE] Using consolidated API for initial load");
+          const success = await refreshAllDataConsolidated(
+            league.id.toString()
+          );
           if (!success) {
-            console.log('[PERFORMANCE] Consolidated API failed on initial load, falling back to old method');
+            console.log(
+              "[PERFORMANCE] Consolidated API failed on initial load, falling back to old method"
+            );
             // Fallback to old method
             await loadDataOldMethod(league.id);
           }
         } else {
           // OLD: 4 separate API calls (fallback)
-          console.log('[PERFORMANCE] Using old method (4 API calls) for initial load');
+          console.log(
+            "[PERFORMANCE] Using old method (4 API calls) for initial load"
+          );
           await loadDataOldMethod(league.id);
         }
       } catch (error) {
@@ -205,7 +226,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       try {
         // Get ALL MANAGERS for this league - THIS IS THE KEY!
         console.log("Fetching managers for league:", leagueId);
-        const managersResponse = await fetch(`/api/leagues/${leagueId}/managers`);
+        const managersResponse = await fetch(
+          `/api/leagues/${leagueId}/managers`
+        );
         if (managersResponse.ok) {
           const managersData = await managersResponse.json();
           console.log("Managers API response:", managersData);
@@ -219,7 +242,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
 
         // Fetch user's auction states
-        const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
+        const auctionStatesResponse = await fetch(
+          `/api/user/auction-states?leagueId=${leagueId}`
+        );
         if (auctionStatesResponse.ok) {
           const statesData = await auctionStatesResponse.json();
           console.log("Auction states API response:", statesData);
@@ -234,14 +259,18 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
 
         // Get current active auction for this league
-        const auctionResponse = await fetch(`/api/leagues/${leagueId}/current-auction`);
+        const auctionResponse = await fetch(
+          `/api/leagues/${leagueId}/current-auction`
+        );
         if (auctionResponse.ok) {
           const auction = await auctionResponse.json();
           setCurrentAuction(auction);
-          
+
           // If there's a current auction, fetch bid history
           if (auction?.player_id) {
-            const bidsResponse = await fetch(`/api/leagues/${leagueId}/players/${auction.player_id}/bids`);
+            const bidsResponse = await fetch(
+              `/api/leagues/${leagueId}/players/${auction.player_id}/bids`
+            );
             if (bidsResponse.ok) {
               const bidsData = await bidsResponse.json();
               setBidHistory(bidsData.bids || []);
@@ -271,22 +300,29 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     if (!isConnected || !socket || !selectedLeagueId) return;
 
     // Join league room
-    console.log(`[Socket Client] Joining league room: league-${selectedLeagueId}`);
+    console.log(
+      `[Socket Client] Joining league room: league-${selectedLeagueId}`
+    );
     socket.emit("join-league-room", selectedLeagueId.toString());
 
     // Auto-process expired auctions every 30 seconds
     const processExpiredAuctions = async () => {
       try {
-        const response = await fetch(`/api/leagues/${selectedLeagueId}/process-expired-auctions`, {
-          method: "POST",
-        });
-        
+        const response = await fetch(
+          `/api/leagues/${selectedLeagueId}/process-expired-auctions`,
+          {
+            method: "POST",
+          }
+        );
+
         if (response.ok) {
           const result = await response.json();
           if (result.processedCount > 0) {
             console.log(`Processed ${result.processedCount} expired auctions`);
             // Refresh current auction data
-            const auctionResponse = await fetch(`/api/leagues/${selectedLeagueId}/current-auction`);
+            const auctionResponse = await fetch(
+              `/api/leagues/${selectedLeagueId}/current-auction`
+            );
             if (auctionResponse.ok) {
               const auction = await auctionResponse.json();
               setCurrentAuction(auction);
@@ -324,11 +360,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       userAuctionStates?: UserAuctionState[];
     }) => {
       console.log("[AUCTION UPDATE] Received auction update:", data);
-      
-      setCurrentAuction(prev => {
+
+      setCurrentAuction((prev) => {
         console.log("[AUCTION UPDATE] Current auction:", prev);
         if (prev && data.playerId === prev.player_id) {
-          console.log("[AUCTION UPDATE] Updating current auction for player:", data.playerId);
+          console.log(
+            "[AUCTION UPDATE] Updating current auction for player:",
+            data.playerId
+          );
           return {
             ...prev,
             current_highest_bid_amount: data.newPrice,
@@ -336,14 +375,16 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
             scheduled_end_time: data.scheduledEndTime,
           };
         } else {
-          console.log("[AUCTION UPDATE] No matching current auction or different player");
+          console.log(
+            "[AUCTION UPDATE] No matching current auction or different player"
+          );
           return prev;
         }
       });
 
       // Aggiorna anche la lista generale delle aste attive
-      setActiveAuctions(prevAuctions =>
-        prevAuctions.map(auction => {
+      setActiveAuctions((prevAuctions) =>
+        prevAuctions.map((auction) => {
           if (auction.player_id === data.playerId) {
             return {
               ...auction,
@@ -355,21 +396,23 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           return auction;
         })
       );
-      
+
       // --- OTTIMIZZAZIONE FRONTEND ---
       // Rimuoviamo il re-fetch completo. Aggiorniamo lo stato localmente.
       // Questo richiede che il backend invii un evento socket più ricco.
-      
+
       // Esempio di aggiornamento del budget dei manager
       if (data.budgetUpdates) {
-        setManagers(prevManagers => 
-          prevManagers.map(manager => {
-            const update = data.budgetUpdates?.find(u => u.userId === manager.user_id);
+        setManagers((prevManagers) =>
+          prevManagers.map((manager) => {
+            const update = data.budgetUpdates?.find(
+              (u) => u.userId === manager.user_id
+            );
             if (update) {
-              return { 
-                ...manager, 
-                current_budget: update.newBudget, 
-                locked_credits: update.newLockedCredits 
+              return {
+                ...manager,
+                current_budget: update.newBudget,
+                locked_credits: update.newLockedCredits,
               };
             }
             return manager;
@@ -379,8 +422,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
       // Aggiorniamo la cronologia delle offerte
       if (data.newBid) {
-        setBidHistory(prevHistory => {
-          if (data.newBid) { // Controllo di tipo per TypeScript
+        setBidHistory((prevHistory) => {
+          if (data.newBid) {
+            // Controllo di tipo per TypeScript
             return [data.newBid, ...prevHistory];
           }
           return prevHistory;
@@ -410,7 +454,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       winnerId: string;
       finalPrice: number;
     }) => {
-      setCurrentAuction(prev => {
+      setCurrentAuction((prev) => {
         if (prev && data.playerId === prev.player_id) {
           toast.info(`Asta per ${data.playerName} conclusa!`, {
             description: `Assegnato a ${data.winnerId} per ${data.finalPrice} crediti.`,
@@ -422,15 +466,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     // Handle penalty notifications
-    const handlePenaltyApplied = (data: {
-      amount: number;
-      reason: string;
-    }) => {
+    const handlePenaltyApplied = (data: { amount: number; reason: string }) => {
       toast.error(`Penalit applicata: ${data.amount} crediti`, {
         description: data.reason,
         duration: 8000, // Show longer for important penalty notifications
       });
-      
+
       // Refresh budget data after penalty
       if (selectedLeagueId) {
         fetchBudgetData(selectedLeagueId);
@@ -447,7 +488,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         description: `Offerta automatica di ${data.bidAmount} crediti piazzata.`,
         duration: 5000,
       });
-      
+
       // Refresh current auction data
       if (currentAuction && selectedLeagueId) {
         fetchCurrentAuction(selectedLeagueId);
@@ -471,7 +512,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
       // Leave league room on cleanup
       if (selectedLeagueId) {
-        console.log(`[Socket Client] Leaving league room: league-${selectedLeagueId}`);
+        console.log(
+          `[Socket Client] Leaving league room: league-${selectedLeagueId}`
+        );
         socket.emit("leave-league-room", selectedLeagueId.toString());
       }
     };
@@ -480,13 +523,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   // Helper function to refresh all data with consolidated API (NEW OPTIMIZED METHOD)
   const refreshAllDataConsolidated = async (leagueId: string) => {
     try {
-      console.time('[PERFORMANCE] Consolidated API call');
+      console.time("[PERFORMANCE] Consolidated API call");
       const response = await fetch(`/api/leagues/${leagueId}/auction-realtime`);
-      console.timeEnd('[PERFORMANCE] Consolidated API call');
-      
+      console.timeEnd("[PERFORMANCE] Consolidated API call");
+
       if (response.ok) {
         const data = await response.json();
-        
+
         if (data.success) {
           // Update all states from single API response
           if (data.auction) {
@@ -510,52 +553,64 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           if (data.autoBids) {
             setAutoBids(data.autoBids);
           }
-          
-          console.log('[PERFORMANCE] Consolidated update completed successfully');
+
+          console.log(
+            "[PERFORMANCE] Consolidated update completed successfully"
+          );
           return true; // Success
         } else {
-          console.warn('[PERFORMANCE] Consolidated API returned errors:', data.errors);
+          console.warn(
+            "[PERFORMANCE] Consolidated API returned errors:",
+            data.errors
+          );
           return false; // Fallback needed
         }
       } else {
-        console.error('[PERFORMANCE] Consolidated API failed:', response.status);
+        console.error(
+          "[PERFORMANCE] Consolidated API failed:",
+          response.status
+        );
         return false; // Fallback needed
       }
     } catch (error) {
-      console.error('[PERFORMANCE] Consolidated API error:', error);
+      console.error("[PERFORMANCE] Consolidated API error:", error);
       return false; // Fallback needed
     }
   };
 
   // Helper function to refresh data with old method (FALLBACK)
-  const refreshAllDataOld = async (leagueId: number) => { // Changed type to number
-    console.time('[PERFORMANCE] Old method (4 API calls)');
+  const refreshAllDataOld = async (leagueId: number) => {
+    // Changed type to number
+    console.time("[PERFORMANCE] Old method (4 API calls)");
     try {
       // Original 4 separate API calls
       fetchBudgetData(leagueId);
-      
+
       // Refresh bid history for current auction
       if (currentAuction) {
         fetchCurrentAuction(leagueId);
       }
-      
+
       // Refresh user auction states
       refreshUserAuctionStatesOld(leagueId);
-      
+
       // Refresh managers data
       refreshManagersDataOld(leagueId);
-      
-      console.timeEnd('[PERFORMANCE] Old method (4 API calls)');
+
+      console.timeEnd("[PERFORMANCE] Old method (4 API calls)");
     } catch (error) {
-      console.timeEnd('[PERFORMANCE] Old method (4 API calls)');
+      console.timeEnd("[PERFORMANCE] Old method (4 API calls)");
       console.error("Error in old refresh method:", error);
     }
   };
 
   // Helper function to refresh user auction states (OLD METHOD)
-  const refreshUserAuctionStatesOld = async (leagueId: number) => { // Changed type to number
+  const refreshUserAuctionStatesOld = async (leagueId: number) => {
+    // Changed type to number
     try {
-      const auctionStatesResponse = await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
+      const auctionStatesResponse = await fetch(
+        `/api/user/auction-states?leagueId=${leagueId}`
+      );
       if (auctionStatesResponse.ok) {
         const statesData = await auctionStatesResponse.json();
         setUserAuctionStates(statesData.states || []);
@@ -566,9 +621,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   // Helper function to refresh managers data (OLD METHOD)
-  const refreshManagersDataOld = async (leagueId: number) => { // Changed type to number
+  const refreshManagersDataOld = async (leagueId: number) => {
+    // Changed type to number
     try {
-      const managersResponse = await fetch(`/api/auction-states?leagueId=${leagueId}`);
+      const managersResponse = await fetch(
+        `/api/auction-states?leagueId=${leagueId}`
+      );
       if (managersResponse.ok) {
         const managersData = await managersResponse.json();
         setManagers(managersData.states || []);
@@ -597,17 +655,29 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
 
     // Blocco preventivo basato sullo stato di conformità
-    if (!bypassComplianceCheck && !userComplianceStatus.isCompliant && !userComplianceStatus.isInGracePeriod) {
+    if (
+      !bypassComplianceCheck &&
+      !userComplianceStatus.isCompliant &&
+      !userComplianceStatus.isInGracePeriod
+    ) {
       toast.error("Offerta bloccata", {
-        description: "Non puoi fare offerte perché la tua rosa non è conforme e il periodo di grazia è terminato.",
+        description:
+          "Non puoi fare offerte perché la tua rosa non è conforme e il periodo di grazia è terminato.",
       });
       throw new Error("Offerta bloccata per mancata conformità.");
     }
 
     // VALIDAZIONE LATO CLIENT AGGIUNTIVA
-    const auctionForPlayer = activeAuctions.find(a => a.player_id === playerId);
-    const stateForPlayer = userAuctionStates.find(s => s.player_id === playerId);
-    const currentBidForPlayer = auctionForPlayer?.current_highest_bid_amount ?? stateForPlayer?.current_bid ?? 0;
+    const auctionForPlayer = activeAuctions.find(
+      (a) => a.player_id === playerId
+    );
+    const stateForPlayer = userAuctionStates.find(
+      (s) => s.player_id === playerId
+    );
+    const currentBidForPlayer =
+      auctionForPlayer?.current_highest_bid_amount ??
+      stateForPlayer?.current_bid ??
+      0;
 
     if (amount <= currentBidForPlayer) {
       const errorMessage = `L'offerta deve essere superiore all'offerta attuale di ${currentBidForPlayer} crediti.`;
@@ -616,13 +686,16 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
 
     try {
-      const requestBody = { 
+      const requestBody = {
         amount: amount,
         bid_type: bidType,
         max_amount: maxAmount,
       };
-      console.log("[DEBUG AUCTION PAGE] Sending HTTP request with body:", requestBody);
-      
+      console.log(
+        "[DEBUG AUCTION PAGE] Sending HTTP request with body:",
+        requestBody
+      );
+
       const response = await fetch(
         `/api/leagues/${selectedLeagueId}/players/${playerId}/bids`,
         {
@@ -636,10 +709,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         const error = await response.json();
         throw new Error(error.error || "Errore nel piazzare l'offerta");
       }
-      
+
       toast.success("Offerta piazzata con successo!");
       // L'aggiornamento della UI è gestito da Socket.IO
-
     } catch (error) {
       // L'errore viene già mostrato dal componente chiamante, basta rilanciare.
       throw error;
@@ -652,90 +724,104 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
-      <div className="text-xl">Caricamento...</div>
-    </div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-900 text-white">
+        <div className="text-xl">Caricamento...</div>
+      </div>
+    );
   }
 
-  console.log("Checking managers:", managers.length, "selectedLeagueId:", selectedLeagueId);
-  
-  const isUserHighestBidder = currentAuction?.current_highest_bidder_id === userId;
+  console.log(
+    "Checking managers:",
+    managers.length,
+    "selectedLeagueId:",
+    selectedLeagueId
+  );
+
+  const isUserHighestBidder =
+    currentAuction?.current_highest_bidder_id === userId;
 
   const displayedManagers = isMobile
-    ? managers.filter(m => m.user_id === (selectedManagerId || userId))
+    ? managers.filter((m) => m.user_id === (selectedManagerId || userId))
     : managers;
-
 
   // Vista Multi-Manager - Layout a colonne come nell'esempio HTML
   return (
-    <div className="flex flex-col h-full bg-background text-foreground">
-        {/* Top Panel - Call Player Interface */}
-        <div className="flex-shrink-0 bg-card border-b border-border p-4">
-          <CallPlayerInterface 
-            leagueId={selectedLeagueId || 0}
-            userId={userId}
-            onStartAuction={(playerId) => {
-              // Refresh the page or update state when auction starts
-              window.location.reload();
-            }}
-          />
-        </div>
+    <div className="flex h-full flex-col bg-background text-foreground">
+      {/* Top Panel - Call Player Interface */}
+      <div className="flex-shrink-0 border-b border-border bg-card p-4">
+        <CallPlayerInterface
+          leagueId={selectedLeagueId || 0}
+          userId={userId}
+          onStartAuction={(playerId) => {
+            // Refresh the page or update state when auction starts
+            window.location.reload();
+          }}
+        />
+      </div>
 
-        {/* Bottom Panel - Manager Columns */}
-        <div className="flex-1 flex flex-col md:flex-row md:space-x-2 p-2 overflow-x-auto scrollbar-hide">
-          {isMobile && (
-            <div className="w-full p-2 md:hidden">
-              <Button onClick={() => setIsTeamSelectorOpen(true)} className="w-full">
-                Visualizza Squadre
+      {/* Bottom Panel - Manager Columns */}
+      <div className="scrollbar-hide flex flex-1 flex-col overflow-x-auto p-2 md:flex-row md:space-x-2">
+        {isMobile && (
+          <div className="w-full p-2 md:hidden">
+            <Button
+              onClick={() => setIsTeamSelectorOpen(true)}
+              className="w-full"
+            >
+              Visualizza Squadre
+            </Button>
+          </div>
+        )}
+        <TeamSelectorModal
+          isOpen={isTeamSelectorOpen}
+          onClose={() => setIsTeamSelectorOpen(false)}
+          managers={managers}
+          onSelectTeam={(managerId) => setSelectedManagerId(managerId)}
+          onShowAllTeams={() => setSelectedManagerId(null)}
+        />
+        {displayedManagers.length > 0 ? (
+          displayedManagers.map((manager, index) => (
+            <div key={`${manager.user_id}-${index}`} className="min-w-0 flex-1">
+              <ManagerColumn
+                manager={manager}
+                isCurrentUser={manager.user_id === userId}
+                isHighestBidder={
+                  currentAuction?.current_highest_bidder_id === manager.user_id
+                }
+                position={index + 1}
+                leagueSlots={leagueSlots ?? undefined}
+                activeAuctions={activeAuctions}
+                autoBids={autoBids}
+                currentAuctionPlayerId={currentAuction?.player_id}
+                userAuctionStates={
+                  manager.user_id === userId ? userAuctionStates : []
+                }
+                leagueId={selectedLeagueId ?? undefined}
+                handlePlaceBid={handlePlaceBid}
+                onComplianceChange={setUserComplianceStatus}
+              />
+            </div>
+          ))
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center text-gray-400">
+              <h3 className="mb-2 text-lg font-semibold">
+                Nessun Manager Trovato
+              </h3>
+              <p className="text-sm">
+                Non sono stati trovati partecipanti per questa lega.
+              </p>
+              <Button
+                onClick={() => window.location.reload()}
+                className="mt-4"
+                variant="outline"
+              >
+                Ricarica
               </Button>
             </div>
-          )}
-          <TeamSelectorModal
-            isOpen={isTeamSelectorOpen}
-            onClose={() => setIsTeamSelectorOpen(false)}
-            managers={managers}
-            onSelectTeam={(managerId) => setSelectedManagerId(managerId)}
-            onShowAllTeams={() => setSelectedManagerId(null)}
-          />
-          {displayedManagers.length > 0 ? (
-            displayedManagers.map((manager, index) => (
-              <div key={`${manager.user_id}-${index}`} className="flex-1 min-w-0">
-                <ManagerColumn
-                  manager={manager}
-                  isCurrentUser={manager.user_id === userId}
-                  isHighestBidder={
-                    currentAuction?.current_highest_bidder_id === manager.user_id
-                  }
-                  position={index + 1}
-                  leagueSlots={leagueSlots ?? undefined}
-                  activeAuctions={activeAuctions}
-                  autoBids={autoBids}
-                  currentAuctionPlayerId={currentAuction?.player_id}
-                  userAuctionStates={manager.user_id === userId ? userAuctionStates : []}
-                  leagueId={selectedLeagueId ?? undefined}
-                  handlePlaceBid={handlePlaceBid}
-                  onComplianceChange={setUserComplianceStatus}
-                />
-              </div>
-            ))
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <h3 className="text-lg font-semibold mb-2">Nessun Manager Trovato</h3>
-                <p className="text-sm">
-                  Non sono stati trovati partecipanti per questa lega.
-                </p>
-                <Button 
-                  onClick={() => window.location.reload()} 
-                  className="mt-4"
-                  variant="outline"
-                >
-                  Ricarica
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

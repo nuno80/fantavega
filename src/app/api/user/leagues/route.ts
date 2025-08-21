@@ -1,15 +1,16 @@
 // src/app/api/user/leagues/route.ts
 // API endpoint to get leagues for the current user
-
 import { NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 import { recordUserLogin } from "@/lib/db/services/session.service";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await currentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     try {
       await recordUserLogin(user.id);
     } catch (error) {
-      console.error('[USER_LEAGUES] Error recording login:', error);
+      console.error("[USER_LEAGUES] Error recording login:", error);
       // Non bloccare la richiesta per errori di sessione
     }
 

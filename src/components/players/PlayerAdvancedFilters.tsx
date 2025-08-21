@@ -1,13 +1,20 @@
 "use client";
 
+import { X } from "lucide-react";
+
+import { SearchFilters } from "@/app/players/PlayerSearchInterface";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X } from "lucide-react";
-import { SearchFilters } from "@/app/players/PlayerSearchInterface";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PlayerAdvancedFiltersProps {
   filters: SearchFilters;
@@ -42,21 +49,21 @@ export function PlayerAdvancedFilters({
 
   const handleRoleToggle = (role: string) => {
     const newRoles = filters.roles.includes(role)
-      ? filters.roles.filter(r => r !== role)
+      ? filters.roles.filter((r) => r !== role)
       : [...filters.roles, role];
     onFiltersChange({ ...filters, roles: newRoles });
   };
 
   const handleAuctionStatusToggle = (status: string) => {
     const newStatuses = filters.auctionStatus.includes(status)
-      ? filters.auctionStatus.filter(s => s !== status)
+      ? filters.auctionStatus.filter((s) => s !== status)
       : [...filters.auctionStatus, status];
     onFiltersChange({ ...filters, auctionStatus: newStatuses });
   };
 
   const handleTimeRangeToggle = (range: string) => {
     const newRanges = filters.timeRemaining.includes(range)
-      ? filters.timeRemaining.filter(r => r !== range)
+      ? filters.timeRemaining.filter((r) => r !== range)
       : [...filters.timeRemaining, range];
     onFiltersChange({ ...filters, timeRemaining: newRanges });
   };
@@ -66,7 +73,7 @@ export function PlayerAdvancedFilters({
       onFiltersChange({ ...filters, teams: [] });
     } else {
       const newTeams = filters.teams.includes(team)
-        ? filters.teams.filter(t => t !== team)
+        ? filters.teams.filter((t) => t !== team)
         : [...filters.teams, team];
       onFiltersChange({ ...filters, teams: newTeams });
     }
@@ -83,7 +90,7 @@ export function PlayerAdvancedFilters({
       isStarter: false,
       isFavorite: false,
       hasIntegrity: false,
-      hasFmv: false
+      hasFmv: false,
     });
   };
 
@@ -104,14 +111,16 @@ export function PlayerAdvancedFilters({
         <div className="flex items-center justify-end">
           {activeFiltersCount > 0 && (
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">{activeFiltersCount} filtri attivi</Badge>
+              <Badge variant="secondary">
+                {activeFiltersCount} filtri attivi
+              </Badge>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearAllFilters}
                 className="h-6 px-2"
               >
-                <X className="h-3 w-3 mr-1" />
+                <X className="mr-1 h-3 w-3" />
                 Pulisci
               </Button>
             </div>
@@ -119,7 +128,7 @@ export function PlayerAdvancedFilters({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Colonna Sinistra: Ruolo e Squadra */}
           <div className="space-y-4">
             {/* Role Filter */}
@@ -135,7 +144,7 @@ export function PlayerAdvancedFilters({
                     />
                     <Label
                       htmlFor={`role-${role.value}`}
-                      className="text-sm font-normal cursor-pointer"
+                      className="cursor-pointer text-sm font-normal"
                     >
                       {role.label}
                     </Label>
@@ -149,11 +158,13 @@ export function PlayerAdvancedFilters({
               <Label className="text-sm font-medium">Squadra</Label>
               <Select onValueChange={handleTeamSelect}>
                 <SelectTrigger>
-                  <SelectValue placeholder={
-                    filters.teams.length === 0
-                      ? "Tutte le squadre"
-                      : `${filters.teams.length} squadre selezionate`
-                  } />
+                  <SelectValue
+                    placeholder={
+                      filters.teams.length === 0
+                        ? "Tutte le squadre"
+                        : `${filters.teams.length} squadre selezionate`
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutte le squadre</SelectItem>
@@ -170,11 +181,11 @@ export function PlayerAdvancedFilters({
                     <Badge
                       key={team}
                       variant="secondary"
-                      className="text-xs cursor-pointer"
+                      className="cursor-pointer text-xs"
                       onClick={() => handleTeamSelect(team)}
                     >
                       {team}
-                      <X className="h-3 w-3 ml-1" />
+                      <X className="ml-1 h-3 w-3" />
                     </Badge>
                   ))}
                 </div>
@@ -189,15 +200,20 @@ export function PlayerAdvancedFilters({
               <Label className="text-sm font-medium">Stato Asta</Label>
               <div className="flex flex-col space-y-2">
                 {auctionStatuses.map((status) => (
-                  <div key={status.value} className="flex items-center space-x-2">
+                  <div
+                    key={status.value}
+                    className="flex items-center space-x-2"
+                  >
                     <Checkbox
                       id={`status-${status.value}`}
                       checked={filters.auctionStatus.includes(status.value)}
-                      onCheckedChange={() => handleAuctionStatusToggle(status.value)}
+                      onCheckedChange={() =>
+                        handleAuctionStatusToggle(status.value)
+                      }
                     />
                     <Label
                       htmlFor={`status-${status.value}`}
-                      className="text-sm font-normal cursor-pointer"
+                      className="cursor-pointer text-sm font-normal"
                     >
                       {status.label}
                     </Label>
@@ -205,7 +221,7 @@ export function PlayerAdvancedFilters({
                 ))}
               </div>
             </div>
-            
+
             {/* Show Assigned Toggle */}
             <div className="flex items-center space-x-2 pt-4">
               <Checkbox
@@ -215,14 +231,17 @@ export function PlayerAdvancedFilters({
                   onFiltersChange({ ...filters, showAssigned: !!checked })
                 }
               />
-              <Label htmlFor="show-assigned" className="text-sm font-normal cursor-pointer">
+              <Label
+                htmlFor="show-assigned"
+                className="cursor-pointer text-sm font-normal"
+              >
                 Mostra giocatori già assegnati
               </Label>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2">
           {/* Time Remaining Filter */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Tempo Rimanente</Label>
@@ -236,7 +255,7 @@ export function PlayerAdvancedFilters({
                   />
                   <Label
                     htmlFor={`time-${range.value}`}
-                    className="text-sm font-normal cursor-pointer"
+                    className="cursor-pointer text-sm font-normal"
                   >
                     {range.label}
                   </Label>
@@ -247,7 +266,9 @@ export function PlayerAdvancedFilters({
 
           {/* Player Icons Filters */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Caratteristiche Giocatore</Label>
+            <Label className="text-sm font-medium">
+              Caratteristiche Giocatore
+            </Label>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -259,7 +280,7 @@ export function PlayerAdvancedFilters({
                 />
                 <Label
                   htmlFor="filter-starter"
-                  className="text-sm font-normal cursor-pointer"
+                  className="cursor-pointer text-sm font-normal"
                 >
                   Titolare
                 </Label>
@@ -274,7 +295,7 @@ export function PlayerAdvancedFilters({
                 />
                 <Label
                   htmlFor="filter-favorite"
-                  className="text-sm font-normal cursor-pointer"
+                  className="cursor-pointer text-sm font-normal"
                 >
                   Preferito
                 </Label>
@@ -289,7 +310,7 @@ export function PlayerAdvancedFilters({
                 />
                 <Label
                   htmlFor="filter-integrity"
-                  className="text-sm font-normal cursor-pointer"
+                  className="cursor-pointer text-sm font-normal"
                 >
                   Integrità
                 </Label>
@@ -304,7 +325,7 @@ export function PlayerAdvancedFilters({
                 />
                 <Label
                   htmlFor="filter-fmv"
-                  className="text-sm font-normal cursor-pointer"
+                  className="cursor-pointer text-sm font-normal"
                 >
                   FMV
                 </Label>

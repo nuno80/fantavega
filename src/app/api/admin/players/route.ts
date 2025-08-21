@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newPlayer, { status: 201 });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error(
       "[API ADMIN_PLAYERS POST] Error creating player:",
       errorMessage

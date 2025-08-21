@@ -1,8 +1,8 @@
 "use client";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { type BidRecord } from "@/lib/db/services/bid.service";
 
 interface BidHistoryProps {
@@ -39,7 +39,7 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
           <CardTitle>Cronologia Offerte</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-muted-foreground py-4">
+          <p className="py-4 text-center text-muted-foreground">
             Nessuna offerta ancora
           </p>
         </CardContent>
@@ -58,9 +58,9 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
             {(bids || []).map((bid, index) => (
               <div
                 key={bid.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
+                className={`flex items-center justify-between rounded-lg border p-3 ${
                   bid.user_id === currentUserId
-                    ? "bg-primary/10 border-primary/20"
+                    ? "border-primary/20 bg-primary/10"
                     : "bg-muted/50"
                 } ${index === 0 ? "ring-2 ring-primary/50" : ""}`}
               >
@@ -74,11 +74,9 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
                         Tu
                       </Badge>
                     )}
-                    {index === 0 && (
-                      <Badge className="text-xs">Migliore</Badge>
-                    )}
+                    {index === 0 && <Badge className="text-xs">Migliore</Badge>}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="mt-1 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">
                       {formatTime(bid.bid_time)}
                     </span>
@@ -91,10 +89,8 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-lg font-bold">
-                    {bid.amount}
-                  </span>
-                  <span className="text-sm text-muted-foreground ml-1">
+                  <span className="text-lg font-bold">{bid.amount}</span>
+                  <span className="ml-1 text-sm text-muted-foreground">
                     crediti
                   </span>
                 </div>

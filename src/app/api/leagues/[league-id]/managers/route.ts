@@ -1,8 +1,9 @@
 // src/app/api/leagues/[league-id]/managers/route.ts
 // API endpoint to get all managers in a league with their rosters
-
 import { NextRequest, NextResponse } from "next/server";
+
 import { currentUser } from "@clerk/nextjs/server";
+
 import { db } from "@/lib/db";
 
 interface PlayerInRoster {
@@ -59,11 +60,16 @@ export async function GET(
 
     // Check if user is participant in this league
     const participantCheck = db
-      .prepare("SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?")
+      .prepare(
+        "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
+      )
       .get(leagueId, user.id);
 
     if (!participantCheck) {
-      return NextResponse.json({ error: "Not a participant in this league" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not a participant in this league" },
+        { status: 403 }
+      );
     }
 
     // Get league slots configuration and managers
@@ -93,7 +99,10 @@ export async function GET(
       ORDER BY lp.manager_team_name ASC, lp.user_id ASC
     `);
 
-    const managers = managersStmt.all(leagueId) as Omit<Manager, 'players' | 'firstName' | 'lastName'>[];
+    const managers = managersStmt.all(leagueId) as Omit<
+      Manager,
+      "players" | "firstName" | "lastName"
+    >[];
 
     // Get active auctions with current bid amounts
     const activeAuctionsStmt = db.prepare(`
@@ -123,8 +132,10 @@ export async function GET(
       GROUP BY a.player_id
     `);
 
-    const autoBids = autoBidsStmt.all(leagueId) as {player_id: number, auto_bid_count: number}[];
-
+    const autoBids = autoBidsStmt.all(leagueId) as {
+      player_id: number;
+      auto_bid_count: number;
+    }[];
 
     // Get all players for the league in one go
     const allPlayersStmt = db.prepare(`
@@ -141,7 +152,9 @@ export async function GET(
       ORDER BY p.role, p.name
     `);
 
-    const allPlayersInLeague = allPlayersStmt.all(leagueId) as (PlayerInRoster & { user_id: string })[];
+    const allPlayersInLeague = allPlayersStmt.all(
+      leagueId
+    ) as (PlayerInRoster & { user_id: string })[];
 
     // Group players by manager
     const playersByManager = new Map<string, PlayerInRoster[]>();
@@ -154,18 +167,20 @@ export async function GET(
     }
 
     // Build the complete managers data with their correct rosters
-    const managersWithRosters: Manager[] = managers.map(manager => ({
+    const managersWithRosters: Manager[] = managers.map((manager) => ({
       ...manager,
-      players: playersByManager.get(manager.user_id) || []
+      players: playersByManager.get(manager.user_id) || [],
     }));
 
-    return NextResponse.json({
-      managers: managersWithRosters,
-      leagueSlots,
-      activeAuctions,
-      autoBids
-    }, { status: 200 });
-
+    return NextResponse.json(
+      {
+        managers: managersWithRosters,
+        leagueSlots,
+        activeAuctions,
+        autoBids,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("[API] Error fetching managers:", error);
     return NextResponse.json(

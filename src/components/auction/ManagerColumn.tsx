@@ -527,13 +527,13 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     team: string;
     currentBid: number;
   } | null>(null);
-  const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
+  const [complianceResult, setComplianceResult] =
+    useState<ComplianceResult | null>(null);
 
   useEffect(() => {
     const checkCompliance = async () => {
       if (leagueId && manager.user_id) {
         try {
-
           const response = await fetch(
             `/api/leagues/${leagueId}/check-compliance`,
             {
@@ -691,7 +691,8 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   // Calcoli chiari per il nuovo cruscotto
   const availableBudget = currentBudget - lockedCredits;
   const spentCredits = totalBudget - availableBudget;
-  const spentPercentage = totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
+  const spentPercentage =
+    totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
 
   const isNonCompliant =
     isCurrentUser &&
@@ -815,9 +816,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           );
         })}
       </div>
-
-      
-
 
       {/* Slots list */}
       <div className="scrollbar-hide flex flex-1 flex-col space-y-1 overflow-y-auto">
