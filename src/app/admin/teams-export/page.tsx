@@ -126,19 +126,16 @@ export default function TeamsExportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       <Navbar />
-      <div className="container px-4 py-6">
-        <AdminQuickActions />
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <h1 className="text-3xl font-bold text-foreground">
+          Esportazione Squadre
+        </h1>
+        <div className="mx-auto w-full lg:w-5/6">
+          <AdminQuickActions />
+        </div>
         <div className="mx-auto max-w-2xl">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">Esportazione Squadre</h1>
-            <p className="mt-2 text-muted-foreground">
-              Seleziona una lega e un formato per esportare i dati delle
-              squadre.
-            </p>
-          </div>
-
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -243,7 +240,7 @@ export default function TeamsExportPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

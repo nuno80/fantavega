@@ -24,10 +24,10 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="mb-6 text-3xl font-bold text-foreground">
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <h1 className="text-3xl font-bold text-foreground">
           Dashboard Amministrazione
           <span className="text-xl font-normal text-muted-foreground">
             , Benvenuto {adminFirstName}!
@@ -52,7 +52,9 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        <AdminQuickActions />
+        <div className="mx-auto w-full lg:w-5/6">
+          <AdminQuickActions />
+        </div>
       </main>
     </div>
   );

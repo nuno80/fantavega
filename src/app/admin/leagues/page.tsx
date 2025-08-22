@@ -36,7 +36,7 @@ export default async function AdminLeaguesPage() {
 
   // 2.2. JSX per la visualizzazione
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       <Navbar />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center">
@@ -53,7 +53,9 @@ export default async function AdminLeaguesPage() {
           </div>
         </div>
 
-        <AdminQuickActions />
+        <div className="mx-auto w-full lg:w-5/6">
+          <AdminQuickActions />
+        </div>
 
         <Card>
           <CardHeader>

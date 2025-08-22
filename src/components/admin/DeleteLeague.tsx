@@ -77,6 +77,9 @@ import {
 // src/components/admin/DeleteLeague.tsx
 // Componente per eliminare una lega con doppia conferma
 
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
+
 interface DeleteLeagueProps {
   leagueId: number;
   leagueName: string;

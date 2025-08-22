@@ -13,7 +13,11 @@ export default function CreateLeaguePage() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Navbar />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <AdminQuickActions />
+        <h1 className="text-3xl font-bold text-foreground">Crea Nuova Lega</h1>
+
+        <div className="mx-auto w-full lg:w-5/6">
+          <AdminQuickActions />
+        </div>
 
         {/* Renderizziamo il nostro componente form client-side */}
         <CreateLeagueForm />

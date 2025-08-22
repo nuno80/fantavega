@@ -74,6 +74,9 @@ import { UserWithLeagueDetails } from "@/lib/db/services/user.service";
 // src/app/admin/users/page.tsx v.1.1
 // Pagina di gestione utenti con layout corretto e stili theme-aware.
 
+// src/app/admin/users/page.tsx v.1.1
+// Pagina di gestione utenti con layout corretto e stili theme-aware.
+
 // 2. Componente (logica invariata)
 export default function AdminUserManagement() {
   const [users, setUsers] = useState<UserWithLeagueDetails[]>([]);
