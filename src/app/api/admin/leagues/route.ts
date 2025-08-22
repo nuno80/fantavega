@@ -1,14 +1,13 @@
 // src/app/api/admin/leagues/route.ts
 import { NextResponse } from "next/server";
 
-// Adatta il percorso se necessario
 import { currentUser } from "@clerk/nextjs/server";
 
 import {
+  // Cambiato da getAuctionLeaguesByAdmin
   type CreateAuctionLeagueData,
   createAuctionLeague,
-  // Assicurati che questo tipo sia definito/importato
-  getAuctionLeaguesByAdmin, // Questa è la funzione che ci serve per GET
+  getLeaguesForAdminList,
 } from "@/lib/db/services/auction-league.service";
 
 export const POST = async (request: Request): Promise<NextResponse> => {
@@ -112,9 +111,20 @@ export const GET = async (_request: Request): Promise<NextResponse> => {
     }
 
     console.log(`[API] GET /api/admin/leagues request by admin: ${user.id}`);
-    const leagues = await getAuctionLeaguesByAdmin(user.id); // Chiama la funzione corretta
 
-    return NextResponse.json(leagues, { status: 200 });
+    // Utilizza la funzione che recupera tutte le leghe per l'admin
+    const allLeagues = await getLeaguesForAdminList();
+
+    // Trasforma i dati per adattarli a ciò che il frontend si aspetta
+    const formattedLeagues = allLeagues.map((league) => ({
+      id: league.id,
+      name: league.name,
+      status: league.status,
+      league_type: league.leagueType, // Rinomina leagueType in league_type
+    }));
+
+    // Invia la risposta nel formato atteso: { leagues: [...] }
+    return NextResponse.json({ leagues: formattedLeagues }, { status: 200 });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";

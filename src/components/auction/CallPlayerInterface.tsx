@@ -399,30 +399,32 @@ export function CallPlayerInterface({
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
-                className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${
-                  (() => {
-                    const activeFiltersCount =
-                      (selectedRole !== "ALL" ? 1 : 0) +
-                      (preferenceFilters.isStarter ? 1 : 0) +
-                      (preferenceFilters.isFavorite ? 1 : 0) +
-                      (preferenceFilters.hasIntegrity ? 1 : 0) +
-                      (preferenceFilters.hasFmv ? 1 : 0);
-                    return activeFiltersCount > 0 ? "border-blue-500 bg-blue-50/10" : "";
-                  })()
-                }`}
-                title={
-                  (() => {
-                    const activeFilters = [];
-                    if (selectedRole !== "ALL") activeFilters.push(`Ruolo: ${selectedRole}`);
-                    if (preferenceFilters.isStarter) activeFilters.push("Titolari");
-                    if (preferenceFilters.isFavorite) activeFilters.push("Preferiti");
-                    if (preferenceFilters.hasIntegrity) activeFilters.push("Integrità");
-                    if (preferenceFilters.hasFmv) activeFilters.push("FMV");
-                    return activeFilters.length > 0
-                      ? `Filtri attivi: ${activeFilters.join(", ")}`
-                      : "Cerca giocatore o squadra...";
-                  })()
-                }
+                className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${(() => {
+                  const activeFiltersCount =
+                    (selectedRole !== "ALL" ? 1 : 0) +
+                    (preferenceFilters.isStarter ? 1 : 0) +
+                    (preferenceFilters.isFavorite ? 1 : 0) +
+                    (preferenceFilters.hasIntegrity ? 1 : 0) +
+                    (preferenceFilters.hasFmv ? 1 : 0);
+                  return activeFiltersCount > 0
+                    ? "border-blue-500 bg-blue-50/10"
+                    : "";
+                })()}`}
+                title={(() => {
+                  const activeFilters = [];
+                  if (selectedRole !== "ALL")
+                    activeFilters.push(`Ruolo: ${selectedRole}`);
+                  if (preferenceFilters.isStarter)
+                    activeFilters.push("Titolari");
+                  if (preferenceFilters.isFavorite)
+                    activeFilters.push("Preferiti");
+                  if (preferenceFilters.hasIntegrity)
+                    activeFilters.push("Integrità");
+                  if (preferenceFilters.hasFmv) activeFilters.push("FMV");
+                  return activeFilters.length > 0
+                    ? `Filtri attivi: ${activeFilters.join(", ")}`
+                    : "Cerca giocatore o squadra...";
+                })()}
               />
 
               {/* Active filters indicator in search bar */}
@@ -436,7 +438,10 @@ export function CallPlayerInterface({
 
                 return activeFiltersCount > 0 ? (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-500 text-xs text-white"
+                    >
                       {activeFiltersCount}
                     </Badge>
                   </div>
@@ -609,11 +614,13 @@ export function CallPlayerInterface({
           <div className="space-y-4">
             {/* Reset Filters Button */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-400">Filtri Attivi</span>
+              <span className="text-sm font-medium text-gray-400">
+                Filtri Attivi
+              </span>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs border-gray-600 text-gray-400 hover:bg-gray-800 hover:text-white"
+                className="border-gray-600 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
                 onClick={() => {
                   setSelectedRole("ALL");
                   setPreferenceFilters({

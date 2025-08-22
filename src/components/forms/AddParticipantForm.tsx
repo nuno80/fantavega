@@ -62,6 +62,18 @@ import { type EligibleUser } from "@/lib/db/services/user.service";
 // src/components/forms/AddParticipantForm.tsx v.1.1
 // Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
 
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
+// src/components/forms/AddParticipantForm.tsx v.1.1
+// Aggiornato per mostrare nome e cognome nel dropdown degli utenti.
+
 // 2. Props del componente (aggiornate)
 interface AddParticipantFormProps {
   leagueId: number;

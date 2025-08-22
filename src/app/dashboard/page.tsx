@@ -2,14 +2,10 @@
 // Corretto l'errore di tipo per 'href' con typedRoutes abilitato.
 // 1. Importazioni
 import { currentUser } from "@clerk/nextjs/server";
-import {
-  FileUp,
-  Landmark,
-  Users,
-} from "lucide-react";
+import { FileUp, Landmark, Users } from "lucide-react";
 
-import { Navbar } from "@/components/navbar";
 import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
+import { Navbar } from "@/components/navbar";
 import {
   type DashboardStats,
   getDashboardStats,
@@ -26,8 +22,6 @@ export default async function DashboardPage() {
     { title: "Leghe Create", value: stats.totalLeagues, icon: Landmark },
     { title: "Aste Attive", value: stats.activeAuctions, icon: FileUp },
   ];
-
-
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">

@@ -140,6 +140,7 @@ export const processUserComplianceAndPenalties = async (
   message: string;
   gracePeriodEndTime?: number;
   timeRemainingSeconds?: number;
+  totalPenaltyAmount: number; // <-- Aggiunto
 }> => {
   let appliedPenaltyAmount = 0;
   let finalMessage = "Compliance check processed.";
@@ -367,7 +368,7 @@ export const processUserComplianceAndPenalties = async (
         "SELECT COALESCE(SUM(amount), 0) as total_penalties FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
       )
       .get(leagueId, userId) as { total_penalties: number };
-    
+
     const totalPenaltyAmount = totalPenaltiesResult.total_penalties;
 
     return {
