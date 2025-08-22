@@ -3,6 +3,7 @@
 // 1. Importazioni
 import { PlayerImportForm } from "@/components/admin/PlayerImportForm";
 import { Navbar } from "@/components/navbar";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 
 // 2. Componente Pagina (Server Component)
 export default function DbManagementPage() {
@@ -13,6 +14,8 @@ export default function DbManagementPage() {
         <div className="mx-auto grid w-full max-w-6xl gap-2">
           <h1 className="text-3xl font-semibold">Gestione Database</h1>
         </div>
+
+        <AdminQuickActions />
 
         <div className="mx-auto grid w-full max-w-6xl items-start gap-6">
           {/* Renderizziamo il nostro componente form client-side */}
