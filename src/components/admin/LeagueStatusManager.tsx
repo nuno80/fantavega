@@ -66,6 +66,12 @@ import {
 // src/components/admin/LeagueStatusManager.tsx v.1.1
 // Aggiornato con la lista di stati della lega semplificata.
 
+// src/components/admin/LeagueStatusManager.tsx v.1.1
+// Aggiornato con la lista di stati della lega semplificata.
+
+// src/components/admin/LeagueStatusManager.tsx v.1.1
+// Aggiornato con la lista di stati della lega semplificata.
+
 // 2. Props del componente (invariate)
 interface LeagueStatusManagerProps {
   leagueId: number;
