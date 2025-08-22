@@ -7,6 +7,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 // import { DeleteLeagueButton } from "@/components/admin/DeleteLeagueButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,8 @@ export default async function AdminLeaguesPage() {
             </Link>
           </div>
         </div>
+
+        <AdminQuickActions />
 
         <Card>
           <CardHeader>

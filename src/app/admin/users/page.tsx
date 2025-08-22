@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Navbar } from "@/components/navbar";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 // Assumiamo esista una Navbar
 import { Badge } from "@/components/ui/badge";
 import {
@@ -119,6 +120,8 @@ export default function AdminUserManagement() {
       <Navbar />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <h1 className="text-3xl font-bold text-foreground">Gestione Utenti</h1>
+
+        <AdminQuickActions />
 
         {/* Gestione degli stati di caricamento ed errore */}
         {loading && (
