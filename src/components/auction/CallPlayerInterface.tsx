@@ -361,9 +361,29 @@ export function CallPlayerInterface({
           FILTRI
         </button>
 
-        {/* Results counter in tab bar */}
-        <div className="ml-auto flex items-center px-4 py-3 text-xs text-gray-400">
-          {filteredPlayers.length} trovati
+        {/* Results counter and active filters indicator in tab bar */}
+        <div className="ml-auto flex items-center gap-3 px-4 py-3">
+          {/* Active filters indicator */}
+          {(() => {
+            const activeFiltersCount =
+              (selectedRole !== "ALL" ? 1 : 0) +
+              (preferenceFilters.isStarter ? 1 : 0) +
+              (preferenceFilters.isFavorite ? 1 : 0) +
+              (preferenceFilters.hasIntegrity ? 1 : 0) +
+              (preferenceFilters.hasFmv ? 1 : 0);
+
+            return activeFiltersCount > 0 ? (
+              <div className="flex items-center gap-1 text-xs">
+                <Badge variant="secondary" className="text-xs">
+                  {activeFiltersCount} filtri attivi
+                </Badge>
+              </div>
+            ) : null;
+          })()}
+
+          <div className="text-xs text-gray-400">
+            {filteredPlayers.length} trovati
+          </div>
         </div>
       </div>
 
@@ -379,8 +399,49 @@ export function CallPlayerInterface({
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
-                className="h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground"
+                className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${
+                  (() => {
+                    const activeFiltersCount =
+                      (selectedRole !== "ALL" ? 1 : 0) +
+                      (preferenceFilters.isStarter ? 1 : 0) +
+                      (preferenceFilters.isFavorite ? 1 : 0) +
+                      (preferenceFilters.hasIntegrity ? 1 : 0) +
+                      (preferenceFilters.hasFmv ? 1 : 0);
+                    return activeFiltersCount > 0 ? "border-blue-500 bg-blue-50/10" : "";
+                  })()
+                }`}
+                title={
+                  (() => {
+                    const activeFilters = [];
+                    if (selectedRole !== "ALL") activeFilters.push(`Ruolo: ${selectedRole}`);
+                    if (preferenceFilters.isStarter) activeFilters.push("Titolari");
+                    if (preferenceFilters.isFavorite) activeFilters.push("Preferiti");
+                    if (preferenceFilters.hasIntegrity) activeFilters.push("Integrità");
+                    if (preferenceFilters.hasFmv) activeFilters.push("FMV");
+                    return activeFilters.length > 0
+                      ? `Filtri attivi: ${activeFilters.join(", ")}`
+                      : "Cerca giocatore o squadra...";
+                  })()
+                }
               />
+
+              {/* Active filters indicator in search bar */}
+              {(() => {
+                const activeFiltersCount =
+                  (selectedRole !== "ALL" ? 1 : 0) +
+                  (preferenceFilters.isStarter ? 1 : 0) +
+                  (preferenceFilters.isFavorite ? 1 : 0) +
+                  (preferenceFilters.hasIntegrity ? 1 : 0) +
+                  (preferenceFilters.hasFmv ? 1 : 0);
+
+                return activeFiltersCount > 0 ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                      {activeFiltersCount}
+                    </Badge>
+                  </div>
+                ) : null;
+              })()}
 
               {/* Auto-dropdown */}
               {isDropdownOpen && filteredPlayers.length > 0 && (
@@ -546,6 +607,29 @@ export function CallPlayerInterface({
 
         {activeTab === "filtri" && (
           <div className="space-y-4">
+            {/* Reset Filters Button */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-400">Filtri Attivi</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs border-gray-600 text-gray-400 hover:bg-gray-800 hover:text-white"
+                onClick={() => {
+                  setSelectedRole("ALL");
+                  setPreferenceFilters({
+                    isStarter: false,
+                    isFavorite: false,
+                    hasIntegrity: false,
+                    hasFmv: false,
+                  });
+                  toast.success("Tutti i filtri sono stati resettati");
+                }}
+                title="Reset tutti i filtri"
+              >
+                Reset Filtri
+              </Button>
+            </div>
+
             {/* Role Filter Buttons */}
             <div className="flex items-center gap-2">
               <span className="mr-2 text-sm text-gray-400">Ruoli:</span>

@@ -9,7 +9,7 @@ import { abandonAuction } from "@/lib/db/services/response-timer.service";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { "league-id": string; "player-id": string } }
+  { params }: { params: Promise<{ "league-id": string; "player-id": string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -17,8 +17,9 @@ export async function POST(
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    const leagueId = parseInt(params["league-id"]);
-    const playerId = parseInt(params["player-id"]);
+    const { "league-id": leagueIdParam, "player-id": playerIdParam } = await params;
+    const leagueId = parseInt(leagueIdParam);
+    const playerId = parseInt(playerIdParam);
 
     if (isNaN(leagueId) || isNaN(playerId)) {
       return NextResponse.json(

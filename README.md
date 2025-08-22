@@ -1,27 +1,22 @@
-# Nuno's Next.js Starter Kit 2.0
+# Fantavega - Fantasy Sports Auction Platform
 
-A comprehensive Next.js 15 starter kit designed to accelerate the setup process for new web applications. It provides a pre-configured environment with Docker for development, pnpm, TypeScript, Tailwind CSS, shadcn/ui (base), BetterSQLite for local database, and Clerk for authentication.
-
----
+A comprehensive fantasy sports auction application built with Next.js 15, featuring real-time bidding, league management, player roster compliance, and advanced auction mechanics.
 
 ## 🚀 Quickstart Guide
 
-Get your project up and running quickly with these steps:
+Get your fantasy sports auction platform up and running quickly:
 
 1. **Clone & Navigate:**
 
    ```bash
-   git clone https://github.com/nuno80/nuno-starter-kit-2.0.git my-new-app
-   cd my-new-app
-   # IMPORTANT: This is now YOUR project. See "Post-Clone Customization" section below.
-   # You'll likely want to re-initialize Git for your new project (see "Using as a Starter...").
+   git clone https://github.com/nuno80/fantavega.git
+   cd fantavega
    ```
 
 2. **Set Up Node.js (v20.x Recommended):**
-   This starter is optimized for Node.js v20.x.
 
    ```bash
-   # Example using nvm:
+   # Using nvm:
    nvm install 20
    nvm use 20
    ```
@@ -32,554 +27,359 @@ Get your project up and running quickly with these steps:
    pnpm install
    ```
 
-   - ⚠️ **Lockfile & Node Version:** Align local Node.js with v20.x. If issues arise with a different Node version, regenerate lockfile: `rm -f pnpm-lock.yaml && rm -rf node_modules && pnpm install`.
-
 4. **Configure Environment Variables:**
-   Copy or create `.env.local`. Add your Clerk API keys:
+   Create `.env.local` and add your Clerk API keys:
 
    ```env
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_YOUR_KEY
    CLERK_SECRET_KEY=sk_test_YOUR_KEY
    ```
 
-5. **Database Setup & Management:**
+5. **Database Setup:**
 
-   - **Define Initial Schema:** Open `database/schema.sql` and write your `CREATE TABLE IF NOT EXISTS ...` statements.
-   - **Initialize Database (Apply Schema):**
-
-     ```bash
-     pnpm run db:migrate
-     ```
-
-   - **DB Scripts Overview:**
-     - `db:migrate`: Applies `schema.sql` (initial setup, new tables).
-     - `db:apply-changes`: Executes `database/adhoc_changes.sql` (backs up DB first).
-     - `db:reset`: Wipes and recreates DB from `schema.sql` (backs up DB first).
-     - `db:backup`: Manually creates a backup.
-       (See "Database Management" section for details).
+   ```bash
+   pnpm run db:migrate
+   ```
 
 6. **Run Development Server:**
 
-   - **Local:** `pnpm run dev`
-   - **Docker:** `cd Docker && docker compose build --no-cache app && docker compose up`
-     Access at `http://localhost:3000`.
-
-7. **Initial Git Setup for YOUR New Project (After Cloning Starter):**
-   Once you've cloned the starter and are ready to make it your own project:
-
    ```bash
-   # Inside your new project directory (e.g., my-new-app)
-   rm -rf .git                     # Remove starter's Git history
-   git init                        # Initialize a new Git repository
-   git branch -m main              # Ensure main branch
-   # Make your initial customizations (package.json name, README title, etc.)
-   git add .
-   git commit -m "Initial commit for My New App (based on nuno-starter-kit-2.0)"
-   # Go to GitHub, create a NEW EMPTY repository for your project
-   git remote add origin <URL_OF_YOUR_NEW_GITHUB_REPO>
-   git push -u origin main
+   pnpm run dev
    ```
 
----
+   Access at `http://localhost:3000`.
 
 ---
 
-## 🚀 Post-Clone Customization (Important First Steps!)
+## 🎯 Project Purpose
 
-After cloning this starter kit to begin **your new project**, it's crucial to update several project-specific names and configurations. This ensures your project is independent, correctly branded, and avoids conflicts if you manage multiple projects based on this starter.
+Fantavega is a feature-rich fantasy sports auction platform that enables:
 
-Follow these steps in your new project's directory:
+- **Real-time Auction System**: Live bidding with Socket.io integration
+- **League Management**: Create and manage fantasy sports leagues
+- **Player Roster Management**: Advanced player search and roster compliance
+- **Automated Bidding**: Auto-bid functionality for hands-off participation
+- **Role-based Access Control**: Admin, manager, and player roles
+- **Penalty System**: Automatic compliance checking and penalty enforcement
+- **Budget Tracking**: Real-time budget management during auctions
 
-1. **Update Project Name and Details in `package.json`:**
+## 🛠 Technology Stack
 
-   - Open `package.json` in the root of your project.
-   - **`name`**: Change this from `nuno-starter-kit-2.0` (or the current starter name) to your new project's unique name (e.g., `my-new-app`). It's conventional to use kebab-case (all lowercase, words separated by hyphens).
-   - **`description`**: Write a brief description specific to your new project.
-   - **`author`**: Update with your name/organization if desired.
-   - _(Optional)_ Review and update other fields like `repository`, `bugs`, `homepage` if you plan for this project to have its own public presence or issue tracking.
-
-2. **Configure Docker Container Name in `Docker/docker-compose.yml`:**
-
-   - Open `Docker/docker-compose.yml`.
-   - Find the `services: > app: > container_name:` section.
-   - Change the value from `nuno_next_starter_2_dev` to a unique name for your project's Docker container (e.g., `my_new_app_dev`). This helps in easily identifying your project's container when running `docker ps` or managing multiple Dockerized projects.
-
-     ```yaml
-     # Docker/docker-compose.yml
-     services:
-       app:
-         # ... other configurations ...
-         container_name: my_new_app_dev # <-- CHANGE THIS
-         # ...
-     ```
-
-   - _(Optional)_ You can also rename the service key `app:` itself if you prefer, but remember this will change how you reference the service in `docker compose` commands (e.g., `docker compose build my-service-name`). Keeping it as `app` is generally fine.
-
-3. **Customize `README.md` (This File):**
-
-   - You are currently reading the starter kit's README.
-   - **Update the main title** (e.g., `# My New App`).
-   - **Review and adapt all sections** to be relevant to _your_ new project. Remove or modify any instructions or descriptions that are specific to _using the starter kit itself_ and not to _using your application_.
-   - Ensure the "Project Purpose" and "Technology Stack" (if you add/remove technologies) accurately describe your new application.
-
-4. **Update Application Title & Metadata in `src/app/layout.tsx`:**
-
-   - Open `src/app/layout.tsx`.
-   - Modify the `metadata` object to reflect your application's identity:
-
-     ```typescript
-     // src/app/layout.tsx
-     export const metadata: Metadata = {
-       title: "My New App", // Your application's title for browser tabs, etc.
-       description: "The best new App!", // Your app's description
-       // You can add more metadata here: icons, openGraph, etc.
-     };
-     ```
-
-5. **Replace Public Assets (`public/` directory):**
-
-   - The `public/` directory contains static assets like `favicon.ico`, logos, or placeholder images.
-   - Replace these with your project's own branding and assets. At a minimum, update `favicon.ico`.
-
-6. **Database Name (Optional - `src/lib/db/index.ts`):**
-
-   - The default database filename used by this starter is `starter_default.db`. If you wish to use a different filename for your project (e.g., `my_new_app.db`):
-     1. Open `src/lib/db/index.ts`.
-     2. Find the line: `const dbFileName = "starter_default.db";`
-     3. Change `"starter_default.db"` to your desired filename.
-     4. Ensure your `.gitignore` file still correctly ignores the new `.db` filename pattern (e.g., `*.db` or `database/*.db` should cover it).
-     5. Remember this new name if you ever need to manually interact with or delete the database file.
-
-7. **Clerk Application Keys & Configuration (`.env.local` and Clerk Dashboard):**
-
-   - You should have already created a `.env.local` file and added your Clerk API keys during the initial setup.
-   - **Crucially, ensure these keys belong to a Clerk application instance dedicated to _your new project_, not a generic or shared starter kit instance.**
-   - Review settings in your [Clerk Dashboard](https://dashboard.clerk.com/) for this new application, such as redirect URLs, enabled authentication methods, session lifetimes, etc.
-
-8. **Initialize Your Own Git Repository & Remote:**
-
-   - The "Quickstart Guide" and "Using as a Starter for New Projects" sections detail how to remove the starter kit's Git history and initialize a new repository for your project, linking it to your own new GitHub (or other Git provider) repository. **This is a critical step to make the project truly yours.**
-
-     ```bash
-     # In your new project's root directory
-     rm -rf .git
-     git init
-     git branch -m main
-     git add .
-     git commit -m "Initial commit for My new App"
-     # Create a new empty repository on GitHub
-     git remote add origin <URL_OF_YOUR_NEW_GITHUB_REPO>
-     git push -u origin main
-     ```
-
-Completing these customization steps will ensure your new project is properly set up, uniquely identified, and ready for your specific development needs.
-
-## Table of Contents
-
-- [Quickstart Guide](#-quickstart-guide)
-- [Project Purpose](#project-purpose)
-- [Technology Stack](#technology-stack)
-- [Key Features](#key-features)
-- [Directory Structure](#directory-structure)
-- [Development Setup](#development-setup)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Environment Variables](#environment-variables-1)
-  - [Database Management](#database-management)
-  - [Running Locally](#running-locally)
-  - [Running with Docker](#running-with-docker)
-- [Authentication (Clerk)](#authentication-clerk)
-- [Code Quality & Formatting](#code-quality--formatting)
-- [GitHub Workflow (CI)](#github-workflow-ci)
-- [Using as a Starter for New Projects](#using-as-a-starter-for-new-projects)
-- [Resources](#resources)
-
-## Project Purpose
-
-This project serves as a robust foundation for building modern web applications using Next.js. It aims to:
-
-- Streamline initial project setup.
-- Provide a pre-configured, Dockerized development environment.
-- Integrate essential tools for styling, data management, and authentication.
-- Emphasize code quality through linting, formatting, and TypeScript.
-- Include a basic CI workflow for GitHub Actions.
-
-This starter kit uses **Clerk** for authentication and **BetterSQLite** (via `better-sqlite3`) for local database management.
-
-## Technology Stack
-
-### Core & Development
+### Core Framework
 
 - **Next.js 15** (App Router)
 - **TypeScript**
-- **pnpm**
-- **Docker & Docker Compose**
+- **React 19**
 
-### Styling & UI
+### Real-time Features
 
-- **Tailwind CSS**
-- **shadcn/ui (Base)** (Setup for theming, add components via `pnpm dlx shadcn-ui@latest add ...`)
-- **next-themes** (Dark/Light mode)
-- **lucide-react** (Icons)
+- **Socket.io** for live auction updates
+- **WebSocket server** for real-time bidding
 
-### Database
+### Authentication & Security
 
-- **SQLite** (via `better-sqlite3`)
+- **Clerk** for user authentication and session management
+- **Role-based middleware** with admin/manager/player access levels
 
-### Authentication
+### Database & Data Management
 
-- **Clerk** (`@clerk/nextjs`)
+- **SQLite** via BetterSQLite3
+- **Manual schema migrations** with backup system
+- **Database services** for penalty system and compliance checking
 
-### Code Quality
+### UI & Styling
 
-- **ESLint** (with `next/core-web-vitals`, `next/typescript`)
-- **Prettier** (with import sorting and Tailwind class sorting)
-- `eslint-plugin-check-file` (Naming conventions)
+- **Tailwind CSS** for styling
+- **shadcn/ui** component library
+- **Lucide React** icons
+- **Dark/Light mode** support
 
-_(Note: The original starter kit from which this was derived included other libraries like NextUI, Drizzle, NextAuth, etc. This version has been streamlined to focus on the stack listed above. You can integrate other tools as needed.)_
+### Development Tools
 
-## Key Features
+- **pnpm** for package management
+- **ESLint & Prettier** for code quality
+- **Docker** for containerized development
+- **Excel import/export** functionality
 
-- Dockerized Development Environment.
-- BetterSQLite Integration with manual schema migration.
-- pnpm for package management.
-- Clerk Authentication base setup.
-- Path Aliases (`@/*`) configured.
-- Tailwind CSS Theming base.
+## ⭐ Key Features
 
-## Directory Structure
+### Auction System
+
+- **Real-time bidding** with live updates
+- **Auto-bid functionality** for automated bidding
+- **Auction timer** with response tracking
+- **Bid history** and transaction logging
+- **Budget management** with real-time updates
+
+### League Management
+
+- **League creation and configuration**
+- **Participant management** with role assignment
+- **League status tracking** (active, paused, completed)
+- **Team naming and roster management**
+
+### Player Management
+
+- **Advanced player search** with filters
+- **Player import** via Excel files
+- **Player statistics** and performance data
+- **Roster compliance** checking
+
+### Penalty System
+
+- **Automated compliance checking**
+- **Penalty enforcement** for rule violations
+- **Session-based validation** (only active users penalized)
+- **Visual penalty indicators** in the UI
+
+### Admin Dashboard
+
+- **User management** with role assignment
+- **Database management** tools
+- **System monitoring** and statistics
+- **League oversight** capabilities
+
+## 📁 Directory Structure
 
 ```
-
-nuno-starter-kit-2.0/
-├── Docker/ # Docker configuration (Dockerfile, docker-compose.yml)
-├── database/ # Database files (schema.sql, .gitkeep; .db file is gitignored)
-├── public/ # Static assets
-├── src/ # Application source code
-│ ├── app/ # Next.js App Router
-│ ├── components/ # Reusable React components (ui/ for shadcn)
-│ ├── lib/ # Core libraries (db connection in lib/db/index.ts)
-│ ├── db/ # Database scripts (migrate.ts, reset.ts, utils.ts)
-│ └── types/ # TypeScript definitions
-├── .dockerignore
-├── .env.local.example # Example environment variables
-├── .eslintrc.json
-├── .gitignore
-├── .prettierrc.json
-├── components.json # shadcn/ui config
-├── next.config.mjs
-├── package.json
-├── pnpm-lock.yaml
-├── postcss.config.mjs
-├── tailwind.config.ts
-└── tsconfig.json
-
+fantavega/
+├── database/                 # Database files and migrations
+│   ├── schema.sql           # Main database schema
+│   ├── adhoc_changes.sql    # Temporary schema changes
+│   ├── migrations/          # Migration files
+│   └── backups/             # Automatic database backups
+├── public/                  # Static assets
+├── src/
+│   ├── app/                 # Next.js App Router pages
+│   │   ├── admin/           # Admin dashboard pages
+│   │   ├── api/             # API routes
+│   │   ├── auctions/        # Auction pages
+│   │   └── dashboard/       # User dashboard
+│   ├── components/          # React components
+│   │   ├── admin/           # Admin-specific components
+│   │   ├── auction/         # Auction components
+│   │   ├── players/         # Player management components
+│   │   └── ui/              # UI library components
+│   ├── lib/                 # Core utilities
+│   │   ├── db/              # Database connection and services
+│   │   ├── actions/         # Server actions
+│   │   └── validators/      # Data validation
+│   ├── contexts/            # React contexts
+│   ├── hooks/               # Custom React hooks
+│   └── types/               # TypeScript definitions
+├── socket-server.ts         # WebSocket server for real-time features
+├── Docker/                  # Docker configuration
+└── guide/                   # Documentation and guides
 ```
 
-## Development Setup
+## 🚀 Development Setup
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (be sure to update to v20.x to be aligned with Dockerfile)
+- [Node.js](https://nodejs.org/) v20.x
 - [pnpm](https://pnpm.io/installation)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (optional)
 
 ### Installation
 
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/nuno80/nuno-starter-kit-2.0.git my-app
-   cd my-app
+   git clone https://github.com/nuno80/fantavega.git
+   cd fantavega
    ```
 
-2. **Choose Your Development Approach:**
+2. **Install dependencies:**
 
-   - **Option A: Docker-Only Development (Recommended for consistency)**
-     If you plan to develop exclusively within the Docker environment, you **do not need to run `pnpm install` on your local machine (WSL).** Docker will handle dependency installation. Proceed to "Environment Variables" and then to the "Running with Docker" section. The database migration script will also be run inside the Docker container.
+   ```bash
+   pnpm install
+   ```
 
-   - **Option B: Local Development (or Hybrid with Docker)**
-     If you want to run `pnpm run dev` directly on your local machine (WSL) or need local `node_modules` for IDE tooling:
+3. **Set up environment variables:**
 
-     1. **Align Your Local Node.js Version (v20.x Recommended):**
-        (Mantieni le istruzioni per nvm e il warning sul lockfile come prima)
+   ```bash
+   cp .env.local.example .env.local
+   # Edit .env.local with your Clerk keys
+   ```
 
-        ```bash
-        # Example using nvm:
-        nvm install 20
-        nvm use 20
-        ```
+4. **Initialize database:**
 
-     2. **Install Dependencies Locally:**
+   ```bash
+   pnpm run db:migrate
+   ```
 
-        ```bash
-        pnpm install
-        pnpm add -D tsx # Ensures tsx is available for local DB scripts
-        ```
+### Running the Application
 
-        ⚠️ **Warning:** Ensure your local Node.js version matches the project's target (v20.x) to keep `pnpm-lock.yaml` consistent with the Docker environment. If you use a different Node version and regenerate `pnpm-lock.yaml`, it might cause issues with the Docker build
-
-3. **Set up Environment Variables:**
-
-   1. Create a `.env.local` file in the project root (you can copy `.env.local.example` if it exists).
-   2. Add your Clerk keys:
-
-      ```env
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_YOUR_CLERK_PUBLISHABLE_KEY
-      CLERK_SECRET_KEY=sk_test_YOUR_CLERK_SECRET_KEY
-      # Optional: NEXT_PUBLIC_APP_URL=http://localhost:3000
-      # Optional: Clerk redirect URLs (can also be set in Clerk Dashboard)
-      ```
-
-      Get keys from the [Clerk Dashboard](https://dashboard.clerk.com/).
-
-4. **Initialize the Database Schema:**
-
-   - **If using Docker-Only Development:** You will run the migration script _inside_ the Docker container after it's up and running for the first time:
-
-     ```bash
-     # After 'docker compose up -d'
-     docker compose exec app pnpm run db:migrate
-     ```
-
-   - **If using Local Development:**
-
-     ```bash
-     pnpm run db:migrate
-     ```
-
-### Database Management (SQLite via BetterSQLite3)
-
-This starter kit uses SQLite, accessed directly with `better-sqlite3`. The database schema is primarily defined in `database/schema.sql`. Management scripts are provided via pnpm to initialize, update, and reset your local development database.
-
-1. **Core Files:**
-
-   - **`database/starter_default.db`**: Your local SQLite database file. It's created in the `database/` directory. **This file is gitignored and should not be committed.**
-   - **`database/schema.sql`**: The **source of truth for your complete database structure**. Define all `CREATE TABLE IF NOT EXISTS ...`, `CREATE INDEX IF NOT EXISTS ...`, etc., statements here. This file _is_ committed to version control.
-   - **`database/adhoc_changes.sql`**: A temporary "scratchpad" file for SQL queries (`ALTER TABLE`, `UPDATE`, `DELETE`) that modify an existing database structure or data. **This file should be cleared or its contents commented out after use.** Its changes should ideally be reflected in `schema.sql` if they alter the final desired structure. This file _can_ be committed if you want to track a specific set of ad-hoc changes, but it's generally for one-time operations.
-   - **`database/backups/`**: This directory is automatically created to store timestamped backups of your database. **This directory is gitignored.**
-
-2. **Available pnpm Scripts for Database Management:**
-
-   - **`pnpm run db:backup`**
-
-     - **Purpose:** Manually creates a timestamped backup of your current `starter_default.db` file (and its `-shm`, `-wal` helper files) into the `database/backups/` directory.
-     - **When to Use:** Before making significant manual changes to the database or schema, or whenever you want a snapshot of your local development data.
-
-   - **`pnpm run db:migrate`**
-
-     - **Purpose:** Applies the entire `database/schema.sql` to your `starter_default.db`. If the database file doesn't exist, it will be created.
-     - **When to Use:**
-       - **Initial Setup:** After cloning and `pnpm install`, run this to create your database tables for the first time.
-       - **Adding New Tables/Indexes:** If you've added new `CREATE TABLE IF NOT EXISTS ...` or `CREATE INDEX IF NOT EXISTS ...` statements to `schema.sql`.
-     - **Behavior:** Re-applies the full schema. Safe for additive changes using `IF NOT EXISTS`. **It will not automatically `ALTER` or `DROP` existing tables/columns** just because they are changed or removed in `schema.sql`.
-
-   - **`pnpm run db:apply-changes`**
-
-     - **Purpose:** Executes the SQL queries currently present in the `database/adhoc_changes.sql` file.
-     - **Safety:** **Automatically creates a backup** in `database/backups/` before running the queries.
-     - **When to Use:** To apply specific DML (`UPDATE`, `INSERT`, `DELETE`) or DDL (`ALTER TABLE`) commands to your existing database that are not covered by `db:migrate` (e.g., adding a column to an existing table).
-     - **Important Workflow:**
-       1. Write your `ALTER TABLE ...`, `UPDATE ...`, etc., queries in `database/adhoc_changes.sql`.
-       2. Run `pnpm run db:apply-changes`.
-       3. Verify the changes in your database.
-       4. **Crucially, if you made structural changes (like `ALTER TABLE`), update `database/schema.sql` to reflect the new, complete table structure.** This keeps `schema.sql` as the definitive source for a fresh database setup.
-       5. Clear or comment out the queries in `database/adhoc_changes.sql` to prevent re-running them unintentionally.
-
-   - **`pnpm run db:reset`**
-     - **Purpose:** Completely wipes your local `starter_default.db` and recreates it from scratch using the current `database/schema.sql`.
-     - **Safety:** **Automatically creates a backup** in `database/backups/` before deleting the database.
-     - **When to Use:**
-       - When you want a fresh, empty database structured according to the latest `schema.sql`.
-       - If `schema.sql` has major structural changes (including added columns in `CREATE TABLE` definitions, or dropped tables) and you want to apply them to a clean slate.
-       - For troubleshooting database inconsistencies in development.
-     - **Warning:** This command **deletes all data** in your local `starter_default.db`.
-
-3. **Initial Database Setup Steps for a New Clone:**
-
-   1. Ensure `tsx` is a dev dependency (it should be after `pnpm install` if listed in `package.json`, or run `pnpm add -D tsx`).
-   2. Define your initial table structure in `database/schema.sql`.
-   3. Run the migration script to create tables:
-
-      ```bash
-      pnpm run db:migrate
-      ```
-
-   4. Verify table creation using a SQLite browser.
-
-4. **Workflow for Modifying Schema on an Existing Database:**
-   - **Adding a new table/index:**
-     1. Add `CREATE TABLE IF NOT EXISTS ...` or `CREATE INDEX IF NOT EXISTS ...` to `database/schema.sql`.
-     2. Run `pnpm run db:migrate`.
-   - **Adding a column, changing a type, or other `ALTER` operations (preserving data):**
-     1. (Optional but recommended) Run `pnpm run db:backup`.
-     2. Write your `ALTER TABLE ...` command(s) in `database/adhoc_changes.sql`.
-     3. Run `pnpm run db:apply-changes`.
-     4. Verify the change.
-     5. **Update `database/schema.sql`** to reflect the new column in the `CREATE TABLE` definition.
-     6. Clear `database/adhoc_changes.sql`.
-   - **Major refactor or starting fresh (will wipe data):**
-     1. Update `database/schema.sql` to the desired final state.
-     2. Run `pnpm run db:reset` (a backup will be made automatically).
-
-This workflow provides a balance casualties of simplicity for initial setup and a controlled way to apply ad-hoc changes, backed by automatic backups for a safety net during development. For production environments or complex, multi-developer schema evolution, a fully versioned migration system would be the next step.
-
-### Running Locally
+#### Local Development
 
 ```bash
 pnpm run dev
 ```
 
-Access at `http://localhost:3000`. Ensure you've run `pnpm run db:migrate` at least once.
+This starts both the Next.js app and Socket.io server concurrently.
 
-### Running with Docker
+#### Docker Development
 
-(Recommended for a consistent environment)
-
-1. **Ensure Docker Desktop is running.**
-2. Navigate to the `Docker/` directory: `cd Docker`
-3. **Build image (first time or after Dockerfile/config changes):**
-
-   ```bash
-   docker compose build --no-cache app
-   ```
-
-4. **Run containers:**
-
-   ```bash
-   docker compose up
-   ```
-
-   (For detached mode, use `docker compose up -d`. View logs with `docker compose logs -f app`.)
-   Access at `http://localhost:3000`.
-
-5. **Hot Reloading:** Code changes in `src/` and `public/` on your local machine should reflect immediately in the browser due to Docker volume mounts. If not, try uncommenting `WATCHPACK_POLLING: "true"` in `docker-compose.yml`.
-
-6. **Stopping Containers:** Press `Ctrl+C` in the terminal running `docker compose up`, or run `docker compose down` (use `docker compose down -v` for full cleanup including anonymous volumes).
-
-7. **Production Optimization:** Refer to [`guida_ottimizzazione_docker.md`](./guida_ottimizzazione_docker.md) for creating smaller production images.
-
-## Authentication (Clerk)
-
-(Questa sezione sembra già buona, la lascio com'era nel tuo file)
-User authentication is handled by [Clerk](https://clerk.com/).
-
-- Sign-up, sign-in, user profiles, and session management are managed by Clerk components and APIs.
-- Ensure your Clerk instance is configured in the [Clerk Dashboard](https://dashboard.clerk.com/) with the correct redirect URLs and any social providers you wish to use.
-
-### Access Control Pages
-
-- `/devi-autenticarti`: Displayed when authentication is required.
-
-- `/no-access`: Displayed when an authenticated user lacks permissions for a route.
-
-### Route Protection
-
-Route protection is implemented via `src/middleware.ts` using `clerkMiddleware`.
-
-- **Public Routes**: (e.g., `/`, `/about`) - Accessible to all.
-- **Authenticated Routes**: (e.g., `/features`, `/user-dashboard`) - Require login.
-- **Admin Routes**: (e.g., `/dashboard`, `/admin/*`, `/api/admin/*`) - Require login and 'admin' role (defined in user's `publicMetadata.role` on Clerk and checked in `sessionClaims.metadata.role`).
-  The `/dashboard` page is an example of an admin-only page.
-
-## Code Quality & Formatting
-
-(Questa sezione sembra già buona)
-
-- **ESLint** and **Prettier** are configured for linting and code formatting.
-- **Naming Conventions**: Enforced by `eslint-plugin-check-file` (KEBAB_CASE for files and folders in `src`).
-- To format code:
-
-  ```bash
-  pnpm run format
-  ```
-
-- Linting is typically integrated with your IDE and also run during the CI process.
-
-## GitHub Workflow (CI)
-
-(Questa sezione sembra già buona e aggiornata per pnpm)
-A basic CI workflow can be set up using GitHub Actions. Create `.github/workflows/ci.yaml`:
-
-```yaml
-name: CI
-# ... (contenuto YAML come l'avevi, è corretto per pnpm)
-# ... (assicurati che node-version in setup-node sia '18' o '20' per coerenza col Dockerfile)
-on: [push]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8 # Or your target pnpm version
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20" # Match your project's Node.js version (e.g., from Dockerfile)
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm tsc --noEmit # Or your specific typecheck script
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Build
-        run: pnpm run build
+```bash
+cd Docker
+docker compose build --no-cache app
+docker compose up
 ```
 
-## Using as a Starter for New Projects
+#### Individual Services
 
-(Questa sezione sembra già buona)
+```bash
+# Next.js only
+pnpm run dev:next
 
-1. Create a new repository on GitHub (e.g., `my-new-project`). **Do not** initialize it with a README or other files.
-2. Clone this starter kit repository (`nuno-starter-kit-2.0`) to your local machine.
-3. Navigate into the cloned directory.
-4. Remove the existing Git remote:
+# Socket server only
+pnpm run socket:dev
+```
 
-   ```bash
-   git remote remove origin
-   ```
+## 🗄️ Database Management
 
-5. (Optional, for a clean history in your new project) Remove the `.git` folder and re-initialize Git:
+Fantavega uses SQLite with a comprehensive database management system:
 
-   ```bash
-   rm -rf .git
-   git init
-   git branch -m main
-   git add .
-   git commit -m "Initial commit from nuno-starter-kit-2.0"
-   ```
+### Core Database Files
 
-6. Add your new GitHub repository as the remote:
+- **`database/schema.sql`**: Complete database schema definition
+- **`database/adhoc_changes.sql`**: Temporary changes and migrations
+- **`database/backups/`**: Automatic timestamped backups
 
-   ```bash
-   git remote add origin <URL_OF_YOUR_NEW_GITHUB_REPO>
-   ```
+### Available Scripts
 
-7. Push to your new repository:
+```bash
+pnpm run db:migrate      # Apply schema changes
+pnpm run db:backup       # Create database backup
+pnpm run db:apply-changes # Apply adhoc changes with backup
+pnpm run db:reset        # Reset database (with backup)
+pnpm run db:seed         # Seed with sample data
+```
 
-   ```bash
-   git push -u origin main
-   ```
+### Database Services
 
-8. Follow the [Development Setup](#development-setup) steps for your new project.
+- **Penalty Service**: Manages compliance and penalty enforcement
+- **League Actions**: League creation and management
+- **Player Management**: Player data operations
 
-## Resources
+## 🔐 Authentication (Clerk)
 
-- [Next.js Documentation](https://nextjs.org/docs)
+User authentication is handled by Clerk with role-based access control:
 
-- [Clerk Documentation](https://clerk.com/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [BetterSQLite3 Documentation](https://github.com/WiseLibs/better-sqlite3)
-- [pnpm Documentation](https://pnpm.io/motivation)
+### User Roles
+
+- **Admin**: Full system access, user management
+- **Manager**: League management, participant oversight
+- **Player**: Auction participation, roster management
+
+### Protected Routes
+
+- **Public**: `/`, `/about`, `/pricing`
+- **Authenticated**: `/features`, `/user-dashboard`
+- **Admin Only**: `/admin/*`, `/dashboard`, `/api/admin/*`
+
+## 🎯 Real-time Features
+
+### WebSocket Integration
+
+- **Live auction updates** during bidding
+- **Real-time budget tracking**
+- **Bid notifications** and status updates
+- **Auction timer** synchronization
+
+### Socket Events
+
+- `bid_placed`: New bid notification
+- `auction_update`: Auction state changes
+- `timer_update`: Timer synchronization
+- `budget_update`: Budget changes
+
+## 📊 Admin Features
+
+### User Management
+
+- **Role assignment** and management
+- **User activity monitoring**
+- **Account status control**
+
+### League Oversight
+
+- **League creation and configuration**
+- **Participant management**
+- **Compliance monitoring**
+
+### Database Tools
+
+- **Direct database access** and management
+- **Backup and restore** functionality
+- **Schema migration** tools
+
+## 🔧 Code Quality & Development
+
+### Code Standards
+
+- **ESLint** for linting
+- **Prettier** for code formatting
+- **TypeScript** for type safety
+- **File naming conventions** enforced
+
+### Development Scripts
+
+```bash
+pnpm run lint           # Run ESLint
+pnpm run format         # Format code with Prettier
+pnpm run type-check     # TypeScript type checking
+pnpm run build          # Production build
+```
+
+## 🚀 Deployment
+
+### Docker Production
+
+```bash
+cd Docker
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Environment Configuration
+
+Ensure all environment variables are set for production:
+
+```env
+NODE_ENV=production
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_prod_key
+CLERK_SECRET_KEY=your_prod_secret
+```
+
+## 📚 Documentation
+
+Additional documentation is available in the `guide/` directory:
+
+- `guide/progetto-attuale/logica-app.json` - Application logic documentation
+- `guide/gestione-db.md` - Database management guide
+- `guide/role-based-auth.md` - Authentication guide
+- `guide/UI-design.md` - UI/UX guidelines
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+## 📄 License
+
+This project is private and proprietary.
+
+## 🆘 Support
+
+For support and questions:
+
+- Check the `guide/` directory for detailed documentation
+- Review existing issues and documentation
+- Contact the development team for technical support
+
+---
+
+**Fantavega** - Where Fantasy Sports Meet Real-time Action! ⚽🏀🏈

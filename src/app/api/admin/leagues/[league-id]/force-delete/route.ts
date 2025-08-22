@@ -12,7 +12,7 @@ interface League {
 
 export async function POST(
   request: Request,
-  { params }: { params: { "league-id": string } }
+  { params }: { params: Promise<{ "league-id": string }> }
 ) {
   try {
     // Verifica autenticazione admin
@@ -21,7 +21,8 @@ export async function POST(
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    const leagueId = parseInt(params["league-id"]);
+    const { "league-id": leagueIdParam } = await params;
+    const leagueId = parseInt(leagueIdParam);
     if (isNaN(leagueId)) {
       return NextResponse.json(
         { error: "ID lega non valido" },

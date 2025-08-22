@@ -6,8 +6,8 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { "league-id": string } }
+  request: Request,
+  { params }: { params: Promise<{ "league-id": string }> }
 ) {
   console.log("[API AUTO-BIDS GET] Request received to list auto-bids.");
 
@@ -17,7 +17,8 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const leagueId = parseInt(params["league-id"], 10);
+    const { "league-id": leagueIdParam } = await params;
+    const leagueId = parseInt(leagueIdParam, 10);
     if (isNaN(leagueId)) {
       return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
     }
