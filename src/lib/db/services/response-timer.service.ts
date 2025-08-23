@@ -19,15 +19,6 @@ interface ResponseTimer {
   status: "pending" | "cancelled" | "abandoned" | "expired";
 }
 
-interface AuctionInfo {
-  id: number;
-  player_id: number;
-  auction_league_id: number;
-  player_name: string;
-  current_highest_bid_amount: number;
-  current_highest_bidder_id: string;
-}
-
 // Costanti
 const RESPONSE_TIME_HOURS = 1;
 const ABANDON_COOLDOWN_HOURS = 48;

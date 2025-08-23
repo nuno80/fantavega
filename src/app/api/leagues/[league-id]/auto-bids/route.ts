@@ -1,5 +1,5 @@
 // src/app/api/leagues/[league-id]/auto-bids/route.ts
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 

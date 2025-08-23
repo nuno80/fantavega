@@ -12,8 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ComplianceTimer } from "./ComplianceTimer";
 
+import { ComplianceTimer } from "./ComplianceTimer";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
 
@@ -73,12 +73,6 @@ interface AutoBid {
   user_id: string; // Added user_id to identify the owner of the auto-bid
 }
 
-interface AutoBidIndicator {
-  // Keeping this for now, but it's not used for the main autoBids prop
-  player_id: number;
-  auto_bid_count: number;
-}
-
 // Discriminated union for Slot
 type Slot =
   | { type: "assigned"; player: PlayerInRoster }
@@ -113,6 +107,7 @@ interface ManagerColumnProps {
     maxAmount?: number
   ) => Promise<void>;
   complianceTimerStartAt: number | null;
+  onPenaltyApplied?: () => void; // Callback for when penalty is applied
 }
 
 // Helper functions
@@ -129,49 +124,6 @@ const getRoleColor = (role: string) => {
     default:
       return "bg-gray-500";
   }
-};
-
-const getRoleTextColor = (role: string) => {
-  switch (role.toUpperCase()) {
-    case "P":
-      return "text-yellow-400";
-    case "D":
-      return "text-green-400";
-    case "C":
-      return "text-blue-400";
-    case "A":
-      return "text-red-400";
-    default:
-      return "text-gray-400";
-  }
-};
-
-const getSlotStyle = (role: string): React.CSSProperties => {
-  const style: React.CSSProperties = {
-    backgroundColor: "rgba(107, 114, 128, 0.2)",
-    borderColor: "#6B7280",
-    borderWidth: "1px",
-    borderStyle: "solid",
-  };
-  switch (role.toUpperCase()) {
-    case "P":
-      style.backgroundColor = "rgba(234, 179, 8, 0.2)";
-      style.borderColor = "#F59E0B";
-      break;
-    case "D":
-      style.backgroundColor = "rgba(16, 185, 129, 0.2)";
-      style.borderColor = "#10B981";
-      break;
-    case "C":
-      style.backgroundColor = "rgba(59, 130, 246, 0.2)";
-      style.borderColor = "#3B82F6";
-      break;
-    case "A":
-      style.backgroundColor = "rgba(239, 68, 68, 0.2)";
-      style.borderColor = "#EF4444";
-      break;
-  }
-  return style;
 };
 
 const formatTimeRemaining = (endTime: number) => {
@@ -209,7 +161,6 @@ function AssignedSlot({
   role: string;
 }) {
   const roleColor = getRoleColor(role);
-  const roleTextColor = getRoleTextColor(role);
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -512,6 +463,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   leagueId,
   handlePlaceBid,
   complianceTimerStartAt,
+  onPenaltyApplied,
 }) => {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -650,7 +602,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           <div className="flex items-center gap-1">
             {/* Penalty indicator - visible to all if penalties exist */}
             {manager.total_penalties > 0 && (
-              <span 
+              <span
                 title={`Penalità totali: ${manager.total_penalties} crediti`}
                 className="flex items-center"
               >
@@ -662,7 +614,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 </span>
               </span>
             )}
-            
+
             {/* Compliance timer - visible only to current user */}
             {isCurrentUser && (
               <>
@@ -671,6 +623,16 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                     <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
                     <ComplianceTimer
                       timerStartTimestamp={complianceTimerStartAt}
+                      leagueId={leagueId}
+                      onPenaltyApplied={() => {
+                        // Call parent callback to refresh data after penalty
+                        console.log(
+                          "[MANAGER_COLUMN] Timer expired, penalty applied - refreshing compliance data"
+                        );
+                        if (onPenaltyApplied) {
+                          onPenaltyApplied();
+                        }
+                      }}
                     />
                   </span>
                 ) : (
@@ -728,7 +690,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
       {/* Role counters */}
       <div className="mb-2 flex justify-around text-xs">
-        {['P', 'D', 'C', 'A'].map((role) => {
+        {["P", "D", "C", "A"].map((role) => {
           const currentCount = getRoleCount(role);
           const requiredSlots =
             leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0;
@@ -746,7 +708,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
       {/* Slots list */}
       <div className="scrollbar-hide flex flex-1 flex-col space-y-1 overflow-y-auto">
-        {['P', 'D', 'C', 'A'].map((role) => {
+        {["P", "D", "C", "A"].map((role) => {
           const slots = createSlotsForRole(role);
           if (slots.length === 0) return null;
 

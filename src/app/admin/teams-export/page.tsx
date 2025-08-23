@@ -58,7 +58,7 @@ export default function TeamsExportPage() {
         if (!response.ok) throw new Error("Failed to fetch leagues");
         const data = await response.json();
         setLeagues(data.leagues || []);
-      } catch (error) {
+      } catch {
         toast.error("Errore nel caricamento delle leghe");
       } finally {
         setIsLoading(false);

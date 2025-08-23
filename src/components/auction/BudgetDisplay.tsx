@@ -19,9 +19,9 @@ export function BudgetDisplay({
   currentBudget,
   lockedCredits,
   teamName,
-  leagueId,
-  userId,
-  onBudgetUpdate,
+  leagueId: _leagueId,
+  userId: _userId,
+  onBudgetUpdate: _onBudgetUpdate,
 }: BudgetDisplayProps) {
   const availableBudget = currentBudget - lockedCredits;
   const spentBudget = totalBudget - currentBudget;

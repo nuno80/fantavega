@@ -1,11 +1,9 @@
 // src/app/api/webhooks/clerk/route.ts
 
-import { Webhook } from 'svix';
-import { headers } from 'next/headers';
-import { WebhookEvent } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
-import { checkAndRecordCompliance } from '@/lib/db/services/penalty.service';
-import { NextResponse } from 'next/server';
+import { processUserComplianceAndPenalties } from '@/lib/db/services/penalty.service';
+import { WebhookEvent } from '@clerk/nextjs/server';
+import { Webhook } from 'svix';
 
 export async function POST(req: Request) {
   // You can find this in the Clerk Dashboard -> Webhooks -> choose the webhook
@@ -58,25 +56,51 @@ export async function POST(req: Request) {
   console.log(`Webhook with an ID of ${id} and type of ${eventType}`);
   
   if (eventType === 'session.created') {
-    const userId = evt.data.id;
-    console.log(`Processing 'user.signedIn' event for userId: ${userId}`);
+    const userId = evt.data.user_id; // Use user_id from session event
+    console.log(`[WEBHOOK PENALTY] Processing 'session.created' event for userId: ${userId}`);
 
     try {
-      // Find all leagues the user is a part of
+      // Find all active leagues the user is a part of
       const leagues = db.prepare(
-        'SELECT league_id FROM league_participants WHERE user_id = ?'
-      ).all(userId) as { league_id: number }[];
+        `SELECT al.id as league_id, al.status 
+         FROM league_participants lp 
+         JOIN auction_leagues al ON lp.league_id = al.id 
+         WHERE lp.user_id = ? AND al.status IN ('draft_active', 'repair_active')`
+      ).all(userId) as { league_id: number; status: string }[];
 
       if (leagues.length > 0) {
-        console.log(`User ${userId} found in ${leagues.length} leagues. Checking compliance for each.`);
+        console.log(`[WEBHOOK PENALTY] User ${userId} found in ${leagues.length} active leagues. Applying penalties if needed.`);
+        
+        let totalPenaltiesApplied = 0;
+        
         for (const league of leagues) {
-          checkAndRecordCompliance(userId, league.league_id);
+          try {
+            const result = await processUserComplianceAndPenalties(
+              league.league_id, 
+              userId
+            );
+            
+            console.log(`[WEBHOOK PENALTY] League ${league.league_id} - Applied: ${result.appliedPenaltyAmount} credits, Compliant: ${result.isNowCompliant}`);
+            
+            if (result.appliedPenaltyAmount > 0) {
+              totalPenaltiesApplied += result.appliedPenaltyAmount;
+            }
+          } catch (error) {
+            console.error(`[WEBHOOK PENALTY] Error processing league ${league.league_id} for user ${userId}:`, error);
+            // Continue with other leagues even if one fails
+          }
         }
+        
+        if (totalPenaltiesApplied > 0) {
+          console.log(`[WEBHOOK PENALTY] Total penalties applied for user ${userId}: ${totalPenaltiesApplied} credits`);
+          // TODO: Send notification via Socket.IO if needed
+        }
+        
       } else {
-        console.log(`User ${userId} is not a participant in any league. No compliance check needed.`);
+        console.log(`[WEBHOOK PENALTY] User ${userId} is not in any active leagues. No penalty check needed.`);
       }
     } catch (error) {
-      console.error(`Error processing compliance for user ${userId} on login:`, error);
+      console.error(`[WEBHOOK PENALTY] Error processing compliance for user ${userId} on login:`, error);
       // Still return 200 to Clerk to acknowledge receipt, but log the error.
     }
   }
