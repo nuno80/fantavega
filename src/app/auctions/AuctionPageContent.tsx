@@ -47,6 +47,7 @@ interface Manager {
   current_budget: number;
   locked_credits: number;
   total_budget: number;
+  total_penalties: number;
   firstName?: string;
   lastName?: string;
   players: PlayerInRoster[];
@@ -99,6 +100,11 @@ interface AutoBid {
   user_id: string; // Added user_id to identify the owner of the auto-bid
 }
 
+interface ComplianceStatus {
+  user_id: string;
+  compliance_timer_start_at: number | null;
+}
+
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(
     null
@@ -125,6 +131,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [userAuctionStates, setUserAuctionStates] = useState<
     UserAuctionState[]
   >([]);
+  const [complianceData, setComplianceData] = useState<ComplianceStatus[]>([]);
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(
     null
@@ -185,6 +192,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         setSelectedLeagueId(league.id);
         setLeagueInfo(league);
         setLeagues(leagues);
+
+        // Trigger the one-time login compliance check
+        try {
+          await fetch("/api/user/trigger-login-check", { method: "POST" });
+        } catch (e) {
+          // This is a background task, so we don't need to show an error to the user
+          console.error("Failed to trigger login check:", e);
+        }
 
         // Feature flag for consolidated API (INITIAL LOAD)
         const USE_CONSOLIDATED_API = false; //process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
@@ -278,14 +293,15 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           }
         }
 
-        // Fetch ALL user's auto-bids for this league (not needed anymore with individual fetching)
-        // const allAutoBidsResponse = await fetch(`/api/leagues/${leagueId}/auto-bids`);
-        // if (allAutoBidsResponse.ok) {
-        //   const allAutoBidsData = await allAutoBidsResponse.json();
-        //   setAutoBids(allAutoBidsData.autoBids || []);
-        // } else {
-        //   console.error("Failed to fetch all auto-bids");
-        // }
+        // Fetch compliance data for all users in this league
+        const complianceResponse = await fetch(`/api/leagues/${leagueId}/all-compliance-status`);
+        if (complianceResponse.ok) {
+          const complianceData = await complianceResponse.json();
+          console.log("Compliance data API response:", complianceData);
+          setComplianceData(complianceData || []);
+        } else {
+          console.error("Failed to fetch compliance data");
+        }
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati");
@@ -780,28 +796,40 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           onShowAllTeams={() => setSelectedManagerId(null)}
         />
         {displayedManagers.length > 0 ? (
-          displayedManagers.map((manager, index) => (
-            <div key={`${manager.user_id}-${index}`} className="min-w-0 flex-1">
-              <ManagerColumn
-                manager={manager}
-                isCurrentUser={manager.user_id === userId}
-                isHighestBidder={
-                  currentAuction?.current_highest_bidder_id === manager.user_id
-                }
-                position={index + 1}
-                leagueSlots={leagueSlots ?? undefined}
-                activeAuctions={activeAuctions}
-                autoBids={autoBids}
-                currentAuctionPlayerId={currentAuction?.player_id}
-                userAuctionStates={
-                  manager.user_id === userId ? userAuctionStates : []
-                }
-                leagueId={selectedLeagueId ?? undefined}
-                handlePlaceBid={handlePlaceBid}
-                onComplianceChange={setUserComplianceStatus}
-              />
-            </div>
-          ))
+          displayedManagers.map((manager, index) => {
+            const managerCompliance = complianceData.find(
+              (c) => c.user_id === manager.user_id
+            );
+            return (
+              <div
+                key={`${manager.user_id}-${index}`}
+                className="min-w-0 flex-1"
+              >
+                <ManagerColumn
+                  manager={manager}
+                  isCurrentUser={manager.user_id === userId}
+                  isHighestBidder={
+                    currentAuction?.current_highest_bidder_id ===
+                    manager.user_id
+                  }
+                  position={index + 1}
+                  leagueSlots={leagueSlots ?? undefined}
+                  activeAuctions={activeAuctions}
+                  autoBids={autoBids}
+                  currentAuctionPlayerId={currentAuction?.player_id}
+                  userAuctionStates={
+                    manager.user_id === userId ? userAuctionStates : []
+                  }
+                  leagueId={selectedLeagueId ?? undefined}
+                  handlePlaceBid={handlePlaceBid}
+                  onComplianceChange={setUserComplianceStatus}
+                  complianceTimerStartAt={
+                    managerCompliance?.compliance_timer_start_at || null
+                  }
+                />
+              </div>
+            );
+          })
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">
