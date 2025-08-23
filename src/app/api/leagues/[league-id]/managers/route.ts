@@ -20,6 +20,7 @@ interface Manager {
   current_budget: number;
   locked_credits: number;
   total_budget: number;
+  total_penalties: number;
   firstName?: string;
   lastName?: string;
   players: PlayerInRoster[];
@@ -101,8 +102,29 @@ export async function GET(
 
     const managers = managersStmt.all(leagueId) as Omit<
       Manager,
-      "players" | "firstName" | "lastName"
+      "players" | "firstName" | "lastName" | "total_penalties"
     >[];
+
+    // Get total penalties for each manager
+    const penaltiesStmt = db.prepare(`
+      SELECT 
+        user_id,
+        COALESCE(SUM(amount), 0) as total_penalties
+      FROM budget_transactions 
+      WHERE auction_league_id = ? AND transaction_type = 'penalty_requirement'
+      GROUP BY user_id
+    `);
+
+    const penaltiesData = penaltiesStmt.all(leagueId) as {
+      user_id: string;
+      total_penalties: number;
+    }[];
+
+    // Create a map for quick penalty lookup
+    const penaltiesByUser = new Map<string, number>();
+    for (const penalty of penaltiesData) {
+      penaltiesByUser.set(penalty.user_id, penalty.total_penalties);
+    }
 
     // Get active auctions with current bid amounts
     const activeAuctionsStmt = db.prepare(`
@@ -169,6 +191,7 @@ export async function GET(
     // Build the complete managers data with their correct rosters
     const managersWithRosters: Manager[] = managers.map((manager) => ({
       ...manager,
+      total_penalties: penaltiesByUser.get(manager.user_id) || 0,
       players: playersByManager.get(manager.user_id) || [],
     }));
 

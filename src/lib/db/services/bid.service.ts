@@ -5,7 +5,10 @@ import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 import { handleBidderChange } from "./auction-states.service";
-import { processUserComplianceAndPenalties } from "./penalty.service";
+import {
+  processUserComplianceAndPenalties,
+  checkAndRecordCompliance,
+} from "./penalty.service";
 import {
   canUserBidOnPlayer,
   cancelResponseTimer,
@@ -1366,6 +1369,12 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
           auction.current_highest_bidder_id,
           auction.current_highest_bid_amount,
           now
+        );
+
+        // TASK 1.2: Re-check compliance after player assignment
+        checkAndRecordCompliance(
+          auction.current_highest_bidder_id,
+          auction.auction_league_id
         );
       })();
 
