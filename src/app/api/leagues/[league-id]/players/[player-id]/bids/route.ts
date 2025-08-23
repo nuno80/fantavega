@@ -6,10 +6,10 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import {
-  type AuctionCreationResult,
-  getAuctionStatusForPlayer,
-  placeBidOnExistingAuction,
-  placeInitialBidAndCreateAuction,
+    type AuctionCreationResult,
+    getAuctionStatusForPlayer,
+    placeBidOnExistingAuction,
+    placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limiter";
 

@@ -67,7 +67,7 @@ export function ResponseActionModal({
       } else {
         toast.error(data.error || "Errore durante l'abbandono");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Errore di connessione");
     } finally {
       setIsLoading(false);
@@ -97,7 +97,7 @@ export function ResponseActionModal({
           data.error || "Errore durante la preparazione dell'offerta"
         );
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Errore di connessione");
     } finally {
       setIsLoading(false);

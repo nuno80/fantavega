@@ -8,7 +8,6 @@ import {
   Dumbbell,
   Gavel,
   Shield,
-  Timer,
   TrendingUp,
   User,
   Users,
@@ -42,7 +41,7 @@ export function PlayerSearchCard({
   player,
   onBidOnPlayer,
 
-  userRole,
+  userRole: _userRole,
   userId,
   onTogglePlayerIcon,
   leagueId,

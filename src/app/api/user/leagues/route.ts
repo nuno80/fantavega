@@ -7,7 +7,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { recordUserLogin } from "@/lib/db/services/session.service";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await currentUser();
 

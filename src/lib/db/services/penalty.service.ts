@@ -2,7 +2,6 @@
 // Servizio per la logica di business relativa al sistema di penalità, con notifiche real-time.
 // 1. Importazioni
 import { db } from "@/lib/db";
-import { notifySocketServer } from "@/lib/socket-emitter";
 
 // <-- NUOVA IMPORTAZIONE
 import type { AuctionLeague } from "./auction-league.service";
@@ -163,7 +162,7 @@ export const checkAndRecordCompliance = (
         league.status,
         league.active_auction_roles
       );
-      
+
       const requiredSlots = calculateRequiredSlotsMinusOne(league);
       const coveredSlots = countCoveredSlots(leagueId, userId);
       const isCompliant = checkUserCompliance(
@@ -189,7 +188,8 @@ export const checkAndRecordCompliance = (
         complianceRecord = { compliance_timer_start_at: null };
       }
 
-      const wasTimerActive = complianceRecord.compliance_timer_start_at !== null;
+      const wasTimerActive =
+        complianceRecord.compliance_timer_start_at !== null;
       let statusChanged = false;
 
       if (isCompliant && wasTimerActive) {
@@ -198,14 +198,18 @@ export const checkAndRecordCompliance = (
           "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
         ).run(now, leagueId, userId, phaseIdentifier);
         statusChanged = true;
-        console.log(`[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`);
+        console.log(
+          `[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`
+        );
       } else if (!isCompliant && !wasTimerActive) {
         // CASE B: User became non-compliant, start the timer.
         db.prepare(
           "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
         ).run(now, now, leagueId, userId, phaseIdentifier);
         statusChanged = true;
-        console.log(`[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`);
+        console.log(
+          `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
+        );
       }
 
       return { statusChanged, isCompliant };
@@ -241,7 +245,7 @@ export const processUserComplianceAndPenalties = async (
   let isNowCompliant = false;
 
   try {
-    const transactionResult = db.transaction(() => {
+    db.transaction(() => {
       // --- INIZIO MODIFICA ---
       // Controlla se l'utente ha mai effettuato un login prima di procedere
       const sessionCheckStmt = db.prepare(

@@ -13,14 +13,6 @@ interface UserAuctionStates {
   [userId: string]: UserAuctionState;
 }
 
-interface AuctionStateInfo {
-  auction_id: number;
-  player_id: number;
-  player_name: string;
-  current_highest_bidder_id: string;
-  user_auction_states: string; // JSON string
-}
-
 /**
  * Ottiene lo stato di un utente per un'asta specifica
  */

@@ -22,7 +22,7 @@ interface PlayerSearchResultsProps {
 export function PlayerSearchResults({
   players,
   onBidOnPlayer,
-  onStartAuction,
+  onStartAuction: _onStartAuction,
   onTogglePlayerIcon,
   userRole,
   userId,

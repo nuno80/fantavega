@@ -89,7 +89,7 @@ export async function GET(request: Request) {
           | "rilancio_possibile"
           | "asta_abbandonata" = "asta_abbandonata"; // Default
         let response_deadline: number | null = null;
-        let activated_at: number | null = null;
+        let _activated_at: number | null = null;
         let time_remaining: number | null = null;
         let is_highest_bidder: boolean = false;
 
@@ -106,7 +106,7 @@ export async function GET(request: Request) {
 
         if (timer) {
           response_deadline = timer.response_deadline;
-          activated_at = timer.activated_at;
+          _activated_at = timer.activated_at;
           if (response_deadline !== null) {
             time_remaining = Math.max(0, response_deadline - now);
           }

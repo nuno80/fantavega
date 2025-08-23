@@ -62,7 +62,7 @@ export function BiddingInterface({
     if (newMinValidBid > bidAmount) {
       setBidAmount(newMinValidBid);
     }
-  }, [currentBid, minBid]);
+  }, [currentBid, minBid, bidAmount]);
 
   const availableBudget = userBudget - lockedCredits;
   const canBid =

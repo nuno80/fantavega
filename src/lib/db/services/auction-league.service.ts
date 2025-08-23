@@ -5,8 +5,6 @@ import { clerkClient } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
 
-type AppRole = "admin" | "manager";
-
 // --- Tipi di Base ---
 export interface AuctionLeague {
   id: number;
