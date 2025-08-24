@@ -84,12 +84,6 @@ export function Navbar() {
               {" "}
               {/* Mostra questi link solo se loggato */}
               <Link
-                href="/user-dashboard" // Link alla dashboard utente
-                className="text-sm font-medium transition-colors hover:text-primary"
-              >
-                Mia Dashboard
-              </Link>
-              <Link
                 href="/auctions" // Link alle aste (da creare)
                 className="text-sm font-medium transition-colors hover:text-primary"
               >
@@ -173,13 +167,6 @@ export function Navbar() {
             <SignedIn>
               {" "}
               {/* Mostra questi link solo se loggato */}
-              <Link
-                href="/user-dashboard"
-                className="text-sm font-medium transition-colors hover:text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Mia Dashboard
-              </Link>
               <Link
                 href="/auctions"
                 className="text-sm font-medium transition-colors hover:text-primary"
