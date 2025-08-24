@@ -9,6 +9,7 @@ import {
   Gavel,
   Shield,
   TrendingUp,
+  Trophy,
   User,
   Users,
 } from "lucide-react";
@@ -126,29 +127,42 @@ export function PlayerSearchCard({
     }
   };
 
-  const getStatusBadge = () => {
+  const getStatusDisplay = () => {
     switch (player.auctionStatus) {
       case "active_auction":
-        return (
-          <Badge className="bg-orange-500 text-orange-900">
-            <Clock className="mr-1 h-3 w-3" />
-            Asta Attiva
-          </Badge>
-        );
+        return {
+          badge: (
+            <Badge className="bg-orange-500 text-orange-900">
+              <Clock className="mr-1 h-3 w-3" />
+              Asta Attiva
+            </Badge>
+          ),
+          info: null,
+        };
       case "assigned":
-        return (
-          <Badge className="bg-gray-500 text-gray-900">
-            <Users className="mr-1 h-3 w-3" />
-            Assegnato
-          </Badge>
-        );
+        return {
+          badge: (
+            <Badge className="bg-gray-500 text-gray-900">
+              <Trophy className="mr-1 h-3 w-3" />
+              {player.assignedToTeam}
+            </Badge>
+          ),
+          info: player.currentBid ? (
+            <div className="text-sm text-muted-foreground">
+              {player.currentBid} crediti
+            </div>
+          ) : null,
+        };
       default:
-        return (
-          <Badge variant="outline">
-            <User className="mr-1 h-3 w-3" />
-            Disponibile
-          </Badge>
-        );
+        return {
+          badge: (
+            <Badge variant="outline">
+              <User className="mr-1 h-3 w-3" />
+              Disponibile
+            </Badge>
+          ),
+          info: null,
+        };
     }
   };
 
@@ -172,12 +186,20 @@ export function PlayerSearchCard({
     !player.isAssignedToUser &&
     !hasCooldown;
 
+  const statusDisplay = getStatusDisplay();
+
   return (
-    <Card className="relative flex h-full flex-col">
+    <Card
+      className={`relative flex h-full flex-col transition-shadow hover:shadow-lg ${
+        player.auctionStatus === "assigned"
+          ? "border-red-500 bg-orange-100 dark:border-orange-800 dark:bg-orange-950/20"
+          : ""
+      }`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="mb-1 flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <Badge className={getRoleBadgeColor(player.role)}>
                 {player.role}
               </Badge>
@@ -187,234 +209,163 @@ export function PlayerSearchCard({
                 </Badge>
               )}
             </div>
-            <h3 className="text-lg font-semibold leading-tight">
+            <h3 className="mb-1 truncate text-lg font-semibold leading-tight">
               {player.name}
             </h3>
-            <p className="text-sm text-muted-foreground">{player.team}</p>
+            <p className="mb-2 text-sm text-muted-foreground">{player.team}</p>
+
+            <div className="flex items-center gap-2">{statusDisplay.badge}</div>
+            {statusDisplay.info && (
+              <div className="mt-1">{statusDisplay.info}</div>
+            )}
           </div>
 
           {/* Player Avatar */}
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <User className="h-6 w-6 text-muted-foreground" />
+          <div className="ml-2 flex flex-col items-center gap-1">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <User className="h-6 w-6 text-muted-foreground" />
+            </div>
           </div>
         </div>
-
-        {getStatusBadge()}
       </CardHeader>
 
       <CardContent className="flex-1 space-y-3">
-        {/* Player Icons Grid */}
-        <div className="mb-3 grid grid-cols-4 gap-2 text-center text-xs">
-          <div>
+        {/* Compact Player Stats */}
+        <div className="grid grid-cols-4 gap-2 rounded-lg bg-muted/30 p-2 text-sm">
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Qt.A</div>
+            <div className="font-medium">{player.qtA}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Qt.I</div>
+            <div className="font-medium">{player.qtI}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">FVM</div>
+            <div className="font-medium">{player.fvm}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Diff</div>
             <div
-              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.isStarter ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
-              onClick={() =>
-                handleTogglePreference("isStarter", !player.isStarter)
-              }
-              title={
-                player.isStarter
-                  ? "Rimuovi come titolare"
-                  : "Segna come titolare"
-              }
-            >
-              <Shield
-                className={`h-4 w-4 ${player.isStarter ? "text-purple-400" : "text-gray-400"}`}
-              />
-            </div>
-            <p
-              className={player.isStarter ? "text-purple-400" : "text-gray-400"}
-            >
-              Titolare
-            </p>
-          </div>
-          <div>
-            <div
-              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.isFavorite ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
-              onClick={() =>
-                handleTogglePreference("isFavorite", !player.isFavorite)
-              }
-              title={
-                player.isFavorite
-                  ? "Rimuovi dai preferiti"
-                  : "Aggiungi ai preferiti"
-              }
-            >
-              <div
-                className={`h-4 w-4 ${player.isFavorite ? "text-purple-400" : "text-gray-400"}`}
-              >
-                ⚽
-              </div>
-            </div>
-            <p
-              className={
-                player.isFavorite ? "text-purple-400" : "text-gray-400"
-              }
-            >
-              Preferito
-            </p>
-          </div>
-          <div>
-            <div
-              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.integrityValue ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
-              onClick={() =>
-                handleTogglePreference(
-                  "integrityValue",
-                  player.integrityValue ? 0 : 1
-                )
-              }
-              title={
-                player.integrityValue
-                  ? "Rimuovi integrità"
-                  : "Segna come integro"
-              }
-            >
-              <Dumbbell
-                className={`h-4 w-4 ${player.integrityValue ? "text-purple-400" : "text-gray-400"}`}
-              />
-            </div>
-            <p
-              className={
-                player.integrityValue ? "text-purple-400" : "text-gray-400"
-              }
-            >
-              Integrità
-            </p>
-          </div>
-          <div>
-            <div
-              className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ${player.hasFmv ? "border-2 border-purple-400" : ""} cursor-pointer transition-colors hover:bg-gray-600`}
-              onClick={() => handleTogglePreference("hasFmv", !player.hasFmv)}
-              title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
-            >
-              <TrendingUp
-                className={`h-4 w-4 ${player.hasFmv ? "text-purple-400" : "text-gray-400"}`}
-              />
-            </div>
-            <p className={player.hasFmv ? "text-purple-400" : "text-gray-400"}>
-              FMV
-            </p>
-          </div>
-        </div>
-
-        {/* Player Stats */}
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-muted-foreground">Qt.A:</span>
-            <span className="ml-1 font-medium">{player.qtA}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Qt.I:</span>
-            <span className="ml-1 font-medium">{player.qtI}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">FVM:</span>
-            <span className="ml-1 font-medium">{player.fvm}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Diff:</span>
-            <span
-              className={`ml-1 font-medium ${player.diff > 0 ? "text-green-600" : player.diff < 0 ? "text-red-600" : ""}`}
+              className={`font-medium ${player.diff > 0 ? "text-green-600" : player.diff < 0 ? "text-red-600" : ""}`}
             >
               {player.diff > 0 ? "+" : ""}
               {player.diff}
-            </span>
+            </div>
           </div>
         </div>
 
-        {/* Auction Info */}
+        {/* Compact User Preferences (always visible but clickable) */}
+        <div className="grid grid-cols-4 gap-2">
+          <button
+            className={`rounded-lg p-2 transition-colors ${
+              player.isStarter
+                ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            }`}
+            onClick={() =>
+              handleTogglePreference("isStarter", !player.isStarter)
+            }
+            title={
+              player.isStarter ? "Rimuovi come titolare" : "Segna come titolare"
+            }
+          >
+            <Shield className="mx-auto mb-1 h-4 w-4" />
+            <div className="text-xs">Titolare</div>
+          </button>
+
+          <button
+            className={`rounded-lg p-2 transition-colors ${
+              player.isFavorite
+                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            }`}
+            onClick={() =>
+              handleTogglePreference("isFavorite", !player.isFavorite)
+            }
+            title={
+              player.isFavorite
+                ? "Rimuovi dai preferiti"
+                : "Aggiungi ai preferiti"
+            }
+          >
+            <div className="mx-auto mb-1 text-sm">⚽</div>
+            <div className="text-xs">Preferito</div>
+          </button>
+
+          <button
+            className={`rounded-lg p-2 transition-colors ${
+              player.integrityValue
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            }`}
+            onClick={() =>
+              handleTogglePreference(
+                "integrityValue",
+                player.integrityValue ? 0 : 1
+              )
+            }
+            title={
+              player.integrityValue ? "Rimuovi integrità" : "Segna come integro"
+            }
+          >
+            <Dumbbell className="mx-auto mb-1 h-4 w-4" />
+            <div className="text-xs">Integrità</div>
+          </button>
+
+          <button
+            className={`rounded-lg p-2 transition-colors ${
+              player.hasFmv
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            }`}
+            onClick={() => handleTogglePreference("hasFmv", !player.hasFmv)}
+            title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
+          >
+            <TrendingUp className="mx-auto mb-1 h-4 w-4" />
+            <div className="text-xs">FMV</div>
+          </button>
+        </div>
+
+        {/* Auction Info - Only for Active Auctions */}
         {player.auctionStatus === "active_auction" && (
-          <div className="space-y-3 rounded-lg bg-orange-50 p-3 dark:bg-orange-950/20">
-            {/* Current Bid Info */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Offerta Attuale:</span>
-                <span className="font-bold text-orange-600">
-                  {player.currentBid || 0} crediti
-                </span>
-              </div>
-
-              {player.currentHighestBidderName && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Miglior offerente:
-                  </span>
-                  <span className="text-sm font-medium text-orange-700">
-                    {player.currentHighestBidderName}
-                  </span>
-                </div>
-              )}
-
-              {player.timeRemaining && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Tempo rimanente:
-                  </span>
-                  <span className="text-sm font-medium text-orange-600">
-                    {formatTimeRemaining(player.timeRemaining)}
-                  </span>
-                </div>
-              )}
+          <div className="space-y-2 rounded-lg bg-orange-50 p-3 dark:bg-orange-950/20">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Offerta:</span>
+              <span className="font-bold text-orange-600">
+                {player.currentBid || 0} crediti
+              </span>
             </div>
 
-            {/* Auto-bid Info */}
-            {player.autoBids && player.autoBids.length > 0 && (
-              <div className="border-t border-orange-200 pt-2 dark:border-orange-800">
-                <div className="mb-1 text-xs font-medium text-orange-700">
-                  Auto-offerte attive:
-                </div>
-                <div className="space-y-1">
-                  {player.autoBids.map((autoBid, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between text-xs"
-                    >
-                      <span
-                        className={`${autoBid.userId === userId ? "font-semibold text-blue-600" : "text-muted-foreground"}`}
-                      >
-                        {autoBid.username}
-                        {autoBid.userId === userId && " (Tu)"}
-                      </span>
-                      <span className="font-medium">
-                        {autoBid.userId === userId
-                          ? `Max: ${autoBid.maxAmount}`
-                          : "Auto-bid attiva"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+            {player.currentHighestBidderName && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Offerente:
+                </span>
+                <span className="text-sm font-medium text-orange-700">
+                  {player.currentHighestBidderName}
+                </span>
+              </div>
+            )}
+
+            {player.timeRemaining && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Tempo:</span>
+                <span className="text-sm font-medium text-orange-600">
+                  {formatTimeRemaining(player.timeRemaining)}
+                </span>
               </div>
             )}
 
             {/* User's Auto-bid Status */}
             {player.userAutoBid && (
-              <div className="-mx-3 rounded-b-lg border-t border-blue-200 bg-blue-50 px-3 pb-2 pt-2 dark:border-blue-800 dark:bg-blue-950/30">
-                <div className="mb-1 text-xs font-medium text-blue-700">
-                  La tua auto-offerta:
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-blue-600">Prezzo massimo:</span>
+              <div className="border-t border-orange-200 pt-2 dark:border-orange-800">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-600">Tua auto-offerta:</span>
                   <span className="font-bold text-blue-700">
-                    {player.userAutoBid.maxAmount} crediti
+                    Max {player.userAutoBid.maxAmount}
                   </span>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Assignment Info */}
-        {player.auctionStatus === "assigned" && player.assignedToTeam && (
-          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-950/20">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Assegnato a:</span>
-              <span className="ml-1 font-medium">{player.assignedToTeam}</span>
-            </div>
-            {player.currentBid && (
-              <div className="mt-1 text-sm">
-                <span className="text-muted-foreground">Prezzo:</span>
-                <span className="ml-1 font-medium">
-                  {player.currentBid} crediti
-                </span>
               </div>
             )}
           </div>
