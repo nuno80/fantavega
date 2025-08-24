@@ -854,9 +854,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         <CallPlayerInterface
           leagueId={selectedLeagueId || 0}
           userId={userId}
-          onStartAuction={(_playerId) => {
-            // Refresh the page or update state when auction starts
-            window.location.reload();
+          onStartAuction={(playerId) => {
+            // The CallPlayerInterface already handles data refresh internally
+            // No need for page reload - let the component manage its own state
+            console.log(`Auction started for player ${playerId}`);
           }}
         />
       </div>

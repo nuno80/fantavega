@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSocket } from "@/contexts/SocketContext";
 
 import { StandardBidModal } from "./StandardBidModal";
 
@@ -121,6 +122,9 @@ export function CallPlayerInterface({
     "chiama"
   );
 
+  // Socket.IO connection
+  const { socket, isConnected } = useSocket();
+
   // Fetch players data
   const refreshPlayersData = useCallback(async () => {
     try {
@@ -213,6 +217,101 @@ export function CallPlayerInterface({
 
     setFilteredPlayers(filtered);
   }, [players, searchTerm, selectedRole, preferenceFilters]);
+
+  // Socket.IO real-time updates
+  useEffect(() => {
+    if (!isConnected || !socket || !leagueId) return;
+
+    // Join league room for real-time updates
+    console.log(`[Socket Client] Joining league room: league-${leagueId}`);
+    socket.emit("join-league-room", leagueId.toString());
+
+    // Handle auction creation events
+    const handleAuctionCreated = (data: {
+      playerId: number;
+      currentBid: number;
+      scheduledEndTime: number;
+    }) => {
+      console.log("[Socket Client] Auction created:", data);
+      setPlayers((prevPlayers) =>
+        prevPlayers.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "active_auction" as const,
+                currentBid: data.currentBid,
+                timeRemaining: Math.max(
+                  0,
+                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
+                ),
+              }
+            : player
+        )
+      );
+    };
+
+    // Handle auction update events (bid placement)
+    const handleAuctionUpdate = (data: {
+      playerId: number;
+      newPrice: number;
+      highestBidderId: string;
+      scheduledEndTime: number;
+    }) => {
+      console.log("[Socket Client] Auction updated:", data);
+      setPlayers((prevPlayers) =>
+        prevPlayers.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "active_auction" as const,
+                currentBid: data.newPrice,
+                currentHighestBidderName: data.highestBidderId,
+                timeRemaining: Math.max(
+                  0,
+                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
+                ),
+              }
+            : player
+        )
+      );
+    };
+
+    // Handle auction closed events
+    const handleAuctionClosed = (data: {
+      playerId: number;
+      playerName: string;
+      winnerId: string;
+      finalPrice: number;
+    }) => {
+      console.log("[Socket Client] Auction closed:", data);
+      setPlayers((prevPlayers) =>
+        prevPlayers.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "assigned" as const,
+                currentBid: data.finalPrice,
+                currentHighestBidderName: data.winnerId,
+                timeRemaining: 0,
+              }
+            : player
+        )
+      );
+    };
+
+    // Register event listeners
+    socket.on("auction-created", handleAuctionCreated);
+    socket.on("auction-update", handleAuctionUpdate);
+    socket.on("auction-closed-notification", handleAuctionClosed);
+
+    // Cleanup on unmount
+    return () => {
+      socket.emit("leave-league-room", leagueId.toString());
+      socket.off("auction-created", handleAuctionCreated);
+      socket.off("auction-update", handleAuctionUpdate);
+      socket.off("auction-closed-notification", handleAuctionClosed);
+    };
+  }, [socket, isConnected, leagueId]);
 
   // Handle search input change
   const handleSearchChange = (value: string) => {
@@ -744,7 +843,6 @@ export function CallPlayerInterface({
           player={selectedPlayerForBid}
           leagueId={leagueId}
           userId={userId}
-          onBidSuccess={refreshPlayersData}
         />
       )}
 
