@@ -23,10 +23,14 @@ export function BudgetDisplay({
   userId: _userId,
   onBudgetUpdate: _onBudgetUpdate,
 }: BudgetDisplayProps) {
-  const availableBudget = currentBudget - lockedCredits;
-  const spentBudget = totalBudget - currentBudget;
-  const budgetUsedPercentage = (spentBudget / totalBudget) * 100;
-  const lockedPercentage = (lockedCredits / totalBudget) * 100;
+  // Validazioni per prevenire valori negativi
+  const displayLockedCredits = Math.max(0, lockedCredits);
+  const availableBudget = Math.max(0, currentBudget - lockedCredits);
+  const spentBudget = Math.max(0, totalBudget - currentBudget);
+  const budgetUsedPercentage =
+    totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
+  const lockedPercentage =
+    totalBudget > 0 ? (displayLockedCredits / totalBudget) * 100 : 0;
 
   const getBudgetStatus = () => {
     const percentage = budgetUsedPercentage;
@@ -73,7 +77,7 @@ export function BudgetDisplay({
           <div className="flex justify-between text-sm">
             <span>Crediti bloccati:</span>
             <span className="font-semibold text-yellow-600">
-              {lockedCredits}
+              {displayLockedCredits}
             </span>
           </div>
           <div className="flex justify-between text-sm">
@@ -89,7 +93,7 @@ export function BudgetDisplay({
             <span>{budgetUsedPercentage.toFixed(1)}%</span>
           </div>
           <Progress value={budgetUsedPercentage} className="h-2" />
-          {lockedCredits > 0 && (
+          {displayLockedCredits > 0 && (
             <>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Crediti Bloccati</span>
@@ -115,7 +119,7 @@ export function BudgetDisplay({
           </div>
         )}
 
-        {lockedCredits > availableBudget && (
+        {displayLockedCredits > availableBudget && (
           <div className="rounded bg-red-100 p-2 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
             🚨 Crediti bloccati superiori al disponibile
           </div>

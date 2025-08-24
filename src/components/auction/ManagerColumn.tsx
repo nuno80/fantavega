@@ -568,9 +568,18 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
   const totalBudget = manager?.total_budget || 0;
   const currentBudget = manager?.current_budget || 0;
-  const lockedCredits = manager?.locked_credits || 0;
-  const availableBudget = currentBudget - lockedCredits;
-  const spentCredits = totalBudget - availableBudget;
+  const rawLockedCredits = manager?.locked_credits || 0;
+  const totalPenalties = manager?.total_penalties || 0;
+
+  // Validazioni per prevenire valori negativi
+  const lockedCredits = Math.max(0, rawLockedCredits);
+  // FIX: Use comprehensive calculation to handle database inconsistencies
+  // Available = Initial - Penalties - Spent - Locked
+  const spentCredits = Math.max(0, totalBudget - currentBudget);
+  const availableBudget = Math.max(
+    0,
+    totalBudget - totalPenalties - spentCredits - rawLockedCredits
+  );
   const spentPercentage =
     totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
 
@@ -643,11 +652,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
               </>
             )}
           </div>
-        </div>
-        <div
-          className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-foreground"}`}
-        >
-          {manager.current_budget}
         </div>
       </div>
 
