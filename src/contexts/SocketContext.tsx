@@ -21,81 +21,6 @@ import { Socket, io } from "socket.io-client";
 
 // 1. Direttiva per componente Client
 
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
-// src/contexts/SocketContext.tsx v.1.0
-// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
-
-// 1. Direttiva per componente Client
-
 // 3. Definizione del tipo per il nostro Context
 interface SocketContextType {
   socket: Socket | null;
@@ -167,7 +92,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
       newSocket.off("disconnect", onDisconnect);
       newSocket.disconnect();
     };
-  }, [userId, socket]); // L'effetto si riesegue se l'userId cambia (login/logout)
+  }, [userId]); // L'effetto si riesegue se l'userId cambia (login/logout)
 
   const value = { socket, isConnected };
 
