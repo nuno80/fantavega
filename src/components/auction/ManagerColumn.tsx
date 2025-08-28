@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from "react";
 
 import {
-  AlertTriangle,
-  CheckCircle,
-  DollarSign,
-  Lock,
-  Star,
-  User,
-  X,
+    AlertTriangle,
+    CheckCircle,
+    DollarSign,
+    Lock,
+    Star,
+    User,
+    X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -375,7 +375,7 @@ function InAuctionSlot({
     isCurrentUser,
     leagueId,
     auction.player_id,
-    auction.current_highest_bid_amount,
+    // REMOVED: auction.current_highest_bid_amount - this was causing unnecessary re-fetches
   ]);
 
   // Show user's auto-bid for this specific player (only their own)

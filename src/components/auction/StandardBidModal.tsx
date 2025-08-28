@@ -8,12 +8,12 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -280,6 +280,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(1)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 1 > availableBudget
                 }
               >
@@ -290,6 +291,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(5)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 5 > availableBudget
                 }
               >
@@ -300,6 +302,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(10)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 10 > availableBudget
                 }
               >
@@ -310,6 +313,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(20)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 20 > availableBudget
                 }
               >

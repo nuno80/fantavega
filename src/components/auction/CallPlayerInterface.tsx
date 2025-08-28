@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
-  Dumbbell,
-  Gavel,
-  Heart,
-  Search,
-  Shield,
-  TrendingUp,
-  User,
+    Dumbbell,
+    Gavel,
+    Heart,
+    Search,
+    Shield,
+    TrendingUp,
+    User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,11 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { useSocket } from "@/contexts/SocketContext";
 
@@ -218,72 +218,24 @@ export function CallPlayerInterface({
     setFilteredPlayers(filtered);
   }, [players, searchTerm, selectedRole, preferenceFilters]);
 
-  // Socket.IO real-time updates
+  // Socket.IO real-time updates - CENTRALIZED IN AuctionPageContent
   useEffect(() => {
     if (!isConnected || !socket || !leagueId) return;
 
-    // Join league room for real-time updates
-    console.log(`[Socket Client] Joining league room: league-${leagueId}`);
-    socket.emit("join-league-room", leagueId.toString());
+    // NOTE: According to project specifications, all auction-related Socket.IO event listeners
+    // must be centralized in AuctionPageContent.tsx. This component only handles auction-closed
+    // events for updating local player state when auctions end.
+    
+    console.log(`[CallPlayerInterface] Registering minimal Socket.IO listeners for league ${leagueId}`);
 
-    // Handle auction creation events
-    const handleAuctionCreated = (data: {
-      playerId: number;
-      currentBid: number;
-      scheduledEndTime: number;
-    }) => {
-      console.log("[Socket Client] Auction created:", data);
-      setPlayers((prevPlayers) =>
-        prevPlayers.map((player) =>
-          player.id === data.playerId
-            ? {
-                ...player,
-                auctionStatus: "active_auction" as const,
-                currentBid: data.currentBid,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-              }
-            : player
-        )
-      );
-    };
-
-    // Handle auction update events (bid placement)
-    const handleAuctionUpdate = (data: {
-      playerId: number;
-      newPrice: number;
-      highestBidderId: string;
-      scheduledEndTime: number;
-    }) => {
-      console.log("[Socket Client] Auction updated:", data);
-      setPlayers((prevPlayers) =>
-        prevPlayers.map((player) =>
-          player.id === data.playerId
-            ? {
-                ...player,
-                auctionStatus: "active_auction" as const,
-                currentBid: data.newPrice,
-                currentHighestBidderName: data.highestBidderId,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-              }
-            : player
-        )
-      );
-    };
-
-    // Handle auction closed events
+    // Handle auction closed events only (AuctionPageContent handles creation and updates)
     const handleAuctionClosed = (data: {
       playerId: number;
       playerName: string;
       winnerId: string;
       finalPrice: number;
     }) => {
-      console.log("[Socket Client] Auction closed:", data);
+      console.log("[CallPlayerInterface] Auction closed:", data);
       setPlayers((prevPlayers) =>
         prevPlayers.map((player) =>
           player.id === data.playerId
@@ -299,16 +251,11 @@ export function CallPlayerInterface({
       );
     };
 
-    // Register event listeners
-    socket.on("auction-created", handleAuctionCreated);
-    socket.on("auction-update", handleAuctionUpdate);
+    // Register only auction-closed events
     socket.on("auction-closed-notification", handleAuctionClosed);
 
     // Cleanup on unmount
     return () => {
-      socket.emit("leave-league-room", leagueId.toString());
-      socket.off("auction-created", handleAuctionCreated);
-      socket.off("auction-update", handleAuctionUpdate);
       socket.off("auction-closed-notification", handleAuctionClosed);
     };
   }, [socket, isConnected, leagueId]);
@@ -401,8 +348,12 @@ export function CallPlayerInterface({
       setSelectedPlayer("");
       setSelectedPlayerDetails(null);
       setSelectedPlayerForStartAuction(null);
-      // Refresh players data
-      await refreshPlayersData();
+
+      // Socket.IO will handle the real-time update, no need to refresh manually
+      console.log(
+        "[CallPlayerInterface] Auction created successfully, waiting for Socket.IO update"
+      );
+
       // Callback to parent
       if (onStartAuction) {
         onStartAuction(selectedPlayerForStartAuction.id);

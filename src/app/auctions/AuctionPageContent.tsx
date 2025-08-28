@@ -2,13 +2,14 @@
 
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
 import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
+import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
@@ -175,8 +176,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   };
 
-  // Helper functions for data fetching
-  const fetchBudgetData = async (leagueId: number) => {
+  // Helper functions for data fetching - memoized to prevent connection loops
+  const fetchBudgetData = useCallback(async (leagueId: number) => {
     try {
       const response = await fetch(`/api/leagues/${leagueId}/budget`);
       if (response.ok) {
@@ -186,9 +187,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     } catch (error) {
       console.error("Error fetching budget data:", error);
     }
-  };
+  }, []);
 
-  const fetchCurrentAuction = async (leagueId: number) => {
+  const fetchCurrentAuction = useCallback(async (leagueId: number) => {
     try {
       const response = await fetch(`/api/leagues/${leagueId}/current-auction`);
       if (response.ok) {
@@ -198,7 +199,38 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     } catch (error) {
       console.error("Error fetching current auction:", error);
     }
-  };
+  }, []);
+
+  const fetchManagersData = useCallback(async (leagueId: number) => {
+    try {
+      const managersResponse = await fetch(`/api/leagues/${leagueId}/managers`);
+      if (managersResponse.ok) {
+        const managersData = await managersResponse.json();
+        setManagers(managersData.managers || []);
+        setLeagueSlots(managersData.leagueSlots || null);
+        setActiveAuctions(managersData.activeAuctions || []);
+        setAutoBids(managersData.autoBids || []);
+      }
+    } catch (error) {
+      console.error("Error fetching managers data:", error);
+    }
+  }, []);
+
+  // Helper function to refresh user auction states (OLD METHOD)
+  const refreshUserAuctionStatesOld = useCallback(async (leagueId: number) => {
+    // Changed type to number
+    try {
+      const auctionStatesResponse = await fetch(
+        `/api/user/auction-states?leagueId=${leagueId}`
+      );
+      if (auctionStatesResponse.ok) {
+        const statesData = await auctionStatesResponse.json();
+        setUserAuctionStates(statesData.states || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing user auction states:", error);
+    }
+  }, []);
 
   // Fetch user's leagues and current auction
   useEffect(() => {
@@ -208,7 +240,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
         // First, get user's leagues
         const leaguesResponse = await fetch("/api/user/leagues");
-        if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
+        if (!leaguesResponse.ok) {
+          if (leaguesResponse.status === 401) {
+            console.log("[AUTH] User not authenticated, redirecting to sign-in");
+            router.push("/sign-in" as Route);
+            return;
+          }
+          throw new Error(`Failed to fetch leagues: ${leaguesResponse.status}`);
+        }
 
         const leagues = await leaguesResponse.json();
 
@@ -314,7 +353,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
       } catch (error) {
         console.error("Error fetching initial data:", error);
-        toast.error("Errore nel caricamento dei dati");
+        if (error instanceof Error && error.message.includes("401")) {
+          toast.error("Devi effettuare l'accesso per visualizzare le aste");
+          router.push("/sign-in" as Route);
+        } else {
+          toast.error("Errore nel caricamento dei dati");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -398,7 +442,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   // Socket.IO real-time updates
   useEffect(() => {
-    if (!isConnected || !socket || !selectedLeagueId) return;
+    if (!isConnected || !socket || !selectedLeagueId) {
+      console.log("[Socket Client] Socket effect skipped:", {
+        isConnected,
+        hasSocket: !!socket,
+        selectedLeagueId,
+      });
+      return;
+    }
 
     // Join league room
     console.log(
@@ -421,13 +472,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           if (result.processedCount > 0) {
             console.log(`Processed ${result.processedCount} expired auctions`);
             // Refresh current auction data
-            const auctionResponse = await fetch(
-              `/api/leagues/${selectedLeagueId}/current-auction`
-            );
-            if (auctionResponse.ok) {
-              const auction = await auctionResponse.json();
-              setCurrentAuction(auction);
-            }
+            fetchCurrentAuction(selectedLeagueId);
           }
         }
       } catch (error) {
@@ -460,7 +505,16 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       };
       userAuctionStates?: UserAuctionState[];
     }) => {
-      console.log("[AUCTION UPDATE] Received auction update:", data);
+      console.log("[AUCTION UPDATE] Received auction update:", {
+        playerId: data.playerId,
+        newPrice: data.newPrice,
+        highestBidderId: data.highestBidderId,
+        autoBidActivated: data.autoBidActivated,
+        hasBudgetUpdates: !!data.budgetUpdates,
+        budgetUpdatesCount: data.budgetUpdates?.length || 0,
+        hasNewBid: !!data.newBid,
+        hasUserStates: !!data.userAuctionStates
+      });
 
       setCurrentAuction((prev) => {
         console.log("[AUCTION UPDATE] Current auction:", prev);
@@ -487,6 +541,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       setActiveAuctions((prevAuctions) =>
         prevAuctions.map((auction) => {
           if (auction.player_id === data.playerId) {
+            console.log(`[AUCTION UPDATE] Updating active auction list for player ${data.playerId}`);
             return {
               ...auction,
               current_highest_bid_amount: data.newPrice,
@@ -564,19 +619,137 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
         return prev;
       });
+
+      // Update active auctions list
+      setActiveAuctions((prevAuctions) =>
+        prevAuctions.filter((auction) => auction.player_id !== data.playerId)
+      );
+
+      // Refresh managers data to update rosters
+      fetchManagersData(selectedLeagueId);
+    };
+
+    // Handle auction creation events
+    const handleAuctionCreated = (data: {
+      playerId: number;
+      auctionId: number;
+      newPrice: number;
+      highestBidderId: string;
+      scheduledEndTime: number;
+      playerName?: string;
+      playerRole?: string;
+      playerTeam?: string;
+      isNewAuction?: boolean; // Flag to distinguish new auctions from bid updates
+    }) => {
+      console.log("[Socket Client] 🎯 AUCTION-CREATED event received:", {
+        playerId: data.playerId,
+        auctionId: data.auctionId,
+        newPrice: data.newPrice,
+        playerName: data.playerName,
+        playerRole: data.playerRole,
+        playerTeam: data.playerTeam,
+        isNewAuction: data.isNewAuction,
+        currentTime: new Date().toISOString(),
+        existingCurrentAuction: currentAuction ? {
+          playerId: currentAuction.player_id,
+          currentBid: currentAuction.current_highest_bid_amount
+        } : null
+      });
+      
+      // CRITICAL FIX: auction-created events should ONLY handle new auction creation
+      // Bid updates are handled by auction-update events, not auction-created events
+      
+      // Check if this auction already exists to prevent duplicates
+      const existingAuctionInList = activeAuctions.find(a => a.player_id === data.playerId);
+      
+      if (existingAuctionInList) {
+        console.log("[Socket Client] 🚨 DUPLICATE: Auction already exists, ignoring duplicate auction-created event", {
+          playerId: data.playerId,
+          existingAuction: existingAuctionInList
+        });
+        return; // Don't process duplicate auction creation
+      }
+      
+      // Handle genuine new auction creation
+      console.log("[Socket Client] 🆕 Processing NEW auction creation");
+      
+      // Add new auction to active auctions list
+      setActiveAuctions((prevAuctions) => {
+        console.log("[Socket Client] Adding new auction to active list:", data.playerId);
+        
+        const newAuction: ActiveAuction = {
+          player_id: data.playerId,
+          player_name: data.playerName || `Player ${data.playerId}`,
+          player_role: data.playerRole || "",
+          player_team: data.playerTeam || "",
+          current_highest_bidder_id: data.highestBidderId,
+          current_highest_bid_amount: data.newPrice,
+          scheduled_end_time: data.scheduledEndTime,
+          status: "active",
+        };
+        
+        return [...prevAuctions, newAuction];
+      });
+
+      // Update current auction if this is the newest one
+      setCurrentAuction((prev) => {
+        // Set as current auction if no current auction exists or this one is newer
+        if (!prev || data.scheduledEndTime > (prev.scheduled_end_time || 0)) {
+          const newAuction = {
+            player_id: data.playerId,
+            player_name: data.playerName || `Player ${data.playerId}`,
+            player_role: data.playerRole || "",
+            player_team: data.playerTeam || "",
+            current_highest_bidder_id: data.highestBidderId,
+            current_highest_bid_amount: data.newPrice,
+            scheduled_end_time: data.scheduledEndTime,
+            status: "active" as const,
+          };
+          console.log("[Socket Client] Setting new current auction:", newAuction);
+          return newAuction;
+        }
+        return prev;
+      });
+
+      console.log("[Socket Client] ✅ New auction created and added to active list");
+      
+      // Show toast notification for new auction
+      toast.info(`Nuova asta iniziata!`, {
+        description: `${data.playerName || `Player ${data.playerId}`} (${data.playerRole || '?'}) - ${data.playerTeam || '?'}`,
+        duration: 4000,
+      });
+    };
+
+    // Handle auction abandonment events
+    const handleAuctionAbandoned = (data: {
+      userId: string;
+      playerId: number;
+      playerName?: string;
+      reason?: string;
+    }) => {
+      console.log("[Socket Client] User abandoned auction:", data);
+
+      // Refresh user auction states to reflect abandonment
+      refreshUserAuctionStatesOld(selectedLeagueId);
+      fetchManagersData(selectedLeagueId);
+
+      // Show notification if it affects current user
+      if (data.userId !== userId) {
+        toast.info(`Asta abbandonata`, {
+          description: `Un utente ha abbandonato l'asta per ${data.playerName || `Player ${data.playerId}`}`,
+        });
+      }
     };
 
     // Handle penalty notifications
     const handlePenaltyApplied = (data: { amount: number; reason: string }) => {
-      toast.error(`Penalit applicata: ${data.amount} crediti`, {
+      toast.error(`Penalità applicata: ${data.amount} crediti`, {
         description: data.reason,
         duration: 8000, // Show longer for important penalty notifications
       });
 
       // Refresh budget data after penalty
-      if (selectedLeagueId) {
-        fetchBudgetData(selectedLeagueId);
-      }
+      fetchBudgetData(selectedLeagueId);
     };
 
     // Handle auto-bid activation notifications
@@ -590,15 +763,17 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         duration: 5000,
       });
 
-      // Refresh current auction data
-      if (currentAuction && selectedLeagueId) {
-        fetchCurrentAuction(selectedLeagueId);
-      }
+      // Auto-bid data is included in auction-update events, no manual refresh needed
+      console.log(
+        "[Socket Client] Auto-bid activation handled via Socket.IO, no manual refresh needed"
+      );
     };
 
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-closed-notification", handleAuctionClosed);
+    socket.on("auction-created", handleAuctionCreated);
+    socket.on("user-abandoned-auction", handleAuctionAbandoned);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
 
@@ -607,19 +782,29 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
+      socket.off("auction-created", handleAuctionCreated);
+      socket.off("user-abandoned-auction", handleAuctionAbandoned);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       clearInterval(expiredAuctionsInterval);
 
       // Leave league room on cleanup
-      if (selectedLeagueId) {
-        console.log(
-          `[Socket Client] Leaving league room: league-${selectedLeagueId}`
-        );
-        socket.emit("leave-league-room", selectedLeagueId.toString());
-      }
+      console.log(
+        `[Socket Client] Leaving league room: league-${selectedLeagueId}`
+      );
+      socket.emit("leave-league-room", selectedLeagueId.toString());
     };
-  }, [socket, isConnected, selectedLeagueId, currentAuction]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    socket,
+    isConnected,
+    selectedLeagueId,
+    fetchCurrentAuction,
+    fetchManagersData,
+    fetchBudgetData,
+    refreshUserAuctionStatesOld,
+    userId,
+  ]);
 
   // Helper function to refresh all data with consolidated API (NEW OPTIMIZED METHOD)
   const refreshAllDataConsolidated = async (leagueId: string) => {
@@ -705,24 +890,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   };
 
-  // Helper function to refresh user auction states (OLD METHOD)
-  const refreshUserAuctionStatesOld = async (leagueId: number) => {
-    // Changed type to number
-    try {
-      const auctionStatesResponse = await fetch(
-        `/api/user/auction-states?leagueId=${leagueId}`
-      );
-      if (auctionStatesResponse.ok) {
-        const statesData = await auctionStatesResponse.json();
-        setUserAuctionStates(statesData.states || []);
-      }
-    } catch (error) {
-      console.error("Error refreshing user auction states:", error);
-    }
-  };
-
   // Helper function to refresh managers data (OLD METHOD)
-  const refreshManagersDataOld = async (leagueId: number) => {
+  const refreshManagersDataOld = useCallback(async (leagueId: number) => {
     // Changed type to number
     try {
       const managersResponse = await fetch(
@@ -735,7 +904,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     } catch (error) {
       console.error("Error refreshing managers data:", error);
     }
-  };
+  }, []);
 
   const handlePlaceBid = async (
     amount: number,
@@ -937,6 +1106,11 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           </div>
         )}
       </div>
+      
+      {/* Socket.IO Debugger for development */}
+      {selectedLeagueId && (
+        <SocketDebugger leagueId={selectedLeagueId} />
+      )}
     </div>
   );
 }

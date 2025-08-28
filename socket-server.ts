@@ -11,18 +11,20 @@ let startScheduler: (() => void) | null = null;
 
 (async () => {
   try {
-    const sessionModule = await import('./src/lib/db/services/session.service.js');
+    const sessionModule = await import(
+      "./src/lib/db/services/session.service.js"
+    );
     recordUserLogout = sessionModule.recordUserLogout;
-    
-    const schedulerModule = await import('./src/lib/scheduler.js');
+
+    const schedulerModule = await import("./src/lib/scheduler.js");
     startScheduler = schedulerModule.startScheduler;
-    
+
     // Avvia lo scheduler automatico
     if (startScheduler) {
       startScheduler();
     }
   } catch (error) {
-    console.warn('[SOCKET] Could not import services:', error);
+    console.warn("[SOCKET] Could not import services:", error);
   }
 })();
 
@@ -41,13 +43,33 @@ const httpServer = createServer((req, res) => {
       try {
         const { room, event, data } = JSON.parse(body);
         if (room && event) {
-          io.to(room).emit(event, data);
           console.log(
-            `[HTTP->Socket] Emitted event '${event}' to room '${room}' with data:`, 
+            `[HTTP->Socket] Received emit request for room '${room}', event '${event}'`
+          );
+          console.log(
+            `[HTTP->Socket] Event data:`,
             JSON.stringify(data, null, 2)
           );
+
+          // Check how many clients are in the room
+          const roomClients = io.sockets.adapter.rooms.get(room);
+          const clientCount = roomClients ? roomClients.size : 0;
+          console.log(
+            `[HTTP->Socket] Room '${room}' has ${clientCount} connected clients`
+          );
+
+          if (clientCount === 0) {
+            console.warn(
+              `[HTTP->Socket] WARNING: No clients in room '${room}' to receive event '${event}'`
+            );
+          }
+
+          io.to(room).emit(event, data);
+          console.log(
+            `[HTTP->Socket] Successfully emitted event '${event}' to room '${room}' (${clientCount} clients)`
+          );
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: true }));
+          res.end(JSON.stringify({ success: true, clientCount }));
         } else {
           throw new Error("Richiesta invalida: room o event mancanti.");
         }
@@ -87,9 +109,20 @@ io.on("connection", (socket: Socket) => {
     if (!leagueId) return;
     const roomName = `league-${leagueId}`;
     socket.join(roomName);
+
+    // Log room info after joining
+    const roomClients = io.sockets.adapter.rooms.get(roomName);
+    const clientCount = roomClients ? roomClients.size : 0;
+
     console.log(
-      `[Socket] Utente ${socket.id} si è unito alla stanza: ${roomName}`
+      `[Socket] Client ${socket.id} joined room: ${roomName} (now ${clientCount} clients total)`
     );
+
+    // List all clients in room for debugging
+    if (roomClients) {
+      const clientIds = Array.from(roomClients);
+      console.log(`[Socket] Room '${roomName}' clients:`, clientIds);
+    }
   });
 
   // Evento per lasciare una stanza di lega
@@ -97,8 +130,13 @@ io.on("connection", (socket: Socket) => {
     if (!leagueId) return;
     const roomName = `league-${leagueId}`;
     socket.leave(roomName);
+
+    // Log room info after leaving
+    const roomClients = io.sockets.adapter.rooms.get(roomName);
+    const clientCount = roomClients ? roomClients.size : 0;
+
     console.log(
-      `[Socket] Utente ${socket.id} ha lasciato la stanza: ${roomName}`
+      `[Socket] Client ${socket.id} left room: ${roomName} (now ${clientCount} clients remaining)`
     );
   });
 
@@ -117,14 +155,14 @@ io.on("connection", (socket: Socket) => {
   // Gestione della disconnessione
   socket.on("disconnect", () => {
     console.log(`❌ Utente disconnesso: ${socket.id}`);
-    
+
     // Registra logout se abbiamo l'userId
     const userId = (socket as any).userId;
     if (userId && recordUserLogout) {
       try {
         recordUserLogout(userId);
       } catch (error) {
-        console.error('[SOCKET] Error recording logout:', error);
+        console.error("[SOCKET] Error recording logout:", error);
       }
     }
   });

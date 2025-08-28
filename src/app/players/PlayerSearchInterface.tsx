@@ -295,14 +295,12 @@ export function PlayerSearchInterface({
       );
     };
 
-    socket.on("auction-created", handleAuctionCreated);
-    socket.on("auction-update", handleAuctionUpdate);
+    // Register event listeners - Only handle auction closures, not creation/updates
+    // AuctionPageContent handles auction-created and auction-update events centrally
     socket.on("auction-closed-notification", handleAuctionClosed);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
-      socket.off("auction-created", handleAuctionCreated);
-      socket.off("auction-update", handleAuctionUpdate);
       socket.off("auction-closed-notification", handleAuctionClosed);
       clearInterval(expiredAuctionsInterval);
     };

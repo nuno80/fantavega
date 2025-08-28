@@ -1,6 +1,8 @@
-// src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts v.1.3
+// src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts v.1.4
 // API Route Handler per la gestione delle offerte (POST) e il recupero dello stato di un'asta (GET) per un giocatore specifico in una lega.
-// 1. Importazioni e Definizioni di Interfaccia (INVARIATE)
+// Enhanced with request deduplication to prevent race conditions
+
+// 1. Importazioni e Definizioni di Interfaccia (ENHANCED)
 import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
@@ -12,6 +14,10 @@ import {
     placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limiter";
+
+// Request deduplication to prevent race conditions
+const pendingBidRequests = new Map<string, Promise<NextResponse>>();
+const REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
 interface RouteContext {
   params: Promise<{
@@ -26,22 +32,81 @@ interface PlaceBidRequestBody {
   max_amount?: number; // For auto-bids
 }
 
-// 2. Funzione POST per Piazzare Offerte (MODIFICATO SOLO IL BLOCCO CATCH)
+// 2. Funzione POST per Piazzare Offerte (ENHANCED WITH DEDUPLICATION)
 export async function POST(request: Request, context: RouteContext) {
   console.log(
     "!!!!!!!!!! POST HANDLER REACHED for /api/leagues/[league-id]/players/[player-id]/bids !!!!!!!!!!"
   );
-  try {
-    // 2.1. Autenticazione utente e parsing dei parametri dalla route (INVARIATO)
-    const user = await currentUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized: You must be logged in to place a bid." },
-        { status: 401 }
-      );
-    }
+  
+  // Parse route parameters early for deduplication
+  const routeParams = await context.params;
+  const leagueIdStr = routeParams["league-id"];
+  const playerIdStr = routeParams["player-id"];
+  const leagueIdNum = parseInt(leagueIdStr, 10);
+  const playerIdNum = parseInt(playerIdStr, 10);
 
-    // 2.2. Parsing del body della richiesta (INVARIATO)
+  if (isNaN(leagueIdNum) || isNaN(playerIdNum)) {
+    return NextResponse.json(
+      { error: "Invalid league ID or player ID format in URL." },
+      { status: 400 }
+    );
+  }
+
+  // Get user for deduplication key
+  const user = await currentUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: "Unauthorized: You must be logged in to place a bid." },
+      { status: 401 }
+    );
+  }
+
+  // CRITICAL: Request deduplication to prevent race conditions
+  const dedupeKey = `${user.id}-${leagueIdNum}-${playerIdNum}`;
+  
+  console.log(`[BID API] 🔒 Checking for concurrent request: ${dedupeKey}`);
+  
+  // Check if there's already a pending request for this user/league/player combination
+  if (pendingBidRequests.has(dedupeKey)) {
+    console.warn(`[BID API] 🚨 DUPLICATE REQUEST BLOCKED for user ${user.id}, league ${leagueIdNum}, player ${playerIdNum}`);
+    return NextResponse.json(
+      { error: "Un'altra offerta per questo giocatore è già in corso. Attendi il completamento." },
+      { status: 409 }
+    );
+  }
+  
+  // Create promise for this request and store it
+  const requestPromise = processBidRequest(request, context, user, leagueIdNum, playerIdNum);
+  pendingBidRequests.set(dedupeKey, requestPromise);
+  
+  // Set timeout to cleanup pending request
+  setTimeout(() => {
+    pendingBidRequests.delete(dedupeKey);
+    console.log(`[BID API] 🧹 Cleaned up request: ${dedupeKey}`);
+  }, REQUEST_TIMEOUT_MS);
+  
+  try {
+    const result = await requestPromise;
+    pendingBidRequests.delete(dedupeKey);
+    console.log(`[BID API] ✅ Request completed: ${dedupeKey}`);
+    return result;
+  } catch (error) {
+    pendingBidRequests.delete(dedupeKey);
+    console.error(`[BID API] ❌ Request failed: ${dedupeKey}`, error);
+    throw error;
+  }
+}
+
+// Extracted bid processing logic
+async function processBidRequest(
+  request: Request,
+  context: RouteContext,
+  user: any,
+  leagueIdNum: number,
+  playerIdNum: number
+): Promise<NextResponse> {
+  try {
+    // 2.1. Parsing del body della richiesta (INVARIATO)
     const body: PlaceBidRequestBody = await request.json();
     console.log(`[API BIDS POST] Request body:`, body);
     console.log(`[DEBUG AUTO-BID] max_amount received:`, body.max_amount);
@@ -97,20 +162,6 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const routeParams = await context.params;
-    const leagueIdStr = routeParams["league-id"];
-    const playerIdStr = routeParams["player-id"];
-
-    const leagueIdNum = parseInt(leagueIdStr, 10);
-    const playerIdNum = parseInt(playerIdStr, 10);
-
-    if (isNaN(leagueIdNum) || isNaN(playerIdNum)) {
-      return NextResponse.json(
-        { error: "Invalid league ID or player ID format in URL." },
-        { status: 400 }
-      );
-    }
-
     // Body già parsato sopra per rate limiting
     const bidAmount = body.amount;
     // bidType già definito sopra per rate limiting
@@ -158,10 +209,35 @@ export async function POST(request: Request, context: RouteContext) {
     );
 
     // 2.3. Logica di offerta: determina se creare una nuova asta o fare un'offerta su una esistente (INVARIATO)
+    console.log(`[API BIDS POST] 🔍 CRITICAL DEBUG - Checking for existing auction for player ${playerIdNum} in league ${leagueIdNum}`);
+    
+    // CRITICAL: Special tracking for player 5672 auction 1069 issue
+    if (playerIdNum === 5672) {
+      console.log(`[API BIDS POST] 🚨 PLAYER 5672 DETECTED - This is the problematic case!`);
+      console.log(`[API BIDS POST] Request details:`, {
+        userId: user.id,
+        bidAmount,
+        bidType,
+        maxAmount: body.max_amount,
+        requestTimestamp: new Date().toISOString()
+      });
+    }
+    
     const existingAuctionStatus = await getAuctionStatusForPlayer(
       leagueIdNum,
       playerIdNum
     );
+    
+    console.log(`[API BIDS POST] 📊 AUCTION DETECTION RESULT:`, {
+      found: !!existingAuctionStatus,
+      status: existingAuctionStatus?.status,
+      auctionId: existingAuctionStatus?.id,
+      playerId: existingAuctionStatus?.player_id,
+      scheduledEndTime: existingAuctionStatus?.scheduled_end_time,
+      currentBid: existingAuctionStatus?.current_highest_bid_amount,
+      currentTime: Math.floor(Date.now() / 1000),
+      willCreateNewAuction: !existingAuctionStatus || !['active', 'closing'].includes(existingAuctionStatus.status)
+    });
 
     let result: AuctionCreationResult | { message: string };
     let httpStatus = 201;
@@ -172,7 +248,7 @@ export async function POST(request: Request, context: RouteContext) {
         existingAuctionStatus.status === "closing")
     ) {
       console.log(
-        `[API BIDS POST] Active auction found (ID: ${existingAuctionStatus.id}). Placing bid on existing auction.`
+        `[API BIDS POST] ✅ Active auction found (ID: ${existingAuctionStatus.id}, status: ${existingAuctionStatus.status}). Placing bid on existing auction.`
       );
       console.log(
         `[DEBUG AUTO-BID] Passing autoBidMaxAmount to placeBidOnExistingAuction:`,
@@ -188,13 +264,36 @@ export async function POST(request: Request, context: RouteContext) {
       });
       httpStatus = 200;
       console.log(
-        "[API BIDS POST] Bid placed on existing auction successfully. Result:",
+        "[API BIDS POST] ✅ Bid placed on existing auction successfully. Result:",
         result
       );
     } else {
+      // CRITICAL: Log why we're creating a new auction instead of updating existing one
+      const reason = !existingAuctionStatus 
+        ? 'NO_AUCTION_EXISTS' 
+        : `AUCTION_STATUS_${existingAuctionStatus.status.toUpperCase()}`;
+      
       console.log(
-        "[API BIDS POST] No active auction found or auction not in biddable state. Placing initial bid to create auction."
+        `[API BIDS POST] ⚠️ No active auction found or auction not in biddable state. Reason: ${reason}. Placing initial bid to create auction.`
       );
+      
+      // Additional logging for debugging
+      if (existingAuctionStatus) {
+        console.log(`[API BIDS POST] 📊 Existing auction details:`, {
+          id: existingAuctionStatus.id,
+          status: existingAuctionStatus.status,
+          currentBid: existingAuctionStatus.current_highest_bid_amount,
+          scheduledEndTime: existingAuctionStatus.scheduled_end_time,
+          timeRemaining: existingAuctionStatus.time_remaining_seconds,
+          isExpired: existingAuctionStatus.scheduled_end_time ? 
+            (existingAuctionStatus.scheduled_end_time < Math.floor(Date.now() / 1000)) : 'unknown'
+        });
+        
+        // This should trigger auction-update, but we're creating new auction - investigate!
+        if (existingAuctionStatus.status === 'active' || existingAuctionStatus.status === 'closing') {
+          console.error(`[API BIDS POST] 🚨 CRITICAL BUG: Found ${existingAuctionStatus.status} auction but condition failed! This should not happen!`);
+        }
+      }
       if (bidType === "quick") {
         if (typeof bidAmount !== "number" || bidAmount <= 0) {
           return NextResponse.json(
