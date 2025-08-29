@@ -4,15 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-  useAuth, // Importa useAuth
+    SignInButton,
+    SignUpButton,
+    SignedIn,
+    SignedOut,
+    UserButton,
+    useAuth, // Importa useAuth
 } from "@clerk/nextjs";
 import { Menu, X } from "lucide-react";
 
+import { LeagueSelector } from "@/components/league/LeagueSelector";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { useMobile } from "@/hooks/use-mobile";
@@ -95,6 +96,8 @@ export function Navbar() {
               >
                 Cerca Giocatori
               </Link>
+              {/* League Selector - only show for logged in users */}
+              <LeagueSelector compact={false} />
               {isAdmin && ( // Mostra il link Dashboard/Admin solo se l'utente è admin
                 <Link
                   href="/dashboard" // Questa è la dashboard admin protetta dal middleware
@@ -123,6 +126,8 @@ export function Navbar() {
           {/* Ridotto gap per più spazio */}
           <ModeToggle />
           <SignedIn>
+            {/* League Selector for mobile - compact version */}
+            <LeagueSelector compact={true} />
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
           {/* Mostra il toggle del menu solo se ci sono link da mostrare (cioè utente loggato) o se vuoi mostrare il menu anche da sloggato */}
@@ -181,6 +186,10 @@ export function Navbar() {
               >
                 Cerca Giocatori
               </Link>
+              {/* League Selector in mobile menu - full version */}
+              <div className="py-2">
+                <LeagueSelector compact={false} />
+              </div>
               {isAdmin && ( // Mostra il link Dashboard/Admin solo se l'utente è admin
                 <Link
                   href="/dashboard"

@@ -4,6 +4,8 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { useLeague } from "@/hooks/useLeague";
+
 import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
@@ -118,7 +120,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [_leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [_showLeagueSelector, _setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAuctionStates, setUserAuctionStates] = useState<
     UserAuctionState[]
   >([]);
@@ -135,6 +136,34 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   const { socket, isConnected } = useSocket();
   const router = useRouter();
+  
+  // Use the new league hook
+  const { 
+    leagues, 
+    selectedLeagueId, 
+    isLoading: isLeagueLoading, 
+    switchToLeague,
+    currentLeague 
+  } = useLeague();
+
+  // Handle league changes and reset data
+  useEffect(() => {
+    if (selectedLeagueId) {
+      // Reset data when switching leagues
+      setManagers([]);
+      setLeagueSlots(null);
+      setActiveAuctions([]);
+      setAutoBids([]);
+      setUserAuctionStates([]);
+      setComplianceData([]);
+      setCurrentAuction(null);
+      setUserBudget(null);
+      setBidHistory([]);
+      setIsLoading(true);
+      setLeagueInfo(currentLeague || null);
+      setLeagues(leagues);
+    }
+  }, [selectedLeagueId, currentLeague, leagues]);
 
   // Helper function to refresh compliance and budget data after penalty
   const refreshComplianceData = async () => {
@@ -251,43 +280,21 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     });
   }, [selectedLeagueId, fetchManagersData, fetchBudgetData]);
 
-  // Fetch user's leagues and current auction
+  // Fetch initial data when league is selected
   useEffect(() => {
     const fetchInitialData = async () => {
+      if (!selectedLeagueId) return;
+      
       try {
         setIsLoading(true);
-
-        // First, get user's leagues
-        const leaguesResponse = await fetch("/api/user/leagues");
-        if (!leaguesResponse.ok) {
-          if (leaguesResponse.status === 401) {
-            console.log("[AUTH] User not authenticated, redirecting to sign-in");
-            router.push("/sign-in" as Route);
-            return;
-          }
-          throw new Error(`Failed to fetch leagues: ${leaguesResponse.status}`);
-        }
-
-        const leagues = await leaguesResponse.json();
-
-        if (leagues.length === 0) {
-          toast.error("Non sei iscritto a nessuna lega");
-          return;
-        }
-
-        // For now, use the first league (in a real app, user might select)
-        const league = leagues[0];
-        setSelectedLeagueId(league.id);
-        setLeagueInfo(league);
-        setLeagues(leagues);
 
         // Trigger penalty check for the current league
         try {
           console.log(
-            `[PENALTY_CHECK] Triggering compliance check for league ${league.id}`
+            `[PENALTY_CHECK] Triggering compliance check for league ${selectedLeagueId}`
           );
           const penaltyResponse = await fetch(
-            `/api/leagues/${league.id}/check-compliance`,
+            `/api/leagues/${selectedLeagueId}/check-compliance`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -347,28 +354,28 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         console.log("[PERFORMANCE] Initial load - Feature flag check:", {
           env_value: process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API,
           USE_CONSOLIDATED_API,
-          leagueId: league.id,
+          leagueId: selectedLeagueId,
         });
 
         if (USE_CONSOLIDATED_API) {
           // NEW: Single consolidated API call for initial load
           console.log("[PERFORMANCE] Using consolidated API for initial load");
           const success = await refreshAllDataConsolidated(
-            league.id.toString()
+            selectedLeagueId.toString()
           );
           if (!success) {
             console.log(
               "[PERFORMANCE] Consolidated API failed on initial load, falling back to old method"
             );
             // Fallback to old method
-            await loadDataOldMethod(league.id);
+            await loadDataOldMethod();
           }
         } else {
           // OLD: 4 separate API calls (fallback)
           console.log(
             "[PERFORMANCE] Using old method (4 API calls) for initial load"
           );
-          await loadDataOldMethod(league.id);
+          await loadDataOldMethod();
         }
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -383,7 +390,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
 
-    const loadDataOldMethod = async (leagueId: number) => {
+    const loadDataOldMethod = async (leagueId: number = selectedLeagueId!) => {
       try {
         // Get ALL MANAGERS for this league - THIS IS THE KEY!
         console.log("Fetching managers for league:", leagueId);
@@ -457,7 +464,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     fetchInitialData();
-  }, [userId]);
+  }, [userId, selectedLeagueId]);
 
   // Socket.IO real-time updates
   useEffect(() => {
