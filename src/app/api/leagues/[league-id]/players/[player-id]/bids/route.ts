@@ -5,13 +5,13 @@
 // 1. Importazioni e Definizioni di Interfaccia (ENHANCED)
 import { NextResponse } from "next/server";
 
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser, type User } from "@clerk/nextjs/server";
 
 import {
-    type AuctionCreationResult,
     getAuctionStatusForPlayer,
     placeBidOnExistingAuction,
     placeInitialBidAndCreateAuction,
+    type AuctionCreationResult,
 } from "@/lib/db/services/bid.service";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limiter";
 
@@ -101,7 +101,7 @@ export async function POST(request: Request, context: RouteContext) {
 async function processBidRequest(
   request: Request,
   context: RouteContext,
-  user: any,
+  user: User,
   leagueIdNum: number,
   playerIdNum: number
 ): Promise<NextResponse> {

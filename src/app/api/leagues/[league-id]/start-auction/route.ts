@@ -7,6 +7,12 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { placeInitialBidAndCreateAuction } from "@/lib/db/services/bid.service";
 
+// Interface for the request body
+interface StartAuctionRequestBody {
+  playerId: string;
+  initialBid?: string | number;
+}
+
 // Request deduplication to prevent duplicate auction creation
 const pendingRequests = new Map<string, Promise<NextResponse>>();
 const REQUEST_TIMEOUT_MS = 5000; // 5 second timeout for pending requests
@@ -71,7 +77,7 @@ export async function POST(
 async function processAuctionRequest(
   leagueId: number,
   playerId: string,
-  requestBody: any
+  requestBody: StartAuctionRequestBody
 ) {
   try {
     const user = await currentUser();
@@ -111,7 +117,7 @@ async function processAuctionRequest(
     console.log(`[START_AUCTION] Request for league ${leagueId}, player ${playerId}:`, requestBody);
 
     // Validate initial bid
-    const bidAmount = initialBid ? parseInt(initialBid) : null;
+    const bidAmount = initialBid ? parseInt(String(initialBid)) : null;
     console.log(`[START_AUCTION] Parsed bidAmount: ${bidAmount}`);
     if (bidAmount !== null && (isNaN(bidAmount) || bidAmount < 1)) {
       return NextResponse.json(

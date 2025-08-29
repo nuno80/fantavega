@@ -5,10 +5,71 @@ import { useEffect, useState } from "react";
 
 import { useSocket } from "@/contexts/SocketContext";
 
+// Define types for different socket event data
+type AuctionUpdateData = {
+  playerId: number;
+  newPrice: number;
+  highestBidderId: string;
+  scheduledEndTime: number;
+  autoBidActivated?: boolean;
+  budgetUpdates?: {
+    userId: string;
+    newBudget: number;
+    newLockedCredits: number;
+  }[];
+  newBid?: {
+    id: number;
+    amount: number;
+    user_id: string;
+    created_at: string;
+    [key: string]: unknown;
+  };
+  userAuctionStates?: unknown[];
+};
+
+type AuctionCreatedData = {
+  playerId: number;
+  auctionId: number;
+  newPrice: number;
+  highestBidderId: string;
+  scheduledEndTime: number;
+  playerName?: string;
+  playerRole?: string;
+  playerTeam?: string;
+  isNewAuction?: boolean;
+};
+
+type AuctionClosedData = {
+  playerId: number;
+  playerName: string;
+  winnerId: string;
+  finalPrice: number;
+};
+
+type BidSurpassedData = {
+  playerName: string;
+  newBidAmount: number;
+};
+
+type AutoBidActivatedData = {
+  playerName: string;
+  bidAmount: number;
+  triggeredBy: string;
+};
+
+// Union type for all possible socket event data
+type SocketEventData = 
+  | AuctionUpdateData 
+  | AuctionCreatedData 
+  | AuctionClosedData 
+  | BidSurpassedData 
+  | AutoBidActivatedData 
+  | Record<string, unknown>; // Fallback for other events
+
 interface SocketEvent {
   timestamp: Date;
   event: string;
-  data: any;
+  data: SocketEventData;
 }
 
 export function SocketDebugger({ leagueId }: { leagueId: number }) {
@@ -30,7 +91,7 @@ export function SocketDebugger({ leagueId }: { leagueId: number }) {
       "auto-bid-activated-notification"
     ];
 
-    const handleEvent = (eventType: string) => (data: any) => {
+    const handleEvent = (eventType: string) => (data: SocketEventData) => {
       const now = new Date();
       const eventData = {
         timestamp: now,

@@ -8,12 +8,14 @@ import {
     DollarSign,
     Lock,
     Star,
+    Trash2,
     User,
     X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ComplianceTimer } from "./ComplianceTimer";
+import { DiscardPlayerModal } from "./DiscardPlayerModal";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
 
@@ -95,6 +97,7 @@ interface ManagerColumnProps {
   currentAuctionPlayerId?: number;
   userAuctionStates?: UserAuctionState[];
   leagueId?: number;
+  leagueStatus?: string; // Added for repair mode detection
   onComplianceChange?: (status: {
     isCompliant: boolean;
     isInGracePeriod: boolean;
@@ -108,6 +111,7 @@ interface ManagerColumnProps {
   ) => Promise<void>;
   complianceTimerStartAt: number | null;
   onPenaltyApplied?: () => void; // Callback for when penalty is applied
+  onPlayerDiscarded?: () => void; // Callback for when player is discarded
 }
 
 // Helper functions
@@ -156,11 +160,23 @@ const formatTimeRemaining = (endTime: number) => {
 function AssignedSlot({
   player,
   role,
+  isCurrentUser,
+  leagueStatus,
+  leagueId,
+  onPlayerDiscarded,
 }: {
   player: PlayerInRoster;
   role: string;
+  isCurrentUser: boolean;
+  leagueStatus?: string;
+  leagueId?: number;
+  onPlayerDiscarded?: () => void;
 }) {
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
   const roleColor = getRoleColor(role);
+
+  // Show trash icon only if current user and league is in repair mode
+  const showDiscardOption = isCurrentUser && leagueStatus === 'repair_active';
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -186,22 +202,53 @@ function AssignedSlot({
   }
 
   return (
-    <div
-      className={`flex items-center justify-between rounded-md p-1.5 ${bgClass} border ${borderClass}`}
-    >
-      <div className="flex min-w-0 items-center">
-        <div
-          className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+    <>
+      <div
+        className={`flex items-center justify-between rounded-md p-1.5 ${bgClass} border ${borderClass}`}
+      >
+        <div className="flex min-w-0 items-center">
+          <div
+            className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+          />
+          <span className="truncate text-xs">{player.name}</span>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <span className="text-xs font-semibold text-foreground">
+            {player.assignment_price}
+          </span>
+          {showDiscardOption ? (
+            <button
+              onClick={() => setShowDiscardModal(true)}
+              className="rounded p-1 transition-colors hover:bg-red-600"
+              title="Scarta giocatore"
+            >
+              <Trash2 className="h-3 w-3 text-red-400" />
+            </button>
+          ) : (
+            <Lock className="h-3 w-3 text-gray-400" />
+          )}
+        </div>
+      </div>
+
+      {/* Discard Player Modal */}
+      {showDiscardModal && leagueId && (
+        <DiscardPlayerModal
+          isOpen={showDiscardModal}
+          onClose={() => setShowDiscardModal(false)}
+          player={{
+            id: player.id,
+            name: player.name,
+            role: player.role,
+            team: player.team,
+          }}
+          leagueId={leagueId}
+          onPlayerDiscarded={() => {
+            setShowDiscardModal(false);
+            onPlayerDiscarded?.();
+          }}
         />
-        <span className="truncate text-xs">{player.name}</span>
-      </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
-        <span className="text-xs font-semibold text-foreground">
-          {player.assignment_price}
-        </span>
-        <Lock className="h-3 w-3 text-gray-400" />
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
@@ -453,7 +500,7 @@ function EmptySlot() {
 const ManagerColumn: React.FC<ManagerColumnProps> = ({
   manager,
   isCurrentUser,
-  isHighestBidder,
+  isHighestBidder: _isHighestBidder,
   position,
   leagueSlots,
   activeAuctions = [],
@@ -461,9 +508,11 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   currentAuctionPlayerId,
   userAuctionStates = [],
   leagueId,
+  leagueStatus,
   handlePlaceBid,
   complianceTimerStartAt,
   onPenaltyApplied,
+  onPlayerDiscarded,
 }) => {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -741,6 +790,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                           key={index}
                           player={slot.player}
                           role={role}
+                          isCurrentUser={isCurrentUser}
+                          leagueStatus={leagueStatus}
+                          leagueId={leagueId}
+                          onPlayerDiscarded={onPlayerDiscarded}
                         />
                       );
                     case "in_auction":

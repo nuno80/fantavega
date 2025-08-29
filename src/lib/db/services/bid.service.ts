@@ -1486,7 +1486,18 @@ export const getAuctionStatusForPlayer = async (
     id: number;
     status: string;
     scheduled_end_time: number;
-    [key: string]: any;
+    league_id: number;
+    player_id: number;
+    start_time: number;
+    current_highest_bid_amount: number | null;
+    current_highest_bidder_id: string | null;
+    created_at: number;
+    updated_at: number;
+    p_id: number;
+    player_name: string;
+    player_role: string;
+    player_team: string;
+    current_highest_bidder_username: string | null;
   } | undefined;
   
   if (anyAuctionData) {

@@ -232,6 +232,25 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   }, []);
 
+  // Handle player discard callback
+  const handlePlayerDiscarded = useCallback(async () => {
+    if (!selectedLeagueId) return;
+    
+    console.log("[PLAYER_DISCARD] Player discarded, refreshing data");
+    
+    // Refresh managers data to update rosters and budgets
+    await fetchManagersData(selectedLeagueId);
+    
+    // Refresh user budget
+    await fetchBudgetData(selectedLeagueId);
+    
+    // Show success notification
+    toast.success("Giocatore scartato con successo!", {
+      description: "Il giocatore è stato rimosso dalla tua rosa e i crediti sono stati rimborsati.",
+      duration: 5000,
+    });
+  }, [selectedLeagueId, fetchManagersData, fetchBudgetData]);
+
   // Fetch user's leagues and current auction
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -769,6 +788,28 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       );
     };
 
+    // Handle player discard notifications
+    const handlePlayerDiscarded = (data: {
+      playerId: number;
+      playerName: string;
+      userId: string;
+      refundAmount: number;
+      timestamp: string;
+    }) => {
+      console.log("[Socket Client] Player discarded:", data);
+
+      // Refresh managers data to update rosters and budgets
+      fetchManagersData(selectedLeagueId);
+
+      // Show notification if it's not the current user who discarded
+      if (data.userId !== userId) {
+        toast.info(`Giocatore scartato`, {
+          description: `${data.playerName} è stato scartato da un altro manager`,
+          duration: 4000,
+        });
+      }
+    };
+
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-closed-notification", handleAuctionClosed);
@@ -776,6 +817,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.on("user-abandoned-auction", handleAuctionAbandoned);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
+    socket.on("player-discarded", handlePlayerDiscarded);
     
     // DEBUG: Log event listener registration
     console.log("[Socket Client] 🔌 Event listeners registered:", {
@@ -799,6 +841,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("user-abandoned-auction", handleAuctionAbandoned);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
+      socket.off("player-discarded", handlePlayerDiscarded);
       clearInterval(expiredAuctionsInterval);
       
       console.log("[Socket Client] ✅ Event listeners cleaned up successfully");
@@ -1091,12 +1134,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                     manager.user_id === userId ? userAuctionStates : []
                   }
                   leagueId={selectedLeagueId ?? undefined}
+                  leagueStatus={_leagueInfo?.status}
                   handlePlaceBid={handlePlaceBid}
                   onComplianceChange={setUserComplianceStatus}
                   complianceTimerStartAt={
                     managerCompliance?.compliance_timer_start_at || null
                   }
                   onPenaltyApplied={refreshComplianceData}
+                  onPlayerDiscarded={handlePlayerDiscarded}
                 />
               </div>
             );
