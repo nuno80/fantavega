@@ -629,7 +629,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       fetchManagersData(selectedLeagueId);
     };
 
-    // Handle auction creation events
+    // Handle auction creation events (ONLY for new auctions, NOT for bid updates)
     const handleAuctionCreated = (data: {
       playerId: number;
       auctionId: number;
@@ -656,8 +656,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         } : null
       });
       
-      // CRITICAL FIX: auction-created events should ONLY handle new auction creation
-      // Bid updates are handled by auction-update events, not auction-created events
+      // IMPORTANT: auction-created events should ONLY handle new auction creation
+      // Bid updates should be handled by auction-update events, not auction-created events
       
       // Check if this auction already exists to prevent duplicates
       const existingAuctionInList = activeAuctions.find(a => a.player_id === data.playerId);
@@ -776,9 +776,22 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.on("user-abandoned-auction", handleAuctionAbandoned);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
+    
+    // DEBUG: Log event listener registration
+    console.log("[Socket Client] 🔌 Event listeners registered:", {
+      socketId: socket.id,
+      timestamp: new Date().toISOString(),
+      leagueId: selectedLeagueId
+    });
 
     // Cleanup function
     return () => {
+      console.log("[Socket Client] 🧹 Cleaning up event listeners:", {
+        socketId: socket.id,
+        timestamp: new Date().toISOString(),
+        leagueId: selectedLeagueId
+      });
+      
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
@@ -787,6 +800,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       clearInterval(expiredAuctionsInterval);
+      
+      console.log("[Socket Client] ✅ Event listeners cleaned up successfully");
 
       // Leave league room on cleanup
       console.log(

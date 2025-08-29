@@ -120,10 +120,15 @@ export async function GET(
       total_penalties: number;
     }[];
 
-    // Create a map for quick penalty lookup
+    // Maximum penalty limit enforcement
+    const MAX_TOTAL_PENALTY_CREDITS = 25;
+
+    // Create a map for quick penalty lookup with maximum limit enforcement
     const penaltiesByUser = new Map<string, number>();
     for (const penalty of penaltiesData) {
-      penaltiesByUser.set(penalty.user_id, penalty.total_penalties);
+      // Enforce maximum penalty limit in display (should not exceed 25 credits)
+      const limitedPenalties = Math.min(penalty.total_penalties, MAX_TOTAL_PENALTY_CREDITS);
+      penaltiesByUser.set(penalty.user_id, limitedPenalties);
     }
 
     // Get active auctions with current bid amounts

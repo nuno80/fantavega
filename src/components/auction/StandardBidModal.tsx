@@ -122,8 +122,19 @@ export function StandardBidModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      const initialBid = isNewAuction ? playerQtA : currentBid + 1;
+      // IMPORTANT: Ensure minimum bid is at least 3 credits for new auctions
+      const initialBid = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
       setBidAmount(initialBid);
+
+      // DEBUG: Log the values being used
+      console.log("[StandardBidModal] Debug info:", {
+        isNewAuction,
+        playerQtA,
+        currentBid,
+        initialBid,
+        playerName,
+        enforcedMinimum: isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1
+      });
 
       // Use existing auto-bid data if available
       const currentAutoBid = existingAutoBid || fetchedAutoBid;
@@ -149,12 +160,16 @@ export function StandardBidModal({
   const availableBudget = userBudget
     ? userBudget.current_budget - userBudget.locked_credits
     : 0;
-  const minValidBid = isNewAuction ? playerQtA : currentBid + 1;
+  // IMPORTANT: Ensure minimum bid is at least 3 credits for new auctions
+  // This addresses the backend requirement: "Devi offrire almeno 3 crediti per avviare l'asta"
+  const baseMinBid = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
+  const minValidBid = baseMinBid;
   const canSubmitBid =
     bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
-    const baseAmount = isNewAuction ? playerQtA : currentBid;
+    // IMPORTANT: Ensure minimum bid is at least 3 credits for new auctions
+    const baseAmount = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
     setBidAmount(baseAmount + increment);
   };
 
@@ -166,6 +181,9 @@ export function StandardBidModal({
       // Il modale passa i dati al genitore, che gestisce la logica API.
       console.log("[DEBUG MODAL] About to call onBidSuccess with:");
       console.log("[DEBUG MODAL] bidAmount:", bidAmount);
+      console.log("[DEBUG MODAL] playerQtA:", playerQtA);
+      console.log("[DEBUG MODAL] isNewAuction:", isNewAuction);
+      console.log("[DEBUG MODAL] minValidBid:", minValidBid);
       console.log("[DEBUG MODAL] bidType:", useAutoBid ? "quick" : "manual");
       console.log(
         "[DEBUG MODAL] maxAmount:",
@@ -191,13 +209,41 @@ export function StandardBidModal({
         });
       }
     } catch (error) {
-      // MOSTRA L'ERRORE ALL'UTENTE INVECE DI NASCONDERLO
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Si è verificato un errore sconosciuto";
-      toast.error("Offerta Fallita", {
-        description: errorMessage,
+      // Parse the error message to provide specific user feedback
+      let userFriendlyMessage = "Si è verificato un errore sconosciuto";
+      
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        
+        // Check for specific error conditions and provide appropriate messages
+        if (errorMessage.includes("superiore all'offerta attuale")) {
+          // Extract the current bid amount from the error message
+          const bidMatch = errorMessage.match(/(\d+)\s*crediti/);
+          const currentBid = bidMatch ? parseInt(bidMatch[1]) : null;
+          
+          if (currentBid !== null) {
+            userFriendlyMessage = isNewAuction 
+              ? `Devi offrire almeno ${Math.max(currentBid + 1, playerQtA)} crediti per avviare l'asta`
+              : `Devi offrire almeno ${currentBid + 1} crediti per superare l'offerta attuale`;
+          } else {
+            userFriendlyMessage = isNewAuction
+              ? "Devi aumentare l'importo per avviare l'asta"
+              : "Devi aumentare la tua offerta per superare quella attuale";
+          }
+        } else if (errorMessage.includes("già il miglior offerente") || errorMessage.includes("stesso utente")) {
+          userFriendlyMessage = "Sei già il miglior offerente per questo giocatore";
+        } else if (errorMessage.includes("budget") || errorMessage.includes("crediti insufficienti")) {
+          userFriendlyMessage = "Budget insufficiente per questa offerta";
+        } else if (errorMessage.includes("asta già") || errorMessage.includes("auction already")) {
+          userFriendlyMessage = "Un'asta per questo giocatore è già in corso";
+        } else {
+          // Use the original error message if it's already user-friendly
+          userFriendlyMessage = errorMessage;
+        }
+      }
+      
+      toast.error(isNewAuction ? "Impossibile avviare l'asta" : "Offerta Fallita", {
+        description: userFriendlyMessage,
       });
       console.error("Error in handleSubmitBid:", error);
     } finally {
@@ -278,10 +324,21 @@ export function StandardBidModal({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => handleQuickBid(0)}
+                disabled={
+                  isSubmitting ||
+                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) > availableBudget
+                }
+              >
+                MIN
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handleQuickBid(1)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? playerQtA : currentBid) + 1 > availableBudget
+                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 1 > availableBudget
                 }
               >
                 +1
@@ -289,10 +346,10 @@ export function StandardBidModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickBid(5)}
+                onClick={() => handleQuickBid(4)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? playerQtA : currentBid) + 5 > availableBudget
+                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 4 > availableBudget
                 }
               >
                 +5
@@ -300,10 +357,10 @@ export function StandardBidModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickBid(10)}
+                onClick={() => handleQuickBid(9)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? playerQtA : currentBid) + 10 > availableBudget
+                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 9 > availableBudget
                 }
               >
                 +10
@@ -311,10 +368,10 @@ export function StandardBidModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickBid(20)}
+                onClick={() => handleQuickBid(19)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? playerQtA : currentBid) + 20 > availableBudget
+                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 19 > availableBudget
                 }
               >
                 +20
@@ -388,7 +445,10 @@ export function StandardBidModal({
           {/* Validation Messages */}
           {bidAmount < minValidBid && bidAmount > 0 && (
             <p className="text-sm text-destructive">
-              L&apos;offerta deve essere almeno {minValidBid} crediti
+              {isNewAuction 
+                ? `L'offerta deve essere almeno ${minValidBid} crediti per avviare l'asta`
+                : `L'offerta deve essere almeno ${minValidBid} crediti`
+              }
             </p>
           )}
           {bidAmount > availableBudget && (

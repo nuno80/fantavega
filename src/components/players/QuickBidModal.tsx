@@ -139,7 +139,7 @@ export function QuickBidModal({
     bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
-    const baseAmount = player.currentBid || player.qtA || 0;
+    const baseAmount = player.currentBid ? player.currentBid + 1 : (player.qtA || 0);
     setBidAmount(baseAmount + increment);
   };
 
@@ -200,9 +200,38 @@ export function QuickBidModal({
       // nel componente PlayerSearchInterface, che garantisce che la UI rifletta
       // lo stato reale del database dopo la notifica dell'avvenuta offerta.
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Errore nel piazzare l'offerta"
-      );
+      // Parse the error message to provide specific user feedback
+      let userFriendlyMessage = "Errore nel piazzare l'offerta";
+      
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        
+        // Check for specific error conditions and provide appropriate messages
+        if (errorMessage.includes("superiore all'offerta attuale")) {
+          // Extract the current bid amount from the error message
+          const bidMatch = errorMessage.match(/(\d+)\s*crediti/);
+          const currentBid = bidMatch ? parseInt(bidMatch[1]) : null;
+          
+          if (currentBid !== null) {
+            userFriendlyMessage = `Devi offrire almeno ${currentBid + 1} crediti per superare l'offerta attuale`;
+          } else {
+            userFriendlyMessage = "Devi aumentare la tua offerta per superare quella attuale";
+          }
+        } else if (errorMessage.includes("già il miglior offerente") || errorMessage.includes("stesso utente")) {
+          userFriendlyMessage = "Sei già il miglior offerente per questo giocatore";
+        } else if (errorMessage.includes("budget") || errorMessage.includes("crediti insufficienti")) {
+          userFriendlyMessage = "Budget insufficiente per questa offerta";
+        } else if (errorMessage.includes("asta già") || errorMessage.includes("auction already")) {
+          userFriendlyMessage = "Un'asta per questo giocatore è già in corso";
+        } else {
+          // Use the original error message if it's already user-friendly
+          userFriendlyMessage = errorMessage;
+        }
+      }
+      
+      toast.error("Offerta Fallita", {
+        description: userFriendlyMessage,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -288,17 +317,25 @@ export function QuickBidModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickBid(1)}
+                onClick={() => handleQuickBid(0)}
                 disabled={minValidBid > availableBudget}
+              >
+                MIN
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickBid(1)}
+                disabled={(player.currentBid ? player.currentBid + 1 : (player.qtA || 0)) + 1 > availableBudget}
               >
                 +1
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickBid(5)}
+                onClick={() => handleQuickBid(4)}
                 disabled={
-                  (player.currentBid || player.qtA || 0) + 5 > availableBudget
+                  (player.currentBid ? player.currentBid + 1 : (player.qtA || 0)) + 4 > availableBudget
                 }
               >
                 +5
@@ -306,9 +343,9 @@ export function QuickBidModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickBid(10)}
+                onClick={() => handleQuickBid(9)}
                 disabled={
-                  (player.currentBid || player.qtA || 0) + 10 > availableBudget
+                  (player.currentBid ? player.currentBid + 1 : (player.qtA || 0)) + 9 > availableBudget
                 }
               >
                 +10

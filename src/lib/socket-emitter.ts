@@ -4,7 +4,7 @@ const SOCKET_SERVER_URL = "http://localhost:3001/api/emit";
 
 // Throttling mechanism to prevent duplicate events
 const recentEvents = new Map<string, number>();
-const THROTTLE_WINDOW_MS = 100; // 100ms throttle window for very aggressive duplicate prevention
+const THROTTLE_WINDOW_MS = 500; // 500ms throttle window for robust duplicate prevention
 
 interface EmitParams {
   room: string; // Es: 'league-1'

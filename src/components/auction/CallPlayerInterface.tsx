@@ -289,9 +289,20 @@ export function CallPlayerInterface({
   const handleMainAction = () => {
     if (!selectedPlayerDetails) return;
 
+    // DEBUG: Log action decision
+    console.log("[DEBUG MAIN ACTION] Player details:", {
+      id: selectedPlayerDetails.id,
+      name: selectedPlayerDetails.name,
+      auctionStatus: selectedPlayerDetails.auctionStatus,
+      currentBid: selectedPlayerDetails.currentBid,
+      currentHighestBidderName: selectedPlayerDetails.currentHighestBidderName
+    });
+
     if (selectedPlayerDetails.auctionStatus === "active_auction") {
+      console.log("[DEBUG MAIN ACTION] Handling bid on existing auction");
       handleBidOnPlayer(selectedPlayerDetails);
     } else {
+      console.log("[DEBUG MAIN ACTION] Starting new auction");
       handleStartAuction();
     }
   };
@@ -299,14 +310,73 @@ export function CallPlayerInterface({
   const handleStartAuction = () => {
     if (!selectedPlayerDetails) return;
 
-    setSelectedPlayerForStartAuction({
+    // DEBUG: Log current player status before starting auction
+    console.log("[DEBUG START AUCTION] Player details:", {
       id: selectedPlayerDetails.id,
       name: selectedPlayerDetails.name,
-      role: selectedPlayerDetails.role,
-      team: selectedPlayerDetails.team,
-      qtA: selectedPlayerDetails.qtA,
+      auctionStatus: selectedPlayerDetails.auctionStatus,
+      currentBid: selectedPlayerDetails.currentBid,
+      currentHighestBidderName: selectedPlayerDetails.currentHighestBidderName,
+      qtA: selectedPlayerDetails.qtA
     });
-    setIsStartAuctionModalOpen(true);
+    
+    // Check if player already has an active auction
+    if (selectedPlayerDetails.auctionStatus === "active_auction") {
+      console.warn("[DEBUG START AUCTION] Player already has an active auction!");
+      toast.error("Un'asta per questo giocatore è già in corso");
+      return;
+    }
+    
+    // Check if player is already assigned
+    if (selectedPlayerDetails.auctionStatus === "assigned") {
+      console.warn("[DEBUG START AUCTION] Player is already assigned!");
+      toast.error("Questo giocatore è già stato assegnato");
+      return;
+    }
+    
+    // CRITICAL: Refresh player data before starting auction to ensure we have latest state
+    // This prevents stale data issues as mentioned in real-time auction system specs
+    console.log("[DEBUG START AUCTION] Refreshing player data before auction start...");
+    refreshPlayersData().then(() => {
+      console.log("[DEBUG START AUCTION] Player data refreshed, checking latest state...");
+      
+      // Re-check the player status after refresh
+      const latestPlayer = players.find(p => p.id === selectedPlayerDetails.id);
+      if (latestPlayer) {
+        console.log("[DEBUG START AUCTION] Latest player state:", {
+          id: latestPlayer.id,
+          name: latestPlayer.name,
+          auctionStatus: latestPlayer.auctionStatus,
+          currentBid: latestPlayer.currentBid,
+          currentHighestBidderName: latestPlayer.currentHighestBidderName
+        });
+        
+        if (latestPlayer.auctionStatus === "active_auction") {
+          console.warn("[DEBUG START AUCTION] Player has active auction after refresh!");
+          toast.error("Un'asta per questo giocatore è già in corso");
+          return;
+        }
+        
+        if (latestPlayer.auctionStatus === "assigned") {
+          console.warn("[DEBUG START AUCTION] Player is assigned after refresh!");
+          toast.error("Questo giocatore è già stato assegnato");
+          return;
+        }
+      }
+      
+      // Proceed with auction start if status is still valid
+      setSelectedPlayerForStartAuction({
+        id: selectedPlayerDetails.id,
+        name: selectedPlayerDetails.name,
+        role: selectedPlayerDetails.role,
+        team: selectedPlayerDetails.team,
+        qtA: selectedPlayerDetails.qtA,
+      });
+      setIsStartAuctionModalOpen(true);
+    }).catch(error => {
+      console.error("[DEBUG START AUCTION] Failed to refresh player data:", error);
+      toast.error("Errore nel caricare i dati aggiornati del giocatore");
+    });
   };
 
   // Handle successful auction start
@@ -323,6 +393,17 @@ export function CallPlayerInterface({
         bid_type: bidType,
         max_amount: maxAmount, // Corretto: usa 'max_amount' come si aspetta l'API
       };
+      
+      // DEBUG: Log detailed information about the auction attempt
+      console.log("[DEBUG AUCTION START] Attempting to start auction:", {
+        playerId: selectedPlayerForStartAuction.id,
+        playerName: selectedPlayerForStartAuction.name,
+        amount: amount,
+        bidType: bidType,
+        maxAmount: maxAmount,
+        requestBody: requestBody
+      });
+      
       console.log("[DEBUG FRONT-END] Sending request body:", requestBody);
       console.log("[DEBUG FRONT-END] maxAmount value:", maxAmount);
       console.log("[DEBUG FRONT-END] maxAmount type:", typeof maxAmount);
@@ -338,8 +419,31 @@ export function CallPlayerInterface({
 
       if (!response.ok) {
         const error = await response.json();
-        // Lancia l'errore così che il modale possa catturarlo e mostrarlo
-        throw new Error(error.message || "Errore nel creare l'asta");
+        
+        // Parse the error message to provide specific user feedback
+        const errorMessage = error.message || error.error || "Errore nel creare l'asta";
+        
+        // Check for specific error conditions and provide appropriate messages
+        if (errorMessage.includes("superiore all'offerta attuale")) {
+          // Extract the current bid amount from the error message
+          const bidMatch = errorMessage.match(/(\d+)\s*crediti/);
+          const currentBid = bidMatch ? parseInt(bidMatch[1]) : null;
+          
+          if (currentBid !== null) {
+            throw new Error(`Devi offrire almeno ${currentBid + 1} crediti per avviare l'asta`);
+          } else {
+            throw new Error("Devi offrire almeno il valore QtA del giocatore per avviare l'asta");
+          }
+        } else if (errorMessage.includes("già il miglior offerente") || errorMessage.includes("stesso utente")) {
+          throw new Error("Sei già il miglior offerente per questo giocatore");
+        } else if (errorMessage.includes("budget") || errorMessage.includes("crediti insufficienti")) {
+          throw new Error("Budget insufficiente per questa offerta");
+        } else if (errorMessage.includes("asta già") || errorMessage.includes("auction already")) {
+          throw new Error("Un'asta per questo giocatore è già in corso");
+        } else {
+          // Use the original error message for other cases
+          throw new Error(errorMessage);
+        }
       }
 
       toast.success("Asta avviata con successo!");

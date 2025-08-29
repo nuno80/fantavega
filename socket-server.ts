@@ -1,4 +1,4 @@
-// socket-server.ts v.1.2
+// socket-server.ts v.1.3
 // Server Socket.IO che gestisce le stanze per le leghe e per i singoli utenti.
 // 1. Importazioni
 import { createServer } from "http";
@@ -32,7 +32,89 @@ let startScheduler: (() => void) | null = null;
 const SOCKET_PORT = 3001;
 const NEXTJS_APP_URL = "http://localhost:3000";
 
-// 3. Creazione Server HTTP e gestione endpoint per notifiche da Next.js
+// 3. Enhanced deduplication mechanism to prevent duplicate emissions
+const recentEmissions = new Map<string, number>();
+const EMISSION_DEDUP_WINDOW_MS = 2000; // 2 second window for aggressive deduplication
+
+// Additional tracking for auction-created events specifically
+const auctionCreatedTracker = new Set<string>();
+
+function generateEmissionKey(room: string, event: string, data: any): string {
+  // Create a unique key for deduplication based on room, event, and critical data
+  if (event === 'auction-created' && data && typeof data === 'object') {
+    // For auction-created events, use playerId and auctionId as key components
+    return `${room}:${event}:${data.playerId}:${data.auctionId}`;
+  }
+  
+  if (event === 'auction-update' && data && typeof data === 'object') {
+    // For auction-update events, include bid amount to allow legitimate updates
+    return `${room}:${event}:${data.playerId}:${data.newPrice}`;
+  }
+  
+  // For other events, use full data hash
+  return `${room}:${event}:${JSON.stringify(data)}`;
+}
+
+function shouldEmitEvent(room: string, event: string, data: any): boolean {
+  const emissionKey = generateEmissionKey(room, event, data);
+  const now = Date.now();
+  
+  // CRITICAL: Special aggressive tracking for auction-created events
+  if (event === 'auction-created' && data && typeof data === 'object') {
+    const auctionKey = `${data.playerId}:${data.auctionId}`;
+    
+    if (auctionCreatedTracker.has(auctionKey)) {
+      console.error(`[SOCKET DEDUP] 🚨 CRITICAL: auction-created DUPLICATE detected for auction ${auctionKey}!`);
+      console.error(`[SOCKET DEDUP] This auction-created event was already emitted. Blocking duplicate.`);
+      return false;
+    }
+    
+    // Mark this auction as emitted (permanent tracking)
+    auctionCreatedTracker.add(auctionKey);
+    console.log(`[SOCKET DEDUP] ✅ auction-created tracking: Added ${auctionKey} to permanent tracker`);
+    
+    // Clean up old auction tracking periodically to prevent memory growth
+    if (auctionCreatedTracker.size > 1000) {
+      // Remove oldest 200 entries (simple cleanup - in production use a more sophisticated LRU)
+      const entries = Array.from(auctionCreatedTracker);
+      for (let i = 0; i < 200; i++) {
+        auctionCreatedTracker.delete(entries[i]);
+      }
+      console.log(`[SOCKET DEDUP] Cleaned auction tracker, now has ${auctionCreatedTracker.size} entries`);
+    }
+  }
+  
+  // Regular time-based deduplication for all events
+  const lastEmitted = recentEmissions.get(emissionKey);
+  
+  if (lastEmitted && (now - lastEmitted) < EMISSION_DEDUP_WINDOW_MS) {
+    console.warn(`[SOCKET DEDUP] Blocking duplicate emission within ${EMISSION_DEDUP_WINDOW_MS}ms window:`, {
+      room,
+      event,
+      emissionKey,
+      timeSinceLastEmit: now - lastEmitted,
+      data: event === 'auction-created' ? { playerId: data?.playerId, auctionId: data?.auctionId } : 'other'
+    });
+    return false;
+  }
+  
+  // Update emission tracking
+  recentEmissions.set(emissionKey, now);
+  
+  // Clean up old entries to prevent memory growth
+  if (recentEmissions.size > 200) {
+    const cutoff = now - EMISSION_DEDUP_WINDOW_MS * 2;
+    for (const [key, timestamp] of recentEmissions.entries()) {
+      if (timestamp < cutoff) {
+        recentEmissions.delete(key);
+      }
+    }
+  }
+  
+  return true;
+}
+
+// 4. Creazione Server HTTP e gestione endpoint per notifiche da Next.js
 const httpServer = createServer((req, res) => {
   if (req.url === "/api/emit" && req.method === "POST") {
     let body = "";
@@ -46,10 +128,28 @@ const httpServer = createServer((req, res) => {
           console.log(
             `[HTTP->Socket] Received emit request for room '${room}', event '${event}'`
           );
-          console.log(
-            `[HTTP->Socket] Event data:`,
-            JSON.stringify(data, null, 2)
-          );
+          
+          // Special logging for auction-created events
+          if (event === 'auction-created' && data && typeof data === 'object') {
+            console.log(
+              `[HTTP->Socket] 🚨 AUCTION-CREATED REQUEST for player ${data.playerId}, auction ${data.auctionId} at ${new Date().toISOString()}`
+            );
+            console.log(`[HTTP->Socket] 🚶 Request body:`, JSON.stringify(data, null, 2));
+          }
+
+          // Check deduplication before emitting
+          if (!shouldEmitEvent(room, event, data)) {
+            console.log(
+              `[HTTP->Socket] ❌ DUPLICATE BLOCKED: Event '${event}' for room '${room}' blocked by deduplication`
+            );
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ 
+              success: true, 
+              deduplicated: true, 
+              message: "Event blocked as duplicate" 
+            }));
+            return;
+          }
 
           // Check how many clients are in the room
           const roomClients = io.sockets.adapter.rooms.get(room);
@@ -64,12 +164,22 @@ const httpServer = createServer((req, res) => {
             );
           }
 
+          // Emit the event
           io.to(room).emit(event, data);
           console.log(
-            `[HTTP->Socket] Successfully emitted event '${event}' to room '${room}' (${clientCount} clients)`
+            `[HTTP->Socket] ✅ Successfully emitted event '${event}' to room '${room}' (${clientCount} clients)`
           );
+          
+          // Special success logging for auction-created events
+          if (event === 'auction-created') {
+            console.log(
+              `[HTTP->Socket] 🎯 AUCTION-CREATED SUCCESSFULLY EMITTED for player ${data?.playerId} at ${new Date().toISOString()}`
+            );
+            console.log(`[HTTP->Socket] ✅ Emission complete for auction ${data?.auctionId}, ${clientCount} clients notified`);
+          }
+          
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: true, clientCount }));
+          res.end(JSON.stringify({ success: true, clientCount, deduplicated: false }));
         } else {
           throw new Error("Richiesta invalida: room o event mancanti.");
         }
