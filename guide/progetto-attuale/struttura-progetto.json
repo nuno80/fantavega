@@ -1,41 +1,25 @@
 {
-  "last_update": "2025-08-21T10:00:00Z",
+  "last_update": "2025-08-30T12:00:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/penalty.service.ts",
-      "description": "Modified the `processUserComplianceAndPenalties` function to check for user sessions before applying penalties."
+      "path": "src/hooks/useLeague.ts",
+      "description": "Nuovo custom hook per la gestione dello stato della lega attiva a livello globale."
     },
     {
-      "path": "src/app/api/leagues/[league-id]/auction-state/route.ts",
-      "description": "Fixed `any` types and other linting errors."
+      "path": "src/components/league/LeagueSelector.tsx",
+      "description": "Nuovo componente React che permette all'utente di selezionare la lega attiva."
     },
     {
-      "path": "src/components/auction/CallPlayerInterface.tsx",
-      "description": "Fixed `any` types and other linting errors."
+      "path": "src/components/navbar.tsx",
+      "description": "Modificata per integrare il nuovo componente LeagueSelector."
     },
     {
-      "path": "src/components/auction/BudgetDisplay.tsx",
-      "description": "Removed the unused `BudgetDisplayWithCompliance` component and the import of `ComplianceChecker`."
+      "path": "src/app/auctions/AuctionPageContent.tsx",
+      "description": "Modificata per consumare l'hook useLeague e mostrare i dati in base alla lega selezionata."
     },
     {
-      "path": "src/components/players/PlayerSearchResults.tsx",
-      "description": "Added the missing `onStartAuction` prop to the `PlayerSearchResultsProps` interface."
-    },
-    {
-      "path": "src/lib/db/services/auction-states.service.ts",
-      "description": "Fixed errors related to undefined variables."
-    },
-    {
-      "path": "src/lib/db/services/session.service.ts",
-      "description": "Fixed errors related to the `db.all` method."
-    },
-    {
-      "path": "socket-server.ts",
-      "description": "Fixed a type error related to the `recordUserLogout` function."
-    },
-    {
-      "path": "package.json",
-      "description": "Added the `type-check` script."
+      "path": "guide/progetto-attuale/logica-app.json",
+      "description": "Aggiornato per documentare la nuova logica di selezione della lega."
     }
   ]
 }

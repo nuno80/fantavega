@@ -1,5 +1,5 @@
-// src/lib/db/seed.ts v.1.2
-// Aggiunto utente 'federico' con dati da Clerk.
+// src/lib/db/seed.ts v.1.3
+// Aggiunto seeding per leghe e partecipanti per creare uno scenario di test completo.
 import { db } from "./index";
 
 // Dati di esempio
@@ -32,7 +32,51 @@ const users = [
     id: "user_305PTUmZvR3qDMx41mZlqJDUVeZ",
     email: "feferico.08.fl@gmail.com",
     username: "federico",
-    role: "user",
+    role: "manager", // Assicuriamoci che sia manager per partecipare
+  },
+];
+
+const leagues = [
+  {
+    id: 1000,
+    name: "Lega Fantastica 2024",
+    initial_budget_per_manager: 500,
+    admin_creator_id: "user_2vJ5o9wgDIZM6wtwEx8XW36PrOe",
+  },
+  {
+    id: 1001,
+    name: "Lega Super Pro 2025",
+    initial_budget_per_manager: 1000,
+    admin_creator_id: "user_2vJ5o9wgDIZM6wtwEx8XW36PrOe",
+  },
+];
+
+const participants = [
+  // Federico in entrambe le leghe
+  {
+    league_id: 1000,
+    user_id: "user_305PTUmZvR3qDMx41mZlqJDUVeZ",
+    current_budget: 500,
+    manager_team_name: "team fede",
+  },
+  {
+    league_id: 1001,
+    user_id: "user_305PTUmZvR3qDMx41mZlqJDUVeZ",
+    current_budget: 1000,
+    manager_team_name: "team fede",
+  },
+  // Altri partecipanti
+  {
+    league_id: 1000,
+    user_id: "user_2ybRb12u9haFhrS4U7w3d1Yl5zD",
+    current_budget: 500,
+    manager_team_name: "team mario",
+  },
+  {
+    league_id: 1001,
+    user_id: "user_2ybRgG0a0b1c2d3e4f5g6h7i8j9",
+    current_budget: 1000,
+    manager_team_name: "team luca",
   },
 ];
 
@@ -51,7 +95,41 @@ function seedDatabase() {
     console.log(
       `[SEED] User seeding completed. Processed: ${users.length} users.`
     );
-  });
+
+    // Seeding Leghe
+    console.log("[SEED] Attempting to seed leagues...");
+    const leagueStmt = db.prepare(
+      "INSERT OR IGNORE INTO auction_leagues (id, name, initial_budget_per_manager, admin_creator_id) VALUES (?, ?, ?, ?)"
+    );
+    for (const league of leagues) {
+      leagueStmt.run(
+        league.id,
+        league.name,
+        league.initial_budget_per_manager,
+        league.admin_creator_id
+      );
+    }
+    console.log(
+      `[SEED] League seeding completed. Processed: ${leagues.length} leagues.`
+    );
+
+    // Seeding Partecipanti
+    console.log("[SEED] Attempting to seed participants...");
+    const participantStmt = db.prepare(
+      "INSERT OR IGNORE INTO league_participants (league_id, user_id, current_budget, manager_team_name) VALUES (?, ?, ?, ?)"
+    );
+    for (const participant of participants) {
+      participantStmt.run(
+        participant.league_id,
+        participant.user_id,
+        participant.current_budget,
+        participant.manager_team_name
+      );
+    }
+    console.log(
+      `[SEED] Participant seeding completed. Processed: ${participants.length} participants.`
+    );
+  })();
 }
 
 // Esecuzione dello script

@@ -50,6 +50,11 @@ export async function notifySocketServer(params: EmitParams) {
     if (params.event === 'auction-created') {
       console.error(`[Socket Emitter] 🚨 THROTTLED AUCTION-CREATED EVENT! This suggests rapid duplicate calls.`);
     }
+
+    // NUOVO LOG DI DEBUG per il problema dei crediti
+    if (params.event === 'auction-update' && params.data && typeof params.data === 'object' && 'budgetUpdates' in params.data && (params.data as any).budgetUpdates.length > 0) {
+      console.error(`[Socket Emitter] 🚨 CRITICAL DEBUG: Un evento 'auction-update' con 'budgetUpdates' è stato bloccato dal throttling!`, { eventKey });
+    }
     
     return { success: true, throttled: true };
   }

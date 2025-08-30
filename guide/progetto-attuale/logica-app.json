@@ -1,29 +1,30 @@
 {
-  "last_update": "2025-08-21T10:00:00Z",
-  "task_completed": "FN-10 - Bug Fixing and Quality Assurance",
+  "last_update": "2025-08-30T12:00:00Z",
+
+  "task_completed": "FN-11 - Implementazione Selettore Lega",
   "feature_logic": {
-    "feature_name": "Penalty System Bug Fix",
-    "summary": "Fixed a bug where the penalty icon was displayed for users who never logged in. The penalty system should only be active for users who have logged in and are not compliant with the roster requirements.",
-    "architectural_pattern": "The fix was implemented in the `penalty.service.ts` by adding a check to verify if a user has a session record in the `user_sessions` table before applying penalties.",
+    "feature_name": "Selezione Dinamica della Lega",
+    "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata come preferenza per l'utente e l'intera interfaccia dell'applicazione si aggiorna per mostrare i dati (aste, budget, rose) relativi alla lega attiva.",
+    "architectural_pattern": "La funzionalità si basa su un custom hook di React (`useLeague`) che astrae la logica di stato. Questo hook gestisce la lega correntemente selezionata, la persiste (es. nel localStorage) e la fornisce al resto dell'applicazione. Un componente dedicato (`LeagueSelector`) viene inserito nella barra di navigazione per permettere all'utente di interagire con questo stato.",
     "user_flow": [
-      "1. A user logs in.",
-      "2. The frontend calls the `/api/leagues/[id]/check-compliance/` endpoint for each manager in the league.",
-      "3. The `processUserComplianceAndPenalties` function in `penalty.service.ts` is called.",
-      "4. The function now checks if the user has any session records in the `user_sessions` table.",
-      "5. If the user has no session records, the function returns immediately, and no penalty is applied.",
-      "6. If the user has session records, the penalty logic proceeds as before."
+      "1. L'utente, membro di più leghe, visualizza la barra di navigazione (`navbar`).",
+      "2. Nella navbar è presente il nuovo componente `LeagueSelector`, che mostra la lega attualmente attiva.",
+      "3. L'utente clicca sul selettore, che mostra un menu a tendina con l'elenco di tutte le leghe a cui partecipa.",
+      "4. L'utente seleziona una nuova lega dall'elenco.",
+      "5. L'hook `useLeague` aggiorna lo stato globale dell'applicazione con il nuovo ID della lega.",
+      "6. Tutti i componenti che dipendono dalla lega attiva (es. la pagina delle aste, il budget) si ri-renderizzano automaticamente per mostrare i dati pertinenti alla nuova lega selezionata."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/penalty.service.ts": "Contains the business logic for the penalty system. The `processUserComplianceAndPenalties` function was modified to include the session check.",
-      "src/components/auction/ManagerColumn.tsx": "Frontend component that displays the penalty icon. No changes were made here.",
-      "src/app/api/leagues/[league-id]/check-compliance/route.ts": "API route that triggers the compliance check. No changes were made here.",
-      "database/schema.sql": "The `user_sessions` table was used to check if a user has ever logged in."
+      "src/hooks/useLeague.ts": "Nuovo hook che rappresenta il cuore della logica. Gestisce lo stato della lega attiva, si occupa di leggerlo/scriverlo (es. da localStorage) e fornisce l'ID della lega corrente e la funzione per cambiarlo.",
+      "src/components/league/LeagueSelector.tsx": "Nuovo componente UI che recupera la lista delle leghe dell'utente e le visualizza in un selettore. Utilizza l'hook `useLeague` per mostrare la selezione corrente e per aggiornarla.",
+      "src/components/navbar.tsx": "Modificata per includere e renderizzare il componente `LeagueSelector`, rendendo la funzionalità accessibile da qualsiasi punto dell'applicazione.",
+      "src/app/auctions/AuctionPageContent.tsx": "Componente chiave che è stato modificato per utilizzare l'hook `useLeague`. Invece di ricevere un ID di lega statico, ora lo ottiene dinamicamente dall'hook, ricaricando i dati dell'asta ogni volta che l'utente cambia lega."
     },
     "database_interactions": [
       {
-        "table": "user_sessions",
+        "table": "league_participants",
         "operation": "SELECT",
-        "description": "Check if a user has any session records."
+        "description": "Recupera l'elenco di tutte le leghe a cui un utente è iscritto per poterle mostrare nel selettore. Solitamente in join con `auction_leagues` per ottenere i nomi delle leghe."
       }
     ]
   }
