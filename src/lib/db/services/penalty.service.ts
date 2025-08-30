@@ -172,20 +172,20 @@ export const checkAndRecordCompliance = (
       );
 
       const getComplianceStmt = db.prepare(
-        "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+        "SELECT compliance_timer_start_at, last_penalty_applied_for_hour_ending_at, penalties_applied_this_cycle FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
       );
       let complianceRecord = getComplianceStmt.get(
         leagueId,
         userId,
         phaseIdentifier
-      ) as { compliance_timer_start_at: number | null } | undefined;
+      ) as UserLeagueComplianceStatus | undefined;
 
       // If no record exists, create a placeholder. The logic below will handle it.
       if (!complianceRecord) {
         db.prepare(
           `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
         ).run(leagueId, userId, phaseIdentifier, now, now);
-        complianceRecord = { compliance_timer_start_at: null };
+        complianceRecord = { league_id: leagueId, user_id: userId, phase_identifier: phaseIdentifier, compliance_timer_start_at: null, last_penalty_applied_for_hour_ending_at: null, penalties_applied_this_cycle: 0 };
       }
 
       const wasTimerActive =
@@ -210,6 +210,72 @@ export const checkAndRecordCompliance = (
         console.log(
           `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
         );
+      }
+
+      // NEW: Check and apply penalties if grace period has expired and user is non-compliant
+      if (!isCompliant && complianceRecord.compliance_timer_start_at !== null) {
+        const gracePeriodEndTime = complianceRecord.compliance_timer_start_at + COMPLIANCE_GRACE_PERIOD_HOURS * 3600;
+        if (now >= gracePeriodEndTime) {
+          const currentTotalPenaltiesResult = db
+            .prepare(
+              "SELECT COALESCE(SUM(amount), 0) as current_total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
+            )
+            .get(leagueId, userId) as { current_total: number };
+          
+          const currentTotalPenalties = currentTotalPenaltiesResult.current_total;
+
+          // Only apply penalty if total penalties are below the maximum limit
+          if (currentTotalPenalties < MAX_TOTAL_PENALTY_CREDITS) {
+            // Check if a penalty has already been applied for the current hour cycle
+            const lastPenaltyHourEnding = complianceRecord.last_penalty_applied_for_hour_ending_at;
+            const currentHourEnding = Math.floor(now / 3600) * 3600 + 3600; // End of current hour
+
+            if (lastPenaltyHourEnding === null || lastPenaltyHourEnding < currentHourEnding) {
+              // Apply ONE penalty per hour cycle
+              db.prepare(
+                "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
+              ).run(PENALTY_AMOUNT, leagueId, userId);
+              
+              const newBalance = (
+                db
+                  .prepare(
+                    "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
+                  )
+                  .get(leagueId, userId) as { current_budget: number }
+              ).current_budget;
+              
+              const penaltyDescription = `Penalità automatica per mancato rispetto requisiti rosa (Grace period scaduto).`;
+              db.prepare(
+                `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
+              ).run(
+                leagueId,
+                userId,
+                PENALTY_AMOUNT,
+                penaltyDescription,
+                newBalance,
+                now
+              );
+              
+              db.prepare(
+                "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + 1, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+              ).run(
+                currentHourEnding, // Record the end of the hour for which penalty was applied
+                now,
+                leagueId,
+                userId,
+                phaseIdentifier
+              );
+              statusChanged = true; // Indicate that a change occurred
+              console.log(`[COMPLIANCE_SERVICE] Applied ${PENALTY_AMOUNT} credits penalty to user ${userId} in league ${leagueId}. Total penalties: ${currentTotalPenalties + PENALTY_AMOUNT}/${MAX_TOTAL_PENALTY_CREDITS}.`);
+            } else {
+              console.log(`[COMPLIANCE_SERVICE] User ${userId} is non-compliant and grace period expired, but penalty already applied for current hour.`);
+            }
+          } else {
+            console.log(`[COMPLIANCE_SERVICE] User ${userId} has reached maximum penalty limit of ${MAX_TOTAL_PENALTY_CREDITS} credits. No additional penalties applied.`);
+          }
+        } else {
+          console.log(`[COMPLIANCE_SERVICE] User ${userId} is non-compliant, but still within grace period.`);
+        }
       }
 
       return { statusChanged, isCompliant };
