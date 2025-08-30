@@ -138,6 +138,47 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   }, []);
 
+  const fetchComplianceData = useCallback(async (leagueId: number) => {
+    try {
+      const complianceResponse = await fetch(
+        `/api/leagues/${leagueId}/all-compliance-status`
+      );
+      if (complianceResponse.ok) {
+        const complianceData = await complianceResponse.json();
+        console.log("Compliance data API response:", complianceData);
+        setComplianceData(complianceData || []);
+      } else {
+        console.error("Failed to fetch compliance data");
+      }
+    } catch (error) {
+      console.error("Error fetching compliance data:", error);
+    }
+  }, []);
+
+  // Helper function to refresh compliance and budget data after penalty
+  const refreshComplianceData = useCallback(async () => {
+    if (!selectedLeagueId) return;
+
+    try {
+      // Refresh compliance data
+      await fetchComplianceData(selectedLeagueId);
+
+      // Refresh user budget
+      const budgetResponse = await fetch(
+        `/api/leagues/${selectedLeagueId}/budget`
+      );
+      if (budgetResponse.ok) {
+        const budget = await budgetResponse.json();
+        setUserBudget(budget);
+      }
+
+      // Refresh managers data (includes updated budgets and penalty counts)
+      await fetchManagersData(selectedLeagueId);
+    } catch (error) {
+      console.error("Error refreshing compliance data:", error);
+    }
+  }, [selectedLeagueId, fetchComplianceData, fetchManagersData]);
+
   const fetchCurrentAuction = useCallback(async (leagueId: number) => {
     try {
       const url = `/api/leagues/${leagueId}/current-auction?_t=${Date.now()}`;
@@ -160,7 +201,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         await Promise.all([
           fetchManagersData(selectedLeagueId),
           fetchCurrentAuction(selectedLeagueId),
-          // Other initial fetches can go here
+          fetchComplianceData(selectedLeagueId),
         ]);
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -170,7 +211,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
     fetchInitialData();
-  }, [selectedLeagueId, fetchManagersData, fetchCurrentAuction]);
+  }, [selectedLeagueId, fetchManagersData, fetchCurrentAuction, fetchComplianceData]);
 
 
   // Effect for handling socket events
@@ -191,6 +232,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       // This is the robust fix: re-fetch all relevant data
       fetchManagersData(selectedLeagueId);
       fetchCurrentAuction(selectedLeagueId);
+      fetchComplianceData(selectedLeagueId);
     };
 
     const handleBidSurpassed = (data: { playerName: string; newBidAmount: number; }) => {
@@ -268,24 +310,38 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
       <div className="scrollbar-hide flex flex-1 flex-col overflow-x-auto p-2 md:flex-row md:space-x-2">
         {managers.length > 0 ? (
-          managers.map((manager, index) => (
-            <div key={manager.user_id} className="min-w-0 flex-1">
-              <ManagerColumn
-                manager={manager}
-                isCurrentUser={manager.user_id === userId}
-                isHighestBidder={currentAuction?.current_highest_bidder_id === manager.user_id}
-                position={index + 1}
-                leagueSlots={leagueSlots ?? undefined}
-                activeAuctions={activeAuctions}
-                autoBids={autoBids}
-                currentAuctionPlayerId={currentAuction?.player_id}
-                userAuctionStates={userAuctionStates.filter(s => s.user_id === manager.user_id)}
-                leagueId={selectedLeagueId ?? undefined}
-                handlePlaceBid={handlePlaceBid}
-                // Pass other necessary props
-              />
-            </div>
-          ))
+          managers.map((manager, index) => {
+            const managerCompliance = complianceData.find(
+              (c) => c.user_id === manager.user_id
+            );
+            return (
+              <div key={manager.user_id} className="min-w-0 flex-1">
+                <ManagerColumn
+                  manager={manager}
+                  isCurrentUser={manager.user_id === userId}
+                  isHighestBidder={currentAuction?.current_highest_bidder_id === manager.user_id}
+                  position={index + 1}
+                  leagueSlots={leagueSlots ?? undefined}
+                  activeAuctions={activeAuctions}
+                  autoBids={autoBids}
+                  currentAuctionPlayerId={currentAuction?.player_id}
+                  userAuctionStates={userAuctionStates.filter(s => s.user_id === manager.user_id)}
+                  leagueId={selectedLeagueId ?? undefined}
+                  leagueStatus={leagueInfo?.status}
+                  handlePlaceBid={handlePlaceBid}
+                  onComplianceChange={setUserComplianceStatus}
+                  complianceTimerStartAt={
+                    managerCompliance?.compliance_timer_start_at || null
+                  }
+                  onPenaltyApplied={refreshComplianceData}
+                  onPlayerDiscarded={() => {
+                    // Handle player discarded if needed
+                    refreshComplianceData();
+                  }}
+                />
+              </div>
+            );
+          })
         ) : (
           <div>Nessun manager trovato.</div>
         )}

@@ -620,23 +620,29 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const rawLockedCredits = manager?.locked_credits || 0;
   const totalPenalties = manager?.total_penalties || 0;
 
-  // Validazioni per prevenire valori negativi
-  const lockedCredits = Math.max(0, rawLockedCredits);
+  // Validazioni per prevenire valori negativi e NaN
+  const lockedCredits = Math.max(0, isNaN(rawLockedCredits) ? 0 : rawLockedCredits);
+  const validTotalBudget = isNaN(totalBudget) ? 0 : totalBudget;
+  const validCurrentBudget = isNaN(currentBudget) ? 0 : currentBudget;
+  const validTotalPenalties = isNaN(totalPenalties) ? 0 : totalPenalties;
+  
   // FIX: Use comprehensive calculation to handle database inconsistencies
   // Available = Initial - Penalties - Spent - Locked
-  const spentCredits = Math.max(0, totalBudget - currentBudget);
+  const spentCredits = Math.max(0, validTotalBudget - validCurrentBudget);
   const availableBudget = Math.max(
     0,
-    totalBudget - totalPenalties - spentCredits - rawLockedCredits
+    validTotalBudget - validTotalPenalties - spentCredits - lockedCredits
   );
   const spentPercentage =
-    totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
+    validTotalBudget > 0 ? (spentCredits / validTotalBudget) * 100 : 0;
 
   return (
     <div
       className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${
-        isCurrentUser && complianceTimerStartAt !== null
-          ? "border-red-500"
+        isCurrentUser 
+          ? complianceTimerStartAt !== null && !isNaN(complianceTimerStartAt) && complianceTimerStartAt > 0
+            ? "border-red-500"
+            : "border-green-500"
           : "border-border"
       }`}
     >
@@ -659,7 +665,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           {/* Compliance Status - Visible to all users */}
           <div className="flex items-center gap-1">
             {/* Penalty indicator - visible to all if penalties exist */}
-            {manager.total_penalties > 0 && (
+            {manager.total_penalties > 0 && !isNaN(manager.total_penalties) && (
               <span
                 title={`Penalità totali: ${manager.total_penalties} crediti`}
                 className="flex items-center"
@@ -676,7 +682,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
             {/* Compliance timer - visible only to current user */}
             {isCurrentUser && (
               <>
-                {complianceTimerStartAt !== null ? (
+                {complianceTimerStartAt !== null && !isNaN(complianceTimerStartAt) && complianceTimerStartAt > 0 ? (
                   <span title="Team non conforme" className="flex items-center">
                     <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
                     <ComplianceTimer
@@ -736,7 +742,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           </div>
           <div>
             <span className="text-gray-400">Iniziale</span>
-            <span className="block font-semibold">{totalBudget}</span>
+            <span className="block font-semibold">{validTotalBudget}</span>
           </div>
         </div>
       </div>

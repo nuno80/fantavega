@@ -69,7 +69,7 @@ export function ComplianceTimer({
   }, [leagueId, onPenaltyApplied]);
 
   useEffect(() => {
-    if (timerStartTimestamp === null) {
+    if (timerStartTimestamp === null || isNaN(timerStartTimestamp) || timerStartTimestamp <= 0) {
       setTimeLeft('');
       // Reset state when timer is cleared
       lastPenaltyCheckRef.current = null;
@@ -86,6 +86,13 @@ export function ComplianceTimer({
         const remainingSeconds = gracePeriodEnd - now;
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
+        
+        // Validate values to prevent NaN display
+        if (isNaN(minutes) || isNaN(seconds)) {
+          setTimeLeft('--:--');
+          return;
+        }
+        
         setTimeLeft(
           `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
         );
@@ -122,6 +129,12 @@ export function ComplianceTimer({
       
       const minutes = Math.floor(remainingSeconds / 60);
       const seconds = remainingSeconds % 60;
+      
+      // Validate values to prevent NaN display
+      if (isNaN(minutes) || isNaN(seconds)) {
+        setTimeLeft('--:--');
+        return;
+      }
       
       setTimeLeft(
         `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
