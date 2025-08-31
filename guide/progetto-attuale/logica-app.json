@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-08-30T12:00:00Z",
+  "last_update": "2025-08-30T18:03:12Z",
 
   "task_completed": "FN-11 - Implementazione Selettore Lega",
   "feature_logic": {
@@ -25,6 +25,40 @@
         "table": "league_participants",
         "operation": "SELECT",
         "description": "Recupera l'elenco di tutte le leghe a cui un utente è iscritto per poterle mostrare nel selettore. Solitamente in join con `auction_leagues` per ottenere i nomi delle leghe."
+      }
+    ]
+  },
+  "penalty_system_logic": {
+    "feature_name": "Sistema di Compliance e Penalità Automatiche",
+    "summary": "Implementazione di un sistema che monitora la compliance della rosa degli utenti e applica automaticamente penalità in crediti se l'utente rimane non-compliant oltre un periodo di grazia. Le penalità vengono applicate direttamente al budget dell'utente e registrate come transazioni.",
+    "architectural_pattern": "La logica è integrata nella funzione `checkAndRecordCompliance` del servizio `penalty.service.ts`. Questa funzione viene invocata in vari punti dell'applicazione (es. login, eventi d'asta) e ora include un meccanismo per verificare la scadenza del grace period e applicare le penalità in modo sincrono all'interno della transazione database.",
+    "user_flow": [
+      "1. L'utente effettua il login o interagisce con un'asta, attivando un controllo di compliance.",
+      "2. Se l'utente non è compliant, un timer di grace period di 1 ora viene avviato/aggiornato.",
+      "3. Se, al successivo controllo di compliance (dopo il login o un evento), il grace period è scaduto e l'utente è ancora non-compliant, viene applicata una penalità di 5 crediti.",
+      "4. La penalità viene sottratta dal `current_budget` dell'utente e registrata nella tabella `budget_transactions`.",
+      "5. Le penalità sono limitate a un massimo di 25 crediti totali per utente per lega.",
+      "6. Se l'utente diventa compliant, il timer e il ciclo di penalità vengono resettati."
+    ],
+    "core_components_interaction": {
+      "src/lib/db/services/penalty.service.ts": "La funzione `checkAndRecordCompliance` è stata modificata per includere la logica di applicazione delle penalità. Questa funzione è il punto centrale per la gestione dello stato di compliance e l'applicazione delle penalità.",
+      "src/lib/db/services/bid.service.ts": "Invoca `checkAndRecordCompliance` quando un utente viene superato in un'asta o quando un'asta si conclude senza vittoria, per verificare immediatamente lo stato di compliance."
+    },
+    "database_interactions": [
+      {
+        "table": "user_league_compliance_status",
+        "operation": "SELECT, INSERT, UPDATE",
+        "description": "Memorizza lo stato di compliance dell'utente per lega, inclusi il timer di inizio del grace period, l'ultima penalità applicata e il conteggio delle penalità nel ciclo corrente."
+      },
+      {
+        "table": "league_participants",
+        "operation": "UPDATE",
+        "description": "Il `current_budget` dell'utente viene ridotto quando viene applicata una penalità."
+      },
+      {
+        "table": "budget_transactions",
+        "operation": "INSERT, SELECT",
+        "description": "Registra ogni penalità applicata come una transazione di tipo `penalty_requirement`. Viene anche usata per calcolare il totale delle penalità già applicate."
       }
     ]
   }

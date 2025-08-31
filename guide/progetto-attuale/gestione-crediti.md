@@ -87,34 +87,35 @@ Quando un'asta termina, la promessa dell'auto-bid viene sciolta.
 
 ---
 
-## Gestione delle Penalità
+## Gestione delle Penalità (Logica Aggiornata)
 
-La logica delle penalità è **separata e indipendente** da quella dei crediti bloccati.
+La logica delle penalità è stata aggiornata per essere **attivata automaticamente** dagli eventi di gioco, garantendo un'applicazione tempestiva e coerente.
 
 - **Azione**: Le penalità vengono sottratte direttamente dal `current_budget` dell'utente.
-- **Logica**: Il servizio `penalty.service.ts` applica la deduzione e registra una transazione di tipo `penalty_requirement` nella tabella `budget_transactions`.
-- **Impatto UI**: Il budget visualizzato è già al netto delle penalità. I `locked_credits` non includono le penalità. Il budget disponibile (`currentBudget - lockedCredits`) è quindi sempre un riflesso accurato della capacità di spesa.
+- **Logica**: La funzione `checkAndRecordCompliance` in `penalty.service.ts` ora include la logica per applicare la penalità. Se un utente è non-compliant e il suo periodo di grazia di 1 ora è scaduto, la funzione applica la deduzione e registra una transazione di tipo `penalty_requirement`.
+- **Impatto UI**: Il budget visualizzato è sempre aggiornato e riflette le penalità applicate. I `locked_credits` non sono influenzati dalle penalità.
 
 ---
 
-## 🆕 Sistema di Compliance e Penalità Automatiche
+## 🆕 Sistema di Compliance e Penalità Automatiche (Logica Aggiornata)
 
-### Integrazione con la Gestione Crediti
+### Integrazione con la Gestione Crediti e Trigger Event-Driven
 
-Il nuovo sistema di compliance si integra perfettamente con la gestione dei crediti, monitorando automaticamente quando gli utenti perdono slot critici.
+Il sistema di compliance è ora **event-driven**. Non si basa più su uno scheduler separato, ma è direttamente integrato nei flussi di interazione dell'utente.
 
-**Trigger Points per il Controllo Compliance:**
+**Trigger Points per il Controllo Compliance e Applicazione Penalità:**
 
-1. **Perdita di Offerta Vincente** (`placeBidOnExistingAuction`):
-
-   - Quando un utente viene superato in un'asta
-   - Controllo immediato: la perdita di quella slot lo rende non-compliant?
-   - Se sì: timer penalità riavvia automaticamente
-
-2. **Conclusione Asta Senza Vittoria** (`processExpiredAuctionsAndAssignPlayers`):
-   - Controllo per tutti gli utenti che avevano fatto offerte ma non hanno vinto
-   - Include sia auto-bidders che manual bidders
-   - Timer penalità riavvia se diventano non-compliant
+1.  **Qualsiasi Interazione Rilevante**: Azioni come il login, il piazzare un'offerta, o qualsiasi evento che invochi la funzione `checkAndRecordCompliance`.
+2.  **Controllo Automatico**: Ad ogni chiamata, la funzione `checkAndRecordCompliance` esegue i seguenti passi:
+    *   Verifica lo stato di compliance attuale dell'utente.
+    *   Se l'utente diventa non-compliant, avvia il timer di grazia di 1 ora.
+    *   **Se l'utente è già non-compliant e il timer di grazia è scaduto**, applica immediatamente una penalità di 5 crediti (fino al massimo di 25).
+3.  **Perdita di Offerta Vincente** (`placeBidOnExistingAuction`):
+    *   Quando un utente viene superato in un'asta, viene chiamato `checkAndRecordCompliance`.
+    *   Questo controllo immediato valuta se la perdita dello slot rende l'utente non-compliant e, se necessario, avvia il timer.
+4.  **Conclusione Asta Senza Vittoria** (`processExpiredAuctionsAndAssignPlayers`):
+    *   Al termine di un'asta, `checkAndRecordCompliance` viene chiamato per tutti i partecipanti che non hanno vinto.
+    *   Questo assicura che anche la perdita di un'opportunità di acquisire un giocatore possa avviare il timer di compliance se necessario.
 
 **Logica di Business:**
 
