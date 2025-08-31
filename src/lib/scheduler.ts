@@ -1,69 +1,86 @@
 /**
- * Sistema di scheduling automatico per processare timer scaduti
+ * Sistema di scheduling per task periodici come la chiusura di aste
+ * e il processamento di timer scaduti.
  */
+import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 
-const TIMER_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minuti
+// Intervallo di controllo ridotto per una chiusura più tempestiva delle aste
+const TASK_CHECK_INTERVAL = 2 * 1000; // 2 secondi
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 
 /**
- * Avvia il sistema di scheduling automatico
+ * Esegue tutti i task di background necessari.
+ */
+const runBackgroundTasks = async () => {
+  // console.log("[SCHEDULER] Running background tasks...");
+  
+  try {
+    // 1. Processa le aste scadute
+    const auctionResult = await processExpiredAuctionsAndAssignPlayers();
+    if (auctionResult.processedCount > 0 || auctionResult.failedCount > 0) {
+      console.log(
+        `[SCHEDULER] Expired auctions processed: ${auctionResult.processedCount} successful, ${auctionResult.failedCount} failed.`
+      );
+      if (auctionResult.errors.length > 0) {
+        console.error("[SCHEDULER] Auction processing errors:", auctionResult.errors);
+      }
+    }
+
+    // 2. Processa i timer di risposta scaduti
+    const timerResult = await processExpiredResponseTimers();
+    if (timerResult.processedCount > 0 || timerResult.errors.length > 0) {
+      console.log(
+        `[SCHEDULER] Expired response timers processed: ${timerResult.processedCount} successful, ${timerResult.errors.length} errors.`
+      );
+      if (timerResult.errors.length > 0) {
+        console.error("[SCHEDULER] Timer processing errors:", timerResult.errors);
+      }
+    }
+
+  } catch (error) {
+    console.error("[SCHEDULER] Unhandled error during background task execution:", error);
+  }
+};
+
+
+/**
+ * Avvia il sistema di scheduling automatico.
  */
 export const startScheduler = () => {
   if (schedulerInterval) {
-    console.log("[SCHEDULER] Already running");
+    // console.log("[SCHEDULER] Scheduler is already running.");
     return;
   }
 
   console.log(
-    "[SCHEDULER] Starting automatic timer processing (every 5 minutes)"
+    `[SCHEDULER] Starting background task processing (every ${TASK_CHECK_INTERVAL / 1000} seconds)`
   );
 
-  schedulerInterval = setInterval(async () => {
-    try {
-      console.log("[SCHEDULER] Processing expired timers...");
-      const result = await processExpiredResponseTimers();
+  // Esegui subito al primo avvio
+  runBackgroundTasks(); 
 
-      if (result.processedCount > 0 || result.errors.length > 0) {
-        console.log(
-          `[SCHEDULER] Processed ${result.processedCount} expired timers, ${result.errors.length} errors`
-        );
-
-        if (result.errors.length > 0) {
-          console.error("[SCHEDULER] Errors:", result.errors);
-        }
-      }
-    } catch (error) {
-      console.error("[SCHEDULER] Error processing expired timers:", error);
-    }
-  }, TIMER_CHECK_INTERVAL);
+  // E poi esegui a intervalli regolari
+  schedulerInterval = setInterval(runBackgroundTasks, TASK_CHECK_INTERVAL);
 };
 
 /**
- * Ferma il sistema di scheduling automatico
+ * Ferma il sistema di scheduling automatico.
  */
 export const stopScheduler = () => {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log("[SCHEDULER] Stopped");
+    console.log("[SCHEDULER] Scheduler stopped.");
   }
 };
 
 /**
- * Processa manualmente i timer scaduti (per testing)
+ * Esegue manualmente i task di background (utile per testing o API).
  */
-export const processTimersManually = async () => {
-  console.log("[SCHEDULER] Manual timer processing triggered");
-  try {
-    const result = await processExpiredResponseTimers();
-    console.log(
-      `[SCHEDULER] Manual processing completed: ${result.processedCount} processed, ${result.errors.length} errors`
-    );
-    return result;
-  } catch (error) {
-    console.error("[SCHEDULER] Manual processing error:", error);
-    throw error;
-  }
+export const runManualProcessing = async () => {
+  console.log("[SCHEDULER] Manual processing triggered.");
+  await runBackgroundTasks();
+  console.log("[SCHEDULER] Manual processing finished.");
 };

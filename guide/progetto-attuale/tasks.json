@@ -164,6 +164,14 @@
         "src/components/auction/BiddingInterface.tsx",
         "src/app/auctions/AuctionPageContent.tsx"
       ]
+    },
+    "auction_expiration_fix": {
+      "date": "2025-08-31",
+      "description": "Fixed a critical bug where expired auctions were not being processed, leaving them in an active state indefinitely.",
+      "solution": "Modified the existing scheduler to also call 'processExpiredAuctionsAndAssignPlayers'. Reduced the check interval to 2 seconds to ensure timely processing.",
+      "files_modified": [
+        "src/lib/scheduler.ts"
+      ]
     }
   }
 }

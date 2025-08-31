@@ -61,5 +61,29 @@
         "description": "Registra ogni penalità applicata come una transazione di tipo `penalty_requirement`. Viene anche usata per calcolare il totale delle penalità già applicate."
       }
     ]
+  },
+  "scheduler_system_logic": {
+    "feature_name": "Scheduler per Task Asincroni",
+    "summary": "Implementa un sistema di scheduling centralizzato per eseguire task periodici in background, garantendo che operazioni critiche come la chiusura delle aste e la gestione dei timer vengano eseguite in modo tempestivo e affidabile.",
+    "architectural_pattern": "Un processo singleton basato su `setInterval` viene avviato insieme al server Socket.IO. Questo scheduler esegue una funzione aggregatrice (`runBackgroundTasks`) a intervalli regolari (attualmente ogni 2 secondi). Questa funzione, a sua volta, invoca i vari servizi necessari (es. `processExpiredAuctionsAndAssignPlayers`).",
+    "user_flow": [
+      "1. L'applicazione si avvia, e con essa il server Socket.IO.",
+      "2. Il server Socket.IO importa e avvia lo scheduler (`startScheduler`).",
+      "3. Lo scheduler inizia immediatamente a eseguire `runBackgroundTasks` e poi ripete l'operazione ogni 2 secondi.",
+      "4. Ad ogni esecuzione, `runBackgroundTasks` chiama la funzione per processare le aste scadute.",
+      "5. Se un'asta è scaduta (es. l'asta di Caprile), viene processata, il suo stato aggiornato a 'sold', e le notifiche vengono inviate ai client."
+    ],
+    "core_components_interaction": {
+      "src/lib/scheduler.ts": "File centrale che contiene la logica dello scheduler, inclusa la funzione `startScheduler` e `runBackgroundTasks`.",
+      "src/lib/db/services/bid.service.ts": "Contiene la logica di business per processare le aste scadute (`processExpiredAuctionsAndAssignPlayers`), che viene ora chiamata dallo scheduler.",
+      "socket-server.ts": "Punto di ingresso che avvia lo scheduler, assicurando che sia sempre attivo quando l'applicazione è in esecuzione."
+    },
+    "database_interactions": [
+      {
+        "table": "auctions",
+        "operation": "SELECT, UPDATE",
+        "description": "Lo scheduler interroga la tabella per trovare aste con `status = 'active'` e `scheduled_end_time <= now`, e poi aggiorna il loro stato a 'sold'."
+      }
+    ]
   }
 }
