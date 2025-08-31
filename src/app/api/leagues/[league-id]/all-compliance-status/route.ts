@@ -80,6 +80,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     
     console.log(`[GET_ALL_COMPLIANCE_STATUS] Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
     
+    // Define type for compliance data
+    interface ComplianceRecord {
+      user_id: number;
+      compliance_timer_start_at: string | null;
+    }
+    
     // Get compliance data for all users in the league with the specific phase identifier
     // Use a subquery to get only the most recent record for each user based on updated_at timestamp
     const complianceData = db
@@ -94,12 +100,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
          ) t2 ON t1.user_id = t2.user_id AND t1.updated_at = t2.max_updated_at
          WHERE t1.league_id = ? AND t1.phase_identifier = ?`
       )
-      .all(leagueId, phaseIdentifier, leagueId, phaseIdentifier);
+      .all(leagueId, phaseIdentifier, leagueId, phaseIdentifier) as ComplianceRecord[];
       
     console.log(`[GET_ALL_COMPLIANCE_STATUS] Found ${complianceData.length} compliance records for league ${leagueId} and phase ${phaseIdentifier}`);
     
     // Log the compliance data for debugging
-    complianceData.forEach(record => {
+    complianceData.forEach((record: ComplianceRecord) => {
       console.log(`[GET_ALL_COMPLIANCE_STATUS] User ${record.user_id}: compliance_timer_start_at = ${record.compliance_timer_start_at}`);
     });
 
