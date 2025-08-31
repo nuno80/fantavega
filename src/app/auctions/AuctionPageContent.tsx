@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -8,9 +7,7 @@ import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
-import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
 import { SocketDebugger } from "@/components/debug/SocketDebugger";
-import { Button } from "@/components/ui/button";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
 import { useLeague } from "@/hooks/useLeague";
@@ -149,7 +146,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const fetchComplianceData = useCallback(async (leagueId: number) => {
     try {
       const complianceResponse = await fetch(
-        `/api/leagues/${leagueId}/all-compliance-status`
+        `/api/leagues/${leagueId}/all-compliance-status?_t=${Date.now()}`
       );
       if (complianceResponse.ok) {
         const complianceData = await complianceResponse.json();
@@ -237,6 +234,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     fetchComplianceData,
   ]);
 
+  // Add state to track the last compliance status notification
+  const [lastComplianceNotification, setLastComplianceNotification] = useState<{
+    userId: string;
+    isCompliant: boolean;
+    timestamp: number;
+  } | null>(null);
+
   // Effect for handling socket events
   useEffect(() => {
     if (!isConnected || !socket || !selectedLeagueId) return;
@@ -267,14 +271,67 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       });
     };
 
+    // Handler for penalty applied notification
+    const handlePenaltyApplied = (data: {
+      amount: number;
+      reason: string;
+    }) => {
+      console.log("Socket event: penalty-applied-notification", data);
+      toast.error(`Penalità applicata: ${data.amount} crediti`, {
+        description: data.reason,
+      });
+      
+      // Refresh compliance data for all users when a penalty is applied
+      refreshComplianceData();
+    };
+
+    // Handler for compliance status change
+    const handleComplianceStatusChange = (data: {
+      userId: string;
+      isCompliant: boolean;
+      appliedPenaltyAmount?: number;
+      timestamp: number;
+    }) => {
+      console.log("Socket event: compliance-status-changed", data);
+      
+      // Check if this is a duplicate notification (within a 5-second window)
+      const isDuplicate = lastComplianceNotification && 
+        lastComplianceNotification.userId === data.userId && 
+        lastComplianceNotification.isCompliant === data.isCompliant &&
+        Date.now() - lastComplianceNotification.timestamp < 5000; // 5-second window
+      
+      // Update the last notification state
+      setLastComplianceNotification({
+        userId: data.userId,
+        isCompliant: data.isCompliant,
+        timestamp: Date.now() // Use current time instead of event timestamp
+      });
+      
+      // Refresh compliance data for all users when compliance status changes
+      fetchComplianceData(selectedLeagueId);
+      
+      // If this is for the current user and not a duplicate, show a notification
+      if (data.userId === userId && !isDuplicate) {
+        toast.info(
+          data.isCompliant 
+            ? "La tua squadra è ora conforme ai requisiti!" 
+            : "La tua squadra non è conforme ai requisiti minimi."
+        );
+      }
+    };
+
     socket.on("auction-created", handleAuctionCreated);
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
+    socket.on("penalty-applied-notification", handlePenaltyApplied);
+    socket.on("compliance-status-changed", handleComplianceStatusChange);
 
     return () => {
       socket.off("auction-created", handleAuctionCreated);
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
+      socket.off("penalty-applied-notification", handlePenaltyApplied);
+      socket.off("compliance-status-changed", handleComplianceStatusChange);
       socket.emit("leave-league-room", selectedLeagueId.toString());
     };
   }, [
@@ -283,6 +340,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     selectedLeagueId,
     fetchManagersData,
     fetchCurrentAuction,
+    fetchComplianceData,
+    refreshComplianceData,
+    userId,
+    lastComplianceNotification
   ]);
 
   // The rest of the component logic for handlePlaceBid, etc. remains largely the same
@@ -367,9 +428,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   activeAuctions={activeAuctions}
                   autoBids={autoBids}
                   currentAuctionPlayerId={currentAuction?.player_id}
-                  userAuctionStates={userAuctionStates.filter(
-                    (s) => s.user_id === manager.user_id
-                  )}
+                  userAuctionStates={userAuctionStates}
                   leagueId={selectedLeagueId ?? undefined}
                   leagueStatus={leagueInfo?.status}
                   handlePlaceBid={handlePlaceBid}

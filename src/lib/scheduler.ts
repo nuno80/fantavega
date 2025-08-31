@@ -3,6 +3,7 @@
  * e il processamento di timer scaduti.
  */
 import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
+import { processExpiredComplianceTimers } from "./db/services/penalty.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 
 // Intervallo di controllo ridotto per una chiusura più tempestiva delle aste
@@ -41,6 +42,20 @@ const runBackgroundTasks = async () => {
         console.error(
           "[SCHEDULER] Timer processing errors:",
           timerResult.errors
+        );
+      }
+    }
+
+    // 3. Processa i timer di compliance scaduti
+    const complianceResult = await processExpiredComplianceTimers();
+    if (complianceResult.processedCount > 0 || complianceResult.errors.length > 0) {
+      console.log(
+        `[SCHEDULER] Expired compliance timers processed: ${complianceResult.processedCount} successful, ${complianceResult.errors.length} errors.`
+      );
+      if (complianceResult.errors.length > 0) {
+        console.error(
+          "[SCHEDULER] Compliance timer processing errors:",
+          complianceResult.errors
         );
       }
     }

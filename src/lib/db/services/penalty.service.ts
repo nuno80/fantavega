@@ -8,7 +8,6 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 import type { AuctionLeague } from "./auction-league.service";
 
 // 2. Tipi e Interfacce
-// ... (il resto dei tipi rimane invariato)
 interface UserLeagueComplianceStatus {
   league_id: number;
   user_id: string;
@@ -31,7 +30,6 @@ const MAX_TOTAL_PENALTY_CREDITS = 25; // Limite assoluto massimo di penalità pe
 const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
 
 // 4. Funzioni Helper (interne)
-// ... (tutte le funzioni helper rimangono invariate)
 const getCurrentPhaseIdentifier = (
   leagueStatus: string,
   activeRolesString: string | null
@@ -212,6 +210,26 @@ export const checkAndRecordCompliance = (
       console.log(
         `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
       );
+    }
+
+    // If the compliance status changed, notify all users in the league
+    if (statusChanged) {
+      // Import notifySocketServer function
+      import("../../socket-emitter").then(({ notifySocketServer }) => {
+        notifySocketServer({
+          room: `league-${leagueId}`,
+          event: 'compliance-status-changed',
+          data: {
+            userId,
+            isCompliant,
+            timestamp: now
+          }
+        }).catch((error: any) => {
+          console.error("Failed to notify compliance status change:", error);
+        });
+      }).catch((error: any) => {
+        console.error("Failed to import socket emitter:", error);
+      });
     }
 
     return { statusChanged, isCompliant };
@@ -430,6 +448,18 @@ export const processUserComplianceAndPenalties = async (
       });
     }
 
+    // Notify all users in the league about the compliance status change
+    await notifySocketServer({
+      room: `league-${leagueId}`,
+      event: 'compliance-status-changed',
+      data: {
+        userId,
+        isCompliant: isNowCompliant,
+        appliedPenaltyAmount,
+        timestamp: Math.floor(Date.now() / 1000)
+      }
+    });
+
     // Calculate timing information for non-compliant users
     let gracePeriodEndTime: number | undefined;
     let timeRemainingSeconds: number | undefined;
@@ -502,5 +532,101 @@ export const processUserComplianceAndPenalties = async (
     throw new Error(
       `Failed to process user compliance and penalties: ${errorMessage}`
     );
+  }
+};
+
+// NUOVA FUNZIONE: Processa i timer di compliance scaduti per tutti gli utenti
+export const processExpiredComplianceTimers = async (): Promise<{
+  processedCount: number;
+  errors: string[];
+}> => {
+  const now = Math.floor(Date.now() / 1000);
+  let processedCount = 0;
+  const errors: string[] = [];
+
+  try {
+    console.log(`[COMPLIANCE_SERVICE] Processing expired compliance timers at ${now}`);
+
+    // Trova tutti i timer di compliance scaduti
+    // Un timer è scaduto se:
+    // 1. compliance_timer_start_at non è null (timer attivo)
+    // 2. La grace period è terminata (compliance_timer_start_at + 3600 <= now)
+    const expiredTimers = db
+      .prepare(
+        `
+        SELECT ulcs.league_id, ulcs.user_id, ulcs.phase_identifier,
+               ulcs.compliance_timer_start_at, ulcs.last_penalty_applied_for_hour_ending_at,
+               ulcs.penalties_applied_this_cycle, al.status, al.active_auction_roles
+        FROM user_league_compliance_status ulcs
+        JOIN auction_leagues al ON ulcs.league_id = al.id
+        WHERE ulcs.compliance_timer_start_at IS NOT NULL
+          AND ulcs.compliance_timer_start_at + 3600 <= ?
+          AND al.status IN ('draft_active', 'repair_active')
+        `
+      )
+      .all(now) as Array<{
+        league_id: number;
+        user_id: string;
+        phase_identifier: string;
+        compliance_timer_start_at: number;
+        last_penalty_applied_for_hour_ending_at: number | null;
+        penalties_applied_this_cycle: number;
+        status: string;
+        active_auction_roles: string | null;
+      }>;
+
+    console.log(`[COMPLIANCE_SERVICE] Found ${expiredTimers.length} expired compliance timers`);
+
+    // Processa ogni timer scaduto
+    for (const timer of expiredTimers) {
+      try {
+        console.log(
+          `[COMPLIANCE_SERVICE] Processing expired timer for user ${timer.user_id} in league ${timer.league_id}`
+        );
+
+        // Chiama la funzione esistente per applicare le penalità
+        const result = await processUserComplianceAndPenalties(
+          timer.league_id,
+          timer.user_id
+        );
+
+        console.log(
+          `[COMPLIANCE_SERVICE] Processed compliance timer for user ${timer.user_id} in league ${timer.league_id}. Applied penalty: ${result.appliedPenaltyAmount} credits`
+        );
+
+        if (result.appliedPenaltyAmount > 0) {
+          // Notifica via Socket.IO se è stata applicata una penalità
+          await notifySocketServer({
+            room: `user-${timer.user_id}`,
+            event: 'penalty-applied-notification',
+            data: {
+              amount: result.appliedPenaltyAmount,
+              reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
+            }
+          });
+        }
+
+        processedCount++;
+      } catch (error) {
+        const errorMsg =
+          error instanceof Error ? error.message : "Unknown error";
+        errors.push(
+          `User ${timer.user_id}, League ${timer.league_id}: ${errorMsg}`
+        );
+        console.error(
+          `[COMPLIANCE_SERVICE] Error processing compliance timer for user ${timer.user_id} in league ${timer.league_id}:`,
+          error
+        );
+      }
+    }
+
+    console.log(
+      `[COMPLIANCE_SERVICE] Completed processing. Processed: ${processedCount}, Errors: ${errors.length}`
+    );
+
+    return { processedCount, errors };
+  } catch (error) {
+    console.error("[COMPLIANCE_SERVICE] Error processing expired compliance timers:", error);
+    throw error;
   }
 };

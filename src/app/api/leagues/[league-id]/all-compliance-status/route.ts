@@ -4,6 +4,26 @@ import { auth } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
 
+// Helper function to create phase identifier (same as in penalty.service.ts)
+const getCurrentPhaseIdentifier = (
+  leagueStatus: string,
+  activeRolesString: string | null
+): string => {
+  if (
+    !activeRolesString ||
+    activeRolesString.trim() === "" ||
+    activeRolesString.toUpperCase() === "ALL"
+  ) {
+    return `${leagueStatus}_ALL_ROLES`;
+  }
+  const sortedRoles = activeRolesString
+    .split(",")
+    .map((r) => r.trim().toUpperCase())
+    .sort()
+    .join(",");
+  return `${leagueStatus}_${sortedRoles}`;
+};
+
 // Define the context interface according to the project's convention
 interface RouteContext {
   params: Promise<{
@@ -43,7 +63,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Get the current phase identifier for the league
+    // Get the current phase identifier for the league using the same logic as penalty.service.ts
     const leagueInfo = db
       .prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?")
       .get(leagueId) as { status: string; active_auction_roles: string | null } | undefined;
@@ -52,10 +72,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return new NextResponse("League not found", { status: 404 });
     }
     
-    // Construct the phase identifier based on league status and active roles
-    const phaseIdentifier = leagueInfo.status === "draft_active" && leagueInfo.active_auction_roles
-      ? `draft_active_${leagueInfo.active_auction_roles}`
-      : leagueInfo.status;
+    // Construct the phase identifier using the same logic as in penalty.service.ts
+    const phaseIdentifier = getCurrentPhaseIdentifier(
+      leagueInfo.status,
+      leagueInfo.active_auction_roles
+    );
     
     console.log(`[GET_ALL_COMPLIANCE_STATUS] Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
     
