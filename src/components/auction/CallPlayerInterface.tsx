@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
-    Dumbbell,
-    Gavel,
-    Heart,
-    Search,
-    Shield,
-    TrendingUp,
-    User,
+  Dumbbell,
+  Gavel,
+  Heart,
+  Search,
+  Shield,
+  TrendingUp,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,11 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { useSocket } from "@/contexts/SocketContext";
 
@@ -225,8 +225,10 @@ export function CallPlayerInterface({
     // NOTE: According to project specifications, all auction-related Socket.IO event listeners
     // must be centralized in AuctionPageContent.tsx. This component only handles auction-closed
     // events for updating local player state when auctions end.
-    
-    console.log(`[CallPlayerInterface] Registering minimal Socket.IO listeners for league ${leagueId}`);
+
+    console.log(
+      `[CallPlayerInterface] Registering minimal Socket.IO listeners for league ${leagueId}`
+    );
 
     // Handle auction closed events only (AuctionPageContent handles creation and updates)
     const handleAuctionClosed = (data: {
@@ -295,7 +297,7 @@ export function CallPlayerInterface({
       name: selectedPlayerDetails.name,
       auctionStatus: selectedPlayerDetails.auctionStatus,
       currentBid: selectedPlayerDetails.currentBid,
-      currentHighestBidderName: selectedPlayerDetails.currentHighestBidderName
+      currentHighestBidderName: selectedPlayerDetails.currentHighestBidderName,
     });
 
     if (selectedPlayerDetails.auctionStatus === "active_auction") {
@@ -317,66 +319,83 @@ export function CallPlayerInterface({
       auctionStatus: selectedPlayerDetails.auctionStatus,
       currentBid: selectedPlayerDetails.currentBid,
       currentHighestBidderName: selectedPlayerDetails.currentHighestBidderName,
-      qtA: selectedPlayerDetails.qtA
+      qtA: selectedPlayerDetails.qtA,
     });
-    
+
     // Check if player already has an active auction
     if (selectedPlayerDetails.auctionStatus === "active_auction") {
-      console.warn("[DEBUG START AUCTION] Player already has an active auction!");
+      console.warn(
+        "[DEBUG START AUCTION] Player already has an active auction!"
+      );
       toast.error("Un'asta per questo giocatore è già in corso");
       return;
     }
-    
+
     // Check if player is already assigned
     if (selectedPlayerDetails.auctionStatus === "assigned") {
       console.warn("[DEBUG START AUCTION] Player is already assigned!");
       toast.error("Questo giocatore è già stato assegnato");
       return;
     }
-    
+
     // CRITICAL: Refresh player data before starting auction to ensure we have latest state
     // This prevents stale data issues as mentioned in real-time auction system specs
-    console.log("[DEBUG START AUCTION] Refreshing player data before auction start...");
-    refreshPlayersData().then(() => {
-      console.log("[DEBUG START AUCTION] Player data refreshed, checking latest state...");
-      
-      // Re-check the player status after refresh
-      const latestPlayer = players.find(p => p.id === selectedPlayerDetails.id);
-      if (latestPlayer) {
-        console.log("[DEBUG START AUCTION] Latest player state:", {
-          id: latestPlayer.id,
-          name: latestPlayer.name,
-          auctionStatus: latestPlayer.auctionStatus,
-          currentBid: latestPlayer.currentBid,
-          currentHighestBidderName: latestPlayer.currentHighestBidderName
+    console.log(
+      "[DEBUG START AUCTION] Refreshing player data before auction start..."
+    );
+    refreshPlayersData()
+      .then(() => {
+        console.log(
+          "[DEBUG START AUCTION] Player data refreshed, checking latest state..."
+        );
+
+        // Re-check the player status after refresh
+        const latestPlayer = players.find(
+          (p) => p.id === selectedPlayerDetails.id
+        );
+        if (latestPlayer) {
+          console.log("[DEBUG START AUCTION] Latest player state:", {
+            id: latestPlayer.id,
+            name: latestPlayer.name,
+            auctionStatus: latestPlayer.auctionStatus,
+            currentBid: latestPlayer.currentBid,
+            currentHighestBidderName: latestPlayer.currentHighestBidderName,
+          });
+
+          if (latestPlayer.auctionStatus === "active_auction") {
+            console.warn(
+              "[DEBUG START AUCTION] Player has active auction after refresh!"
+            );
+            toast.error("Un'asta per questo giocatore è già in corso");
+            return;
+          }
+
+          if (latestPlayer.auctionStatus === "assigned") {
+            console.warn(
+              "[DEBUG START AUCTION] Player is assigned after refresh!"
+            );
+            toast.error("Questo giocatore è già stato assegnato");
+            return;
+          }
+        }
+
+        // Proceed with auction start if status is still valid
+        setSelectedPlayerForStartAuction({
+          id: selectedPlayerDetails.id,
+          name: selectedPlayerDetails.name,
+          role: selectedPlayerDetails.role,
+          team: selectedPlayerDetails.team,
+          qtA: selectedPlayerDetails.qtA,
         });
-        
-        if (latestPlayer.auctionStatus === "active_auction") {
-          console.warn("[DEBUG START AUCTION] Player has active auction after refresh!");
-          toast.error("Un'asta per questo giocatore è già in corso");
-          return;
-        }
-        
-        if (latestPlayer.auctionStatus === "assigned") {
-          console.warn("[DEBUG START AUCTION] Player is assigned after refresh!");
-          toast.error("Questo giocatore è già stato assegnato");
-          return;
-        }
-      }
-      
-      // Proceed with auction start if status is still valid
-      setSelectedPlayerForStartAuction({
-        id: selectedPlayerDetails.id,
-        name: selectedPlayerDetails.name,
-        role: selectedPlayerDetails.role,
-        team: selectedPlayerDetails.team,
-        qtA: selectedPlayerDetails.qtA,
+        setIsStartAuctionModalOpen(true);
+      })
+      .catch((error) => {
+        console.error(
+          "[DEBUG START AUCTION] Failed to refresh player data:",
+          error
+        );
+        toast.error("Errore nel caricare i dati aggiornati del giocatore");
       });
-      setIsStartAuctionModalOpen(true);
-    }).catch(error => {
-      console.error("[DEBUG START AUCTION] Failed to refresh player data:", error);
-      toast.error("Errore nel caricare i dati aggiornati del giocatore");
-    });
   };
 
   // Handle successful auction start
@@ -393,7 +412,7 @@ export function CallPlayerInterface({
         bid_type: bidType,
         max_amount: maxAmount, // Corretto: usa 'max_amount' come si aspetta l'API
       };
-      
+
       // DEBUG: Log detailed information about the auction attempt
       console.log("[DEBUG AUCTION START] Attempting to start auction:", {
         playerId: selectedPlayerForStartAuction.id,
@@ -401,9 +420,9 @@ export function CallPlayerInterface({
         amount: amount,
         bidType: bidType,
         maxAmount: maxAmount,
-        requestBody: requestBody
+        requestBody: requestBody,
       });
-      
+
       console.log("[DEBUG FRONT-END] Sending request body:", requestBody);
       console.log("[DEBUG FRONT-END] maxAmount value:", maxAmount);
       console.log("[DEBUG FRONT-END] maxAmount type:", typeof maxAmount);
@@ -419,26 +438,40 @@ export function CallPlayerInterface({
 
       if (!response.ok) {
         const error = await response.json();
-        
+
         // Parse the error message to provide specific user feedback
-        const errorMessage = error.message || error.error || "Errore nel creare l'asta";
-        
+        const errorMessage =
+          error.message || error.error || "Errore nel creare l'asta";
+
         // Check for specific error conditions and provide appropriate messages
         if (errorMessage.includes("superiore all'offerta attuale")) {
           // Extract the current bid amount from the error message
           const bidMatch = errorMessage.match(/(\d+)\s*crediti/);
           const currentBid = bidMatch ? parseInt(bidMatch[1]) : null;
-          
+
           if (currentBid !== null) {
-            throw new Error(`Devi offrire almeno ${currentBid + 1} crediti per avviare l'asta`);
+            throw new Error(
+              `Devi offrire almeno ${currentBid + 1} crediti per avviare l'asta`
+            );
           } else {
-            throw new Error("Devi offrire almeno il valore QtA del giocatore per avviare l'asta");
+            throw new Error(
+              "Devi offrire almeno il valore QtA del giocatore per avviare l'asta"
+            );
           }
-        } else if (errorMessage.includes("già il miglior offerente") || errorMessage.includes("stesso utente")) {
+        } else if (
+          errorMessage.includes("già il miglior offerente") ||
+          errorMessage.includes("stesso utente")
+        ) {
           throw new Error("Sei già il miglior offerente per questo giocatore");
-        } else if (errorMessage.includes("budget") || errorMessage.includes("crediti insufficienti")) {
+        } else if (
+          errorMessage.includes("budget") ||
+          errorMessage.includes("crediti insufficienti")
+        ) {
           throw new Error("Budget insufficiente per questa offerta");
-        } else if (errorMessage.includes("asta già") || errorMessage.includes("auction already")) {
+        } else if (
+          errorMessage.includes("asta già") ||
+          errorMessage.includes("auction already")
+        ) {
           throw new Error("Un'asta per questo giocatore è già in corso");
         } else {
           // Use the original error message for other cases

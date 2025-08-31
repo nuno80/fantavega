@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 
 import {
-    AlertTriangle,
-    CheckCircle,
-    DollarSign,
-    Lock,
-    Star,
-    Trash2,
-    User,
-    X,
+  AlertTriangle,
+  CheckCircle,
+  DollarSign,
+  Lock,
+  Star,
+  Trash2,
+  User,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -176,7 +176,7 @@ function AssignedSlot({
   const roleColor = getRoleColor(role);
 
   // Show trash icon only if current user and league is in repair mode
-  const showDiscardOption = isCurrentUser && leagueStatus === 'repair_active';
+  const showDiscardOption = isCurrentUser && leagueStatus === "repair_active";
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -621,11 +621,14 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const totalPenalties = manager?.total_penalties || 0;
 
   // Validazioni per prevenire valori negativi e NaN
-  const lockedCredits = Math.max(0, isNaN(rawLockedCredits) ? 0 : rawLockedCredits);
+  const lockedCredits = Math.max(
+    0,
+    isNaN(rawLockedCredits) ? 0 : rawLockedCredits
+  );
   const validTotalBudget = isNaN(totalBudget) ? 0 : totalBudget;
   const validCurrentBudget = isNaN(currentBudget) ? 0 : currentBudget;
   const validTotalPenalties = isNaN(totalPenalties) ? 0 : totalPenalties;
-  
+
   // FIX: Use comprehensive calculation to handle database inconsistencies
   // Available = Initial - Penalties - Spent - Locked
   const spentCredits = Math.max(0, validTotalBudget - validCurrentBudget);
@@ -639,8 +642,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   return (
     <div
       className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${
-        isCurrentUser 
-          ? complianceTimerStartAt !== null && !isNaN(complianceTimerStartAt) && complianceTimerStartAt > 0
+        isCurrentUser
+          ? complianceTimerStartAt !== null &&
+            !isNaN(complianceTimerStartAt) &&
+            complianceTimerStartAt > 0
             ? "border-red-500"
             : "border-green-500"
           : "border-border"
@@ -682,7 +687,9 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
             {/* Compliance timer - visible only to current user */}
             {isCurrentUser && (
               <>
-                {complianceTimerStartAt !== null && !isNaN(complianceTimerStartAt) && complianceTimerStartAt > 0 ? (
+                {complianceTimerStartAt !== null &&
+                !isNaN(complianceTimerStartAt) &&
+                complianceTimerStartAt > 0 ? (
                   <span title="Team non conforme" className="flex items-center">
                     <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
                     <ComplianceTimer

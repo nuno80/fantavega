@@ -4,8 +4,6 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { useLeague } from "@/hooks/useLeague";
-
 import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
@@ -15,6 +13,7 @@ import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
+import { useLeague } from "@/hooks/useLeague";
 
 // All interface definitions are correct and don't need changes
 interface AuctionPageContentProps {
@@ -100,7 +99,9 @@ interface ComplianceStatus {
 }
 
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
-  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(null);
+  const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(
+    null
+  );
   const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
   const [managers, setManagers] = useState<Manager[]>([]);
@@ -109,11 +110,18 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
   const [bidHistory, setBidHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionState[]>([]);
+  const [userAuctionStates, setUserAuctionStates] = useState<
+    UserAuctionState[]
+  >([]);
   const [complianceData, setComplianceData] = useState<ComplianceStatus[]>([]);
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
-  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
-  const [userComplianceStatus, setUserComplianceStatus] = useState({ isCompliant: true, isInGracePeriod: true });
+  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(
+    null
+  );
+  const [userComplianceStatus, setUserComplianceStatus] = useState({
+    isCompliant: true,
+    isInGracePeriod: true,
+  });
   const isMobile = useMobile();
 
   const { socket, isConnected } = useSocket();
@@ -211,8 +219,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
     fetchInitialData();
-  }, [selectedLeagueId, fetchManagersData, fetchCurrentAuction, fetchComplianceData]);
-
+  }, [
+    selectedLeagueId,
+    fetchManagersData,
+    fetchCurrentAuction,
+    fetchComplianceData,
+  ]);
 
   // Effect for handling socket events
   useEffect(() => {
@@ -235,7 +247,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       fetchComplianceData(selectedLeagueId);
     };
 
-    const handleBidSurpassed = (data: { playerName: string; newBidAmount: number; }) => {
+    const handleBidSurpassed = (data: {
+      playerName: string;
+      newBidAmount: number;
+    }) => {
       toast.warning(`La tua offerta per ${data.playerName} è stata superata!`, {
         description: `Nuova offerta: ${data.newBidAmount} crediti.`,
       });
@@ -251,7 +266,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.emit("leave-league-room", selectedLeagueId.toString());
     };
-  }, [socket, isConnected, selectedLeagueId, fetchManagersData, fetchCurrentAuction]);
+  }, [
+    socket,
+    isConnected,
+    selectedLeagueId,
+    fetchManagersData,
+    fetchCurrentAuction,
+  ]);
 
   // The rest of the component logic for handlePlaceBid, etc. remains largely the same
   // but would now use the state that is reliably updated by the socket events.
@@ -275,7 +296,11 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount, bid_type: bidType, max_amount: maxAmount }),
+          body: JSON.stringify({
+            amount,
+            bid_type: bidType,
+            max_amount: maxAmount,
+          }),
         }
       );
 
@@ -287,7 +312,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       toast.success("Offerta piazzata con successo!");
       // UI update is now handled by the socket listener
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Errore sconosciuto";
+      const errorMessage =
+        error instanceof Error ? error.message : "Errore sconosciuto";
       toast.error("Errore offerta", { description: errorMessage });
     }
   };
@@ -303,7 +329,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           leagueId={selectedLeagueId || 0}
           userId={userId}
           onStartAuction={(playerId) => {
-            console.log(`Auction started for player ${playerId}. UI will update via socket.`);
+            console.log(
+              `Auction started for player ${playerId}. UI will update via socket.`
+            );
           }}
         />
       </div>
@@ -319,13 +347,18 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                 <ManagerColumn
                   manager={manager}
                   isCurrentUser={manager.user_id === userId}
-                  isHighestBidder={currentAuction?.current_highest_bidder_id === manager.user_id}
+                  isHighestBidder={
+                    currentAuction?.current_highest_bidder_id ===
+                    manager.user_id
+                  }
                   position={index + 1}
                   leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
                   autoBids={autoBids}
                   currentAuctionPlayerId={currentAuction?.player_id}
-                  userAuctionStates={userAuctionStates.filter(s => s.user_id === manager.user_id)}
+                  userAuctionStates={userAuctionStates.filter(
+                    (s) => s.user_id === manager.user_id
+                  )}
                   leagueId={selectedLeagueId ?? undefined}
                   leagueStatus={leagueInfo?.status}
                   handlePlaceBid={handlePlaceBid}
@@ -346,7 +379,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           <div>Nessun manager trovato.</div>
         )}
       </div>
-      
+
       {selectedLeagueId && <SocketDebugger leagueId={selectedLeagueId} />}
     </div>
   );

@@ -4,10 +4,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { toast } from "sonner";
 
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
+
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
 // Props del componente
 interface AuctionDisplayProps {
@@ -33,7 +37,7 @@ export function AuctionRealtimeDisplay({
     console.log("[AuctionRealtimeDisplay] Updated auction data from props:", {
       playerId: initialAuctionData.player_id,
       currentBid: initialAuctionData.current_highest_bid_amount,
-      bidder: initialAuctionData.current_highest_bidder_id
+      bidder: initialAuctionData.current_highest_bidder_id,
     });
   }, [initialAuctionData]);
 
@@ -43,12 +47,14 @@ export function AuctionRealtimeDisplay({
       console.log("[AuctionRealtimeDisplay] Socket not ready:", {
         isConnected,
         hasSocket: !!socket,
-        leagueId
+        leagueId,
       });
       return;
     }
 
-    console.log(`[AuctionRealtimeDisplay] Setting up Socket.IO listeners for player ${playerId}`);
+    console.log(
+      `[AuctionRealtimeDisplay] Setting up Socket.IO listeners for player ${playerId}`
+    );
 
     // Handle auction updates specifically for this player
     const handleAuctionUpdate = (data: {
@@ -58,9 +64,12 @@ export function AuctionRealtimeDisplay({
       scheduledEndTime: number;
     }) => {
       if (data.playerId === playerId) {
-        console.log("[AuctionRealtimeDisplay] Received auction update for this player:", data);
-        
-        setAuctionData(prev => ({
+        console.log(
+          "[AuctionRealtimeDisplay] Received auction update for this player:",
+          data
+        );
+
+        setAuctionData((prev) => ({
           ...prev,
           current_highest_bid_amount: data.newPrice,
           current_highest_bidder_id: data.highestBidderId,
@@ -81,9 +90,12 @@ export function AuctionRealtimeDisplay({
       finalPrice: number;
     }) => {
       if (data.playerId === playerId) {
-        console.log("[AuctionRealtimeDisplay] Auction closed for this player:", data);
-        
-        setAuctionData(prev => ({
+        console.log(
+          "[AuctionRealtimeDisplay] Auction closed for this player:",
+          data
+        );
+
+        setAuctionData((prev) => ({
           ...prev,
           status: "sold",
           current_highest_bid_amount: data.finalPrice,

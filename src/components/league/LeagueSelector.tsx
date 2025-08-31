@@ -1,19 +1,20 @@
 "use client";
 
-import { Check, ChevronDown, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+import { Check, ChevronDown, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 interface League {
@@ -31,10 +32,10 @@ interface LeagueSelectorProps {
   compact?: boolean;
 }
 
-export function LeagueSelector({ 
-  currentLeagueId, 
-  onLeagueChange, 
-  compact = false 
+export function LeagueSelector({
+  currentLeagueId,
+  onLeagueChange,
+  compact = false,
 }: LeagueSelectorProps) {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,10 +49,12 @@ export function LeagueSelector({
         if (response.ok) {
           const leagueData = await response.json();
           setLeagues(leagueData);
-          
+
           // Set current league if provided or use first league
           if (currentLeagueId) {
-            const league = leagueData.find((l: League) => l.id === currentLeagueId);
+            const league = leagueData.find(
+              (l: League) => l.id === currentLeagueId
+            );
             setCurrentLeague(league || null);
           } else if (leagueData.length > 0) {
             setCurrentLeague(leagueData[0]);
@@ -70,14 +73,14 @@ export function LeagueSelector({
 
   const handleLeagueSelect = (league: League) => {
     setCurrentLeague(league);
-    
+
     if (onLeagueChange) {
       onLeagueChange(league.id);
     } else {
       // Default behavior: navigate to auctions page with league context
       router.push(`/auctions?league=${league.id}`);
     }
-    
+
     toast.success(`Passaggio alla lega: ${league.name}`);
   };
 
@@ -99,9 +102,11 @@ export function LeagueSelector({
   };
 
   const getStatusLabel = (status: string) => {
-    return status.replace(/_/g, " ").toLowerCase()
+    return status
+      .replace(/_/g, " ")
+      .toLowerCase()
       .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   };
 
@@ -131,32 +136,30 @@ export function LeagueSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className="flex items-center gap-2 text-sm font-medium hover:bg-muted"
         >
           <Shield className="h-4 w-4" />
           {!compact && currentLeague && (
-            <span className="max-w-[120px] truncate">
-              {currentLeague.name}
-            </span>
+            <span className="max-w-[120px] truncate">{currentLeague.name}</span>
           )}
           <ChevronDown className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>
-      
+
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="flex items-center gap-2">
           <Shield className="h-4 w-4" />
           Le Tue Leghe
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        
+
         {leagues.map((league) => (
           <DropdownMenuItem
             key={league.id}
-            className="flex flex-col items-start gap-2 p-3 cursor-pointer"
+            className="flex cursor-pointer flex-col items-start gap-2 p-3"
             onClick={() => handleLeagueSelect(league)}
           >
             <div className="flex w-full items-center justify-between">
@@ -166,31 +169,28 @@ export function LeagueSelector({
                   <Check className="h-4 w-4 text-green-600" />
                 )}
               </div>
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className={`text-xs ${getStatusColor(league.status)} text-white`}
               >
                 {getStatusLabel(league.status)}
               </Badge>
             </div>
-            
+
             <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-              <span>
-                {league.team_name || "Squadra senza nome"}
-              </span>
-              <span>
-                Budget: {league.current_budget} cr
-              </span>
+              <span>{league.team_name || "Squadra senza nome"}</span>
+              <span>Budget: {league.current_budget} cr</span>
             </div>
           </DropdownMenuItem>
         ))}
-        
+
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="text-center text-xs text-muted-foreground"
           disabled
         >
-          {leagues.length} lega{leagues.length !== 1 ? "he" : ""} disponibile{leagues.length !== 1 ? "i" : ""}
+          {leagues.length} lega{leagues.length !== 1 ? "he" : ""} disponibile
+          {leagues.length !== 1 ? "i" : ""}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

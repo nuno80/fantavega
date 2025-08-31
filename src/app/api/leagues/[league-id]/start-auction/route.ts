@@ -24,45 +24,44 @@ export async function POST(
   // Parse parameters early for deduplication
   const resolvedParams = await params;
   const leagueId = parseInt(resolvedParams["league-id"]);
-  
+
   if (isNaN(leagueId)) {
-    return NextResponse.json(
-      { error: "ID lega non valido" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "ID lega non valido" }, { status: 400 });
   }
-  
+
   const requestBody = await request.json();
   const { playerId } = requestBody;
-  
+
   if (!playerId || isNaN(parseInt(playerId))) {
     return NextResponse.json(
       { error: "ID giocatore non valido" },
       { status: 400 }
     );
   }
-  
+
   // Create deduplication key based on league and player
   const dedupeKey = `${leagueId}-${playerId}`;
-  
+
   // Check if there's already a pending request for this auction
   if (pendingRequests.has(dedupeKey)) {
-    console.warn(`[START_AUCTION] DUPLICATE REQUEST BLOCKED for league ${leagueId}, player ${playerId}`);
+    console.warn(
+      `[START_AUCTION] DUPLICATE REQUEST BLOCKED for league ${leagueId}, player ${playerId}`
+    );
     return NextResponse.json(
       { error: "Un'altra richiesta per questo giocatore è già in corso" },
       { status: 409 }
     );
   }
-  
+
   // Create promise for this request and store it
   const requestPromise = processAuctionRequest(leagueId, playerId, requestBody);
   pendingRequests.set(dedupeKey, requestPromise);
-  
+
   // Set timeout to cleanup pending request
   setTimeout(() => {
     pendingRequests.delete(dedupeKey);
   }, REQUEST_TIMEOUT_MS);
-  
+
   try {
     const result = await requestPromise;
     pendingRequests.delete(dedupeKey);
@@ -114,7 +113,10 @@ async function processAuctionRequest(
 
     const { initialBid } = requestBody;
 
-    console.log(`[START_AUCTION] Request for league ${leagueId}, player ${playerId}:`, requestBody);
+    console.log(
+      `[START_AUCTION] Request for league ${leagueId}, player ${playerId}:`,
+      requestBody
+    );
 
     // Validate initial bid
     const bidAmount = initialBid ? parseInt(String(initialBid)) : null;
@@ -189,10 +191,14 @@ async function processAuctionRequest(
       .prepare(
         "SELECT id, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
       )
-      .get(leagueId, parseInt(playerId)) as { id: number; status: string } | undefined;
+      .get(leagueId, parseInt(playerId)) as
+      | { id: number; status: string }
+      | undefined;
 
     if (existingAuction) {
-      console.warn(`[START_AUCTION] BLOCKED: Auction already exists for player ${playerId} (auction ID: ${existingAuction.id}, status: ${existingAuction.status})`);
+      console.warn(
+        `[START_AUCTION] BLOCKED: Auction already exists for player ${playerId} (auction ID: ${existingAuction.id}, status: ${existingAuction.status})`
+      );
       return NextResponse.json(
         { error: "Esiste già un'asta attiva per questo giocatore" },
         { status: 400 }
@@ -231,8 +237,10 @@ async function processAuctionRequest(
     // Start the auction with specified bid or calculated minimum bid using user as initial bidder
     const finalBidAmount = bidAmount || minimumBid;
     console.log(`[START_AUCTION] Final bid amount: ${finalBidAmount}`);
-    
-    console.log(`[START_AUCTION] Creating auction for player ${playerId} in league ${leagueId} with bid ${finalBidAmount}`);
+
+    console.log(
+      `[START_AUCTION] Creating auction for player ${playerId} in league ${leagueId} with bid ${finalBidAmount}`
+    );
     const auctionResult = await placeInitialBidAndCreateAuction(
       leagueId,
       parseInt(playerId),
@@ -243,7 +251,7 @@ async function processAuctionRequest(
     console.log(`[START_AUCTION] Auction created successfully:`, {
       auctionId: auctionResult.auction_id,
       playerId: auctionResult.player_id,
-      initialBid: auctionResult.current_bid
+      initialBid: auctionResult.current_bid,
     });
 
     return NextResponse.json({
@@ -257,12 +265,14 @@ async function processAuctionRequest(
     // Handle specific error messages from the bid service
     if (error instanceof Error) {
       console.error(`[START_AUCTION] Error: ${error.message}`);
-      
+
       // Handle database constraint violations specifically
-      if (error.message.includes("Esiste già un'asta attiva per questo giocatore")) {
+      if (
+        error.message.includes("Esiste già un'asta attiva per questo giocatore")
+      ) {
         return NextResponse.json({ error: error.message }, { status: 409 });
       }
-      
+
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

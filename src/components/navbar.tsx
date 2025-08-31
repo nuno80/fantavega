@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
-    SignInButton,
-    SignUpButton,
-    SignedIn,
-    SignedOut,
-    UserButton,
-    useAuth, // Importa useAuth
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+  useAuth, // Importa useAuth
 } from "@clerk/nextjs";
 import { Menu, X } from "lucide-react";
 

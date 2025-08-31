@@ -18,50 +18,74 @@ function generateEventKey(params: EmitParams): string {
     room: params.room,
     event: params.event,
     // Use exact data hash for precise duplicate detection
-    dataHash: params.data ? JSON.stringify(params.data) : 'no-data'
+    dataHash: params.data ? JSON.stringify(params.data) : "no-data",
   };
   return JSON.stringify(keyData);
 }
 
 export async function notifySocketServer(params: EmitParams) {
   // CRITICAL: Special tracking for auction-created events to debug duplicates
-  if (params.event === 'auction-created' && params.data && typeof params.data === 'object' && 'playerId' in params.data) {
-    console.log(`[Socket Emitter] 🚨 AUCTION-CREATED EVENT DETECTED for player ${params.data.playerId}:`, {
-      timestamp: new Date().toISOString(),
-      params,
-      stackTrace: new Error('Stack trace for auction-created event').stack?.split('\n').slice(0, 10)
-    });
+  if (
+    params.event === "auction-created" &&
+    params.data &&
+    typeof params.data === "object" &&
+    "playerId" in params.data
+  ) {
+    console.log(
+      `[Socket Emitter] 🚨 AUCTION-CREATED EVENT DETECTED for player ${params.data.playerId}:`,
+      {
+        timestamp: new Date().toISOString(),
+        params,
+        stackTrace: new Error("Stack trace for auction-created event").stack
+          ?.split("\n")
+          .slice(0, 10),
+      }
+    );
   }
-  
+
   // Throttling check
   const eventKey = generateEventKey(params);
   const now = Date.now();
   const lastEmitted = recentEvents.get(eventKey);
-  
-  if (lastEmitted && (now - lastEmitted) < THROTTLE_WINDOW_MS) {
-    console.warn("[Socket Emitter] THROTTLED: Duplicate event blocked within throttle window:", {
-      eventKey,
-      timeSinceLastEmit: now - lastEmitted,
-      throttleWindow: THROTTLE_WINDOW_MS,
-      params
-    });
-    
+
+  if (lastEmitted && now - lastEmitted < THROTTLE_WINDOW_MS) {
+    console.warn(
+      "[Socket Emitter] THROTTLED: Duplicate event blocked within throttle window:",
+      {
+        eventKey,
+        timeSinceLastEmit: now - lastEmitted,
+        throttleWindow: THROTTLE_WINDOW_MS,
+        params,
+      }
+    );
+
     // CRITICAL: Log throttled auction-created events specifically
-    if (params.event === 'auction-created') {
-      console.error(`[Socket Emitter] 🚨 THROTTLED AUCTION-CREATED EVENT! This suggests rapid duplicate calls.`);
+    if (params.event === "auction-created") {
+      console.error(
+        `[Socket Emitter] 🚨 THROTTLED AUCTION-CREATED EVENT! This suggests rapid duplicate calls.`
+      );
     }
 
     // NUOVO LOG DI DEBUG per il problema dei crediti
-    if (params.event === 'auction-update' && params.data && typeof params.data === 'object' && 'budgetUpdates' in params.data && (params.data as any).budgetUpdates.length > 0) {
-      console.error(`[Socket Emitter] 🚨 CRITICAL DEBUG: Un evento 'auction-update' con 'budgetUpdates' è stato bloccato dal throttling!`, { eventKey });
+    if (
+      params.event === "auction-update" &&
+      params.data &&
+      typeof params.data === "object" &&
+      "budgetUpdates" in params.data &&
+      (params.data as any).budgetUpdates.length > 0
+    ) {
+      console.error(
+        `[Socket Emitter] 🚨 CRITICAL DEBUG: Un evento 'auction-update' con 'budgetUpdates' è stato bloccato dal throttling!`,
+        { eventKey }
+      );
     }
-    
+
     return { success: true, throttled: true };
   }
-  
+
   // Update throttle tracking
   recentEvents.set(eventKey, now);
-  
+
   // Clean up old entries (keep map from growing indefinitely)
   if (recentEvents.size > 100) {
     const cutoff = now - THROTTLE_WINDOW_MS * 2;

@@ -1,17 +1,19 @@
 "use client";
 
+import { useState } from "react";
+
+import { AlertTriangle, DollarSign, User } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertTriangle, DollarSign, User } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 interface DiscardPlayerModalProps {
   isOpen: boolean;
@@ -37,7 +39,7 @@ export function DiscardPlayerModal({
 
   const handleDiscard = async () => {
     setIsDiscarding(true);
-    
+
     try {
       const response = await fetch(`/api/leagues/${leagueId}/discard-player`, {
         method: "POST",
@@ -51,7 +53,7 @@ export function DiscardPlayerModal({
       }
 
       const result = await response.json();
-      
+
       toast.success("Giocatore scartato!", {
         description: `${player.name} è stato rimosso dalla tua rosa. Rimborsati ${result.refundAmount} crediti.`,
         duration: 5000,
@@ -62,7 +64,10 @@ export function DiscardPlayerModal({
     } catch (error) {
       console.error("Error discarding player:", error);
       toast.error("Errore", {
-        description: error instanceof Error ? error.message : "Impossibile scartare il giocatore",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Impossibile scartare il giocatore",
       });
     } finally {
       setIsDiscarding(false);
@@ -110,8 +115,8 @@ export function DiscardPlayerModal({
           {/* Warning */}
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950/30">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Attenzione:</strong> Questa azione è irreversibile. Il giocatore tornerà
-              immediatamente disponibile per altri manager.
+              <strong>Attenzione:</strong> Questa azione è irreversibile. Il
+              giocatore tornerà immediatamente disponibile per altri manager.
             </p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+
 import { toast } from "sonner";
 
 interface League {
@@ -25,18 +26,20 @@ export function useLeague() {
       if (response.ok) {
         const leagueData = await response.json();
         setLeagues(leagueData);
-        
+
         // Set current league if provided in URL or use first league
-        const leagueParam = searchParams.get('league');
+        const leagueParam = searchParams.get("league");
         if (leagueParam) {
           const paramLeagueId = parseInt(leagueParam, 10);
-          const foundLeague = leagueData.find((l: League) => l.id === paramLeagueId);
+          const foundLeague = leagueData.find(
+            (l: League) => l.id === paramLeagueId
+          );
           if (foundLeague) {
             setSelectedLeagueId(foundLeague.id);
             return foundLeague.id;
           }
         }
-        
+
         // Default to first league if no param or invalid param
         if (leagueData.length > 0) {
           setSelectedLeagueId(leagueData[0].id);
@@ -49,18 +52,21 @@ export function useLeague() {
     } finally {
       setIsLoading(false);
     }
-    
+
     return null;
   }, [searchParams]);
 
-  const switchToLeague = useCallback((leagueId: number) => {
-    const league = leagues.find(l => l.id === leagueId);
-    if (league) {
-      setSelectedLeagueId(leagueId);
-      router.push(`/auctions?league=${leagueId}`);
-      toast.success(`Passaggio alla lega: ${league.name}`);
-    }
-  }, [leagues, router]);
+  const switchToLeague = useCallback(
+    (leagueId: number) => {
+      const league = leagues.find((l) => l.id === leagueId);
+      if (league) {
+        setSelectedLeagueId(leagueId);
+        router.push(`/auctions?league=${leagueId}`);
+        toast.success(`Passaggio alla lega: ${league.name}`);
+      }
+    },
+    [leagues, router]
+  );
 
   // Initialize leagues on mount
   useEffect(() => {
@@ -69,11 +75,11 @@ export function useLeague() {
 
   // Handle league changes from URL
   useEffect(() => {
-    const leagueParam = searchParams.get('league');
+    const leagueParam = searchParams.get("league");
     if (leagueParam) {
       const leagueId = parseInt(leagueParam, 10);
       if (!isNaN(leagueId) && leagueId !== selectedLeagueId) {
-        const leagueExists = leagues.some(l => l.id === leagueId);
+        const leagueExists = leagues.some((l) => l.id === leagueId);
         if (leagueExists) {
           setSelectedLeagueId(leagueId);
         }
@@ -87,6 +93,6 @@ export function useLeague() {
     isLoading,
     fetchUserLeagues,
     switchToLeague,
-    currentLeague: leagues.find(l => l.id === selectedLeagueId) || null
+    currentLeague: leagues.find((l) => l.id === selectedLeagueId) || null,
   };
 }

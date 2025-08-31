@@ -1,17 +1,16 @@
 // src/app/api/leagues/[league-id]/players/[player-id]/bids/route.ts v.1.4
 // API Route Handler per la gestione delle offerte (POST) e il recupero dello stato di un'asta (GET) per un giocatore specifico in una lega.
 // Enhanced with request deduplication to prevent race conditions
-
 // 1. Importazioni e Definizioni di Interfaccia (ENHANCED)
 import { NextResponse } from "next/server";
 
-import { currentUser, type User } from "@clerk/nextjs/server";
+import { type User, currentUser } from "@clerk/nextjs/server";
 
 import {
-    getAuctionStatusForPlayer,
-    placeBidOnExistingAuction,
-    placeInitialBidAndCreateAuction,
-    type AuctionCreationResult,
+  type AuctionCreationResult,
+  getAuctionStatusForPlayer,
+  placeBidOnExistingAuction,
+  placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limiter";
 
@@ -37,7 +36,7 @@ export async function POST(request: Request, context: RouteContext) {
   console.log(
     "!!!!!!!!!! POST HANDLER REACHED for /api/leagues/[league-id]/players/[player-id]/bids !!!!!!!!!!"
   );
-  
+
   // Parse route parameters early for deduplication
   const routeParams = await context.params;
   const leagueIdStr = routeParams["league-id"];
@@ -63,28 +62,39 @@ export async function POST(request: Request, context: RouteContext) {
 
   // CRITICAL: Request deduplication to prevent race conditions
   const dedupeKey = `${user.id}-${leagueIdNum}-${playerIdNum}`;
-  
+
   console.log(`[BID API] 🔒 Checking for concurrent request: ${dedupeKey}`);
-  
+
   // Check if there's already a pending request for this user/league/player combination
   if (pendingBidRequests.has(dedupeKey)) {
-    console.warn(`[BID API] 🚨 DUPLICATE REQUEST BLOCKED for user ${user.id}, league ${leagueIdNum}, player ${playerIdNum}`);
+    console.warn(
+      `[BID API] 🚨 DUPLICATE REQUEST BLOCKED for user ${user.id}, league ${leagueIdNum}, player ${playerIdNum}`
+    );
     return NextResponse.json(
-      { error: "Un'altra offerta per questo giocatore è già in corso. Attendi il completamento." },
+      {
+        error:
+          "Un'altra offerta per questo giocatore è già in corso. Attendi il completamento.",
+      },
       { status: 409 }
     );
   }
-  
+
   // Create promise for this request and store it
-  const requestPromise = processBidRequest(request, context, user, leagueIdNum, playerIdNum);
+  const requestPromise = processBidRequest(
+    request,
+    context,
+    user,
+    leagueIdNum,
+    playerIdNum
+  );
   pendingBidRequests.set(dedupeKey, requestPromise);
-  
+
   // Set timeout to cleanup pending request
   setTimeout(() => {
     pendingBidRequests.delete(dedupeKey);
     console.log(`[BID API] 🧹 Cleaned up request: ${dedupeKey}`);
   }, REQUEST_TIMEOUT_MS);
-  
+
   try {
     const result = await requestPromise;
     pendingBidRequests.delete(dedupeKey);
@@ -209,25 +219,29 @@ async function processBidRequest(
     );
 
     // 2.3. Logica di offerta: determina se creare una nuova asta o fare un'offerta su una esistente (INVARIATO)
-    console.log(`[API BIDS POST] 🔍 CRITICAL DEBUG - Checking for existing auction for player ${playerIdNum} in league ${leagueIdNum}`);
-    
+    console.log(
+      `[API BIDS POST] 🔍 CRITICAL DEBUG - Checking for existing auction for player ${playerIdNum} in league ${leagueIdNum}`
+    );
+
     // CRITICAL: Special tracking for player 5672 auction 1069 issue
     if (playerIdNum === 5672) {
-      console.log(`[API BIDS POST] 🚨 PLAYER 5672 DETECTED - This is the problematic case!`);
+      console.log(
+        `[API BIDS POST] 🚨 PLAYER 5672 DETECTED - This is the problematic case!`
+      );
       console.log(`[API BIDS POST] Request details:`, {
         userId: user.id,
         bidAmount,
         bidType,
         maxAmount: body.max_amount,
-        requestTimestamp: new Date().toISOString()
+        requestTimestamp: new Date().toISOString(),
       });
     }
-    
+
     const existingAuctionStatus = await getAuctionStatusForPlayer(
       leagueIdNum,
       playerIdNum
     );
-    
+
     console.log(`[API BIDS POST] 📊 AUCTION DETECTION RESULT:`, {
       found: !!existingAuctionStatus,
       status: existingAuctionStatus?.status,
@@ -236,7 +250,9 @@ async function processBidRequest(
       scheduledEndTime: existingAuctionStatus?.scheduled_end_time,
       currentBid: existingAuctionStatus?.current_highest_bid_amount,
       currentTime: Math.floor(Date.now() / 1000),
-      willCreateNewAuction: !existingAuctionStatus || !['active', 'closing'].includes(existingAuctionStatus.status)
+      willCreateNewAuction:
+        !existingAuctionStatus ||
+        !["active", "closing"].includes(existingAuctionStatus.status),
     });
 
     let result: AuctionCreationResult | { message: string };
@@ -269,14 +285,14 @@ async function processBidRequest(
       );
     } else {
       // CRITICAL: Log why we're creating a new auction instead of updating existing one
-      const reason = !existingAuctionStatus 
-        ? 'NO_AUCTION_EXISTS' 
+      const reason = !existingAuctionStatus
+        ? "NO_AUCTION_EXISTS"
         : `AUCTION_STATUS_${existingAuctionStatus.status.toUpperCase()}`;
-      
+
       console.log(
         `[API BIDS POST] ⚠️ No active auction found or auction not in biddable state. Reason: ${reason}. Placing initial bid to create auction.`
       );
-      
+
       // Additional logging for debugging
       if (existingAuctionStatus) {
         console.log(`[API BIDS POST] 📊 Existing auction details:`, {
@@ -285,13 +301,20 @@ async function processBidRequest(
           currentBid: existingAuctionStatus.current_highest_bid_amount,
           scheduledEndTime: existingAuctionStatus.scheduled_end_time,
           timeRemaining: existingAuctionStatus.time_remaining_seconds,
-          isExpired: existingAuctionStatus.scheduled_end_time ? 
-            (existingAuctionStatus.scheduled_end_time < Math.floor(Date.now() / 1000)) : 'unknown'
+          isExpired: existingAuctionStatus.scheduled_end_time
+            ? existingAuctionStatus.scheduled_end_time <
+              Math.floor(Date.now() / 1000)
+            : "unknown",
         });
-        
+
         // This should trigger auction-update, but we're creating new auction - investigate!
-        if (existingAuctionStatus.status === 'active' || existingAuctionStatus.status === 'closing') {
-          console.error(`[API BIDS POST] 🚨 CRITICAL BUG: Found ${existingAuctionStatus.status} auction but condition failed! This should not happen!`);
+        if (
+          existingAuctionStatus.status === "active" ||
+          existingAuctionStatus.status === "closing"
+        ) {
+          console.error(
+            `[API BIDS POST] 🚨 CRITICAL BUG: Found ${existingAuctionStatus.status} auction but condition failed! This should not happen!`
+          );
         }
       }
       if (bidType === "quick") {

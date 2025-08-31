@@ -7,9 +7,9 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 import { handleBidderChange } from "./auction-states.service";
 import { checkAndRecordCompliance } from "./penalty.service";
 import {
-    cancelResponseTimer,
-    createResponseTimer,
-    getUserCooldownInfo,
+  cancelResponseTimer,
+  createResponseTimer,
+  getUserCooldownInfo,
 } from "./response-timer.service";
 
 // 2. Tipi e Interfacce Esportate
@@ -483,7 +483,7 @@ export const placeInitialBidAndCreateAuction = async (
     const createAuctionStmt = db.prepare(
       `INSERT INTO auctions (auction_league_id, player_id, start_time, scheduled_end_time, current_highest_bid_amount, current_highest_bidder_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`
     );
-    
+
     let auctionInfo;
     try {
       auctionInfo = createAuctionStmt.run(
@@ -559,7 +559,9 @@ export const placeInitialBidAndCreateAuction = async (
     // Get player information for the new auction
     const playerInfo = db
       .prepare("SELECT name, role, team FROM players WHERE id = ?")
-      .get(playerIdParam) as { name: string; role: string; team: string } | undefined;
+      .get(playerIdParam) as
+      | { name: string; role: string; team: string }
+      | undefined;
 
     console.log(
       "[BID_SERVICE] createAndStartAuction - Emitting auction-created event:",
@@ -1044,116 +1046,43 @@ export async function placeBidOnExistingAuction({
     `[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`
   );
 
-  // --- Gestione Timer di Risposta + COMPLIANCE CHECK PER UTENTI SUPERATI ---
+  // --- Gestione Compliance e Timer ---
   if (result.success) {
-    // NUOVO: Controlla compliance per l'utente che è stato superato
-    // Questo è fondamentale perché perdere un'offerta vincente può rendere la rosa non-compliant
-    if (
-      result.previousHighestBidderId &&
-      result.previousHighestBidderId !== result.finalBidderId
-    ) {
-      try {
-        console.log(
-          `[BID_SERVICE] Checking compliance for outbid user ${result.previousHighestBidderId}`
-        );
-        const complianceResult = checkAndRecordCompliance(
-          result.previousHighestBidderId,
-          leagueId
-        );
-
-        if (complianceResult.statusChanged) {
-          console.log(
-            `[BID_SERVICE] Compliance status changed for outbid user ${result.previousHighestBidderId}: isCompliant=${complianceResult.isCompliant}`
-          );
-
-          // Se l'utente è diventato non-compliant, il timer è ripartito automaticamente
-          if (!complianceResult.isCompliant) {
-            console.log(
-              `[BID_SERVICE] CRITICAL: User ${result.previousHighestBidderId} became non-compliant after losing bid - penalty timer restarted`
-            );
-          }
-        }
-      } catch (error) {
-        console.error(
-          `[BID_SERVICE] Error checking compliance for outbid user ${result.previousHighestBidderId}:`,
-          error
-        );
-      }
+    const usersToCheck = new Set<string>();
+    if (result.previousHighestBidderId) {
+      usersToCheck.add(result.previousHighestBidderId);
     }
-    // NUOVO: Anche l'utente che ha fatto l'offerta potrebbe aver perso una precedente offerta vincente
-    // Controlla la sua compliance (caso meno comune ma possibile)
-    if (
-      userId !== result.finalBidderId &&
-      userId !== result.previousHighestBidderId
-    ) {
-      try {
-        console.log(
-          `[BID_SERVICE] Checking compliance for bidding user who didn't win ${userId}`
-        );
-        const bidderComplianceResult = checkAndRecordCompliance(
-          userId,
-          leagueId
-        );
+    usersToCheck.add(result.finalBidderId);
 
-        if (
-          bidderComplianceResult.statusChanged &&
-          !bidderComplianceResult.isCompliant
-        ) {
-          console.log(
-            `[BID_SERVICE] Bidding user ${userId} became non-compliant - penalty timer restarted`
-          );
-        }
+    for (const user of usersToCheck) {
+      try {
+        console.log(`[BID_SERVICE] Checking compliance for user ${user} after bid.`);
+        checkAndRecordCompliance(user, leagueId);
       } catch (error) {
-        console.error(
-          `[BID_SERVICE] Error checking compliance for bidding user ${userId}:`,
-          error
-        );
+        console.error(`[BID_SERVICE] Error checking compliance for user ${user}:`, error);
       }
     }
 
-    // Cancella timer per l'utente che ha rilanciato (non serve più)
+    // --- Gestione Timer di Risposta ---
+    // Cancella timer per l'utente che ha rilanciato (se era lui a dover rispondere)
     try {
-      const auctionInfoForCancel = db
-        .prepare(
-          "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'"
-        )
-        .get(leagueId, playerId) as { id: number } | undefined;
+      const auctionInfoForCancel = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'").get(leagueId, playerId) as { id: number } | undefined;
       if (auctionInfoForCancel) {
         await cancelResponseTimer(auctionInfoForCancel.id, userId);
-        console.log(`[BID_SERVICE] Timer cancellato per l'utente ${userId}`);
       }
     } catch (error) {
-      console.log(
-        `[BID_SERVICE] Timer cancellation non-critical error: ${error}`
-      );
+      console.log(`[BID_SERVICE] Timer cancellation non-critical error: ${error}`);
     }
 
     // Crea timer pendente per l'utente superato
-    const finalPreviousHighestBidderId = result.autoBidActivated
-      ? userId
-      : result.previousHighestBidderId;
-    if (
-      finalPreviousHighestBidderId &&
-      finalPreviousHighestBidderId !==
-        (result.autoBidActivated ? result.autoBidUserId : userId)
-    ) {
+    if (result.previousHighestBidderId && result.previousHighestBidderId !== result.finalBidderId) {
       try {
-        const auctionInfo = db
-          .prepare(
-            "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'"
-          )
-          .get(leagueId, playerId) as { id: number } | undefined;
+        const auctionInfo = db.prepare("SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'").get(leagueId, playerId) as { id: number } | undefined;
         if (auctionInfo) {
-          await createResponseTimer(
-            auctionInfo.id,
-            finalPreviousHighestBidderId
-          );
-          console.log(
-            `[BID_SERVICE] Timer creato per l'utente superato ${finalPreviousHighestBidderId}`
-          );
+          await createResponseTimer(auctionInfo.id, result.previousHighestBidderId);
         }
       } catch (error) {
-        console.error(`[BID_SERVICE] Error creating response timer: ${error}`);
+        console.error(`[BID_SERVICE] Error creating response timer for outbid user: ${error}`);
       }
     }
   }
@@ -1318,17 +1247,23 @@ export const getAuctionStatusForPlayer = async (
   playerIdParam: number
 ): Promise<AuctionStatusDetails | null> => {
   const currentTime = Math.floor(Date.now() / 1000);
-  console.log(`[getAuctionStatusForPlayer] 🔍 CRITICAL DEBUG - Searching for auction: league=${leagueIdParam}, player=${playerIdParam}, currentTime=${currentTime}`);
-  
+  console.log(
+    `[getAuctionStatusForPlayer] 🔍 CRITICAL DEBUG - Searching for auction: league=${leagueIdParam}, player=${playerIdParam}, currentTime=${currentTime}`
+  );
+
   // CRITICAL: Check for auction 1069 and player 5672 specifically
   if (playerIdParam === 5672) {
-    console.log(`[getAuctionStatusForPlayer] 🚨 PLAYER 5672 DETECTED - This is the problematic case from user logs!`);
+    console.log(
+      `[getAuctionStatusForPlayer] 🚨 PLAYER 5672 DETECTED - This is the problematic case from user logs!`
+    );
   }
-  
+
   // ENHANCED: Use database transaction with proper isolation to prevent race conditions
   const result = db.transaction(() => {
-    console.log(`[getAuctionStatusForPlayer] 🔒 Starting transaction for auction detection`);
-    
+    console.log(
+      `[getAuctionStatusForPlayer] 🔒 Starting transaction for auction detection`
+    );
+
     // Use READ UNCOMMITTED to see any pending transactions
     // This prevents race conditions where a bid is placed while another is being processed
     const auctionStmt = db.prepare(
@@ -1347,7 +1282,7 @@ export const getAuctionStatusForPlayer = async (
        ORDER BY a.updated_at DESC 
        LIMIT 1`
     );
-    
+
     // First check for only active/closing auctions to avoid race conditions
     const activeAuctionData = auctionStmt.get(leagueIdParam, playerIdParam) as
       | (Omit<
@@ -1364,20 +1299,22 @@ export const getAuctionStatusForPlayer = async (
 
     console.log(`[getAuctionStatusForPlayer] 📊 ACTIVE/CLOSING Query result:`, {
       found: !!activeAuctionData,
-      resultData: activeAuctionData ? {
-        id: activeAuctionData.id,
-        status: activeAuctionData.status,
-        currentBid: activeAuctionData.current_highest_bid_amount,
-        scheduledEndTime: activeAuctionData.scheduled_end_time,
-        timeRemaining: activeAuctionData.scheduled_end_time - currentTime,
-        updatedAt: activeAuctionData.updated_at,
-        isExpired: activeAuctionData.scheduled_end_time < currentTime
-      } : null
+      resultData: activeAuctionData
+        ? {
+            id: activeAuctionData.id,
+            status: activeAuctionData.status,
+            currentBid: activeAuctionData.current_highest_bid_amount,
+            scheduledEndTime: activeAuctionData.scheduled_end_time,
+            timeRemaining: activeAuctionData.scheduled_end_time - currentTime,
+            updatedAt: activeAuctionData.updated_at,
+            isExpired: activeAuctionData.scheduled_end_time < currentTime,
+          }
+        : null,
     });
-    
+
     return activeAuctionData;
   })();
-  
+
   if (result) {
     console.log(`[getAuctionStatusForPlayer] ✅ Found ACTIVE auction:`, {
       id: result.id,
@@ -1386,9 +1323,9 @@ export const getAuctionStatusForPlayer = async (
       currentTime: Math.floor(Date.now() / 1000),
       timeRemaining: result.scheduled_end_time - Math.floor(Date.now() / 1000),
       currentBid: result.current_highest_bid_amount,
-      currentBidder: result.current_highest_bidder_id
+      currentBidder: result.current_highest_bidder_id,
     });
-    
+
     // Return the active auction with full details
     const bidsStmt = db.prepare(
       `SELECT b.id, b.auction_id, b.user_id, b.amount, b.bid_time, b.bid_type, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 10`
@@ -1397,10 +1334,7 @@ export const getAuctionStatusForPlayer = async (
 
     const timeRemainingSeconds =
       result.status === "active" || result.status === "closing"
-        ? Math.max(
-            0,
-            result.scheduled_end_time - Math.floor(Date.now() / 1000)
-          )
+        ? Math.max(0, result.scheduled_end_time - Math.floor(Date.now() / 1000))
         : undefined;
 
     const { p_id, player_role, player_team, ...restOfAuctionData } = result;
@@ -1417,7 +1351,7 @@ export const getAuctionStatusForPlayer = async (
       time_remaining_seconds: timeRemainingSeconds,
     };
   }
-  
+
   // CRITICAL: Always check for ALL auctions to understand the complete state
   const allAuctionsStmt = db.prepare(`
     SELECT 
@@ -1433,8 +1367,11 @@ export const getAuctionStatusForPlayer = async (
     WHERE a.auction_league_id = ? AND a.player_id = ?
     ORDER BY a.updated_at DESC
   `);
-  
-  const allAuctions = allAuctionsStmt.all(leagueIdParam, playerIdParam) as Array<{
+
+  const allAuctions = allAuctionsStmt.all(
+    leagueIdParam,
+    playerIdParam
+  ) as Array<{
     id: number;
     status: string;
     current_highest_bid_amount: number;
@@ -1444,28 +1381,42 @@ export const getAuctionStatusForPlayer = async (
     time_remaining_seconds: number;
     expiry_status: string;
   }>;
-  
-  console.log(`[getAuctionStatusForPlayer] 🔍 ALL auctions for player ${playerIdParam} (${allAuctions.length} found):`);
+
+  console.log(
+    `[getAuctionStatusForPlayer] 🔍 ALL auctions for player ${playerIdParam} (${allAuctions.length} found):`
+  );
   allAuctions.forEach((auction, index) => {
-    console.log(`  [${index}] ID:${auction.id} Status:${auction.status} Bid:${auction.current_highest_bid_amount} EndTime:${auction.scheduled_end_time} UpdatedAt:${auction.updated_at} ${auction.expiry_status}`);
+    console.log(
+      `  [${index}] ID:${auction.id} Status:${auction.status} Bid:${auction.current_highest_bid_amount} EndTime:${auction.scheduled_end_time} UpdatedAt:${auction.updated_at} ${auction.expiry_status}`
+    );
     if (auction.id === 1069) {
-      console.log(`    🚨 FOUND AUCTION 1069! Status: ${auction.status}, Expired: ${auction.expiry_status}`);
+      console.log(
+        `    🚨 FOUND AUCTION 1069! Status: ${auction.status}, Expired: ${auction.expiry_status}`
+      );
     }
   });
-  
+
   // CRITICAL: If we find auction 1069 but didn't return it, log why
   if (playerIdParam === 5672) {
-    const auction1069 = allAuctions.find(a => a.id === 1069);
+    const auction1069 = allAuctions.find((a) => a.id === 1069);
     if (auction1069 && !result) {
-      console.log(`[getAuctionStatusForPlayer] 🚨 CRITICAL BUG DETECTED: Auction 1069 exists but was not returned!`);
+      console.log(
+        `[getAuctionStatusForPlayer] 🚨 CRITICAL BUG DETECTED: Auction 1069 exists but was not returned!`
+      );
       console.log(`  Auction 1069 status: ${auction1069.status}`);
-      console.log(`  Auction 1069 scheduled_end_time: ${auction1069.scheduled_end_time}`);
+      console.log(
+        `  Auction 1069 scheduled_end_time: ${auction1069.scheduled_end_time}`
+      );
       console.log(`  Current time: ${currentTime}`);
-      console.log(`  Is expired?: ${auction1069.scheduled_end_time < currentTime}`);
-      console.log(`  Status in active/closing?: ${['active', 'closing'].includes(auction1069.status)}`);
+      console.log(
+        `  Is expired?: ${auction1069.scheduled_end_time < currentTime}`
+      );
+      console.log(
+        `  Status in active/closing?: ${["active", "closing"].includes(auction1069.status)}`
+      );
     }
   }
-  
+
   // If no active auction found, check for any auction (including completed ones) for logging
   const anyAuctionStmt = db.prepare(
     `SELECT 
@@ -1481,39 +1432,42 @@ export const getAuctionStatusForPlayer = async (
      ORDER BY CASE a.status WHEN 'active' THEN 1 WHEN 'closing' THEN 2 ELSE 3 END, a.updated_at DESC 
      LIMIT 1`
   );
-  
-  const anyAuctionData = anyAuctionStmt.get(leagueIdParam, playerIdParam) as {
-    id: number;
-    status: string;
-    scheduled_end_time: number;
-    league_id: number;
-    player_id: number;
-    start_time: number;
-    current_highest_bid_amount: number | null;
-    current_highest_bidder_id: string | null;
-    created_at: number;
-    updated_at: number;
-    p_id: number;
-    player_name: string;
-    player_role: string;
-    player_team: string;
-    current_highest_bidder_username: string | null;
-  } | undefined;
-  
+
+  const anyAuctionData = anyAuctionStmt.get(leagueIdParam, playerIdParam) as
+    | {
+        id: number;
+        status: string;
+        scheduled_end_time: number;
+        league_id: number;
+        player_id: number;
+        start_time: number;
+        current_highest_bid_amount: number | null;
+        current_highest_bidder_id: string | null;
+        created_at: number;
+        updated_at: number;
+        p_id: number;
+        player_name: string;
+        player_role: string;
+        player_team: string;
+        current_highest_bidder_username: string | null;
+      }
+    | undefined;
+
   if (anyAuctionData) {
     console.log(`[getAuctionStatusForPlayer] ⚠️ Found NON-ACTIVE auction:`, {
       id: anyAuctionData.id,
       status: anyAuctionData.status,
       scheduledEndTime: anyAuctionData.scheduled_end_time,
       currentTime: Math.floor(Date.now() / 1000),
-      reason: 'AUCTION_EXISTS_BUT_NOT_BIDDABLE'
+      reason: "AUCTION_EXISTS_BUT_NOT_BIDDABLE",
     });
   } else {
-    console.log(`[getAuctionStatusForPlayer] ❌ No auction found for league=${leagueIdParam}, player=${playerIdParam}`);
+    console.log(
+      `[getAuctionStatusForPlayer] ❌ No auction found for league=${leagueIdParam}, player=${playerIdParam}`
+    );
   }
-  
-  return null;
 
+  return null;
 };
 
 export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{

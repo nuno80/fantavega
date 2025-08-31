@@ -127,7 +127,10 @@ export async function GET(
     const penaltiesByUser = new Map<string, number>();
     for (const penalty of penaltiesData) {
       // Enforce maximum penalty limit in display (should not exceed 25 credits)
-      const limitedPenalties = Math.min(penalty.total_penalties, MAX_TOTAL_PENALTY_CREDITS);
+      const limitedPenalties = Math.min(
+        penalty.total_penalties,
+        MAX_TOTAL_PENALTY_CREDITS
+      );
       penaltiesByUser.set(penalty.user_id, limitedPenalties);
     }
 

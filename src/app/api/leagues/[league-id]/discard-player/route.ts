@@ -1,7 +1,9 @@
-import { discardPlayerFromRoster } from "@/lib/db/services/player-discard.service";
-import { currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+
+import { currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
+
+import { discardPlayerFromRoster } from "@/lib/db/services/player-discard.service";
 
 const discardPlayerSchema = z.object({
   playerId: z.number().int().positive(),
@@ -19,10 +21,7 @@ export async function POST(
 
     const leagueId = parseInt(params["league-id"]);
     if (isNaN(leagueId)) {
-      return NextResponse.json(
-        { error: "Invalid league ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -38,11 +37,7 @@ export async function POST(
     const { playerId } = validation.data;
 
     // Perform player discard
-    const result = await discardPlayerFromRoster(
-      leagueId,
-      playerId,
-      user.id
-    );
+    const result = await discardPlayerFromRoster(leagueId, playerId, user.id);
 
     if (!result.success) {
       return NextResponse.json(

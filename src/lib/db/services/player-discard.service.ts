@@ -27,7 +27,8 @@ export const discardPlayerFromRoster = async (
 
       // 2. Verify player ownership and get player details
       const playerAssignment = db
-        .prepare(`
+        .prepare(
+          `
           SELECT 
             pa.user_id,
             pa.purchase_price as assignment_price,
@@ -38,27 +39,34 @@ export const discardPlayerFromRoster = async (
           FROM player_assignments pa
           JOIN players p ON pa.player_id = p.id
           WHERE pa.auction_league_id = ? AND pa.player_id = ? AND pa.user_id = ?
-        `)
-        .get(leagueId, playerId, userId) as {
-          user_id: string;
-          assignment_price: number;
-          player_name: string;
-          current_quotation: number;
-          role: string;
-          team: string;
-        } | undefined;
+        `
+        )
+        .get(leagueId, playerId, userId) as
+        | {
+            user_id: string;
+            assignment_price: number;
+            player_name: string;
+            current_quotation: number;
+            role: string;
+            team: string;
+          }
+        | undefined;
 
       if (!playerAssignment) {
-        throw new Error("Player not found in your roster or you don't own this player");
+        throw new Error(
+          "Player not found in your roster or you don't own this player"
+        );
       }
 
       // 3. Get current user budget
       const userBudget = db
-        .prepare(`
+        .prepare(
+          `
           SELECT current_budget
           FROM league_participants
           WHERE league_id = ? AND user_id = ?
-        `)
+        `
+        )
         .get(leagueId, userId) as { current_budget: number } | undefined;
 
       if (!userBudget) {
@@ -70,10 +78,12 @@ export const discardPlayerFromRoster = async (
 
       // 5. Remove player from roster (this automatically returns them to available pool)
       const deleteResult = db
-        .prepare(`
+        .prepare(
+          `
           DELETE FROM player_assignments
           WHERE auction_league_id = ? AND player_id = ? AND user_id = ?
-        `)
+        `
+        )
         .run(leagueId, playerId, userId);
 
       if (deleteResult.changes === 0) {
@@ -82,11 +92,13 @@ export const discardPlayerFromRoster = async (
 
       // 6. Refund credits to user budget
       const updateBudgetResult = db
-        .prepare(`
+        .prepare(
+          `
           UPDATE league_participants
           SET current_budget = current_budget + ?
           WHERE league_id = ? AND user_id = ?
-        `)
+        `
+        )
         .run(refundAmount, leagueId, userId);
 
       if (updateBudgetResult.changes === 0) {
@@ -95,7 +107,8 @@ export const discardPlayerFromRoster = async (
 
       // 7. Record the transaction
       const insertTransactionResult = db
-        .prepare(`
+        .prepare(
+          `
           INSERT INTO budget_transactions (
             auction_league_id,
             league_id,
@@ -106,7 +119,8 @@ export const discardPlayerFromRoster = async (
             related_player_id,
             balance_after_in_league
           ) VALUES (?, ?, ?, 'discard_player_credit', ?, ?, ?, ?)
-        `)
+        `
+        )
         .run(
           leagueId,
           leagueId,

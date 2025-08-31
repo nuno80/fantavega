@@ -132,90 +132,88 @@ export const checkAndRecordCompliance = (
   leagueId: number
 ): { statusChanged: boolean; isCompliant: boolean } => {
   try {
-    const result = db.transaction(() => {
-      const now = Math.floor(Date.now() / 1000);
+    // Rimosso db.transaction() per evitare transazioni annidate
+    const now = Math.floor(Date.now() / 1000);
 
-      const leagueStmt = db.prepare(
-        "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
+    const leagueStmt = db.prepare(
+      "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
+    );
+    const league = leagueStmt.get(leagueId) as
+      | Pick<
+          AuctionLeague,
+          | "id"
+          | "status"
+          | "active_auction_roles"
+          | "slots_P"
+          | "slots_D"
+          | "slots_C"
+          | "slots_A"
+        >
+      | undefined;
+
+    if (
+      !league ||
+      !["draft_active", "repair_active"].includes(league.status)
+    ) {
+      // Not a phase where penalties apply, so no status change.
+      return { statusChanged: false, isCompliant: true };
+    }
+
+    const phaseIdentifier = getCurrentPhaseIdentifier(
+      league.status,
+      league.active_auction_roles
+    );
+
+    const requiredSlots = calculateRequiredSlotsMinusOne(league);
+    const coveredSlots = countCoveredSlots(leagueId, userId);
+    const isCompliant = checkUserCompliance(
+      requiredSlots,
+      coveredSlots,
+      league.active_auction_roles
+    );
+
+    const getComplianceStmt = db.prepare(
+      "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+    );
+    let complianceRecord = getComplianceStmt.get(
+      leagueId,
+      userId,
+      phaseIdentifier
+    ) as { compliance_timer_start_at: number | null } | undefined;
+
+    // If no record exists, create a placeholder. The logic below will handle it.
+    if (!complianceRecord) {
+      db.prepare(
+        `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
+      ).run(leagueId, userId, phaseIdentifier, now, now);
+      complianceRecord = { compliance_timer_start_at: null };
+    }
+
+    const wasTimerActive =
+      complianceRecord.compliance_timer_start_at !== null;
+    let statusChanged = false;
+
+    if (isCompliant && wasTimerActive) {
+      // CASE A: User became compliant, stop the timer.
+      db.prepare(
+        "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+      ).run(now, leagueId, userId, phaseIdentifier);
+      statusChanged = true;
+      console.log(
+        `[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`
       );
-      const league = leagueStmt.get(leagueId) as
-        | Pick<
-            AuctionLeague,
-            | "id"
-            | "status"
-            | "active_auction_roles"
-            | "slots_P"
-            | "slots_D"
-            | "slots_C"
-            | "slots_A"
-          >
-        | undefined;
-
-      if (
-        !league ||
-        !["draft_active", "repair_active"].includes(league.status)
-      ) {
-        // Not a phase where penalties apply, so no status change.
-        return { statusChanged: false, isCompliant: true };
-      }
-
-      const phaseIdentifier = getCurrentPhaseIdentifier(
-        league.status,
-        league.active_auction_roles
+    } else if (!isCompliant && !wasTimerActive) {
+      // CASE B: User became non-compliant, start the timer.
+      db.prepare(
+        "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+      ).run(now, now, leagueId, userId, phaseIdentifier);
+      statusChanged = true;
+      console.log(
+        `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
       );
+    }
 
-      const requiredSlots = calculateRequiredSlotsMinusOne(league);
-      const coveredSlots = countCoveredSlots(leagueId, userId);
-      const isCompliant = checkUserCompliance(
-        requiredSlots,
-        coveredSlots,
-        league.active_auction_roles
-      );
-
-      const getComplianceStmt = db.prepare(
-        "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-      );
-      let complianceRecord = getComplianceStmt.get(
-        leagueId,
-        userId,
-        phaseIdentifier
-      ) as { compliance_timer_start_at: number | null } | undefined;
-
-      // If no record exists, create a placeholder. The logic below will handle it.
-      if (!complianceRecord) {
-        db.prepare(
-          `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
-        ).run(leagueId, userId, phaseIdentifier, now, now);
-        complianceRecord = { compliance_timer_start_at: null };
-      }
-
-      const wasTimerActive =
-        complianceRecord.compliance_timer_start_at !== null;
-      let statusChanged = false;
-
-      if (isCompliant && wasTimerActive) {
-        // CASE A: User became compliant, stop the timer.
-        db.prepare(
-          "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-        ).run(now, leagueId, userId, phaseIdentifier);
-        statusChanged = true;
-        console.log(
-          `[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`
-        );
-      } else if (!isCompliant && !wasTimerActive) {
-        // CASE B: User became non-compliant, start the timer.
-        db.prepare(
-          "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-        ).run(now, now, leagueId, userId, phaseIdentifier);
-        statusChanged = true;
-        console.log(
-          `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
-        );
-      }
-
-      return { statusChanged, isCompliant };
-    })();
-    return result;
+    return { statusChanged, isCompliant };
   } catch (error) {
     console.error(
       `[COMPLIANCE_SERVICE] Error checking compliance for user ${userId} in league ${leagueId}:`,

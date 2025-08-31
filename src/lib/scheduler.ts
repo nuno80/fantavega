@@ -15,7 +15,7 @@ let schedulerInterval: NodeJS.Timeout | null = null;
  */
 const runBackgroundTasks = async () => {
   // console.log("[SCHEDULER] Running background tasks...");
-  
+
   try {
     // 1. Processa le aste scadute
     const auctionResult = await processExpiredAuctionsAndAssignPlayers();
@@ -24,7 +24,10 @@ const runBackgroundTasks = async () => {
         `[SCHEDULER] Expired auctions processed: ${auctionResult.processedCount} successful, ${auctionResult.failedCount} failed.`
       );
       if (auctionResult.errors.length > 0) {
-        console.error("[SCHEDULER] Auction processing errors:", auctionResult.errors);
+        console.error(
+          "[SCHEDULER] Auction processing errors:",
+          auctionResult.errors
+        );
       }
     }
 
@@ -35,15 +38,19 @@ const runBackgroundTasks = async () => {
         `[SCHEDULER] Expired response timers processed: ${timerResult.processedCount} successful, ${timerResult.errors.length} errors.`
       );
       if (timerResult.errors.length > 0) {
-        console.error("[SCHEDULER] Timer processing errors:", timerResult.errors);
+        console.error(
+          "[SCHEDULER] Timer processing errors:",
+          timerResult.errors
+        );
       }
     }
-
   } catch (error) {
-    console.error("[SCHEDULER] Unhandled error during background task execution:", error);
+    console.error(
+      "[SCHEDULER] Unhandled error during background task execution:",
+      error
+    );
   }
 };
-
 
 /**
  * Avvia il sistema di scheduling automatico.
@@ -59,7 +66,7 @@ export const startScheduler = () => {
   );
 
   // Esegui subito al primo avvio
-  runBackgroundTasks(); 
+  runBackgroundTasks();
 
   // E poi esegui a intervalli regolari
   schedulerInterval = setInterval(runBackgroundTasks, TASK_CHECK_INTERVAL);
