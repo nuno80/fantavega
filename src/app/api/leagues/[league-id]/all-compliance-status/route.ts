@@ -43,12 +43,44 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Get compliance data for all users in the league
+    // Get the current phase identifier for the league
+    const leagueInfo = db
+      .prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?")
+      .get(leagueId) as { status: string; active_auction_roles: string | null } | undefined;
+    
+    if (!leagueInfo) {
+      return new NextResponse("League not found", { status: 404 });
+    }
+    
+    // Construct the phase identifier based on league status and active roles
+    const phaseIdentifier = leagueInfo.status === "draft_active" && leagueInfo.active_auction_roles
+      ? `draft_active_${leagueInfo.active_auction_roles}`
+      : leagueInfo.status;
+    
+    console.log(`[GET_ALL_COMPLIANCE_STATUS] Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
+    
+    // Get compliance data for all users in the league with the specific phase identifier
+    // Use a subquery to get only the most recent record for each user based on updated_at timestamp
     const complianceData = db
       .prepare(
-        "SELECT user_id, compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ?"
+        `SELECT t1.user_id, t1.compliance_timer_start_at 
+         FROM user_league_compliance_status t1
+         INNER JOIN (
+           SELECT user_id, MAX(updated_at) as max_updated_at
+           FROM user_league_compliance_status
+           WHERE league_id = ? AND phase_identifier = ?
+           GROUP BY user_id
+         ) t2 ON t1.user_id = t2.user_id AND t1.updated_at = t2.max_updated_at
+         WHERE t1.league_id = ? AND t1.phase_identifier = ?`
       )
-      .all(leagueId);
+      .all(leagueId, phaseIdentifier, leagueId, phaseIdentifier);
+      
+    console.log(`[GET_ALL_COMPLIANCE_STATUS] Found ${complianceData.length} compliance records for league ${leagueId} and phase ${phaseIdentifier}`);
+    
+    // Log the compliance data for debugging
+    complianceData.forEach(record => {
+      console.log(`[GET_ALL_COMPLIANCE_STATUS] User ${record.user_id}: compliance_timer_start_at = ${record.compliance_timer_start_at}`);
+    });
 
     return NextResponse.json(complianceData);
   } catch (error) {

@@ -2,6 +2,7 @@
 // Servizio per la logica di business relativa al sistema di penalità, con notifiche real-time.
 // 1. Importazioni
 import { db } from "@/lib/db";
+import { notifySocketServer } from "@/lib/socket-emitter";
 
 // <-- NUOVA IMPORTAZIONE
 import type { AuctionLeague } from "./auction-league.service";
@@ -418,16 +419,16 @@ export const processUserComplianceAndPenalties = async (
       return { wasModified: true };
     })();
 
-    // if (appliedPenaltyAmount > 0) {
-    //   await notifySocketServer({
-    //     room: `user-${userId}`,
-    //     event: 'penalty-applied-notification',
-    //     data: {
-    //       amount: appliedPenaltyAmount,
-    //       reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
-    //     }
-    //   });
-    // }
+    if (appliedPenaltyAmount > 0) {
+      await notifySocketServer({
+        room: `user-${userId}`,
+        event: 'penalty-applied-notification',
+        data: {
+          amount: appliedPenaltyAmount,
+          reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
+        }
+      });
+    }
 
     // Calculate timing information for non-compliant users
     let gracePeriodEndTime: number | undefined;

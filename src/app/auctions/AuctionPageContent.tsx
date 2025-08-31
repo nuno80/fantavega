@@ -375,7 +375,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   handlePlaceBid={handlePlaceBid}
                   onComplianceChange={setUserComplianceStatus}
                   complianceTimerStartAt={
-                    managerCompliance?.compliance_timer_start_at || null
+                    managerCompliance?.compliance_timer_start_at !== undefined
+                      ? (managerCompliance.compliance_timer_start_at === 0 ? 0 : managerCompliance.compliance_timer_start_at)
+                      : null
                   }
                   onPenaltyApplied={refreshComplianceData}
                   onPlayerDiscarded={() => {

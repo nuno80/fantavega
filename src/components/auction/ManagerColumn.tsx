@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 
 import {
-  AlertTriangle,
-  CheckCircle,
-  DollarSign,
-  Lock,
-  Star,
-  Trash2,
-  User,
-  X,
+    AlertTriangle,
+    CheckCircle,
+    DollarSign,
+    Lock,
+    Star,
+    Trash2,
+    User,
+    X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -645,7 +645,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         isCurrentUser
           ? complianceTimerStartAt !== null &&
             !isNaN(complianceTimerStartAt) &&
-            complianceTimerStartAt > 0
+            complianceTimerStartAt >= 0
             ? "border-red-500"
             : "border-green-500"
           : "border-border"
@@ -689,7 +689,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
               <>
                 {complianceTimerStartAt !== null &&
                 !isNaN(complianceTimerStartAt) &&
-                complianceTimerStartAt > 0 ? (
+                complianceTimerStartAt >= 0 ? (
                   <span title="Team non conforme" className="flex items-center">
                     <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
                     <ComplianceTimer
