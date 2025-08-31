@@ -331,7 +331,7 @@ export const processUserComplianceAndPenalties = async (
         const gracePeriodEndTime =
           timerToUse + COMPLIANCE_GRACE_PERIOD_HOURS * 3600;
         if (now >= gracePeriodEndTime) {
-          // Controllo del limite massimo assoluto di penalità prima di applicare nuove penalità
+          // Controllo del limite massimo assoluto di penalità
           const currentTotalPenaltiesResult = db
             .prepare(
               "SELECT COALESCE(SUM(amount), 0) as current_total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
@@ -340,7 +340,6 @@ export const processUserComplianceAndPenalties = async (
           
           const currentTotalPenalties = currentTotalPenaltiesResult.current_total;
           
-          // Se l'utente ha già raggiunto il limite massimo, non applicare ulteriori penalità
           if (currentTotalPenalties >= MAX_TOTAL_PENALTY_CREDITS) {
             finalMessage = `User has reached maximum penalty limit of ${MAX_TOTAL_PENALTY_CREDITS} credits. No additional penalties applied.`;
           } else {
@@ -361,7 +360,7 @@ export const processUserComplianceAndPenalties = async (
               maxPenaltiesFromLimit
             );
 
-          if (penaltiesToApply > 0) {
+            if (penaltiesToApply > 0) {
             for (let i = 0; i < penaltiesToApply; i++) {
               db.prepare(
                 "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
@@ -376,7 +375,7 @@ export const processUserComplianceAndPenalties = async (
               ).current_budget;
               const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${
                 (complianceRecord.penalties_applied_this_cycle || 0) + i + 1
-              }/${MAX_PENALTIES_PER_CYCLE}). Totale penalità: ${currentTotalPenalties + (i + 1) * PENALTY_AMOUNT}/${MAX_TOTAL_PENALTY_CREDITS}.`;
+              }/${MAX_PENALTIES_PER_CYCLE}).`;
               db.prepare(
                 `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
               ).run(
@@ -398,20 +397,11 @@ export const processUserComplianceAndPenalties = async (
               userId,
               phaseIdentifier
             );
-            finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties. Total penalties: ${currentTotalPenalties + appliedPenaltyAmount}/${MAX_TOTAL_PENALTY_CREDITS}.`;
-          } else if (currentTotalPenalties < MAX_TOTAL_PENALTY_CREDITS) {
-            finalMessage = `User is non-compliant, but no penalties due this hour.`;
+            finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties.`;
+            } else if (currentTotalPenalties < MAX_TOTAL_PENALTY_CREDITS) {
+              finalMessage = `User is non-compliant, but no penalties due this hour.`;
+            }
           }
-        }
-          // Aggiorna l'importo totale delle penalità da restituire
-          const updatedComplianceRecord = getComplianceStmt.get(
-            leagueId,
-            userId,
-            phaseIdentifier
-          ) as UserLeagueComplianceStatus;
-          appliedPenaltyAmount =
-            (updatedComplianceRecord.penalties_applied_this_cycle || 0) *
-            PENALTY_AMOUNT;
         } else {
           finalMessage = `User is non-compliant, but within grace period.`;
         }
@@ -489,8 +479,7 @@ export const processUserComplianceAndPenalties = async (
       )
       .get(leagueId, userId) as { total_penalties: number };
 
-    // Enforce maximum penalty limit in display (should not exceed 25 credits)
-    const totalPenaltyAmount = Math.min(totalPenaltiesResult.total_penalties, MAX_TOTAL_PENALTY_CREDITS);
+    const totalPenaltyAmount = totalPenaltiesResult.total_penalties;
 
     return {
       appliedPenaltyAmount,

@@ -670,10 +670,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           {/* Compliance Status - Visible to all users */}
           <div className="flex items-center gap-1">
             {/* Penalty indicator - visible to all if penalties exist */}
-            {(() => {
-              console.log(`[MANAGER_COLUMN] ${manager.manager_team_name}: total_penalties = ${manager.total_penalties}, type = ${typeof manager.total_penalties}`);
-              return manager.total_penalties > 0 && !isNaN(manager.total_penalties);
-            })() && (
+            {manager.total_penalties > 0 && !isNaN(manager.total_penalties) && (
               <span
                 title={`Penalità totali: ${manager.total_penalties} crediti`}
                 className="flex items-center"

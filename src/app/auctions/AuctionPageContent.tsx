@@ -136,10 +136,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        console.log("[AUCTION_PAGE] Managers data fetched:", data.managers?.map(m => ({
-          team: m.manager_team_name, 
-          penalties: m.total_penalties
-        })));
         setManagers(data.managers || []);
         setLeagueSlots(data.leagueSlots || null);
         setActiveAuctions(data.activeAuctions || []);
@@ -171,7 +167,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const refreshComplianceData = useCallback(async () => {
     if (!selectedLeagueId) return;
 
-    console.log("[AUCTION_PAGE] Refreshing compliance data after penalty...");
     try {
       // Refresh compliance data
       await fetchComplianceData(selectedLeagueId);
@@ -187,7 +182,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
       // Refresh managers data (includes updated budgets and penalty counts)
       await fetchManagersData(selectedLeagueId);
-      console.log("[AUCTION_PAGE] Compliance data refreshed successfully");
     } catch (error) {
       console.error("Error refreshing compliance data:", error);
     }

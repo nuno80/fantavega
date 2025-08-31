@@ -105,17 +105,17 @@ Il sistema di compliance è ora **event-driven**. Non si basa più su uno schedu
 
 **Trigger Points per il Controllo Compliance e Applicazione Penalità:**
 
-1.  **Qualsiasi Interazione Rilevante**: Azioni come il login, il piazzare un'offerta, o qualsiasi evento che invochi la funzione `checkAndRecordCompliance`.
-2.  **Controllo Automatico**: Ad ogni chiamata, la funzione `checkAndRecordCompliance` esegue i seguenti passi:
-    *   Verifica lo stato di compliance attuale dell'utente.
-    *   Se l'utente diventa non-compliant, avvia il timer di grazia di 1 ora.
-    *   **Se l'utente è già non-compliant e il timer di grazia è scaduto**, applica immediatamente una penalità di 5 crediti (fino al massimo di 25).
-3.  **Perdita di Offerta Vincente** (`placeBidOnExistingAuction`):
-    *   Quando un utente viene superato in un'asta, viene chiamato `checkAndRecordCompliance`.
-    *   Questo controllo immediato valuta se la perdita dello slot rende l'utente non-compliant e, se necessario, avvia il timer.
-4.  **Conclusione Asta Senza Vittoria** (`processExpiredAuctionsAndAssignPlayers`):
-    *   Al termine di un'asta, `checkAndRecordCompliance` viene chiamato per tutti i partecipanti che non hanno vinto.
-    *   Questo assicura che anche la perdita di un'opportunità di acquisire un giocatore possa avviare il timer di compliance se necessario.
+1. **Qualsiasi Interazione Rilevante**: Azioni come il login, il piazzare un'offerta, o qualsiasi evento che invochi la funzione `checkAndRecordCompliance`.
+2. **Controllo Automatico**: Ad ogni chiamata, la funzione `checkAndRecordCompliance` esegue i seguenti passi:
+   - Verifica lo stato di compliance attuale dell'utente.
+   - Se l'utente diventa non-compliant, avvia il timer di grazia di 1 ora.
+   - **Se l'utente è già non-compliant e il timer di grazia è scaduto**, applica immediatamente una penalità di 5 crediti (fino al massimo di 25).
+3. **Perdita di Offerta Vincente** (`placeBidOnExistingAuction`):
+   - Quando un utente viene superato in un'asta, viene chiamato `checkAndRecordCompliance`.
+   - Questo controllo immediato valuta se la perdita dello slot rende l'utente non-compliant e, se necessario, avvia il timer.
+4. **Conclusione Asta Senza Vittoria** (`processExpiredAuctionsAndAssignPlayers`):
+   - Al termine di un'asta, `checkAndRecordCompliance` viene chiamato per tutti i partecipanti che non hanno vinto.
+   - Questo assicura che anche la perdita di un'opportunità di acquisire un giocatore possa avviare il timer di compliance se necessario.
 
 **Logica di Business:**
 
@@ -135,3 +135,62 @@ if (user.lostBid && user.becameNonCompliant) {
 - **Viene superato nell'asta** → rimane solo con 1 Portiere assegnato
 - Nuovo stato: ❌ NON-Compliant (ha 1, serve 1, ma regola è N-1 quindi OK)
 - **Sistema rileva il cambiamento e riavvia timer se necessario**
+
+**Esempio di cosa accade quando scadee l'ora di grazia** │
+│ │
+│ • Team Fede ha il timer di compliance attivo da ~2h 57min │
+│ • Periodo di grazia: 1 ora (già scaduto) │
+│ • Prossima penalità: Tra 3 minuti (ogni ora dopo il periodo di grazia) │
+│ │
+│ COSA DOVREBBE ACCADERE TRA 3 MINUTI: │
+│ │
+│ 1. TRIGGER AUTOMATICO │
+│ │
+│ • Il sistema rileva automaticamente che è passata un'altra ora │
+│ • Non serve intervento manuale - il controllo avviene quando: │
+│ • Team Fede accede alla pagina auction/players │
+│ • Qualcuno piazza un'offerta che coinvolge Team Fede │
+│ • Il timer del ComplianceTimer raggiunge 00:00 │
+│ │
+│ 2. APPLICAZIONE PENALITÀ │
+│ │
+│ • Deduzione: 5 crediti dal budget corrente di Team Fede │
+│ • Transazione: Creata nel database con tipo penalty_requirement │
+│ • Descrizione: "Penalità per mancato rispetto requisiti rosa (Ora 2/5)" │
+│ • Limite: Massimo 5 penalità per ciclo, 25 crediti totali │
+│ │
+│ 3. AGGIORNAMENTO CREDITI │
+│ │
+│ • Budget disponibile: Ridotto di 5 crediti │
+│ • Budget bloccato: Rimane invariato (le penalità non toccano i crediti bloccati) │
+│ • Storico transazioni: Nuova voce visibile nell'admin │
+│ │
+│ 4. VISUALIZZAZIONE FRONTEND │
+│ │
+│ Nel ManagerColumn di Team Fede apparirà: │
+│ │
+│ • Icona P rossa con il numero aggiornato di crediti di penalità │
+│ • Budget disponibile ridotto di 5 crediti nella sezione budget │
+│ • Timer compliance che si resetta per il prossimo ciclo orario │
+│ │
+│ Per tutti gli altri manager: │
+│ │
+│ • Icona P rossa visibile anche a loro (trasparenza del sistema) │
+│ • Possono vedere il totale delle penalità di Team Fede │
+│ │
+│ 5. NOTIFICHE │
+│ │
+│ • Toast notification per Team Fede: "Penalità applicata: 5 crediti" │
+│ • Aggiornamento real-time via Socket.IO per tutti i partecipanti │
+│ • Log console: Conferma dell'applicazione della penalità │
+│ │
+│ 6. CICLO CONTINUO │
+│ │
+│ • Timer riavviato: Nuovo countdown di 1 ora per la prossima penalità │
+│ • Controllo compliance: Continua finché Team Fede non diventa compliant │
+│ • Limite massimo: Si ferma a 25 crediti totali di penalità │
+│ │
+│ RISULTATO FINALE ATTESO: │
+│ │
+│ Team Fede vedrà i suoi crediti disponibili diminuire e l'icona P rossa con il numero aggiornato, mentre tutti gli │
+│ altri manager potranno vedere pubblicamente le sue penalità accumulate.
