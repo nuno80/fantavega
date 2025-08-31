@@ -43,50 +43,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Get current league status and active roles to determine phase identifier
-    const leagueInfo = db
-      .prepare(
-        "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?"
-      )
-      .get(leagueId) as
-      | { status: string; active_auction_roles: string | null }
-      | undefined;
-
-    if (!leagueInfo) {
-      return new NextResponse("League not found", { status: 404 });
-    }
-
-    // Calculate current phase identifier
-    const getCurrentPhaseIdentifier = (
-      leagueStatus: string,
-      activeRolesString: string | null
-    ): string => {
-      if (
-        !activeRolesString ||
-        activeRolesString.trim() === "" ||
-        activeRolesString.toUpperCase() === "ALL"
-      ) {
-        return `${leagueStatus}_ALL_ROLES`;
-      }
-      const sortedRoles = activeRolesString
-        .split(",")
-        .map((r) => r.trim().toUpperCase())
-        .sort()
-        .join(",");
-      return `${leagueStatus}_${sortedRoles}`;
-    };
-
-    const currentPhaseIdentifier = getCurrentPhaseIdentifier(
-      leagueInfo.status,
-      leagueInfo.active_auction_roles
-    );
-
-    // Get compliance data for current phase only
+    // Get compliance data for all users in the league
     const complianceData = db
       .prepare(
-        "SELECT user_id, compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND phase_identifier = ?"
+        "SELECT user_id, compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ?"
       )
-      .all(leagueId, currentPhaseIdentifier);
+      .all(leagueId);
 
     return NextResponse.json(complianceData);
   } catch (error) {

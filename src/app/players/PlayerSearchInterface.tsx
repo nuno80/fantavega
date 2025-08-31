@@ -133,6 +133,17 @@ export function PlayerSearchInterface({
       try {
         setIsLoading(true);
 
+        // Trigger compliance check on page access
+        try {
+          await fetch("/api/user/trigger-login-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          console.log("Compliance check triggered successfully");
+        } catch (error) {
+          console.warn("Failed to trigger compliance check:", error);
+        }
+
         // Get user's leagues first
         const leaguesResponse = await fetch("/api/user/leagues");
         if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
