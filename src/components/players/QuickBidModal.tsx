@@ -39,8 +39,8 @@ export function QuickBidModal({
   onClose,
   player,
   leagueId,
-  userId,
-  onBidSuccess,
+  userId: _userId,
+  onBidSuccess: _onBidSuccess,
 }: QuickBidModalProps) {
   const [bidAmount, setBidAmount] = useState(0);
   const [maxAmount, setMaxAmount] = useState(0);

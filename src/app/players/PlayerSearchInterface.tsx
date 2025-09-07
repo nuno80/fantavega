@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
@@ -105,6 +105,28 @@ export function PlayerSearchInterface({
 
   const { socket, isConnected } = useSocket();
 
+  // Define refreshPlayersData first
+  const refreshPlayersData = useCallback(
+    async (leagueIdToLoad?: number) => {
+      const leagueId = leagueIdToLoad || selectedLeagueId;
+      if (!leagueId) return;
+
+      try {
+        const playersResponse = await fetch(
+          `/api/leagues/${leagueId}/players-with-status`
+        );
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          setPlayers(playersData);
+          setFilteredPlayers(playersData);
+        }
+      } catch (error) {
+        console.error("Error refreshing players data:", error);
+      }
+    },
+    [selectedLeagueId]
+  );
+
   // Fetch initial data
   useEffect(() => {
     const fetchPlayersData = async () => {
@@ -157,7 +179,7 @@ export function PlayerSearchInterface({
     };
 
     fetchPlayersData();
-  }, [userId]);
+  }, [userId, refreshPlayersData]);
 
   // Socket.IO real-time updates
   useEffect(() => {
@@ -284,7 +306,7 @@ export function PlayerSearchInterface({
       socket.off("auction-closed-notification", handleAuctionClosed);
       clearInterval(expiredAuctionsInterval);
     };
-  }, [socket, isConnected, selectedLeagueId]);
+  }, [socket, isConnected, selectedLeagueId, refreshPlayersData, userId]);
 
   // Filter players based on current filters
   useEffect(() => {
@@ -382,24 +404,6 @@ export function PlayerSearchInterface({
   const handleStartAuction = (player: PlayerWithAuctionStatus) => {
     // TODO: Implement start auction logic
     console.log("Start auction for player:", player);
-  };
-
-  const refreshPlayersData = async (leagueIdToLoad?: number) => {
-    const leagueId = leagueIdToLoad || selectedLeagueId;
-    if (!leagueId) return;
-
-    try {
-      const playersResponse = await fetch(
-        `/api/leagues/${leagueId}/players-with-status`
-      );
-      if (playersResponse.ok) {
-        const playersData = await playersResponse.json();
-        setPlayers(playersData);
-        setFilteredPlayers(playersData);
-      }
-    } catch (error) {
-      console.error("Error refreshing players data:", error);
-    }
   };
 
   const handleTogglePlayerIcon = async (

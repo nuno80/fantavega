@@ -6,22 +6,12 @@ import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
-import { AuctionLayout } from "@/components/auction/AuctionLayout";
-import { AuctionPlayerCard } from "@/components/auction/AuctionPlayerCard";
-import { AuctionTimer } from "@/components/auction/AuctionTimer";
-import { BidHistory } from "@/components/auction/BidHistory";
-import { BiddingInterface } from "@/components/auction/BiddingInterface";
-import { BudgetDisplay } from "@/components/auction/BudgetDisplay";
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
 import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
-import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
-import { getUserActiveResponseTimers } from "@/lib/db/services/response-timer.service";
 
 interface AuctionPageContentProps {
   userId: string;
@@ -47,6 +37,7 @@ interface Manager {
   current_budget: number;
   locked_credits: number;
   total_budget: number;
+  total_penalties: number;
   firstName?: string;
   lastName?: string;
   players: PlayerInRoster[];
@@ -99,17 +90,22 @@ interface AutoBid {
   user_id: string; // Added user_id to identify the owner of the auto-bid
 }
 
+interface ComplianceStatus {
+  user_id: string;
+  compliance_timer_start_at: number | null;
+}
+
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [currentAuction, setCurrentAuction] = useState<ActiveAuction | null>(
     null
   );
-  const [userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
-  const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
+  const [_userBudget, setUserBudget] = useState<UserBudgetInfo | null>(null);
+  const [_leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]); // Changed type to AutoBid[]
-  const [bidHistory, setBidHistory] = useState<
+  const [_bidHistory, setBidHistory] = useState<
     Array<{
       id: number;
       amount: number;
@@ -118,13 +114,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       [key: string]: unknown;
     }>
   >([]);
-  const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
-  const [showLeagueSelector, setShowLeagueSelector] = useState(false);
+  const [_leagues, setLeagues] = useState<LeagueInfo[]>([]);
+  const [_showLeagueSelector, _setShowLeagueSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAuctionStates, setUserAuctionStates] = useState<
     UserAuctionState[]
   >([]);
+  const [complianceData, setComplianceData] = useState<ComplianceStatus[]>([]);
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(
     null
@@ -137,6 +134,46 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   const { socket, isConnected } = useSocket();
   const router = useRouter();
+
+  // Helper function to refresh compliance and budget data after penalty
+  const refreshComplianceData = async () => {
+    if (!selectedLeagueId) return;
+
+    try {
+      // Refresh compliance data
+      const complianceResponse = await fetch(
+        `/api/leagues/${selectedLeagueId}/all-compliance-status`
+      );
+      if (complianceResponse.ok) {
+        const complianceData = await complianceResponse.json();
+        setComplianceData(complianceData || []);
+      }
+
+      // Refresh user budget
+      const budgetResponse = await fetch(
+        `/api/leagues/${selectedLeagueId}/budget`
+      );
+      if (budgetResponse.ok) {
+        const budget = await budgetResponse.json();
+        setUserBudget(budget);
+      }
+
+      // Refresh managers data (includes updated budgets and penalty counts)
+      const managersResponse = await fetch(
+        `/api/leagues/${selectedLeagueId}/managers`
+      );
+      if (managersResponse.ok) {
+        const managersData = await managersResponse.json();
+        setManagers(managersData.managers || []);
+      }
+
+      console.log(
+        "[AUCTION_PAGE] Compliance data refreshed after penalty application"
+      );
+    } catch (error) {
+      console.error("[AUCTION_PAGE] Error refreshing compliance data:", error);
+    }
+  };
 
   // Helper functions for data fetching
   const fetchBudgetData = async (leagueId: number) => {
@@ -185,6 +222,67 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         setSelectedLeagueId(league.id);
         setLeagueInfo(league);
         setLeagues(leagues);
+
+        // Trigger penalty check for the current league
+        try {
+          console.log(
+            `[PENALTY_CHECK] Triggering compliance check for league ${league.id}`
+          );
+          const penaltyResponse = await fetch(
+            `/api/leagues/${league.id}/check-compliance`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          if (penaltyResponse.ok) {
+            const penaltyResult = await penaltyResponse.json();
+            console.log(
+              `[PENALTY_CHECK] Compliance check completed:`,
+              penaltyResult
+            );
+
+            // Show notification if penalties were applied
+            if (penaltyResult.appliedPenaltyAmount > 0) {
+              toast.error(
+                `Penalità applicata: ${penaltyResult.appliedPenaltyAmount} crediti`,
+                {
+                  description: "La tua rosa non rispetta i requisiti minimi.",
+                  duration: 8000,
+                }
+              );
+            }
+
+            // Show info if user is in grace period
+            if (
+              !penaltyResult.isNowCompliant &&
+              penaltyResult.timeRemainingSeconds
+            ) {
+              const minutesRemaining = Math.ceil(
+                penaltyResult.timeRemainingSeconds / 60
+              );
+              toast.warning(
+                `Rosa non conforme - Tempo rimanente: ${minutesRemaining} minuti`,
+                {
+                  description: "Acquista giocatori per evitare penalità.",
+                  duration: 6000,
+                }
+              );
+            }
+          } else {
+            console.warn(
+              `[PENALTY_CHECK] Failed to check compliance:`,
+              penaltyResponse.status
+            );
+          }
+        } catch (e) {
+          // This is a background task, so we don't need to show an error to the user
+          console.error(
+            "[PENALTY_CHECK] Failed to trigger compliance check:",
+            e
+          );
+        }
 
         // Feature flag for consolidated API (INITIAL LOAD)
         const USE_CONSOLIDATED_API = false; //process.env.NEXT_PUBLIC_FEATURE_CONSOLIDATED_API === 'true';
@@ -278,14 +376,17 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           }
         }
 
-        // Fetch ALL user's auto-bids for this league (not needed anymore with individual fetching)
-        // const allAutoBidsResponse = await fetch(`/api/leagues/${leagueId}/auto-bids`);
-        // if (allAutoBidsResponse.ok) {
-        //   const allAutoBidsData = await allAutoBidsResponse.json();
-        //   setAutoBids(allAutoBidsData.autoBids || []);
-        // } else {
-        //   console.error("Failed to fetch all auto-bids");
-        // }
+        // Fetch compliance data for all users in this league
+        const complianceResponse = await fetch(
+          `/api/leagues/${leagueId}/all-compliance-status`
+        );
+        if (complianceResponse.ok) {
+          const complianceData = await complianceResponse.json();
+          console.log("Compliance data API response:", complianceData);
+          setComplianceData(complianceData || []);
+        } else {
+          console.error("Failed to fetch compliance data");
+        }
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati");
@@ -518,7 +619,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         socket.emit("leave-league-room", selectedLeagueId.toString());
       }
     };
-  }, [socket, isConnected, selectedLeagueId]);
+  }, [socket, isConnected, selectedLeagueId, currentAuction]);
 
   // Helper function to refresh all data with consolidated API (NEW OPTIMIZED METHOD)
   const refreshAllDataConsolidated = async (leagueId: string) => {
@@ -579,7 +680,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   };
 
   // Helper function to refresh data with old method (FALLBACK)
-  const refreshAllDataOld = async (leagueId: number) => {
+  const _refreshAllDataOld = async (leagueId: number) => {
     // Changed type to number
     console.time("[PERFORMANCE] Old method (4 API calls)");
     try {
@@ -718,7 +819,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   };
 
-  const handleTeamManagement = () => {
+  const _handleTeamManagement = () => {
     if (!selectedLeagueId) return;
     router.push(`/leagues/${selectedLeagueId}/roster` as Route);
   };
@@ -738,7 +839,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     selectedLeagueId
   );
 
-  const isUserHighestBidder =
+  const _isUserHighestBidder =
     currentAuction?.current_highest_bidder_id === userId;
 
   const displayedManagers = isMobile
@@ -753,7 +854,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         <CallPlayerInterface
           leagueId={selectedLeagueId || 0}
           userId={userId}
-          onStartAuction={(playerId) => {
+          onStartAuction={(_playerId) => {
             // Refresh the page or update state when auction starts
             window.location.reload();
           }}
@@ -780,28 +881,41 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           onShowAllTeams={() => setSelectedManagerId(null)}
         />
         {displayedManagers.length > 0 ? (
-          displayedManagers.map((manager, index) => (
-            <div key={`${manager.user_id}-${index}`} className="min-w-0 flex-1">
-              <ManagerColumn
-                manager={manager}
-                isCurrentUser={manager.user_id === userId}
-                isHighestBidder={
-                  currentAuction?.current_highest_bidder_id === manager.user_id
-                }
-                position={index + 1}
-                leagueSlots={leagueSlots ?? undefined}
-                activeAuctions={activeAuctions}
-                autoBids={autoBids}
-                currentAuctionPlayerId={currentAuction?.player_id}
-                userAuctionStates={
-                  manager.user_id === userId ? userAuctionStates : []
-                }
-                leagueId={selectedLeagueId ?? undefined}
-                handlePlaceBid={handlePlaceBid}
-                onComplianceChange={setUserComplianceStatus}
-              />
-            </div>
-          ))
+          displayedManagers.map((manager, index) => {
+            const managerCompliance = complianceData.find(
+              (c) => c.user_id === manager.user_id
+            );
+            return (
+              <div
+                key={`${manager.user_id}-${index}`}
+                className="min-w-0 flex-1"
+              >
+                <ManagerColumn
+                  manager={manager}
+                  isCurrentUser={manager.user_id === userId}
+                  isHighestBidder={
+                    currentAuction?.current_highest_bidder_id ===
+                    manager.user_id
+                  }
+                  position={index + 1}
+                  leagueSlots={leagueSlots ?? undefined}
+                  activeAuctions={activeAuctions}
+                  autoBids={autoBids}
+                  currentAuctionPlayerId={currentAuction?.player_id}
+                  userAuctionStates={
+                    manager.user_id === userId ? userAuctionStates : []
+                  }
+                  leagueId={selectedLeagueId ?? undefined}
+                  handlePlaceBid={handlePlaceBid}
+                  onComplianceChange={setUserComplianceStatus}
+                  complianceTimerStartAt={
+                    managerCompliance?.compliance_timer_start_at || null
+                  }
+                  onPenaltyApplied={refreshComplianceData}
+                />
+              </div>
+            );
+          })
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">

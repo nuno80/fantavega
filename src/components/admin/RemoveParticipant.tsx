@@ -4,7 +4,7 @@
 "use client";
 
 // 1. Importazioni
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,10 +22,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  type RemoveParticipantFormState,
-  removeParticipantAction,
-} from "@/lib/actions/league.actions";
+import { removeParticipantAction } from "@/lib/actions/league.actions";
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
 
 // src/components/admin/RemoveParticipant.tsx v.1.0
 // Componente client per la rimozione di un partecipante da una lega.
@@ -92,7 +92,7 @@ export function RemoveParticipant({
         } else {
           toast.error("Errore", { description: result.message });
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error("Errore", {
           description: "Si è verificato un errore durante la rimozione",
         });

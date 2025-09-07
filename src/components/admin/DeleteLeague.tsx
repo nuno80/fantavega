@@ -3,23 +3,11 @@
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-// Componenti UI
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,10 +21,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  type DeleteLeagueFormState,
-  deleteLeagueAction,
-} from "@/lib/actions/league.actions";
+import { deleteLeagueAction } from "@/lib/actions/league.actions";
+
+// src/components/admin/DeleteLeague.tsx
+// Componente per eliminare una lega con doppia conferma
 
 // src/components/admin/DeleteLeague.tsx
 // Componente per eliminare una lega con doppia conferma
@@ -101,7 +89,7 @@ export function DeleteLeague({
         } else {
           toast.error("Errore", { description: result.message });
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error("Errore", {
           description: "Si è verificato un errore durante l&apos;eliminazione",
         });
@@ -123,7 +111,7 @@ export function DeleteLeague({
     setConfirmationText("");
   };
 
-  const isConfirmationValid = confirmationText === "ELIMINA";
+  const _isConfirmationValid = confirmationText === "ELIMINA";
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

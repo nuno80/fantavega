@@ -3,10 +3,10 @@
 // 1. Importazioni
 import Link from "next/link";
 
-import { currentUser } from "@clerk/nextjs/server";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 // import { DeleteLeagueButton } from "@/components/admin/DeleteLeagueButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,6 @@ import { getLeaguesForAdminList } from "@/lib/db/services/auction-league.service
 // 2. Componente Pagina (Server Component)
 export default async function AdminLeaguesPage() {
   // 2.1. Recupero dati diretto
-  const user = await currentUser();
   const leagues = await getLeaguesForAdminList();
 
   // 2.2. JSX per la visualizzazione
@@ -51,6 +50,8 @@ export default async function AdminLeaguesPage() {
             </Link>
           </div>
         </div>
+
+        <AdminQuickActions />
 
         <Card>
           <CardHeader>

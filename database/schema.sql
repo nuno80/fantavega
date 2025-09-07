@@ -357,3 +357,11 @@ BEGIN
     UPDATE user_league_compliance_status SET updated_at = strftime('%s', 'now') 
     WHERE league_id = OLD.league_id AND user_id = OLD.user_id AND phase_identifier = OLD.phase_identifier;
 END;
+
+-- Tabella per tracciare le sessioni di login processate per il check di compliance
+CREATE TABLE IF NOT EXISTS processed_login_sessions (
+    session_id TEXT PRIMARY KEY, -- Clerk session ID
+    user_id TEXT NOT NULL,
+    processed_at INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

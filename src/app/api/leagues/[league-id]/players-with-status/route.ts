@@ -143,7 +143,7 @@ export async function GET(
         scheduled_end_time?: number;
         [key: string]: unknown;
       }>
-    ).map((player, index) => {
+    ).map((player, _index) => {
       const cooldownInfo = getUserCooldownInfo(user.id, player.id, leagueId);
       return {
         ...player,

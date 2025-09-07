@@ -5,9 +5,8 @@ import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 import { handleBidderChange } from "./auction-states.service";
-import { processUserComplianceAndPenalties } from "./penalty.service";
+import { checkAndRecordCompliance } from "./penalty.service";
 import {
-  canUserBidOnPlayer,
   cancelResponseTimer,
   createResponseTimer,
   getUserCooldownInfo,
@@ -326,9 +325,6 @@ const checkSlotsAndBudgetOrThrow = (
 // 4. Funzioni Esportate del Servizio per le Offerte
 const incrementLockedCreditsStmt = db.prepare(
   "UPDATE league_participants SET locked_credits = locked_credits + ?, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?"
-);
-const decrementLockedCreditsStmt = db.prepare(
-  "UPDATE league_participants SET locked_credits = locked_credits - ?, updated_at = strftime('%s', 'now') WHERE league_id = ? AND user_id = ?"
 );
 
 export const placeInitialBidAndCreateAuction = async (
@@ -991,8 +987,73 @@ export async function placeBidOnExistingAuction({
     `[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`
   );
 
-  // --- Gestione Timer di Risposta ---
+  // --- Gestione Timer di Risposta + COMPLIANCE CHECK PER UTENTI SUPERATI ---
   if (result.success) {
+    // NUOVO: Controlla compliance per l'utente che è stato superato
+    // Questo è fondamentale perché perdere un'offerta vincente può rendere la rosa non-compliant
+    if (
+      result.previousHighestBidderId &&
+      result.previousHighestBidderId !== result.finalBidderId
+    ) {
+      try {
+        console.log(
+          `[BID_SERVICE] Checking compliance for outbid user ${result.previousHighestBidderId}`
+        );
+        const complianceResult = checkAndRecordCompliance(
+          result.previousHighestBidderId,
+          leagueId
+        );
+
+        if (complianceResult.statusChanged) {
+          console.log(
+            `[BID_SERVICE] Compliance status changed for outbid user ${result.previousHighestBidderId}: isCompliant=${complianceResult.isCompliant}`
+          );
+
+          // Se l'utente è diventato non-compliant, il timer è ripartito automaticamente
+          if (!complianceResult.isCompliant) {
+            console.log(
+              `[BID_SERVICE] CRITICAL: User ${result.previousHighestBidderId} became non-compliant after losing bid - penalty timer restarted`
+            );
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[BID_SERVICE] Error checking compliance for outbid user ${result.previousHighestBidderId}:`,
+          error
+        );
+      }
+    }
+    // NUOVO: Anche l'utente che ha fatto l'offerta potrebbe aver perso una precedente offerta vincente
+    // Controlla la sua compliance (caso meno comune ma possibile)
+    if (
+      userId !== result.finalBidderId &&
+      userId !== result.previousHighestBidderId
+    ) {
+      try {
+        console.log(
+          `[BID_SERVICE] Checking compliance for bidding user who didn't win ${userId}`
+        );
+        const bidderComplianceResult = checkAndRecordCompliance(
+          userId,
+          leagueId
+        );
+
+        if (
+          bidderComplianceResult.statusChanged &&
+          !bidderComplianceResult.isCompliant
+        ) {
+          console.log(
+            `[BID_SERVICE] Bidding user ${userId} became non-compliant - penalty timer restarted`
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[BID_SERVICE] Error checking compliance for bidding user ${userId}:`,
+          error
+        );
+      }
+    }
+
     // Cancella timer per l'utente che ha rilanciato (non serve più)
     try {
       const auctionInfoForCancel = db
@@ -1367,6 +1428,83 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
           auction.current_highest_bid_amount,
           now
         );
+
+        // TASK 1.2: Re-check compliance after player assignment
+        checkAndRecordCompliance(
+          auction.current_highest_bidder_id,
+          auction.auction_league_id
+        );
+
+        // NUOVO: Check compliance for all users who had auto-bids but didn't win
+        // They might have become non-compliant after losing this auction
+        for (const otherAutoBid of allAutoBidsForAuction) {
+          try {
+            console.log(
+              `[AUCTION_EXPIRED] Checking compliance for user ${otherAutoBid.user_id} who lost auction ${auction.id}`
+            );
+            const complianceResult = checkAndRecordCompliance(
+              otherAutoBid.user_id,
+              auction.auction_league_id
+            );
+
+            if (
+              complianceResult.statusChanged &&
+              !complianceResult.isCompliant
+            ) {
+              console.log(
+                `[AUCTION_EXPIRED] CRITICAL: User ${otherAutoBid.user_id} became non-compliant after losing auction - penalty timer restarted`
+              );
+            }
+          } catch (error) {
+            console.error(
+              `[AUCTION_EXPIRED] Error checking compliance for losing bidder ${otherAutoBid.user_id}:`,
+              error
+            );
+          }
+        }
+
+        // NUOVO: Check compliance for ALL other users who made bids (manual or auto) but didn't win
+        // This catches manual bidders who might not have had auto-bids
+        const allLosingBidders = db
+          .prepare(
+            "SELECT DISTINCT user_id FROM bids WHERE auction_id = ? AND user_id != ?"
+          )
+          .all(auction.id, auction.current_highest_bidder_id) as {
+          user_id: string;
+        }[];
+
+        for (const losingBidder of allLosingBidders) {
+          // Skip if already checked in auto-bid loop above
+          if (
+            !allAutoBidsForAuction.some(
+              (ab) => ab.user_id === losingBidder.user_id
+            )
+          ) {
+            try {
+              console.log(
+                `[AUCTION_EXPIRED] Checking compliance for manual bidder ${losingBidder.user_id} who lost auction ${auction.id}`
+              );
+              const complianceResult = checkAndRecordCompliance(
+                losingBidder.user_id,
+                auction.auction_league_id
+              );
+
+              if (
+                complianceResult.statusChanged &&
+                !complianceResult.isCompliant
+              ) {
+                console.log(
+                  `[AUCTION_EXPIRED] CRITICAL: Manual bidder ${losingBidder.user_id} became non-compliant after losing auction - penalty timer restarted`
+                );
+              }
+            } catch (error) {
+              console.error(
+                `[AUCTION_EXPIRED] Error checking compliance for manual bidder ${losingBidder.user_id}:`,
+                error
+              );
+            }
+          }
+        }
       })();
 
       processedCount++;

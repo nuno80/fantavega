@@ -1,20 +1,15 @@
 // src/app/dashboard/page.tsx v.1.2
 // Corretto l'errore di tipo per 'href' con typedRoutes abilitato.
 // 1. Importazioni
-import Link from "next/link";
-
 import { currentUser } from "@clerk/nextjs/server";
 import {
-  Database,
   FileUp,
   Landmark,
-  LayoutGrid,
-  Trophy,
   Users,
-  Users2,
 } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 import {
   type DashboardStats,
   getDashboardStats,
@@ -32,18 +27,7 @@ export default async function DashboardPage() {
     { title: "Aste Attive", value: stats.activeAuctions, icon: FileUp },
   ];
 
-  // MODIFICA CHIAVE: Aggiunto 'as const' per aiutare TypeScript
-  // a inferire i tipi delle stringhe href come letterali e non come stringhe generiche.
-  const navLinks = [
-    { title: "Crea Nuova Lega", href: "/admin/leagues/create", icon: Trophy },
-    { title: "Gestione Utenti", href: "/admin/users", icon: Users2 },
-    {
-      title: "Gestione DB (Upload)",
-      href: "/admin/db-management",
-      icon: Database,
-    },
-    { title: "Gestione Leghe", href: "/admin/leagues", icon: LayoutGrid },
-  ] as const;
+
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -74,24 +58,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        {/* Sezione Navigazione Admin */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-xl font-semibold text-foreground">
-            Azioni Rapide
-          </h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {navLinks.map((link, index) => (
-              <Link key={index} href={link.href} className="group">
-                <div className="flex h-full transform flex-col items-center justify-center rounded-lg border bg-card p-6 text-center shadow-sm transition-transform group-hover:scale-105">
-                  <link.icon className="mb-2 h-8 w-8 text-muted-foreground" />
-                  <h3 className="font-semibold text-card-foreground">
-                    {link.title}
-                  </h3>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <AdminQuickActions />
       </main>
     </div>
   );

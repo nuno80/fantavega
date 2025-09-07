@@ -3,9 +3,7 @@
 
 "use server";
 
-// 1. Importazioni consolidate
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { auth } from "@clerk/nextjs/server";
 
@@ -17,34 +15,6 @@ import {
   updateParticipantTeamName,
 } from "@/lib/db/services/auction-league.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
 // 2. Action: Creare una Lega
 export type CreateLeagueFormState = {
   success: boolean;

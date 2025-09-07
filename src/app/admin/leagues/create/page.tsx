@@ -3,6 +3,7 @@
 // 1. Importazioni
 import { CreateLeagueForm } from "@/components/forms/CreateLeagueForm";
 import { Navbar } from "@/components/navbar";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 
 // Assumiamo esista una Navbar
 
@@ -12,6 +13,8 @@ export default function CreateLeaguePage() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Navbar />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <AdminQuickActions />
+
         {/* Renderizziamo il nostro componente form client-side */}
         <CreateLeagueForm />
       </main>

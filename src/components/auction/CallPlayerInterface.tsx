@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   Dumbbell,
@@ -93,7 +93,7 @@ export function CallPlayerInterface({
   );
   const [selectedPlayerDetails, setSelectedPlayerDetails] =
     useState<PlayerWithStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] =
     useState<PlayerWithStatus | null>(null);
@@ -122,7 +122,7 @@ export function CallPlayerInterface({
   );
 
   // Fetch players data
-  const refreshPlayersData = async () => {
+  const refreshPlayersData = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch(
@@ -169,12 +169,12 @@ export function CallPlayerInterface({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [leagueId]);
 
   // Initial data fetch
   useEffect(() => {
     refreshPlayersData();
-  }, [leagueId]);
+  }, [refreshPlayersData]);
 
   // Filter players based on search term, role, and preferences
   useEffect(() => {

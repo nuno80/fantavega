@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ComplianceTimer } from "./ComplianceTimer";
 import { ResponseActionModal } from "./ResponseActionModal";
 import { StandardBidModal } from "./StandardBidModal";
 
@@ -31,6 +32,7 @@ interface Manager {
   current_budget: number;
   locked_credits: number;
   total_budget: number;
+  total_penalties: number;
   firstName?: string;
   lastName?: string;
   players: PlayerInRoster[];
@@ -71,12 +73,6 @@ interface AutoBid {
   user_id: string; // Added user_id to identify the owner of the auto-bid
 }
 
-interface AutoBidIndicator {
-  // Keeping this for now, but it's not used for the main autoBids prop
-  player_id: number;
-  auto_bid_count: number;
-}
-
 // Discriminated union for Slot
 type Slot =
   | { type: "assigned"; player: PlayerInRoster }
@@ -110,6 +106,8 @@ interface ManagerColumnProps {
     bypassComplianceCheck?: boolean,
     maxAmount?: number
   ) => Promise<void>;
+  complianceTimerStartAt: number | null;
+  onPenaltyApplied?: () => void; // Callback for when penalty is applied
 }
 
 // Helper functions
@@ -126,49 +124,6 @@ const getRoleColor = (role: string) => {
     default:
       return "bg-gray-500";
   }
-};
-
-const getRoleTextColor = (role: string) => {
-  switch (role.toUpperCase()) {
-    case "P":
-      return "text-yellow-400";
-    case "D":
-      return "text-green-400";
-    case "C":
-      return "text-blue-400";
-    case "A":
-      return "text-red-400";
-    default:
-      return "text-gray-400";
-  }
-};
-
-const getSlotStyle = (role: string): React.CSSProperties => {
-  const style: React.CSSProperties = {
-    backgroundColor: "rgba(107, 114, 128, 0.2)",
-    borderColor: "#6B7280",
-    borderWidth: "1px",
-    borderStyle: "solid",
-  };
-  switch (role.toUpperCase()) {
-    case "P":
-      style.backgroundColor = "rgba(234, 179, 8, 0.2)";
-      style.borderColor = "#F59E0B";
-      break;
-    case "D":
-      style.backgroundColor = "rgba(16, 185, 129, 0.2)";
-      style.borderColor = "#10B981";
-      break;
-    case "C":
-      style.backgroundColor = "rgba(59, 130, 246, 0.2)";
-      style.borderColor = "#3B82F6";
-      break;
-    case "A":
-      style.backgroundColor = "rgba(239, 68, 68, 0.2)";
-      style.borderColor = "#EF4444";
-      break;
-  }
-  return style;
 };
 
 const formatTimeRemaining = (endTime: number) => {
@@ -206,7 +161,6 @@ function AssignedSlot({
   role: string;
 }) {
   const roleColor = getRoleColor(role);
-  const roleTextColor = getRoleTextColor(role);
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -495,15 +449,6 @@ function EmptySlot() {
   );
 }
 
-interface ComplianceResult {
-  appliedPenaltyAmount: number;
-  totalPenaltyAmount: number;
-  isNowCompliant: boolean;
-  message: string;
-  gracePeriodEndTime?: number;
-  timeRemainingSeconds?: number;
-}
-
 // Main Component
 const ManagerColumn: React.FC<ManagerColumnProps> = ({
   manager,
@@ -512,13 +457,13 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   position,
   leagueSlots,
   activeAuctions = [],
-  autoBids = [],
   userAutoBid,
   currentAuctionPlayerId,
   userAuctionStates = [],
   leagueId,
   handlePlaceBid,
-  onComplianceChange,
+  complianceTimerStartAt,
+  onPenaltyApplied,
 }) => {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -528,44 +473,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     team: string;
     currentBid: number;
   } | null>(null);
-  const [complianceResult, setComplianceResult] =
-    useState<ComplianceResult | null>(null);
-
-  useEffect(() => {
-    const checkCompliance = async () => {
-      if (leagueId && manager.user_id) {
-        try {
-          const response = await fetch(
-            `/api/leagues/${leagueId}/check-compliance`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: manager.user_id }), // Invia l'ID del manager
-            }
-          );
-          if (response.ok) {
-            const result = await response.json();
-            setComplianceResult(result);
-          } else {
-            setComplianceResult(null);
-          }
-        } catch (error) {
-          console.error("Error checking compliance:", error);
-          setComplianceResult(null);
-        }
-      }
-    };
-
-    checkCompliance();
-    const interval = setInterval(checkCompliance, 60000); // Controlla ogni minuto
-
-    return () => clearInterval(interval);
-  }, [leagueId, manager.user_id]); // Rimuovi isCurrentUser, riesegui solo se l'ID del manager o della lega cambia
 
   const handleCounterBid = (playerId: number) => {
     console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
 
-    // Trova le informazioni del giocatore
     const auction = activeAuctions.find((a) => a.player_id === playerId);
     const state = userAuctionStates.find((s) => s.player_id === playerId);
 
@@ -581,6 +492,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
       setShowStandardBidModal(true);
     }
   };
+
   const getTeamColor = (position: number) => {
     const colors = [
       "text-red-400",
@@ -595,31 +507,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     return colors[(position - 1) % colors.length];
   };
 
-  // Determina il ruolo predominante per il colore della barra di progresso
-  const getPredominantRoleColor = () => {
-    // Conta i giocatori per ruolo
-    const pCount = getRoleCount("P");
-    const dCount = getRoleCount("D");
-    const cCount = getRoleCount("C");
-    const aCount = getRoleCount("A");
-
-    // Trova il ruolo con più giocatori
-    if (pCount >= dCount && pCount >= cCount && pCount >= aCount) {
-      return "bg-yellow-500";
-    } else if (dCount >= pCount && dCount >= cCount && dCount >= aCount) {
-      return "bg-green-500";
-    } else if (cCount >= pCount && cCount >= dCount && cCount >= aCount) {
-      return "bg-blue-500";
-    } else if (aCount >= pCount && aCount >= dCount && aCount >= cCount) {
-      return "bg-red-500";
-    }
-
-    // Default
-    return "bg-yellow-500";
-  };
-
   const getRoleCount = (role: string) => {
-    // Controllo di sicurezza per manager.players
     const managerPlayers = manager.players || [];
     const assignedCount = managerPlayers.filter(
       (p) => p.role.toUpperCase() === role.toUpperCase()
@@ -638,7 +526,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     const roleKey = `slots_${role}` as keyof LeagueSlots;
     const totalSlots = leagueSlots[roleKey];
 
-    // Controllo di sicurezza per manager.players
     const managerPlayers = manager.players || [];
     const assignedPlayers = managerPlayers.filter(
       (p) => p.role.toUpperCase() === role.toUpperCase()
@@ -649,7 +536,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         a.current_highest_bidder_id === manager.user_id
     );
     const statesForRole = userAuctionStates.filter((s) => {
-      // Trova il ruolo del giocatore dallo stato
       const auction = activeAuctions.find((a) => a.player_id === s.player_id);
       return (
         auction?.player_role.toUpperCase() === role.toUpperCase() &&
@@ -658,17 +544,12 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     });
 
     const slots: Slot[] = [];
-
     assignedPlayers.forEach((player) =>
       slots.push({ type: "assigned", player })
     );
-
-    // Add response needed states (priority over regular auctions)
     statesForRole.forEach((state) => {
       slots.push({ type: "response_needed", state });
     });
-
-    // Add auctions for this role (excluding those with response needed states for current user)
     activeAuctionsForRole.forEach((auction) => {
       const hasResponseState =
         isCurrentUser &&
@@ -688,24 +569,17 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const totalBudget = manager?.total_budget || 0;
   const currentBudget = manager?.current_budget || 0;
   const lockedCredits = manager?.locked_credits || 0;
-
-  // Calcoli chiari per il nuovo cruscotto
   const availableBudget = currentBudget - lockedCredits;
   const spentCredits = totalBudget - availableBudget;
   const spentPercentage =
     totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
 
-  const isNonCompliant =
-    isCurrentUser &&
-    complianceResult &&
-    !complianceResult.isNowCompliant &&
-    (complianceResult.totalPenaltyAmount > 0 ||
-      complianceResult.timeRemainingSeconds === 0);
-
   return (
     <div
       className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${
-        isNonCompliant ? "border-red-500" : "border-border"
+        isCurrentUser && complianceTimerStartAt !== null
+          ? "border-red-500"
+          : "border-border"
       }`}
     >
       {/* Header */}
@@ -723,35 +597,52 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           >
             {manager.manager_team_name || `Team #${position}`}
           </span>
-          {/* Penalty Icon - Visible to all */}
-          {complianceResult && complianceResult.totalPenaltyAmount > 0 && (
-            <div
-              className="ml-1 flex flex-shrink-0 items-center"
-              title={`Penalità totali applicate: ${complianceResult.totalPenaltyAmount} crediti`}
-            >
-              <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600">
-                <span className="text-xs font-bold text-white">P</span>
-              </div>
-              <span className="ml-1 text-xs font-bold text-red-500">
-                {complianceResult.totalPenaltyAmount}
-              </span>
-            </div>
-          )}
 
-          {/* Compliance Status - Visible only to current user */}
-          {isCurrentUser && complianceResult && (
-            <>
-              {!complianceResult.isNowCompliant ? (
-                <span title="Team non conforme">
-                  <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
+          {/* Compliance Status - Visible to all users */}
+          <div className="flex items-center gap-1">
+            {/* Penalty indicator - visible to all if penalties exist */}
+            {manager.total_penalties > 0 && (
+              <span
+                title={`Penalità totali: ${manager.total_penalties} crediti`}
+                className="flex items-center"
+              >
+                <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                  P
+                </div>
+                <span className="ml-1 text-xs text-red-400">
+                  {manager.total_penalties}
                 </span>
-              ) : (
-                <span title="Team conforme">
-                  <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
-                </span>
-              )}
-            </>
-          )}
+              </span>
+            )}
+
+            {/* Compliance timer - visible only to current user */}
+            {isCurrentUser && (
+              <>
+                {complianceTimerStartAt !== null ? (
+                  <span title="Team non conforme" className="flex items-center">
+                    <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
+                    <ComplianceTimer
+                      timerStartTimestamp={complianceTimerStartAt}
+                      leagueId={leagueId}
+                      onPenaltyApplied={() => {
+                        // Call parent callback to refresh data after penalty
+                        console.log(
+                          "[MANAGER_COLUMN] Timer expired, penalty applied - refreshing compliance data"
+                        );
+                        if (onPenaltyApplied) {
+                          onPenaltyApplied();
+                        }
+                      }}
+                    />
+                  </span>
+                ) : (
+                  <span title="Team conforme">
+                    <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
+                  </span>
+                )}
+              </>
+            )}
+          </div>
         </div>
         <div
           className={`text-lg font-bold ${isHighestBidder ? "text-green-400" : isCurrentUser ? "text-yellow-400" : "text-foreground"}`}
@@ -762,7 +653,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
       {/* Nuovo Cruscotto Budget */}
       <div className="mb-2 space-y-2 rounded-md border border-gray-700 bg-gray-800/50 p-2 text-xs">
-        {/* Riga Disponibili */}
         <div className="flex items-baseline justify-between">
           <span className="font-semibold text-gray-300">DISPONIBILI</span>
           <span className="text-lg font-bold text-green-400">
@@ -770,7 +660,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           </span>
         </div>
 
-        {/* Barra di Progresso */}
         <div className="h-2 w-full rounded-full bg-gray-600">
           <div
             className="h-2 rounded-full bg-red-500"
@@ -779,7 +668,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           ></div>
         </div>
 
-        {/* Riga Dettagli */}
         <div className="flex justify-between pt-1 text-center">
           <div>
             <span className="text-gray-400">Bloccati</span>
