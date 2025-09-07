@@ -49,3 +49,7 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 .crush
+
+/.nuove-features/
+/.vscode/
+.idea/s
