@@ -50,6 +50,4 @@ next-env.d.ts
 /.clerk/
 .crush
 
-/.nuove-features/
-/.vscode/
-.idea/s
+nuove-features/
