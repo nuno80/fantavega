@@ -214,42 +214,6 @@ export function PlayerSearchInterface({
     processExpiredAuctions();
     const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
 
-    const handleAuctionUpdate = (data: {
-      playerId: number;
-      newPrice: number;
-      highestBidderId: string;
-      highestBidderName?: string;
-      scheduledEndTime: number;
-      autoBids?: Array<{
-        userId: string;
-        username: string;
-        maxAmount: number;
-        isActive: boolean;
-      }>;
-    }) => {
-      setPlayers((prev) =>
-        prev.map((player) =>
-          player.id === data.playerId
-            ? {
-                ...player,
-                auctionStatus: "active_auction", // <-- CORREZIONE: Assicura che lo stato sia sempre attivo su un update
-                currentBid: data.newPrice,
-                currentHighestBidderName:
-                  data.highestBidderName || data.highestBidderId,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-                autoBids: data.autoBids || player.autoBids,
-                userAutoBid:
-                  data.autoBids?.find((ab) => ab.userId === userId) ||
-                  player.userAutoBid,
-              }
-            : player
-        )
-      );
-    };
-
     const handleAuctionClosed = (data: {
       playerId: number;
       winnerId: string;
@@ -270,39 +234,12 @@ export function PlayerSearchInterface({
       );
     };
 
-    const handleAuctionCreated = (data: {
-      playerId: number;
-      auctionId: number;
-      newPrice: number;
-      highestBidderId: string;
-      scheduledEndTime: number;
-    }) => {
-      setPlayers((prev) =>
-        prev.map((player) =>
-          player.id === data.playerId
-            ? {
-                ...player,
-                auctionStatus: "active_auction",
-                auctionId: data.auctionId,
-                currentBid: data.newPrice,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-              }
-            : player
-        )
-      );
-    };
-
-    socket.on("auction-created", handleAuctionCreated);
-    socket.on("auction-update", handleAuctionUpdate);
+    // Register event listeners - Only handle auction closures, not creation/updates
+    // AuctionPageContent handles auction-created and auction-update events centrally
     socket.on("auction-closed-notification", handleAuctionClosed);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
-      socket.off("auction-created", handleAuctionCreated);
-      socket.off("auction-update", handleAuctionUpdate);
       socket.off("auction-closed-notification", handleAuctionClosed);
       clearInterval(expiredAuctionsInterval);
     };

@@ -44,6 +44,21 @@ import { Label } from "@/components/ui/label";
 // src/components/admin/PlayerImportForm.tsx v.1.2 (Definitivo)
 // Versione robusta che usa il comportamento nativo del form per l'upload.
 
+// src/components/admin/PlayerImportForm.tsx v.1.2 (Definitivo)
+// Versione robusta che usa il comportamento nativo del form per l'upload.
+
+// src/components/admin/PlayerImportForm.tsx v.1.2 (Definitivo)
+// Versione robusta che usa il comportamento nativo del form per l'upload.
+
+// src/components/admin/PlayerImportForm.tsx v.1.2 (Definitivo)
+// Versione robusta che usa il comportamento nativo del form per l'upload.
+
+// src/components/admin/PlayerImportForm.tsx v.1.2 (Definitivo)
+// Versione robusta che usa il comportamento nativo del form per l'upload.
+
+// src/components/admin/PlayerImportForm.tsx v.1.2 (Definitivo)
+// Versione robusta che usa il comportamento nativo del form per l'upload.
+
 // 2. Componente principale
 export function PlayerImportForm() {
   const [isUploading, setIsUploading] = useState(false);

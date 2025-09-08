@@ -218,72 +218,26 @@ export function CallPlayerInterface({
     setFilteredPlayers(filtered);
   }, [players, searchTerm, selectedRole, preferenceFilters]);
 
-  // Socket.IO real-time updates
+  // Socket.IO real-time updates - CENTRALIZED IN AuctionPageContent
   useEffect(() => {
     if (!isConnected || !socket || !leagueId) return;
 
-    // Join league room for real-time updates
-    console.log(`[Socket Client] Joining league room: league-${leagueId}`);
-    socket.emit("join-league-room", leagueId.toString());
+    // NOTE: According to project specifications, all auction-related Socket.IO event listeners
+    // must be centralized in AuctionPageContent.tsx. This component only handles auction-closed
+    // events for updating local player state when auctions end.
 
-    // Handle auction creation events
-    const handleAuctionCreated = (data: {
-      playerId: number;
-      currentBid: number;
-      scheduledEndTime: number;
-    }) => {
-      console.log("[Socket Client] Auction created:", data);
-      setPlayers((prevPlayers) =>
-        prevPlayers.map((player) =>
-          player.id === data.playerId
-            ? {
-                ...player,
-                auctionStatus: "active_auction" as const,
-                currentBid: data.currentBid,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-              }
-            : player
-        )
-      );
-    };
+    console.log(
+      `[CallPlayerInterface] Registering minimal Socket.IO listeners for league ${leagueId}`
+    );
 
-    // Handle auction update events (bid placement)
-    const handleAuctionUpdate = (data: {
-      playerId: number;
-      newPrice: number;
-      highestBidderId: string;
-      scheduledEndTime: number;
-    }) => {
-      console.log("[Socket Client] Auction updated:", data);
-      setPlayers((prevPlayers) =>
-        prevPlayers.map((player) =>
-          player.id === data.playerId
-            ? {
-                ...player,
-                auctionStatus: "active_auction" as const,
-                currentBid: data.newPrice,
-                currentHighestBidderName: data.highestBidderId,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-              }
-            : player
-        )
-      );
-    };
-
-    // Handle auction closed events
+    // Handle auction closed events only (AuctionPageContent handles creation and updates)
     const handleAuctionClosed = (data: {
       playerId: number;
       playerName: string;
       winnerId: string;
       finalPrice: number;
     }) => {
-      console.log("[Socket Client] Auction closed:", data);
+      console.log("[CallPlayerInterface] Auction closed:", data);
       setPlayers((prevPlayers) =>
         prevPlayers.map((player) =>
           player.id === data.playerId
@@ -299,16 +253,11 @@ export function CallPlayerInterface({
       );
     };
 
-    // Register event listeners
-    socket.on("auction-created", handleAuctionCreated);
-    socket.on("auction-update", handleAuctionUpdate);
+    // Register only auction-closed events
     socket.on("auction-closed-notification", handleAuctionClosed);
 
     // Cleanup on unmount
     return () => {
-      socket.emit("leave-league-room", leagueId.toString());
-      socket.off("auction-created", handleAuctionCreated);
-      socket.off("auction-update", handleAuctionUpdate);
       socket.off("auction-closed-notification", handleAuctionClosed);
     };
   }, [socket, isConnected, leagueId]);
@@ -401,8 +350,12 @@ export function CallPlayerInterface({
       setSelectedPlayer("");
       setSelectedPlayerDetails(null);
       setSelectedPlayerForStartAuction(null);
-      // Refresh players data
-      await refreshPlayersData();
+
+      // Socket.IO will handle the real-time update, no need to refresh manually
+      console.log(
+        "[CallPlayerInterface] Auction created successfully, waiting for Socket.IO update"
+      );
+
       // Callback to parent
       if (onStartAuction) {
         onStartAuction(selectedPlayerForStartAuction.id);
@@ -498,30 +451,32 @@ export function CallPlayerInterface({
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
-                className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${
-                  (() => {
-                    const activeFiltersCount =
-                      (selectedRole !== "ALL" ? 1 : 0) +
-                      (preferenceFilters.isStarter ? 1 : 0) +
-                      (preferenceFilters.isFavorite ? 1 : 0) +
-                      (preferenceFilters.hasIntegrity ? 1 : 0) +
-                      (preferenceFilters.hasFmv ? 1 : 0);
-                    return activeFiltersCount > 0 ? "border-blue-500 bg-blue-50/10" : "";
-                  })()
-                }`}
-                title={
-                  (() => {
-                    const activeFilters = [];
-                    if (selectedRole !== "ALL") activeFilters.push(`Ruolo: ${selectedRole}`);
-                    if (preferenceFilters.isStarter) activeFilters.push("Titolari");
-                    if (preferenceFilters.isFavorite) activeFilters.push("Preferiti");
-                    if (preferenceFilters.hasIntegrity) activeFilters.push("Integrità");
-                    if (preferenceFilters.hasFmv) activeFilters.push("FMV");
-                    return activeFilters.length > 0
-                      ? `Filtri attivi: ${activeFilters.join(", ")}`
-                      : "Cerca giocatore o squadra...";
-                  })()
-                }
+                className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${(() => {
+                  const activeFiltersCount =
+                    (selectedRole !== "ALL" ? 1 : 0) +
+                    (preferenceFilters.isStarter ? 1 : 0) +
+                    (preferenceFilters.isFavorite ? 1 : 0) +
+                    (preferenceFilters.hasIntegrity ? 1 : 0) +
+                    (preferenceFilters.hasFmv ? 1 : 0);
+                  return activeFiltersCount > 0
+                    ? "border-blue-500 bg-blue-50/10"
+                    : "";
+                })()}`}
+                title={(() => {
+                  const activeFilters = [];
+                  if (selectedRole !== "ALL")
+                    activeFilters.push(`Ruolo: ${selectedRole}`);
+                  if (preferenceFilters.isStarter)
+                    activeFilters.push("Titolari");
+                  if (preferenceFilters.isFavorite)
+                    activeFilters.push("Preferiti");
+                  if (preferenceFilters.hasIntegrity)
+                    activeFilters.push("Integrità");
+                  if (preferenceFilters.hasFmv) activeFilters.push("FMV");
+                  return activeFilters.length > 0
+                    ? `Filtri attivi: ${activeFilters.join(", ")}`
+                    : "Cerca giocatore o squadra...";
+                })()}
               />
 
               {/* Active filters indicator in search bar */}
@@ -535,7 +490,10 @@ export function CallPlayerInterface({
 
                 return activeFiltersCount > 0 ? (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-500 text-xs text-white"
+                    >
                       {activeFiltersCount}
                     </Badge>
                   </div>
@@ -708,11 +666,13 @@ export function CallPlayerInterface({
           <div className="space-y-4">
             {/* Reset Filters Button */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-400">Filtri Attivi</span>
+              <span className="text-sm font-medium text-gray-400">
+                Filtri Attivi
+              </span>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs border-gray-600 text-gray-400 hover:bg-gray-800 hover:text-white"
+                className="border-gray-600 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
                 onClick={() => {
                   setSelectedRole("ALL");
                   setPreferenceFilters({

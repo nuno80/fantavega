@@ -7,6 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import { Download, FileCode, FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

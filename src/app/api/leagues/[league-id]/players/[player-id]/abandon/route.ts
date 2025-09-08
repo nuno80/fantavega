@@ -17,7 +17,8 @@ export async function POST(
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    const { "league-id": leagueIdParam, "player-id": playerIdParam } = await params;
+    const { "league-id": leagueIdParam, "player-id": playerIdParam } =
+      await params;
     const leagueId = parseInt(leagueIdParam);
     const playerId = parseInt(playerIdParam);
 

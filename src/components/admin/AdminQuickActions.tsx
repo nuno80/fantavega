@@ -1,11 +1,6 @@
 import Link from "next/link";
-import {
-  Database,
-  Download,
-  LayoutGrid,
-  Trophy,
-  Users2,
-} from "lucide-react";
+
+import { Database, Download, LayoutGrid, Trophy, Users2 } from "lucide-react";
 
 const quickActions = [
   { title: "Crea Nuova Lega", href: "/admin/leagues/create", icon: Trophy },

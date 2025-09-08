@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from "react";
 
 import {
-  AlertTriangle,
-  CheckCircle,
   DollarSign,
   Lock,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
   Star,
   User,
   X,
@@ -192,7 +193,7 @@ function AssignedSlot({
       <div className="flex min-w-0 items-center">
         <div
           className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
-        />
+        ></div>
         <span className="truncate text-xs">{player.name}</span>
       </div>
       <div className="flex flex-shrink-0 items-center gap-1">
@@ -278,7 +279,7 @@ function ResponseNeededSlot({
         <div className="flex min-w-0 flex-1 items-center">
           <div
             className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
-          />
+          ></div>
           <span className="mr-2 truncate text-xs text-red-900 dark:text-red-200">
             {state.player_name}
           </span>
@@ -303,7 +304,7 @@ function ResponseNeededSlot({
           >
             <DollarSign
               className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
-            />
+            ></DollarSign>
           </button>
           <button
             onClick={() => setShowModal(true)}
@@ -313,7 +314,7 @@ function ResponseNeededSlot({
           >
             <X
               className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
-            />
+            ></X>
           </button>
         </div>
       </div>
@@ -375,7 +376,7 @@ function InAuctionSlot({
     isCurrentUser,
     leagueId,
     auction.player_id,
-    auction.current_highest_bid_amount,
+    // REMOVED: auction.current_highest_bid_amount - this was causing unnecessary re-fetches
   ]);
 
   // Show user's auto-bid for this specific player (only their own)
@@ -412,7 +413,7 @@ function InAuctionSlot({
       <div className="flex min-w-0 items-center">
         <div
           className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
-        />
+        ></div>
         <span className="truncate text-xs">{auction.player_name}</span>
       </div>
       <div className="flex items-center justify-between text-xs">
@@ -464,6 +465,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   handlePlaceBid,
   complianceTimerStartAt,
   onPenaltyApplied,
+  onComplianceChange,
 }) => {
   const [showStandardBidModal, setShowStandardBidModal] = useState(false);
   const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
@@ -473,6 +475,49 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     team: string;
     currentBid: number;
   } | null>(null);
+
+  const [complianceState, setComplianceState] = useState({
+    isCompliant: true,
+    isInGracePeriod: false,
+    isPenaltyActive: false,
+  });
+
+  useEffect(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const isTimerActive = complianceTimerStartAt !== null;
+
+    if (!isTimerActive) {
+      const newState = {
+        isCompliant: true,
+        isInGracePeriod: false,
+        isPenaltyActive: false,
+      };
+      setComplianceState(newState);
+      if (onComplianceChange) {
+        onComplianceChange({
+          isCompliant: newState.isCompliant,
+          isInGracePeriod: newState.isInGracePeriod,
+        });
+      }
+      return;
+    }
+
+    const gracePeriodEnds = complianceTimerStartAt + 3600; // 1 hour
+    const isInGracePeriod = now < gracePeriodEnds;
+
+    const newState = {
+      isCompliant: false,
+      isInGracePeriod: isInGracePeriod,
+      isPenaltyActive: !isInGracePeriod,
+    };
+    setComplianceState(newState);
+    if (onComplianceChange) {
+      onComplianceChange({
+        isCompliant: newState.isCompliant,
+        isInGracePeriod: newState.isInGracePeriod,
+      });
+    }
+  }, [complianceTimerStartAt, onComplianceChange]);
 
   const handleCounterBid = (playerId: number) => {
     console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
@@ -574,13 +619,19 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const spentPercentage =
     totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
 
+  const borderColorClass = complianceState.isCompliant
+    ? "border-green-500"
+    : "border-red-500";
+
+  const ComplianceIcon = complianceState.isCompliant
+    ? ShieldCheck
+    : complianceState.isInGracePeriod
+      ? ShieldAlert
+      : Shield;
+
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${
-        isCurrentUser && complianceTimerStartAt !== null
-          ? "border-red-500"
-          : "border-border"
-      }`}
+      className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${borderColorClass}`}
     >
       {/* Header */}
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -598,9 +649,38 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
             {manager.manager_team_name || `Team #${position}`}
           </span>
 
-          {/* Compliance Status - Visible to all users */}
+          {/* Compliance Status */}
           <div className="flex items-center gap-1">
-            {/* Penalty indicator - visible to all if penalties exist */}
+            {isCurrentUser && (
+              <span
+                title={
+                  complianceState.isCompliant
+                    ? "Team conforme"
+                    : complianceState.isInGracePeriod
+                      ? "Team non conforme (periodo di grazia)"
+                      : "Team non conforme (penalità attive)"
+                }
+              >
+                <ComplianceIcon
+                  className={`ml-1 h-4 w-4 ${
+                    complianceState.isCompliant
+                      ? "text-green-500"
+                      : complianceState.isInGracePeriod
+                        ? "text-orange-400"
+                        : "text-red-500"
+                  }`}
+                />
+              </span>
+            )}
+
+            {isCurrentUser && complianceState.isInGracePeriod && (
+              <ComplianceTimer
+                timerStartTimestamp={complianceTimerStartAt}
+                leagueId={leagueId}
+                onPenaltyApplied={onPenaltyApplied}
+              />
+            )}
+
             {manager.total_penalties > 0 && (
               <span
                 title={`Penalità totali: ${manager.total_penalties} crediti`}
@@ -613,34 +693,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                   {manager.total_penalties}
                 </span>
               </span>
-            )}
-
-            {/* Compliance timer - visible only to current user */}
-            {isCurrentUser && (
-              <>
-                {complianceTimerStartAt !== null ? (
-                  <span title="Team non conforme" className="flex items-center">
-                    <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
-                    <ComplianceTimer
-                      timerStartTimestamp={complianceTimerStartAt}
-                      leagueId={leagueId}
-                      onPenaltyApplied={() => {
-                        // Call parent callback to refresh data after penalty
-                        console.log(
-                          "[MANAGER_COLUMN] Timer expired, penalty applied - refreshing compliance data"
-                        );
-                        if (onPenaltyApplied) {
-                          onPenaltyApplied();
-                        }
-                      }}
-                    />
-                  </span>
-                ) : (
-                  <span title="Team conforme">
-                    <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
-                  </span>
-                )}
-              </>
             )}
           </div>
         </div>

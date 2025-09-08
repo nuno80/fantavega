@@ -1,4 +1,4 @@
-// src/lib/db/services/bid.service.ts v.2.2
+// src/lib/db/services/bid.service.ts v.2.3 - Patched with 8dbeada changes
 // Servizio completo per la logica delle offerte, con integrazione Socket.IO per notifiche in tempo reale.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -483,16 +483,34 @@ export const placeInitialBidAndCreateAuction = async (
     const createAuctionStmt = db.prepare(
       `INSERT INTO auctions (auction_league_id, player_id, start_time, scheduled_end_time, current_highest_bid_amount, current_highest_bidder_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`
     );
-    const auctionInfo = createAuctionStmt.run(
-      leagueIdParam,
-      playerIdParam,
-      now,
-      scheduledEndTime,
-      bidAmountParam,
-      bidderUserIdParam,
-      now,
-      now
-    );
+
+    let auctionInfo;
+    try {
+      auctionInfo = createAuctionStmt.run(
+        leagueIdParam,
+        playerIdParam,
+        now,
+        scheduledEndTime,
+        bidAmountParam,
+        bidderUserIdParam,
+        now,
+        now
+      );
+    } catch (error) {
+      // Handle database constraint violation for duplicate active auctions
+      if (
+        error instanceof Error &&
+        error.message.includes("UNIQUE constraint failed")
+      ) {
+        console.warn(
+          `[BID_SERVICE] CONSTRAINT VIOLATION: Duplicate active auction prevented for player ${playerIdParam} in league ${leagueIdParam}`
+        );
+        throw new Error(
+          "Esiste già un'asta attiva per questo giocatore. Riprova tra qualche secondo."
+        );
+      }
+      throw error;
+    }
     const newAuctionId = auctionInfo.lastInsertRowid as number;
     if (!newAuctionId) throw new Error("Creazione asta fallita.");
 
@@ -538,17 +556,58 @@ export const placeInitialBidAndCreateAuction = async (
 
   // **NUOVO**: Notifica Socket.IO dopo che la transazione ha avuto successo
   if (result.auction_id) {
-    await notifySocketServer({
-      room: `league-${leagueIdParam}`,
-      event: "auction-created",
-      data: {
-        playerId: result.player_id,
-        auctionId: result.auction_id,
-        newPrice: result.current_bid,
-        highestBidderId: result.current_winner_id,
-        scheduledEndTime: result.scheduled_end_time,
-      },
-    });
+    // Get player information for the new auction
+    const playerInfo = db
+      .prepare("SELECT name, role, team FROM players WHERE id = ?")
+      .get(playerIdParam) as
+      | { name: string; role: string; team: string }
+      | undefined;
+
+    console.log(
+      "[BID_SERVICE] createAndStartAuction - Emitting auction-created event:",
+      {
+        room: `league-${leagueIdParam}`,
+        event: "auction-created",
+        data: {
+          playerId: result.player_id,
+          auctionId: result.auction_id,
+          newPrice: result.current_bid,
+          highestBidderId: result.current_winner_id,
+          scheduledEndTime: result.scheduled_end_time,
+          playerInfo,
+        },
+      }
+    );
+
+    try {
+      await notifySocketServer({
+        room: `league-${leagueIdParam}`,
+        event: "auction-created",
+        data: {
+          playerId: result.player_id,
+          auctionId: result.auction_id,
+          newPrice: result.current_bid,
+          highestBidderId: result.current_winner_id,
+          scheduledEndTime: result.scheduled_end_time,
+          playerName: playerInfo?.name || `Player ${result.player_id}`,
+          playerRole: playerInfo?.role || "",
+          playerTeam: playerInfo?.team || "",
+          isNewAuction: true, // Flag to distinguish from bid updates
+        },
+      });
+      console.log(
+        "[BID_SERVICE] createAndStartAuction - auction-created event emitted successfully"
+      );
+    } catch (error) {
+      console.error(
+        "[BID_SERVICE] createAndStartAuction - Failed to emit auction-created event:",
+        error
+      );
+    }
+  } else {
+    console.warn(
+      "[BID_SERVICE] createAndStartAuction - No auction_id in result, cannot emit auction-created event"
+    );
   }
   return result;
 };
@@ -1260,7 +1319,179 @@ export const getAuctionStatusForPlayer = async (
   leagueIdParam: number,
   playerIdParam: number
 ): Promise<AuctionStatusDetails | null> => {
-  const auctionStmt = db.prepare(
+  const currentTime = Math.floor(Date.now() / 1000);
+  console.log(
+    `[getAuctionStatusForPlayer] 🔍 CRITICAL DEBUG - Searching for auction: league=${leagueIdParam}, player=${playerIdParam}, currentTime=${currentTime}`
+  );
+
+  // CRITICAL: Check for auction 1069 and player 5672 specifically
+  if (playerIdParam === 5672) {
+    console.log(
+      `[getAuctionStatusForPlayer] 🚨 PLAYER 5672 DETECTED - This is the problematic case from user logs!`
+    );
+  }
+
+  // ENHANCED: Use database transaction with proper isolation to prevent race conditions
+  const result = db.transaction(() => {
+    console.log(
+      `[getAuctionStatusForPlayer] 🔒 Starting transaction for auction detection`
+    );
+
+    // Use READ UNCOMMITTED to see any pending transactions
+    // This prevents race conditions where a bid is placed while another is being processed
+    const auctionStmt = db.prepare(
+      `SELECT 
+        a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, 
+        a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id, 
+        a.status, a.created_at, a.updated_at, 
+        p.id as p_id, p.name AS player_name, p.role as player_role, p.team as player_team,
+        u.username AS current_highest_bidder_username 
+       FROM auctions a 
+       JOIN players p ON a.player_id = p.id 
+       LEFT JOIN users u ON a.current_highest_bidder_id = u.id 
+       WHERE a.auction_league_id = ? AND a.player_id = ? 
+         AND a.status IN ('active', 'closing')
+         AND a.scheduled_end_time > strftime('%s', 'now')
+       ORDER BY a.updated_at DESC 
+       LIMIT 1`
+    );
+
+    // First check for only active/closing auctions to avoid race conditions
+    const activeAuctionData = auctionStmt.get(leagueIdParam, playerIdParam) as
+      | (Omit<
+          AuctionStatusDetails,
+          "bid_history" | "time_remaining_seconds" | "player"
+        > & {
+          player_name: string;
+          current_highest_bidder_username: string | null;
+          p_id: number;
+          player_role: string;
+          player_team: string;
+        })
+      | undefined;
+
+    console.log(`[getAuctionStatusForPlayer] 📊 ACTIVE/CLOSING Query result:`, {
+      found: !!activeAuctionData,
+      resultData: activeAuctionData
+        ? {
+            id: activeAuctionData.id,
+            status: activeAuctionData.status,
+            currentBid: activeAuctionData.current_highest_bid_amount,
+            scheduledEndTime: activeAuctionData.scheduled_end_time,
+            timeRemaining: activeAuctionData.scheduled_end_time - currentTime,
+            updatedAt: activeAuctionData.updated_at,
+            isExpired: activeAuctionData.scheduled_end_time < currentTime,
+          }
+        : null,
+    });
+
+    return activeAuctionData;
+  })();
+
+  if (result) {
+    console.log(`[getAuctionStatusForPlayer] ✅ Found ACTIVE auction:`, {
+      id: result.id,
+      status: result.status,
+      scheduledEndTime: result.scheduled_end_time,
+      currentTime: Math.floor(Date.now() / 1000),
+      timeRemaining: result.scheduled_end_time - Math.floor(Date.now() / 1000),
+      currentBid: result.current_highest_bid_amount,
+      currentBidder: result.current_highest_bidder_id,
+    });
+
+    // Return the active auction with full details
+    const bidsStmt = db.prepare(
+      `SELECT b.id, b.auction_id, b.user_id, b.amount, b.bid_time, b.bid_type, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 10`
+    );
+    const bidHistory = bidsStmt.all(result.id) as BidRecord[];
+
+    const timeRemainingSeconds =
+      result.status === "active" || result.status === "closing"
+        ? Math.max(0, result.scheduled_end_time - Math.floor(Date.now() / 1000))
+        : undefined;
+
+    const { p_id, player_role, player_team, ...restOfAuctionData } = result;
+
+    return {
+      ...restOfAuctionData,
+      player: {
+        id: p_id,
+        role: player_role,
+        name: result.player_name,
+        team: player_team,
+      },
+      bid_history: bidHistory.reverse(),
+      time_remaining_seconds: timeRemainingSeconds,
+    };
+  }
+
+  // CRITICAL: Always check for ALL auctions to understand the complete state
+  const allAuctionsStmt = db.prepare(`
+    SELECT 
+      a.id,
+      a.status,
+      a.current_highest_bid_amount,
+      a.scheduled_end_time,
+      a.updated_at,
+      a.current_highest_bidder_id,
+      (a.scheduled_end_time - strftime('%s', 'now')) as time_remaining_seconds,
+      (CASE WHEN a.scheduled_end_time < strftime('%s', 'now') THEN 'EXPIRED' ELSE 'VALID' END) as expiry_status
+    FROM auctions a 
+    WHERE a.auction_league_id = ? AND a.player_id = ?
+    ORDER BY a.updated_at DESC
+  `);
+
+  const allAuctions = allAuctionsStmt.all(
+    leagueIdParam,
+    playerIdParam
+  ) as Array<{
+    id: number;
+    status: string;
+    current_highest_bid_amount: number;
+    scheduled_end_time: number;
+    updated_at: number;
+    current_highest_bidder_id: string | null;
+    time_remaining_seconds: number;
+    expiry_status: string;
+  }>;
+
+  console.log(
+    `[getAuctionStatusForPlayer] 🔍 ALL auctions for player ${playerIdParam} (${allAuctions.length} found):`
+  );
+  allAuctions.forEach((auction, index) => {
+    console.log(
+      `  [${index}] ID:${auction.id} Status:${auction.status} Bid:${auction.current_highest_bid_amount} EndTime:${auction.scheduled_end_time} UpdatedAt:${auction.updated_at} ${auction.expiry_status}`
+    );
+    if (auction.id === 1069) {
+      console.log(
+        `    🚨 FOUND AUCTION 1069! Status: ${auction.status}, Expired: ${auction.expiry_status}`
+      );
+    }
+  });
+
+  // CRITICAL: If we find auction 1069 but didn't return it, log why
+  if (playerIdParam === 5672) {
+    const auction1069 = allAuctions.find((a) => a.id === 1069);
+    if (auction1069 && !result) {
+      console.log(
+        `[getAuctionStatusForPlayer] 🚨 CRITICAL BUG DETECTED: Auction 1069 exists but was not returned!`
+      );
+      console.log(`  Auction 1069 status: ${auction1069.status}`);
+      console.log(
+        `  Auction 1069 scheduled_end_time: ${auction1069.scheduled_end_time}`
+      );
+      console.log(`  Current time: ${currentTime}`);
+      console.log(
+        `  Is expired?: ${auction1069.scheduled_end_time < currentTime}`
+      );
+      console.log(
+        `  Status in active/closing?: ${["active", "closing"].includes(auction1069.status)}`
+      );
+    }
+  }
+
+  // If no active auction found, check for any auction (including completed ones) for logging
+  const anyAuctionStmt = db.prepare(
     `SELECT 
       a.id, a.auction_league_id AS league_id, a.player_id, a.start_time, 
       a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id, 
@@ -1274,46 +1505,31 @@ export const getAuctionStatusForPlayer = async (
      ORDER BY CASE a.status WHEN 'active' THEN 1 WHEN 'closing' THEN 2 ELSE 3 END, a.updated_at DESC 
      LIMIT 1`
   );
-  const auctionData = auctionStmt.get(leagueIdParam, playerIdParam) as
-    | (Omit<
-        AuctionStatusDetails,
-        "bid_history" | "time_remaining_seconds" | "player"
-      > & {
-        player_name: string;
-        current_highest_bidder_username: string | null;
-        p_id: number;
-        player_role: string;
-        player_team: string;
-      })
+
+  const anyAuctionData = anyAuctionStmt.get(leagueIdParam, playerIdParam) as
+    | {
+        id: number;
+        status: string;
+        scheduled_end_time: number;
+        [key: string]: unknown;
+      }
     | undefined;
-  if (!auctionData) return null;
 
-  const bidsStmt = db.prepare(
-    `SELECT b.id, b.auction_id, b.user_id, b.amount, b.bid_time, b.bid_type, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 10`
-  );
-  const bidHistory = bidsStmt.all(auctionData.id) as BidRecord[];
+  if (anyAuctionData) {
+    console.log(`[getAuctionStatusForPlayer] ⚠️ Found NON-ACTIVE auction:`, {
+      id: anyAuctionData.id,
+      status: anyAuctionData.status,
+      scheduledEndTime: anyAuctionData.scheduled_end_time,
+      currentTime: Math.floor(Date.now() / 1000),
+      reason: "AUCTION_EXISTS_BUT_NOT_BIDDABLE",
+    });
+  } else {
+    console.log(
+      `[getAuctionStatusForPlayer] ❌ No auction found for league=${leagueIdParam}, player=${playerIdParam}`
+    );
+  }
 
-  const timeRemainingSeconds =
-    auctionData.status === "active" || auctionData.status === "closing"
-      ? Math.max(
-          0,
-          auctionData.scheduled_end_time - Math.floor(Date.now() / 1000)
-        )
-      : undefined;
-
-  const { p_id, player_role, player_team, ...restOfAuctionData } = auctionData;
-
-  return {
-    ...restOfAuctionData,
-    player: {
-      id: p_id,
-      role: player_role,
-      name: auctionData.player_name,
-      team: player_team,
-    },
-    bid_history: bidHistory.reverse(),
-    time_remaining_seconds: timeRemainingSeconds,
-  };
+  return null;
 };
 
 export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{

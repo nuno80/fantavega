@@ -1,9 +1,9 @@
 // src/app/admin/db-management/page.tsx v.1.0
 // Pagina per la gestione del database, che renderizza il form di importazione giocatori.
 // 1. Importazioni
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 import { PlayerImportForm } from "@/components/admin/PlayerImportForm";
 import { Navbar } from "@/components/navbar";
-import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 
 // 2. Componente Pagina (Server Component)
 export default function DbManagementPage() {

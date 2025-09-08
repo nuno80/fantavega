@@ -280,6 +280,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(1)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 1 > availableBudget
                 }
               >
@@ -290,6 +291,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(5)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 5 > availableBudget
                 }
               >
@@ -300,6 +302,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(10)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 10 > availableBudget
                 }
               >
@@ -310,6 +313,7 @@ export function StandardBidModal({
                 size="sm"
                 onClick={() => handleQuickBid(20)}
                 disabled={
+                  isSubmitting ||
                   (isNewAuction ? playerQtA : currentBid) + 20 > availableBudget
                 }
               >

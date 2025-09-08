@@ -1,10 +1,7 @@
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
-
-// 1. Direttiva e Importazioni
 "use client";
 
-// Importiamo il tipo
 import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
@@ -12,81 +9,77 @@ import { toast } from "sonner";
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
 
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
-// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
-
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
-// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
-
-// 1. Direttiva e Importazioni
-
-// src/components/auction/AuctionRealtimeDisplay.tsx v.1.0
-// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
-
-// 1. Direttiva e Importazioni
-
-// 2. Props del componente
+// Props del componente
 interface AuctionDisplayProps {
   initialAuctionData: AuctionStatusDetails;
   leagueId: string;
   playerId: number;
 }
 
-// 3. Componente principale
+// Componente principale
 export function AuctionRealtimeDisplay({
   initialAuctionData,
   leagueId,
   playerId,
 }: AuctionDisplayProps) {
-  // 4. Stato del componente
+  // Stato del componente
   const [auctionData, setAuctionData] = useState(initialAuctionData);
-  const [isHighlighted, setIsHighlighted] = useState(false); // Per l'effetto visivo
+  const [isHighlighted, setIsHighlighted] = useState(false);
   const { socket, isConnected } = useSocket();
 
-  // 5. Effetto per la gestione degli eventi Socket.IO
+  // CRITICAL FIX: Synchronize internal state when props change
   useEffect(() => {
-    // Non fare nulla se il socket non è connesso o non esiste
-    if (!isConnected || !socket) {
+    setAuctionData(initialAuctionData);
+    console.log("[AuctionRealtimeDisplay] Updated auction data from props:", {
+      playerId: initialAuctionData.player_id,
+      currentBid: initialAuctionData.current_highest_bid_amount,
+      bidder: initialAuctionData.current_highest_bidder_id,
+    });
+  }, [initialAuctionData]);
+
+  // Socket.IO event listeners for real-time updates
+  useEffect(() => {
+    if (!isConnected || !socket || !leagueId) {
+      console.log("[AuctionRealtimeDisplay] Socket not ready:", {
+        isConnected,
+        hasSocket: !!socket,
+        leagueId,
+      });
       return;
     }
 
-    // --- Gestori di Eventi ---
+    console.log(
+      `[AuctionRealtimeDisplay] Setting up Socket.IO listeners for player ${playerId}`
+    );
+
+    // Handle auction updates specifically for this player
     const handleAuctionUpdate = (data: {
       playerId: number;
       newPrice: number;
       highestBidderId: string;
       scheduledEndTime: number;
     }) => {
-      // Aggiorna solo se l'evento riguarda questo specifico giocatore
       if (data.playerId === playerId) {
-        console.log("[Socket Client] Ricevuto auction-update:", data);
+        console.log(
+          "[AuctionRealtimeDisplay] Received auction update for this player:",
+          data
+        );
+
         setAuctionData((prev) => ({
           ...prev,
           current_highest_bid_amount: data.newPrice,
@@ -94,22 +87,13 @@ export function AuctionRealtimeDisplay({
           scheduled_end_time: data.scheduledEndTime,
         }));
 
-        // Attiva l'effetto visivo
+        // Trigger highlighting effect
         setIsHighlighted(true);
-        setTimeout(() => setIsHighlighted(false), 2000); // L'effetto dura 2 secondi
+        setTimeout(() => setIsHighlighted(false), 2000);
       }
     };
 
-    const handleBidSurpassed = (data: {
-      playerName: string;
-      newBidAmount: number;
-    }) => {
-      console.log("[Socket Client] Ricevuto bid-surpassed-notification:", data);
-      toast.warning(`La tua offerta per ${data.playerName} è stata superata!`, {
-        description: `Nuova offerta: ${data.newBidAmount} crediti.`,
-      });
-    };
-
+    // Handle auction closure
     const handleAuctionClosed = (data: {
       playerId: number;
       playerName: string;
@@ -118,28 +102,34 @@ export function AuctionRealtimeDisplay({
     }) => {
       if (data.playerId === playerId) {
         console.log(
-          "[Socket Client] Ricevuto auction-closed-notification:",
+          "[AuctionRealtimeDisplay] Auction closed for this player:",
           data
         );
-        setAuctionData((prev) => ({ ...prev, status: "sold" }));
-        toast.info(`Asta per ${data.playerName} conclusa!`, {
-          description: `Assegnato a ${data.winnerId} per ${data.finalPrice} crediti.`,
+
+        setAuctionData((prev) => ({
+          ...prev,
+          status: "sold",
+          current_highest_bid_amount: data.finalPrice,
+          current_highest_bidder_id: data.winnerId,
+        }));
+
+        toast.success(`Asta conclusa per ${data.playerName}!`, {
+          description: `Venduto a ${data.winnerId} per ${data.finalPrice} crediti.`,
         });
       }
     };
 
-    // --- Collegamento dei Gestori ---
+    // Register event listeners
     socket.on("auction-update", handleAuctionUpdate);
-    socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-closed-notification", handleAuctionClosed);
 
-    // --- Cleanup: Rimuovi i listener ---
+    // Cleanup
     return () => {
       socket.off("auction-update", handleAuctionUpdate);
-      socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-closed-notification", handleAuctionClosed);
+      console.log("[AuctionRealtimeDisplay] Cleaned up Socket.IO listeners");
     };
-  }, [socket, isConnected, leagueId, playerId]); // Manteniamo le dipendenze per coerenza
+  }, [socket, isConnected, leagueId, playerId]);
 
   // 6. JSX per la visualizzazione
   return (

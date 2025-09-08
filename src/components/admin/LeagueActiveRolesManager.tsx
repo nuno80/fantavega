@@ -45,6 +45,21 @@ import {
 // src/components/admin/LeagueActiveRolesManager.tsx v.1.1
 // Componente client per la gestione dei ruoli attivi in un'asta.
 
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
+// Componente client per la gestione dei ruoli attivi in un'asta.
+
 // 2. Props del componente
 interface LeagueActiveRolesManagerProps {
   leagueId: number;

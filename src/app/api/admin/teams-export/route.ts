@@ -21,10 +21,7 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get("format") || "csv";
 
     if (!leagueIdParam) {
-      return NextResponse.json(
-        { error: "ID lega richiesto" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "ID lega richiesto" }, { status: 400 });
     }
 
     const leagueId = parseInt(leagueIdParam, 10);
@@ -55,16 +52,17 @@ export async function GET(request: NextRequest) {
         // Per Excel, generiamo comunque CSV ma con estensione .xlsx
         // In futuro si potrebbe implementare un vero formato Excel
         content = csvRows.join("\n");
-        contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        contentType =
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         fileName = `squadre_lega_${leagueId}.xlsx`;
         break;
-      
+
       case "custom":
         content = csvRows.join("\n");
         contentType = "text/plain";
         fileName = `squadre_lega_${leagueId}.txt`;
         break;
-      
+
       case "csv":
       default:
         content = csvRows.join("\n");

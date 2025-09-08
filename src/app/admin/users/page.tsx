@@ -8,8 +8,8 @@ import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
-import { Navbar } from "@/components/navbar";
 import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
+import { Navbar } from "@/components/navbar";
 // Assumiamo esista una Navbar
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +28,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserWithLeagueDetails } from "@/lib/db/services/user.service";
+
+// src/app/admin/users/page.tsx v.1.1
+// Pagina di gestione utenti con layout corretto e stili theme-aware.
+
+// src/app/admin/users/page.tsx v.1.1
+// Pagina di gestione utenti con layout corretto e stili theme-aware.
+
+// src/app/admin/users/page.tsx v.1.1
+// Pagina di gestione utenti con layout corretto e stili theme-aware.
+
+// src/app/admin/users/page.tsx v.1.1
+// Pagina di gestione utenti con layout corretto e stili theme-aware.
+
+// src/app/admin/users/page.tsx v.1.1
+// Pagina di gestione utenti con layout corretto e stili theme-aware.
 
 // src/app/admin/users/page.tsx v.1.1
 // Pagina di gestione utenti con layout corretto e stili theme-aware.

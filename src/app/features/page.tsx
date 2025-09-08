@@ -17,8 +17,8 @@ export default function FeaturesPage() {
             <h3 className="text-xl font-bold">Design Responsive</h3>
             <p className="mt-2 text-muted-foreground">
               La nostra piattaforma si adatta automaticamente a qualsiasi
-              dispositivo, fornendo un'esperienza ottimale su desktop, tablet e
-              mobile.
+              dispositivo, fornendo un&apos;esperienza ottimale su desktop,
+              tablet e mobile.
             </p>
           </div>
 
@@ -26,8 +26,8 @@ export default function FeaturesPage() {
           <div className="rounded-lg border p-6 text-left">
             <h3 className="text-xl font-bold">Modalità Scura</h3>
             <p className="mt-2 text-muted-foreground">
-              Passa tra temi chiari e scuri per ridurre l'affaticamento degli
-              occhi e migliorare la leggibilità in diverse condizioni di
+              Passa tra temi chiari e scuri per ridurre l&apos;affaticamento
+              degli occhi e migliorare la leggibilità in diverse condizioni di
               illuminazione.
             </p>
           </div>
@@ -45,8 +45,9 @@ export default function FeaturesPage() {
           <div className="rounded-lg border p-6 text-left">
             <h3 className="text-xl font-bold">Accessibilità</h3>
             <p className="mt-2 text-muted-foreground">
-              Costruito pensando all'accessibilità, garantendo che tutti possano
-              utilizzare la nostra piattaforma indipendentemente dalle abilità.
+              Costruito pensando all&apos;accessibilità, garantendo che tutti
+              possano utilizzare la nostra piattaforma indipendentemente dalle
+              abilità.
             </p>
           </div>
 
@@ -54,7 +55,7 @@ export default function FeaturesPage() {
           <div className="rounded-lg border p-6 text-left">
             <h3 className="text-xl font-bold">Personalizzazione</h3>
             <p className="mt-2 text-muted-foreground">
-              Adatta l'interfaccia alle tue preferenze con ampie opzioni di
+              Adatta l&apos;interfaccia alle tue preferenze con ampie opzioni di
               personalizzazione e impostazioni.
             </p>
           </div>
