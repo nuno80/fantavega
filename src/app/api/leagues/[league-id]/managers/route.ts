@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { getManagerRoster } from "@/lib/db/services/auction-league.service";
 
 interface PlayerInRoster {
   id: number;
@@ -12,6 +13,9 @@ interface PlayerInRoster {
   role: string;
   team: string;
   assignment_price: number;
+  player_status: "assigned" | "winning" | "pending_decision";
+  scheduled_end_time?: number | null;
+  response_deadline?: number | null;
 }
 
 interface Manager {
@@ -159,41 +163,30 @@ export async function GET(
       auto_bid_count: number;
     }[];
 
-    // Get all players for the league in one go
-    const allPlayersStmt = db.prepare(`
-      SELECT 
-        pa.user_id,
-        p.id,
-        p.name,
-        p.role,
-        p.team,
-        pa.purchase_price as assignment_price
-      FROM player_assignments pa
-      JOIN players p ON pa.player_id = p.id
-      WHERE pa.auction_league_id = ?
-      ORDER BY p.role, p.name
-    `);
+    // Build the complete managers data with their correct rosters (sequentially)
+    const managersWithRosters: Manager[] = [];
+    for (const manager of managers) {
+      const roster = await getManagerRoster(leagueId, manager.user_id);
+      const players: PlayerInRoster[] = roster.map((p) => ({
+        id: p.player_id,
+        name: p.name,
+        role: p.role,
+        team: p.team,
+        assignment_price: p.purchase_price,
+        player_status: p.player_status as
+          | "assigned"
+          | "winning"
+          | "pending_decision",
+        scheduled_end_time: p.scheduled_end_time,
+        response_deadline: p.response_deadline,
+      }));
 
-    const allPlayersInLeague = allPlayersStmt.all(
-      leagueId
-    ) as (PlayerInRoster & { user_id: string })[];
-
-    // Group players by manager
-    const playersByManager = new Map<string, PlayerInRoster[]>();
-    for (const player of allPlayersInLeague) {
-      if (!playersByManager.has(player.user_id)) {
-        playersByManager.set(player.user_id, []);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      playersByManager.get(player.user_id)!.push(player);
+      managersWithRosters.push({
+        ...manager,
+        total_penalties: penaltiesByUser.get(manager.user_id) || 0,
+        players: players,
+      });
     }
-
-    // Build the complete managers data with their correct rosters
-    const managersWithRosters: Manager[] = managers.map((manager) => ({
-      ...manager,
-      total_penalties: penaltiesByUser.get(manager.user_id) || 0,
-      players: playersByManager.get(manager.user_id) || [],
-    }));
 
     return NextResponse.json(
       {

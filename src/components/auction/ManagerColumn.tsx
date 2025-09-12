@@ -25,6 +25,9 @@ interface PlayerInRoster {
   role: string;
   team: string;
   assignment_price: number;
+  player_status: "assigned" | "winning" | "pending_decision";
+  scheduled_end_time?: number | null;
+  response_deadline?: number | null;
 }
 
 interface Manager {
@@ -77,8 +80,8 @@ interface AutoBid {
 // Discriminated union for Slot
 type Slot =
   | { type: "assigned"; player: PlayerInRoster }
-  | { type: "in_auction"; auction: ActiveAuction }
-  | { type: "response_needed"; state: UserAuctionState }
+  | { type: "in_auction"; player: PlayerInRoster }
+  | { type: "response_needed"; player: PlayerInRoster }
   | { type: "empty" };
 
 interface ManagerColumnProps {
@@ -207,14 +210,14 @@ function AssignedSlot({
 }
 
 function ResponseNeededSlot({
-  state,
+  player,
   role,
   leagueId,
   isLast,
   onCounterBid,
   isCurrentUser, // Add this prop
 }: {
-  state: UserAuctionState;
+  player: PlayerInRoster;
   role: string;
   leagueId: number;
   isLast: boolean;
@@ -223,32 +226,32 @@ function ResponseNeededSlot({
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
-    state.time_remaining || 0
+    player.response_deadline
+      ? player.response_deadline - Math.floor(Date.now() / 1000)
+      : 0
   );
 
   const roleColor = getRoleColor(role);
 
   // Response timer countdown effect
   useEffect(() => {
-    if (!state.time_remaining || state.time_remaining <= 0) {
+    const deadline = player.response_deadline;
+    if (!deadline) {
       setCurrentTimeRemaining(0);
       return;
     }
 
-    setCurrentTimeRemaining(state.time_remaining);
+    const updateRemaining = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = Math.max(0, deadline - now);
+      setCurrentTimeRemaining(remaining);
+    };
 
-    const interval = setInterval(() => {
-      setCurrentTimeRemaining((prev) => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 1000);
 
     return () => clearInterval(interval);
-  }, [state.time_remaining]);
+  }, [player.response_deadline]);
 
   // Format response timer (hours and minutes only)
   const formatResponseTimer = (seconds: number) => {
@@ -281,7 +284,7 @@ function ResponseNeededSlot({
             className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
           ></div>
           <span className="mr-2 truncate text-xs text-red-900 dark:text-red-200">
-            {state.player_name}
+            {player.name}
           </span>
           {/* Response Timer */}
           {currentTimeRemaining > 0 ? (
@@ -295,9 +298,11 @@ function ResponseNeededSlot({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-foreground">{state.current_bid}</span>
+          <span className="text-xs text-foreground">
+            {player.assignment_price}
+          </span>
           <button
-            onClick={() => onCounterBid(state.player_id)}
+            onClick={() => onCounterBid(player.id)}
             className="rounded p-1 transition-colors hover:bg-green-600"
             title="Rilancia"
             disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
@@ -322,25 +327,25 @@ function ResponseNeededSlot({
       <ResponseActionModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        playerName={state.player_name}
-        currentBid={state.current_bid}
+        playerName={player.name}
+        currentBid={player.assignment_price}
         timeRemaining={currentTimeRemaining}
         leagueId={leagueId}
-        playerId={state.player_id}
-        onCounterBid={() => onCounterBid(state.player_id)}
+        playerId={player.id}
+        onCounterBid={() => onCounterBid(player.id)}
       />
     </>
   );
 }
 
 function InAuctionSlot({
-  auction,
+  player,
   role,
   isLast,
   isCurrentUser,
   leagueId,
 }: {
-  auction: ActiveAuction;
+  player: PlayerInRoster;
   role: string;
   isLast: boolean;
   isCurrentUser: boolean;
@@ -351,7 +356,7 @@ function InAuctionSlot({
     is_active: boolean;
   } | null>(null);
 
-  const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
+  const timeInfo = formatTimeRemaining(player.scheduled_end_time || 0);
   const roleColor = getRoleColor(role);
 
   // Fetch auto-bid for this specific player if current user
@@ -360,7 +365,7 @@ function InAuctionSlot({
       const fetchPlayerAutoBid = async () => {
         try {
           const response = await fetch(
-            `/api/leagues/${leagueId}/players/${auction.player_id}/auto-bid`
+            `/api/leagues/${leagueId}/players/${player.id}/auto-bid`
           );
           if (response.ok) {
             const data = await response.json();
@@ -375,7 +380,7 @@ function InAuctionSlot({
   }, [
     isCurrentUser,
     leagueId,
-    auction.player_id,
+    player.id,
     // REMOVED: auction.current_highest_bid_amount - this was causing unnecessary re-fetches
   ]);
 
@@ -414,7 +419,7 @@ function InAuctionSlot({
         <div
           className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
         ></div>
-        <span className="truncate text-xs">{auction.player_name}</span>
+        <span className="truncate text-xs">{player.name}</span>
       </div>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
@@ -425,7 +430,7 @@ function InAuctionSlot({
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}
           <span className={`font-semibold text-green-600 dark:text-green-400`}>
-            {auction.current_highest_bid_amount || 0}
+            {player.assignment_price || 0}
           </span>
         </div>
         <span
@@ -570,37 +575,23 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
     const roleKey = `slots_${role}` as keyof LeagueSlots;
     const totalSlots = leagueSlots[roleKey];
+    const slots: Slot[] = [];
 
-    const managerPlayers = manager.players || [];
-    const assignedPlayers = managerPlayers.filter(
+    const playersForRole = (manager.players || []).filter(
       (p) => p.role.toUpperCase() === role.toUpperCase()
     );
-    const activeAuctionsForRole = activeAuctions.filter(
-      (a) =>
-        a.player_role.toUpperCase() === role.toUpperCase() &&
-        a.current_highest_bidder_id === manager.user_id
-    );
-    const statesForRole = userAuctionStates.filter((s) => {
-      const auction = activeAuctions.find((a) => a.player_id === s.player_id);
-      return (
-        auction?.player_role.toUpperCase() === role.toUpperCase() &&
-        s.user_state === "rilancio_possibile"
-      );
-    });
 
-    const slots: Slot[] = [];
-    assignedPlayers.forEach((player) =>
-      slots.push({ type: "assigned", player })
-    );
-    statesForRole.forEach((state) => {
-      slots.push({ type: "response_needed", state });
-    });
-    activeAuctionsForRole.forEach((auction) => {
-      const hasResponseState =
-        isCurrentUser &&
-        statesForRole.some((s) => s.player_id === auction.player_id);
-      if (!hasResponseState) {
-        slots.push({ type: "in_auction", auction });
+    playersForRole.forEach((player) => {
+      switch (player.player_status) {
+        case "assigned":
+          slots.push({ type: "assigned", player });
+          break;
+        case "winning":
+          slots.push({ type: "in_auction", player });
+          break;
+        case "pending_decision":
+          slots.push({ type: "response_needed", player });
+          break;
       }
     });
 
@@ -795,7 +786,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       return (
                         <InAuctionSlot
                           key={index}
-                          auction={slot.auction}
+                          player={slot.player}
                           role={role}
                           isLast={index === slots.length - 1}
                           isCurrentUser={isCurrentUser}
@@ -806,7 +797,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       return (
                         <ResponseNeededSlot
                           key={index}
-                          state={slot.state}
+                          player={slot.player}
                           role={role}
                           leagueId={
                             leagueId ||

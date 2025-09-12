@@ -108,15 +108,15 @@ export interface RosterPlayer {
   name: string;
   role: string;
   team: string;
-  // Potremmo voler includere la quotazione con cui è stato acquistato,
-  // ma 'purchase_price' da player_assignments è più accurato per la rosa.
-  // Se vuoi la quotazione attuale del giocatore (che può cambiare), aggiungi:
-  // current_quotation: number;
   fvm: number | null;
 
-  // Campi da player_assignments
+  // Campi da player_assignments o auctions
   purchase_price: number;
   assigned_at: number; // Timestamp Unix
+
+  // Campi specifici per stati non assegnati
+  scheduled_end_time?: number | null;
+  response_deadline?: number | null;
 }
 
 // --- Funzioni del Servizio ---
@@ -763,13 +763,14 @@ export async function removeParticipantFromLeague(
 export const getManagerRoster = async (
   leagueId: number,
   managerUserId: string
-): Promise<RosterPlayer[]> => {
+): Promise<(RosterPlayer & { player_status: string })[]> => {
   console.log(
     `[SERVICE AUCTION_LEAGUE] Getting roster for manager ${managerUserId} in league ${leagueId}`
   );
 
   try {
-    const stmt = db.prepare(`
+    // 1. Giocatori assegnati definitivamente
+    const assignedStmt = db.prepare(`
       SELECT
         p.id AS player_id, 
         p.name,
@@ -777,29 +778,91 @@ export const getManagerRoster = async (
         p.team,
         p.fvm, 
         pa.purchase_price,
-        pa.assigned_at
+        pa.assigned_at,
+        'assigned' as player_status,
+        NULL as scheduled_end_time,
+        NULL as response_deadline
       FROM player_assignments pa
       JOIN players p ON pa.player_id = p.id
       WHERE pa.auction_league_id = @leagueId AND pa.user_id = @managerUserId
-      ORDER BY 
-        CASE p.role  -- Ordinamento personalizzato per ruolo: P, D, C, A
-          WHEN 'P' THEN 1
-          WHEN 'D' THEN 2
-          WHEN 'C' THEN 3
-          WHEN 'A' THEN 4
-          ELSE 5
-        END,
-        p.name ASC -- Poi per nome all'interno di ogni ruolo
     `);
 
-    const roster = stmt.all({
-      leagueId: leagueId,
-      managerUserId: managerUserId,
-    }) as RosterPlayer[];
+    // 2. Aste attive che l'utente sta vincendo
+    const winningStmt = db.prepare(`
+      SELECT
+        p.id AS player_id, 
+        p.name,
+        p.role,
+        p.team,
+        p.fvm, 
+        a.current_highest_bid_amount as purchase_price,
+        a.updated_at as assigned_at,
+        'winning' as player_status,
+        a.scheduled_end_time,
+        NULL as response_deadline
+      FROM auctions a
+      JOIN players p ON a.player_id = p.id
+      WHERE a.auction_league_id = @leagueId 
+        AND a.current_highest_bidder_id = @managerUserId 
+        AND a.status = 'active'
+    `);
+
+    // 3. Giocatori con timer di risposta attivo (pending decision)
+    const pendingStmt = db.prepare(`
+      SELECT
+        p.id AS player_id, 
+        p.name,
+        p.role,
+        p.team,
+        p.fvm, 
+        a.current_highest_bid_amount as purchase_price,
+        urt.created_at as assigned_at,
+        'pending_decision' as player_status,
+        a.scheduled_end_time,
+        urt.response_deadline
+      FROM user_auction_response_timers urt
+      JOIN auctions a ON urt.auction_id = a.id
+      JOIN players p ON a.player_id = p.id
+      WHERE urt.user_id = @managerUserId 
+        AND urt.status = 'pending' 
+        AND a.status = 'active' 
+        AND a.auction_league_id = @leagueId
+    `);
+
+    const params = { leagueId: leagueId, managerUserId: managerUserId };
+
+    const assignedPlayers = assignedStmt.all(params) as (RosterPlayer & {
+      player_status: string;
+    })[];
+    const winningPlayers = winningStmt.all(params) as (RosterPlayer & {
+      player_status: string;
+    })[];
+    const pendingPlayers = pendingStmt.all(params) as (RosterPlayer & {
+      player_status: string;
+    })[];
+
+    const roster = [...assignedPlayers, ...winningPlayers, ...pendingPlayers];
+
+    roster.sort((a, b) => {
+      const roleOrder = { P: 1, D: 2, C: 3, A: 4 };
+      const roleA = roleOrder[a.role as keyof typeof roleOrder] || 5;
+      const roleB = roleOrder[b.role as keyof typeof roleOrder] || 5;
+      if (roleA !== roleB) {
+        return roleA - roleB;
+      }
+      return a.name.localeCompare(b.name);
+    });
 
     console.log(
       `[SERVICE AUCTION_LEAGUE] Found ${roster.length} players in roster for manager ${managerUserId}, league ${leagueId}.`
     );
+
+    roster.forEach((player) => {
+      console.log(
+        `[ROSTER] ${player.name} (${player.role}): ${player.player_status}`
+      );
+    });
+
     return roster;
   } catch (error) {
     const errorMessage =

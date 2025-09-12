@@ -25,6 +25,10 @@ import { useMobile } from "@/hooks/use-mobile";
 
 // src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
 
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
 // --- Interface Definitions ---
 interface AuctionPageContentProps {
   userId: string;
@@ -68,6 +72,9 @@ interface PlayerInRoster {
   role: string;
   team: string;
   assignment_price: number;
+  player_status: "assigned" | "winning" | "pending_decision";
+  scheduled_end_time?: number | null;
+  response_deadline?: number | null;
 }
 
 interface Bid {
