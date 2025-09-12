@@ -388,6 +388,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       if (data.userAuctionStates) {
         setUserAuctionStates(data.userAuctionStates);
       }
+      // Re-fetch all manager data to update rosters with new statuses
+      if (selectedLeagueId) {
+        fetchManagersData(selectedLeagueId);
+      }
     };
 
     const handleBidSurpassed = (data: BidSurpassedData) => {
