@@ -117,6 +117,10 @@ export interface RosterPlayer {
   // Campi specifici per stati non assegnati
   scheduled_end_time?: number | null;
   response_deadline?: number | null;
+
+  // Campi specifici per auto-bid (solo per il giocatore corrente)
+  user_auto_bid_max_amount?: number | null;
+  user_auto_bid_is_active?: boolean | null;
 }
 
 // --- Funzioni del Servizio ---
@@ -799,9 +803,12 @@ export const getManagerRoster = async (
         a.updated_at as assigned_at,
         'winning' as player_status,
         a.scheduled_end_time,
-        NULL as response_deadline
+        NULL as response_deadline,
+        ab.max_amount as user_auto_bid_max_amount,
+        ab.is_active as user_auto_bid_is_active
       FROM auctions a
       JOIN players p ON a.player_id = p.id
+      LEFT JOIN auto_bids ab ON a.id = ab.auction_id AND ab.user_id = @managerUserId
       WHERE a.auction_league_id = @leagueId 
         AND a.current_highest_bidder_id = @managerUserId 
         AND a.status = 'active'
@@ -819,7 +826,9 @@ export const getManagerRoster = async (
         urt.created_at as assigned_at,
         'pending_decision' as player_status,
         a.scheduled_end_time,
-        urt.response_deadline
+        urt.response_deadline,
+        NULL as user_auto_bid_max_amount,
+        NULL as user_auto_bid_is_active
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
       JOIN players p ON a.player_id = p.id

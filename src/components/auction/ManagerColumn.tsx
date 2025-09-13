@@ -28,6 +28,8 @@ interface PlayerInRoster {
   player_status: "assigned" | "winning" | "pending_decision";
   scheduled_end_time?: number | null;
   response_deadline?: number | null;
+  user_auto_bid_max_amount?: number | null;
+  user_auto_bid_is_active?: boolean | null;
 }
 
 interface Manager {
@@ -351,42 +353,12 @@ function InAuctionSlot({
   isCurrentUser: boolean;
   leagueId?: number;
 }) {
-  const [playerAutoBid, setPlayerAutoBid] = useState<{
-    max_amount: number;
-    is_active: boolean;
-  } | null>(null);
-
   const timeInfo = formatTimeRemaining(player.scheduled_end_time || 0);
   const roleColor = getRoleColor(role);
 
-  // Fetch auto-bid for this specific player if current user
-  useEffect(() => {
-    if (isCurrentUser && leagueId) {
-      const fetchPlayerAutoBid = async () => {
-        try {
-          const response = await fetch(
-            `/api/leagues/${leagueId}/players/${player.id}/auto-bid`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setPlayerAutoBid(data.auto_bid);
-          }
-        } catch (error) {
-          console.error("Error fetching player auto-bid:", error);
-        }
-      };
-      fetchPlayerAutoBid();
-    }
-  }, [
-    isCurrentUser,
-    leagueId,
-    player.id,
-    // REMOVED: auction.current_highest_bid_amount - this was causing unnecessary re-fetches
-  ]);
-
   // Show user's auto-bid for this specific player (only their own)
   const showUserAutoBid =
-    isCurrentUser && playerAutoBid && playerAutoBid.is_active;
+    isCurrentUser && player.user_auto_bid_is_active && player.user_auto_bid_max_amount !== null && player.user_auto_bid_max_amount !== undefined;
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -425,7 +397,7 @@ function InAuctionSlot({
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
             <span className="font-semibold text-blue-600 dark:text-blue-400">
-              {playerAutoBid.max_amount}
+              {player.user_auto_bid_max_amount}
             </span>
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}

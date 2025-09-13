@@ -75,6 +75,8 @@ interface PlayerInRoster {
   player_status: "assigned" | "winning" | "pending_decision";
   scheduled_end_time?: number | null;
   response_deadline?: number | null;
+  user_auto_bid_max_amount?: number | null;
+  user_auto_bid_is_active?: boolean | null;
 }
 
 interface Bid {
@@ -464,6 +466,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           `${data.playerName || `Player ${data.playerId}`} (${data.playerRole || "?"}) - ${data.playerTeam || "?"}`.trim(),
         duration: 4000,
       });
+      if (selectedLeagueId) {
+        fetchManagersData(selectedLeagueId);
+      }
     };
 
     const handleUserAbandoned = (data: UserAbandonedData) => {
