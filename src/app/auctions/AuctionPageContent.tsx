@@ -397,6 +397,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       toast.warning(`La tua offerta per ${data.playerName} è stata superata!`, {
         description: `Nuova offerta: ${data.newBidAmount} crediti.`,
       });
+      if (selectedLeagueId) {
+        refreshUserAuctionStatesOld(selectedLeagueId);
+      }
     };
 
     const handleAuctionClosed = (data: AuctionClosedData) => {
@@ -501,6 +504,13 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.on("user-abandoned-auction", handleUserAbandoned);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
+    
+    // Listen for direct user state changes to refresh response timers/states
+    socket.on("auction-state-changed", () => {
+      if (selectedLeagueId) {
+        refreshUserAuctionStatesOld(selectedLeagueId);
+      }
+    });
 
     return () => {
       socket.off("auction-update", handleAuctionUpdate);
@@ -510,6 +520,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("user-abandoned-auction", handleUserAbandoned);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
+      socket.off("auction-state-changed");
       console.log(
         `[Socket Client] Leaving league room: league-${selectedLeagueId}`
       );

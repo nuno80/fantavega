@@ -418,7 +418,7 @@ function InAuctionSlot({
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}
           <span className={`font-semibold text-green-600 dark:text-green-400`}>
-            {player.assignment_price || 0}
+            {currentBid ?? player.assignment_price ?? 0}
           </span>
         </div>
         <span
@@ -584,6 +584,31 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           break;
       }
     });
+
+    // Merge userAuctionStates to inject response-needed slots for current user without refetch
+    if (isCurrentUser && (userAuctionStates || []).length > 0) {
+      const statesForRole = (userAuctionStates || []).filter((s) => s.user_state === "rilancio_possibile");
+      for (const s of statesForRole) {
+        const aa = (activeAuctions || []).find((a) => a.player_id === s.player_id);
+        if (!aa) continue;
+        if (aa.player_role.toUpperCase() !== role.toUpperCase()) continue;
+        const alreadyInRoster = playersForRole.some((p) => p.id === s.player_id);
+        if (alreadyInRoster) continue;
+        const syntheticPlayer: PlayerInRoster = {
+          id: s.player_id,
+          name: s.player_name,
+          role: aa.player_role,
+          team: aa.player_team,
+          assignment_price: s.current_bid,
+          player_status: "pending_decision",
+          scheduled_end_time: aa.scheduled_end_time,
+          response_deadline: s.response_deadline ?? null,
+          user_auto_bid_max_amount: null,
+          user_auto_bid_is_active: null,
+        };
+        slots.push({ type: "response_needed", player: syntheticPlayer });
+      }
+    }
 
     while (slots.length < totalSlots) {
       slots.push({ type: "empty" });
