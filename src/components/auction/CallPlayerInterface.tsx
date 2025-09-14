@@ -323,7 +323,7 @@ export function CallPlayerInterface({
       const requestBody = {
         amount: amount,
         bid_type: bidType,
-        max_amount: maxAmount, // Corretto: usa 'max_amount' come si aspetta l'API
+        max_amount: maxAmount === undefined ? null : maxAmount,
       };
       console.log("[DEBUG FRONT-END] Sending request body:", requestBody);
       console.log("[DEBUG FRONT-END] maxAmount value:", maxAmount);
@@ -339,9 +339,19 @@ export function CallPlayerInterface({
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        // Lancia l'errore così che il modale possa catturarlo e mostrarlo
-        throw new Error(error.message || "Errore nel creare l'asta");
+        const errorText = await response.text();
+        try {
+          const error = JSON.parse(errorText);
+          throw new Error(
+            error.error ||
+              error.message ||
+              "Errore sconosciuto nel creare l'asta"
+          );
+        } catch (e) {
+          throw new Error(
+            errorText || "Errore sconosciuto nel creare l'asta"
+          );
+        }
       }
 
       toast.success("Asta avviata con successo!");

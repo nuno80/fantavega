@@ -114,6 +114,10 @@ interface ManagerColumnProps {
   ) => Promise<void>;
   complianceTimerStartAt: number | null;
   onPenaltyApplied?: () => void; // Callback for when penalty is applied
+  userAutoBidOverlay?: Record<number, { max_amount: number; is_active: boolean }>;
+  setUserAutoBidOverlay?: React.Dispatch<
+    React.SetStateAction<Record<number, { max_amount: number; is_active: boolean }>>
+  >;
 }
 
 // Helper functions
@@ -218,6 +222,7 @@ function ResponseNeededSlot({
   isLast,
   onCounterBid,
   isCurrentUser, // Add this prop
+  currentBid,
 }: {
   player: PlayerInRoster;
   role: string;
@@ -225,6 +230,7 @@ function ResponseNeededSlot({
   isLast: boolean;
   onCounterBid: (playerId: number) => void;
   isCurrentUser: boolean; // Add this prop
+  currentBid?: number;
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
@@ -301,7 +307,7 @@ function ResponseNeededSlot({
         </div>
         <div className="flex items-center gap-1">
           <span className="text-xs text-foreground">
-            {player.assignment_price}
+            {currentBid ?? player.assignment_price}
           </span>
           <button
             onClick={() => onCounterBid(player.id)}
@@ -346,19 +352,29 @@ function InAuctionSlot({
   isLast,
   isCurrentUser,
   leagueId,
+  currentBid,
+  scheduledEndTime,
+  overlayAutoBidMaxAmount,
+  overlayAutoBidIsActive,
 }: {
   player: PlayerInRoster;
   role: string;
   isLast: boolean;
   isCurrentUser: boolean;
   leagueId?: number;
+  currentBid?: number;
+  scheduledEndTime?: number;
+  overlayAutoBidMaxAmount?: number;
+  overlayAutoBidIsActive?: boolean;
 }) {
-  const timeInfo = formatTimeRemaining(player.scheduled_end_time || 0);
+  const timeInfo = formatTimeRemaining((scheduledEndTime ?? player.scheduled_end_time) || 0);
   const roleColor = getRoleColor(role);
 
   // Show user's auto-bid for this specific player (only their own)
-  const showUserAutoBid =
-    isCurrentUser && player.user_auto_bid_is_active && player.user_auto_bid_max_amount !== null && player.user_auto_bid_max_amount !== undefined;
+  const showUserAutoBid = isCurrentUser && (
+    (overlayAutoBidIsActive && overlayAutoBidMaxAmount !== undefined && overlayAutoBidMaxAmount !== null) ||
+    (player.user_auto_bid_is_active && player.user_auto_bid_max_amount !== null && player.user_auto_bid_max_amount !== undefined)
+  );
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -397,7 +413,7 @@ function InAuctionSlot({
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
             <span className="font-semibold text-blue-600 dark:text-blue-400">
-              {player.user_auto_bid_max_amount}
+              {overlayAutoBidIsActive && overlayAutoBidMaxAmount != null ? overlayAutoBidMaxAmount : player.user_auto_bid_max_amount}
             </span>
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}
@@ -437,6 +453,8 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   activeAuctions = [],
   userAutoBid,
   currentAuctionPlayerId,
+  userAutoBidOverlay,
+  setUserAutoBidOverlay,
   userAuctionStates = [],
   leagueId,
   handlePlaceBid,
@@ -763,6 +781,24 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                           isLast={index === slots.length - 1}
                           isCurrentUser={isCurrentUser}
                           leagueId={leagueId}
+                          currentBid={
+                            (activeAuctions || []).find(
+                              (a) => a.player_id === slot.player.id
+                            )?.current_highest_bid_amount ??
+                            slot.player.assignment_price
+                          }
+                          scheduledEndTime={
+                            (activeAuctions || []).find(
+                              (a) => a.player_id === slot.player.id
+                            )?.scheduled_end_time ??
+                            slot.player.scheduled_end_time ?? undefined
+                          }
+                          overlayAutoBidIsActive={
+                            userAutoBidOverlay?.[slot.player.id]?.is_active
+                          }
+                          overlayAutoBidMaxAmount={
+                            userAutoBidOverlay?.[slot.player.id]?.max_amount
+                          }
                         />
                       );
                     case "response_needed":
@@ -778,6 +814,12 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                           isLast={index === slots.length - 1}
                           onCounterBid={handleCounterBid}
                           isCurrentUser={isCurrentUser} // Pass isCurrentUser prop
+                          currentBid={
+                            (activeAuctions || []).find(
+                              (a) => a.player_id === slot.player.id
+                            )?.current_highest_bid_amount ??
+                            slot.player.assignment_price
+                          }
                         />
                       );
                     case "empty":
@@ -834,6 +876,20 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 true, // Bypass compliance check for counter-bids
                 maxAmount
               );
+              // Overlay immediato (solo lato client) dello stato auto-bid per UX reattiva
+              if (
+                isCurrentUser &&
+                typeof maxAmount === "number" &&
+                setUserAutoBidOverlay
+              ) {
+                setUserAutoBidOverlay((prev) => ({
+                  ...(prev || {}),
+                  [selectedPlayerForBid.id]: {
+                    max_amount: maxAmount,
+                    is_active: maxAmount > 0,
+                  },
+                }));
+              }
               setShowStandardBidModal(false);
               setSelectedPlayerForBid(null);
             } catch (error) {

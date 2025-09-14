@@ -179,6 +179,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
+  const [userAutoBidOverlay, setUserAutoBidOverlay] = useState<Record<number, { max_amount: number; is_active: boolean }>>({});
   const [_bidHistory, setBidHistory] = useState<Bid[]>([]);
   const [_leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [_showLeagueSelector, _setShowLeagueSelector] = useState(false);
@@ -389,10 +390,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
       if (data.userAuctionStates) {
         setUserAuctionStates(data.userAuctionStates);
-      }
-      // Re-fetch all manager data to update rosters with new statuses
-      if (selectedLeagueId) {
-        fetchManagersData(selectedLeagueId);
       }
     };
 
@@ -659,6 +656,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                     managerCompliance?.compliance_timer_start_at || null
                   }
                   onPenaltyApplied={() => fetchBudgetData(selectedLeagueId!)}
+                  userAutoBidOverlay={userAutoBidOverlay}
+                  setUserAutoBidOverlay={setUserAutoBidOverlay}
                 />
               </div>
             );

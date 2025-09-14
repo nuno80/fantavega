@@ -169,19 +169,33 @@ export async function GET(
     const managersWithRosters: Manager[] = [];
     for (const manager of managers) {
       const roster = await getManagerRoster(leagueId, manager.user_id);
-      const players: PlayerInRoster[] = roster.map((p) => ({
-        id: p.player_id,
-        name: p.name,
-        role: p.role,
-        team: p.team,
-        assignment_price: p.purchase_price,
-        player_status: p.player_status as
-          | "assigned"
-          | "winning"
-          | "pending_decision",
-        scheduled_end_time: p.scheduled_end_time,
-        response_deadline: p.response_deadline,
-      }));
+      const players: PlayerInRoster[] = roster.map((p) => {
+        const rawIsActive = (p as any).user_auto_bid_is_active;
+        let mappedIsActive: boolean | null = null;
+        if (rawIsActive === 0 || rawIsActive === 1) {
+          mappedIsActive = rawIsActive === 1;
+        } else if (typeof rawIsActive === "boolean") {
+          mappedIsActive = rawIsActive;
+        } else if (rawIsActive == null) {
+          mappedIsActive = null;
+        }
+        return {
+          id: p.player_id,
+          name: p.name,
+          role: p.role,
+          team: p.team,
+          assignment_price: p.purchase_price,
+          player_status: p.player_status as
+            | "assigned"
+            | "winning"
+            | "pending_decision",
+          scheduled_end_time: p.scheduled_end_time,
+          response_deadline: p.response_deadline,
+          user_auto_bid_max_amount:
+            (p as any).user_auto_bid_max_amount ?? null,
+          user_auto_bid_is_active: mappedIsActive,
+        } satisfies PlayerInRoster;
+      });
 
       managersWithRosters.push({
         ...manager,
