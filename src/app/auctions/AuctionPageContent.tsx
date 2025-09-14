@@ -392,6 +392,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       if (data.userAuctionStates) {
         setUserAuctionStates(data.userAuctionStates);
       }
+      // Always refresh user-specific states on auction updates to guarantee response timers appear
+      if (selectedLeagueId) {
+        refreshUserAuctionStatesOld(selectedLeagueId);
+      }
     };
 
     const handleBidSurpassed = (data: BidSurpassedData) => {

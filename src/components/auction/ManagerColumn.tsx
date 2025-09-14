@@ -571,14 +571,41 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
       (p) => p.role.toUpperCase() === role.toUpperCase()
     );
 
+    // Prepara un set dei player in stato di risposta necessaria per l'utente corrente
+    const responseNeededSet = new Set<number>(
+      (isCurrentUser ? (userAuctionStates || []) : [])
+        .filter((s) => s.user_state === "rilancio_possibile")
+        .map((s) => s.player_id)
+    );
+
     playersForRole.forEach((player) => {
+      // Se l'utente corrente non è più il miglior offerente su un player marcato come "winning"
+      // e ha stato 'rilancio_possibile', trasformiamo lo slot in "response_needed" senza rifare il fetch.
+      if (isCurrentUser && player.player_status === "winning" && responseNeededSet.has(player.id)) {
+        const s = (userAuctionStates || []).find((st) => st.player_id === player.id);
+        const aa = (activeAuctions || []).find((a) => a.player_id === player.id);
+        const syntheticPlayer: PlayerInRoster = {
+          ...player,
+          assignment_price: s?.current_bid ?? player.assignment_price,
+          player_status: "pending_decision",
+          scheduled_end_time: aa?.scheduled_end_time ?? player.scheduled_end_time,
+          response_deadline: s?.response_deadline ?? player.response_deadline ?? null,
+        };
+        slots.push({ type: "response_needed", player: syntheticPlayer });
+        return;
+      }
+
       switch (player.player_status) {
         case "assigned":
           slots.push({ type: "assigned", player });
           break;
-        case "winning":
-          slots.push({ type: "in_auction", player });
+        case "winning": {
+          const aa = (activeAuctions || []).find((a) => a.player_id === player.id);
+          if (aa && aa.current_highest_bidder_id === manager.user_id) {
+            slots.push({ type: "in_auction", player });
+          }
           break;
+        }
         case "pending_decision":
           slots.push({ type: "response_needed", player });
           break;

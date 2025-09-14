@@ -163,43 +163,39 @@ export function StandardBidModal({
 
     setIsSubmitting(true);
     try {
-      // Il modale passa i dati al genitore, che gestisce la logica API.
-      console.log("[DEBUG MODAL] About to call onBidSuccess with:");
-      console.log("[DEBUG MODAL] bidAmount:", bidAmount);
-      console.log("[DEBUG MODAL] bidType:", useAutoBid ? "quick" : "manual");
-      console.log(
-        "[DEBUG MODAL] maxAmount:",
-        useAutoBid ? maxAmount : undefined
-      );
-      console.log("[DEBUG MODAL] useAutoBid:", useAutoBid);
+      // Pre-submit: sincronizza l'offerta minima con lo stato live del server
+      try {
+        const statusResp = await fetch(`/api/leagues/${leagueId}/players/${playerId}/bids`);
+        if (statusResp.ok) {
+          const statusData = await statusResp.json();
+          const liveCurrent = typeof statusData.current_highest_bid_amount === "number"
+            ? statusData.current_highest_bid_amount
+            : (currentBid ?? 0);
+          const liveMin = (liveCurrent ?? 0) + 1;
+          if (bidAmount <= liveCurrent) {
+            toast.info(`L'offerta minima ora è ${liveMin} crediti. Ho aggiornato il campo.`);
+            setBidAmount(liveMin);
+            setIsSubmitting(false);
+            return; // lascia all'utente la conferma con l'importo aggiornato
+          }
+        }
+      } catch (_) {
+        // Ignora errori di sync live: il backend valida comunque
+      }
 
       if (onBidSuccess) {
         await onBidSuccess(
           bidAmount,
           useAutoBid ? "quick" : "manual",
-          useAutoBid ? maxAmount : undefined
+          useAutoBid ? maxAmount : undefined,
         );
-        // Il genitore gestirà la notifica di successo e la chiusura del modale.
         onClose();
       } else {
-        console.error(
-          "StandardBidModal requires an onBidSuccess handler to function."
-        );
+        console.error("StandardBidModal requires an onBidSuccess handler.");
         toast.error("Errore di configurazione", {
-          description:
-            "L'azione di offerta non è stata collegata correttamente.",
+          description: "L'azione di offerta non è stata collegata.",
         });
       }
-    } catch (error) {
-      // MOSTRA L'ERRORE ALL'UTENTE INVECE DI NASCONDERLO
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Si è verificato un errore sconosciuto";
-      toast.error("Offerta Fallita", {
-        description: errorMessage,
-      });
-      console.error("Error in handleSubmitBid:", error);
     } finally {
       setIsSubmitting(false);
     }

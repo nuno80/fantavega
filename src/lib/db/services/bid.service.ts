@@ -1236,6 +1236,20 @@ export async function placeBidOnExistingAuction({
         : undefined,
     };
 
+    // 5. Aggiorna stati utente PRIMA di notificare l'update (evita race client)
+    if (auctionInfoForBid) {
+      for (const surpassedUserId of surpassedUsers) {
+        console.log(
+          `[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`
+        );
+        await handleBidderChange(
+          auctionInfoForBid.id,
+          surpassedUserId,
+          result.finalBidderId!
+        );
+      }
+    }
+
     console.log(
       `[BID_SERVICE] Notifying socket server with rich payload for auction-update.`
     );
