@@ -60,10 +60,15 @@ export function ResponseActionModal({
       if (response.ok) {
         toast.success(data.message);
         onClose();
-        // Refresh page to update UI after abandoning auction
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Nessun reload: la UI si aggiorna via socket (user-abandoned-auction) e refreshUserAuctionStates
+        // Se necessario, possiamo triggerare un refresh leggero degli stati utente dopo breve delay
+        setTimeout(async () => {
+          try {
+            await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
+          } catch (_e) {
+            // ignore
+          }
+        }, 400);
       } else {
         toast.error(data.error || "Errore durante l'abbandono");
       }

@@ -2,6 +2,7 @@
 // Servizio per gestire gli stati dei giocatori nelle aste
 import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
+import { isUserCurrentlyOnline } from "@/lib/db/services/session.service";
 
 // Stati possibili per un utente in un'asta
 export type UserAuctionState =
@@ -147,10 +148,11 @@ export const handleBidderChange = async (
         "rilancio_possibile"
       );
 
-      // Crea timer per il countdown (1 ora)
-      const deadline = Math.floor(Date.now() / 1000) + 1 * 3600; // 1 ora
+      // Timer di risposta: attivalo solo se l'utente è online, altrimenti lascia response_deadline NULL (parte al login)
+      const now = Math.floor(Date.now() / 1000);
+      const online = isUserCurrentlyOnline(previousBidderId);
+      const deadline = online ? now + 3600 : null;
 
-      // Salva timer per il countdown UI
       db.prepare(
         `
         INSERT OR REPLACE INTO user_auction_response_timers 
@@ -160,12 +162,12 @@ export const handleBidderChange = async (
       ).run(
         auctionId,
         previousBidderId,
-        Math.floor(Date.now() / 1000),
+        now,
         deadline
       );
 
       console.log(
-        `[AUCTION_STATES] User ${previousBidderId} set to 'rilancio_possibile' with 1h timer`
+        `[AUCTION_STATES] User ${previousBidderId} set to 'rilancio_possibile' with ${online ? "active 1h timer" : "pending timer (will start at login)"}`
       );
     }
   } catch (error) {

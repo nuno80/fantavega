@@ -300,6 +300,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           fetchCurrentAuction(league.id),
           fetchBudgetData(league.id),
           fetchComplianceData(league.id),
+          refreshUserAuctionStatesOld(league.id),
         ]);
       } catch (error) {
         console.error("Error fetching initial data:", error);
