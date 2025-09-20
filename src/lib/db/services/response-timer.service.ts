@@ -402,6 +402,11 @@ export const processExpiredResponseTimers = (): {
         // ASSEGNA IL GIOCATORE AL MIGLIOR OFFERENTE
         // Questo è il codice mancante che dovrebbe essere qui
         if (timer.current_highest_bidder_id) {
+          // Aggiorna lo stato dell'asta a 'sold'
+          db.prepare(
+            "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?"
+          ).run(now, timer.auction_id);
+
           // Assegna il giocatore al miglior offerente
           db.prepare(
             `
@@ -422,6 +427,15 @@ export const processExpiredResponseTimers = (): {
             `UPDATE league_participants SET ${col} = ${col} + 1, updated_at = ? WHERE league_id = ? AND user_id = ?`
           ).run(now, timer.league_id, timer.current_highest_bidder_id);
 
+          // Deduci il prezzo di acquisto dal budget del vincitore
+          db.prepare(
+            "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
+          ).run(
+            timer.current_highest_bid_amount,
+            timer.league_id,
+            timer.current_highest_bidder_id
+          );
+
           // Notifica l'assegnazione del giocatore
           notifySocketServer({
             room: `league-${timer.league_id}`,
@@ -433,6 +447,11 @@ export const processExpiredResponseTimers = (): {
               finalPrice: timer.current_highest_bid_amount,
             },
           });
+        } else {
+          // Se non c'è un miglior offerente, imposta l'asta come 'not_sold'
+          db.prepare(
+            "UPDATE auctions SET status = 'not_sold', updated_at = ? WHERE id = ?"
+          ).run(now, timer.auction_id);
         }
 
         db.prepare("COMMIT").run();
