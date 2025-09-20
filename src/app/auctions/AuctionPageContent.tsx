@@ -431,6 +431,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       // Always refresh user-specific states on auction updates to guarantee response timers appear
       if (selectedLeagueId) {
         refreshUserAuctionStatesOld(selectedLeagueId);
+        // Add this line to ensure all manager data is refreshed consistently
+        fetchManagersData(selectedLeagueId);
       }
     };
 
