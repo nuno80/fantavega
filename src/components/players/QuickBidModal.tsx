@@ -25,7 +25,7 @@ interface QuickBidModalProps {
   player: PlayerWithAuctionStatus;
   leagueId: number;
   userId: string;
-  onBidSuccess?: () => void; // @deprecated Callback per refresh manuale. L'aggiornamento ora è gestito da Socket.IO.
+  onBidSuccess?: () => void; // Callback for manual refresh. Update is now handled by Socket.IO with fallback to this callback.
 }
 
 interface UserBudgetInfo {
@@ -148,7 +148,7 @@ export function QuickBidModal({
 
     setIsSubmitting(true);
 
-    // Costruisce il corpo della richiesta in un unico oggetto
+    // Construct the request body in a single object
     const requestBody: {
       amount: number;
       bid_type: "manual" | "auto";
@@ -169,7 +169,7 @@ export function QuickBidModal({
     console.log("[DEBUG QUICK BID] requestBody:", requestBody);
 
     try {
-      // Esegue una singola chiamata API per l'offerta e l'auto-bid
+      // Execute a single API call for the bid and auto-bid
       const response = await fetch(
         `/api/leagues/${leagueId}/players/${player.id}/bids`,
         {
@@ -184,7 +184,7 @@ export function QuickBidModal({
         throw new Error(errorData.error || "Errore nel piazzare l'offerta");
       }
 
-      // Gestisce il successo della chiamata unificata
+      // Handle success of the unified call
       if (useAutoBid && requestBody.max_amount) {
         toast.success(
           `Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`
@@ -195,10 +195,20 @@ export function QuickBidModal({
 
       onClose();
 
-      // La chiamata onBidSuccess() viene rimossa per prevenire race conditions.
-      // L'aggiornamento dei dati ora è gestito esclusivamente dal listener Socket.IO
-      // nel componente PlayerSearchInterface, che garantisce che la UI rifletta
-      // lo stato reale del database dopo la notifica dell'avvenuta offerta.
+      // Force a refresh of player data to ensure UI updates
+      // This is a fallback in case the socket event is throttled or not received promptly
+      // We'll wait a short time before calling onBidSuccess to allow socket events to process
+      if (typeof _onBidSuccess === 'function') {
+        // Wait 500ms to allow socket event to be processed first
+        setTimeout(() => {
+          console.log("[QuickBidModal] Calling onBidSuccess fallback");
+          _onBidSuccess();
+        }, 500);
+      }
+
+      // The onBidSuccess() callback is used as a fallback mechanism.
+      // The primary update mechanism is the Socket.IO listener in PlayerSearchInterface,
+      // but this fallback ensures the UI updates even if socket events are delayed.
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Errore nel piazzare l'offerta"

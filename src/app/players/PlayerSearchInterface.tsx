@@ -38,6 +38,7 @@ export interface PlayerWithAuctionStatus extends Player {
   timeRemaining?: number; // in seconds
   isAssignedToUser?: boolean;
   assignedToTeam?: string;
+  current_highest_bidder_id?: string; // Add this field
 
   currentHighestBidderName?: string;
   cooldownInfo?: {
@@ -234,13 +235,54 @@ export function PlayerSearchInterface({
       );
     };
 
+    // Add handler for auction updates (counter-bids)
+    const handleAuctionUpdate = (data: {
+      playerId: number;
+      newPrice: number;
+      highestBidderId: string;
+      scheduledEndTime: number;
+      budgetUpdates?: Array<{
+        userId: string;
+        newBudget: number;
+        newLockedCredits: number;
+      }>;
+      newBid?: {
+        id: number;
+        user_id: string;
+        amount: number;
+        bid_time: string;
+        bidder_username?: string;
+      };
+    }) => {
+      const now = Math.floor(Date.now() / 1000);
+      setPlayers((prev) =>
+        prev.map((player) => {
+          if (player.id === data.playerId) {
+            // Update all relevant player properties
+            return {
+              ...player,
+              auctionStatus: "active_auction",
+              currentBid: data.newPrice,
+              timeRemaining: Math.max(0, data.scheduledEndTime - now),
+              current_highest_bidder_id: data.highestBidderId, // Add this line
+              // If we have bidder info, update it
+              currentHighestBidderName: data.newBid?.bidder_username || data.newBid?.user_id || player.currentHighestBidderName,
+            };
+          }
+          return player;
+        })
+      );
+    };
+
     // Register event listeners - Only handle auction closures, not creation/updates
     // AuctionPageContent handles auction-created and auction-update events centrally
     socket.on("auction-closed-notification", handleAuctionClosed);
+    socket.on("auction-update", handleAuctionUpdate);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
       socket.off("auction-closed-notification", handleAuctionClosed);
+      socket.off("auction-update", handleAuctionUpdate);
       clearInterval(expiredAuctionsInterval);
     };
   }, [socket, isConnected, selectedLeagueId, refreshPlayersData, userId]);
@@ -337,6 +379,14 @@ export function PlayerSearchInterface({
     setSelectedPlayer(player);
     setIsBidModalOpen(true);
   };
+
+  // Add this function to refresh player data
+  const handleBidSuccess = useCallback(() => {
+    console.log("[PlayerSearchInterface] Handling bid success callback");
+    if (selectedLeagueId) {
+      refreshPlayersData(selectedLeagueId);
+    }
+  }, [refreshPlayersData, selectedLeagueId]);
 
   const handleStartAuction = (player: PlayerWithAuctionStatus) => {
     // TODO: Implement start auction logic
@@ -436,7 +486,7 @@ export function PlayerSearchInterface({
           player={selectedPlayer}
           leagueId={selectedLeagueId!}
           userId={userId}
-          onBidSuccess={refreshPlayersData}
+          onBidSuccess={handleBidSuccess}
         />
       )}
     </div>

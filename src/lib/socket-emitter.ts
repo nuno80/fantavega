@@ -4,7 +4,7 @@ const SOCKET_SERVER_URL = "http://localhost:3001/api/emit";
 
 // Throttling mechanism to prevent duplicate events
 const recentEvents = new Map<string, number>();
-const THROTTLE_WINDOW_MS = 100; // 100ms throttle window for very aggressive duplicate prevention
+const THROTTLE_WINDOW_MS = 1000; // Increased from 100ms to 1000ms (1 second) for more reasonable duplicate prevention
 
 interface EmitParams {
   room: string; // Es: 'league-1'
@@ -48,13 +48,17 @@ export async function notifySocketServer(params: EmitParams) {
   const now = Date.now();
   const lastEmitted = recentEvents.get(eventKey);
 
-  if (lastEmitted && now - lastEmitted < THROTTLE_WINDOW_MS) {
+  // Allow auction-update events to be sent more frequently as they represent real-time changes
+  const isAuctionUpdate = params.event === "auction-update";
+  const effectiveThrottleWindow = isAuctionUpdate ? 100 : THROTTLE_WINDOW_MS; // 100ms for auction updates, 1000ms for others
+
+  if (lastEmitted && now - lastEmitted < effectiveThrottleWindow) {
     console.warn(
       "[Socket Emitter] THROTTLED: Duplicate event blocked within throttle window:",
       {
         eventKey,
         timeSinceLastEmit: now - lastEmitted,
-        throttleWindow: THROTTLE_WINDOW_MS,
+        throttleWindow: effectiveThrottleWindow,
         params,
       }
     );

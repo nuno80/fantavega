@@ -324,6 +324,42 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     fetchComplianceData,
   ]);
 
+  // Add useEffect for processing expired auctions
+  useEffect(() => {
+    if (!selectedLeagueId) return;
+
+    // Auto-process expired auctions every 30 seconds
+    const processExpiredAuctions = async () => {
+      try {
+        const response = await fetch(
+          `/api/leagues/${selectedLeagueId}/process-expired-auctions`,
+          {
+            method: "POST",
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.processedCount > 0) {
+            console.log(`Processed ${result.processedCount} expired auctions`);
+            // Refresh relevant data
+            fetchManagersData(selectedLeagueId);
+          }
+        }
+      } catch (error) {
+        console.error("Error processing expired auctions:", error);
+      }
+    };
+
+    // Process expired auctions immediately and then every 30 seconds
+    processExpiredAuctions();
+    const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
+
+    return () => {
+      clearInterval(expiredAuctionsInterval);
+    };
+  }, [selectedLeagueId, fetchManagersData]);
+
   useEffect(() => {
     if (!isConnected || !socket || !selectedLeagueId) {
       console.log("[Socket Client] Socket effect skipped:", {

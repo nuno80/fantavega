@@ -64,10 +64,13 @@ const httpServer = createServer((req, res) => {
             );
           }
 
+          // Emit the event to all clients in the room
           io.to(room).emit(event, data);
+          
           console.log(
             `[HTTP->Socket] Successfully emitted event '${event}' to room '${room}' (${clientCount} clients)`
           );
+          
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ success: true, clientCount }));
         } else {

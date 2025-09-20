@@ -326,7 +326,7 @@ export const processExpiredResponseTimers = (): {
         `
       SELECT urt.id, urt.auction_id, urt.user_id, urt.response_deadline,
              a.player_id, a.auction_league_id as league_id, p.name as player_name,
-             a.current_highest_bid_amount, a.current_highest_bidder_id
+             a.current_highest_bid_amount, a.current_highest_bidder_id, a.player_role
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
       JOIN players p ON a.player_id = p.id
@@ -346,6 +346,7 @@ export const processExpiredResponseTimers = (): {
       player_name: string;
       current_highest_bid_amount: number;
       current_highest_bidder_id: string;
+      player_role: string;
     }>;
 
     console.log(`[TIMER] Found ${expiredTimers.length} expired timers`);
@@ -397,6 +398,42 @@ export const processExpiredResponseTimers = (): {
           now,
           0
         );
+
+        // ASSEGNA IL GIOCATORE AL MIGLIOR OFFERENTE
+        // Questo è il codice mancante che dovrebbe essere qui
+        if (timer.current_highest_bidder_id) {
+          // Assegna il giocatore al miglior offerente
+          db.prepare(
+            `
+            INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price, assigned_at)
+            VALUES (?, ?, ?, ?, ?)
+          `
+          ).run(
+            timer.league_id,
+            timer.player_id,
+            timer.current_highest_bidder_id,
+            timer.current_highest_bid_amount,
+            now
+          );
+
+          // Aggiorna il conteggio dei giocatori acquisiti per il ruolo
+          const col = `players_${timer.player_role}_acquired`;
+          db.prepare(
+            `UPDATE league_participants SET ${col} = ${col} + 1, updated_at = ? WHERE league_id = ? AND user_id = ?`
+          ).run(now, timer.league_id, timer.current_highest_bidder_id);
+
+          // Notifica l'assegnazione del giocatore
+          notifySocketServer({
+            room: `league-${timer.league_id}`,
+            event: "auction-closed-notification",
+            data: {
+              playerId: timer.player_id,
+              playerName: timer.player_name,
+              winnerId: timer.current_highest_bidder_id,
+              finalPrice: timer.current_highest_bid_amount,
+            },
+          });
+        }
 
         db.prepare("COMMIT").run();
 

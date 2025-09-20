@@ -1,6 +1,8 @@
+// src/lib/scheduler.ts
 /**
  * Sistema di scheduling automatico per processare timer scaduti
  */
+import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 
 const TIMER_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minuti
@@ -22,16 +24,31 @@ export const startScheduler = () => {
 
   schedulerInterval = setInterval(async () => {
     try {
+      // Process response timers
       console.log("[SCHEDULER] Processing expired timers...");
-      const result = await processExpiredResponseTimers();
+      const timerResult = await processExpiredResponseTimers();
 
-      if (result.processedCount > 0 || result.errors.length > 0) {
+      if (timerResult.processedCount > 0 || timerResult.errors.length > 0) {
         console.log(
-          `[SCHEDULER] Processed ${result.processedCount} expired timers, ${result.errors.length} errors`
+          `[SCHEDULER] Processed ${timerResult.processedCount} expired timers, ${timerResult.errors.length} errors`
         );
 
-        if (result.errors.length > 0) {
-          console.error("[SCHEDULER] Errors:", result.errors);
+        if (timerResult.errors.length > 0) {
+          console.error("[SCHEDULER] Timer errors:", timerResult.errors);
+        }
+      }
+
+      // Process expired auctions
+      console.log("[SCHEDULER] Processing expired auctions...");
+      const auctionResult = await processExpiredAuctionsAndAssignPlayers();
+
+      if (auctionResult.processedCount > 0 || auctionResult.errors.length > 0) {
+        console.log(
+          `[SCHEDULER] Processed ${auctionResult.processedCount} expired auctions, ${auctionResult.errors.length} errors`
+        );
+
+        if (auctionResult.errors.length > 0) {
+          console.error("[SCHEDULER] Auction errors:", auctionResult.errors);
         }
       }
     } catch (error) {

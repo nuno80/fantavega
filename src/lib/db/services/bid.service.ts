@@ -7,9 +7,9 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 import { handleBidderChange } from "./auction-states.service";
 import { checkAndRecordCompliance } from "./penalty.service";
 import {
-  cancelResponseTimer,
-  createResponseTimer,
-  getUserCooldownInfo,
+    cancelResponseTimer,
+    createResponseTimer,
+    getUserCooldownInfo,
 } from "./response-timer.service";
 
 // 2. Tipi e Interfacce Esportate
@@ -1169,6 +1169,18 @@ export async function placeBidOnExistingAuction({
       newScheduledEndTime,
     } = result;
 
+    // 4. Gestisci le notifiche individuali (invariato)
+    const surpassedUsers = new Set<string>();
+    if (
+      result.previousHighestBidderId &&
+      result.previousHighestBidderId !== result.finalBidderId
+    ) {
+      surpassedUsers.add(result.previousHighestBidderId);
+    }
+    if (userId !== result.finalBidderId) {
+      surpassedUsers.add(userId);
+    }
+
     // 1. Recupera i dati aggiornati per il payload arricchito
     const budgetUpdates = [];
     const getParticipantBudget = (pUserId: string) =>
@@ -1212,12 +1224,11 @@ export async function placeBidOnExistingAuction({
       .get(leagueId, playerId) as { id: number };
 
     // Recupera l'ultima offerta inserita
-    const lastBid = db
-      .prepare(
-        `SELECT id, user_id, amount, bid_time FROM bids WHERE auction_id = ? ORDER BY bid_time DESC LIMIT 1`
-      )
-      .get(auctionInfoForBid.id) as
-      | { id: number; user_id: string; amount: number; bid_time: string }
+    const lastBidStmt = db.prepare(
+      `SELECT b.id, b.user_id, b.amount, b.bid_time, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 1`
+    );
+    const lastBid = lastBidStmt.get(auctionInfoForBid.id) as
+      | { id: number; user_id: string; amount: number; bid_time: string; bidder_username: string }
       | undefined;
 
     // 2. Costruisci il payload arricchito
@@ -1236,22 +1247,12 @@ export async function placeBidOnExistingAuction({
         : undefined,
     };
 
-    // 5. Aggiorna stati utente PRIMA di notificare l'update (evita race client)
-    if (auctionInfoForBid) {
-      for (const surpassedUserId of surpassedUsers) {
-        console.log(
-          `[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`
-        );
-        await handleBidderChange(
-          auctionInfoForBid.id,
-          surpassedUserId,
-          result.finalBidderId!
-        );
-      }
-    }
-
     console.log(
       `[BID_SERVICE] Notifying socket server with rich payload for auction-update.`
+    );
+    console.log(
+      `[BID_SERVICE] Auction update payload:`,
+      JSON.stringify(richPayload, null, 2)
     );
 
     // 3. Invia l'evento `auction-update` arricchito
@@ -1260,18 +1261,6 @@ export async function placeBidOnExistingAuction({
       event: "auction-update",
       data: richPayload,
     });
-
-    // 4. Gestisci le notifiche individuali (invariato)
-    const surpassedUsers = new Set<string>();
-    if (
-      result.previousHighestBidderId &&
-      result.previousHighestBidderId !== result.finalBidderId
-    ) {
-      surpassedUsers.add(result.previousHighestBidderId);
-    }
-    if (userId !== result.finalBidderId) {
-      surpassedUsers.add(userId);
-    }
 
     for (const surpassedUserId of surpassedUsers) {
       console.log(

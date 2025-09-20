@@ -3,25 +3,25 @@
 import { useEffect, useState } from "react";
 
 import {
-  Ban,
-  Clock,
-  Dumbbell,
-  Gavel,
-  Shield,
-  TrendingUp,
-  Trophy,
-  User,
-  Users,
+    Ban,
+    Clock,
+    Dumbbell,
+    Gavel,
+    Shield,
+    TrendingUp,
+    Trophy,
+    User,
+    Users,
 } from "lucide-react";
 
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
 } from "@/components/ui/card";
 
 interface PlayerSearchCardProps {
@@ -50,6 +50,19 @@ export function PlayerSearchCard({
   const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState<
     number | null
   >(player.cooldownInfo?.timeRemaining || null);
+
+  // Add effect to log when player data changes
+  useEffect(() => {
+    console.log("[PlayerSearchCard] Player data updated:", {
+      playerId: player.id,
+      playerName: player.name,
+      auctionStatus: player.auctionStatus,
+      currentBid: player.currentBid,
+      current_highest_bidder_id: player.current_highest_bidder_id,
+      userId: userId,
+      isHighestBidder: player.current_highest_bidder_id === userId
+    });
+  }, [player, userId]);
 
   // Funzione per gestire il toggle delle preferenze
   const handleTogglePreference = async (
@@ -180,11 +193,29 @@ export function PlayerSearchCard({
 
   const hasCooldown =
     cooldownTimeRemaining !== null && cooldownTimeRemaining > 0;
+  
+  // Check if current user is the highest bidder
+  const isHighestBidder = player.current_highest_bidder_id === userId;
+  
   const canBid =
     (player.auctionStatus === "active_auction" ||
       player.auctionStatus === "no_auction") &&
     !player.isAssignedToUser &&
-    !hasCooldown;
+    !hasCooldown &&
+    !isHighestBidder; // Add this condition - user cannot bid if they're already the highest bidder
+
+  // Log when canBid changes
+  useEffect(() => {
+    console.log("[PlayerSearchCard] canBid state changed:", {
+      playerId: player.id,
+      playerName: player.name,
+      canBid: canBid,
+      auctionStatus: player.auctionStatus,
+      isAssignedToUser: player.isAssignedToUser,
+      hasCooldown: hasCooldown,
+      isHighestBidder: isHighestBidder
+    });
+  }, [canBid, player, hasCooldown, isHighestBidder]);
 
   const statusDisplay = getStatusDisplay();
 
