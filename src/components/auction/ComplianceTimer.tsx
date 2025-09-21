@@ -43,6 +43,7 @@ export function ComplianceTimer({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include"
         }
       );
 
@@ -50,7 +51,13 @@ export function ComplianceTimer({
         const result = await response.json();
         console.log("[COMPLIANCE_TIMER] Compliance check completed:", result);
 
-        // Only show notification and refresh if penalty was actually applied
+        // Always notify parent component to refresh data when timer expires
+        // This ensures UI updates for both penalty applications and compliance changes
+        if (onPenaltyApplied) {
+          onPenaltyApplied();
+        }
+
+        // Show notification only if penalty was actually applied
         if (result.appliedPenaltyAmount > 0) {
           toast.error(
             `Penalità applicata: ${result.appliedPenaltyAmount} crediti`,
@@ -60,11 +67,6 @@ export function ComplianceTimer({
               duration: 8000,
             }
           );
-
-          // Notify parent component to refresh data
-          if (onPenaltyApplied) {
-            onPenaltyApplied();
-          }
         } else if (result.isNowCompliant) {
           console.log(
             "[COMPLIANCE_TIMER] Timer expired but user is now compliant - no penalty applied"
@@ -79,12 +81,20 @@ export function ComplianceTimer({
           "[COMPLIANCE_TIMER] Failed to check compliance:",
           response.status
         );
+        // Even on error, we should still try to refresh the UI
+        if (onPenaltyApplied) {
+          onPenaltyApplied();
+        }
       }
     } catch (error) {
       console.error(
         "[COMPLIANCE_TIMER] Error checking compliance on timer expiration:",
         error
       );
+      // Even on error, we should still try to refresh the UI
+      if (onPenaltyApplied) {
+        onPenaltyApplied();
+      }
     } finally {
       isProcessingPenalty.current = false;
     }

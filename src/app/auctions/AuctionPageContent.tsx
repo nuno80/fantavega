@@ -258,7 +258,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const fetchComplianceData = useCallback(async (leagueId: number) => {
     try {
       const response = await fetch(
-        `/api/leagues/${leagueId}/all-compliance-status`
+        `/api/leagues/${leagueId}/all-compliance-status`,
+        {
+          credentials: "include"
+        }
       );
       if (response.ok) {
         const data = await response.json();
@@ -268,6 +271,15 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       console.error("Error fetching compliance data:", error);
     }
   }, []);
+
+  // Add this new function to refresh all necessary data when compliance changes
+  const refreshComplianceData = useCallback(async (leagueId: number) => {
+    await Promise.all([
+      fetchComplianceData(leagueId),
+      fetchBudgetData(leagueId),
+      fetchManagersData(leagueId)
+    ]);
+  }, [fetchComplianceData, fetchBudgetData, fetchManagersData]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -540,6 +552,15 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       });
     };
 
+    // Add handler for compliance status changes
+    const handleComplianceStatusChanged = (data: { userId: string; isNowCompliant: boolean }) => {
+      console.log("[Socket Client] Compliance status changed:", data);
+      // Refresh compliance data for all managers when any user's compliance status changes
+      if (selectedLeagueId) {
+        refreshComplianceData(selectedLeagueId);
+      }
+    };
+
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-closed-notification", handleAuctionClosed);
@@ -547,6 +568,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.on("user-abandoned-auction", handleUserAbandoned);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
+    socket.on("compliance-status-changed", handleComplianceStatusChanged); // Add this line
     
     // Listen for direct user state changes to refresh response timers/states
     socket.on("auction-state-changed", () => {
@@ -563,6 +585,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("user-abandoned-auction", handleUserAbandoned);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
+      socket.off("compliance-status-changed", handleComplianceStatusChanged); // Add this line
       socket.off("auction-state-changed");
       console.log(
         `[Socket Client] Leaving league room: league-${selectedLeagueId}`
@@ -579,6 +602,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     refreshUserAuctionStatesOld,
     userId,
     activeAuctions, // Add activeAuctions to dependency array
+    refreshComplianceData // Add refreshComplianceData to dependency array
   ]);
 
   const handlePlaceBid = async (
@@ -709,7 +733,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   complianceTimerStartAt={
                     managerCompliance?.compliance_timer_start_at || null
                   }
-                  onPenaltyApplied={() => fetchBudgetData(selectedLeagueId!)}
+                  onPenaltyApplied={() => refreshComplianceData(selectedLeagueId!)}
                   userAutoBidOverlay={userAutoBidOverlay}
                   setUserAutoBidOverlay={setUserAutoBidOverlay}
                 />
