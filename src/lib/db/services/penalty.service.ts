@@ -27,6 +27,10 @@ const PENALTY_AMOUNT = 5;
 const MAX_PENALTIES_PER_CYCLE = 5;
 const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
 
+// Simple in-memory cache for compliance checks
+const complianceCache = new Map<string, { isCompliant: boolean; timestamp: number }>();
+const CACHE_DURATION_SECONDS = 10; // Cache results for 10 seconds
+
 // 4. Funzioni Helper (interne)
 const getCurrentPhaseIdentifier = (
   leagueStatus: string,
@@ -128,10 +132,17 @@ export const checkAndRecordCompliance = (
   userId: string,
   leagueId: number
 ): { statusChanged: boolean; isCompliant: boolean } => {
+  const cacheKey = `${leagueId}:${userId}`;
+  const now = Math.floor(Date.now() / 1000);
+  const cached = complianceCache.get(cacheKey);
+
+  if (cached && (now - cached.timestamp) < CACHE_DURATION_SECONDS) {
+    console.log(`[COMPLIANCE_SERVICE] Returning cached compliance status for user ${userId} in league ${leagueId}: ${cached.isCompliant}`);
+    return { statusChanged: false, isCompliant: cached.isCompliant };
+  }
+
   try {
     const result = db.transaction(() => {
-      const now = Math.floor(Date.now() / 1000);
-
       const leagueStmt = db.prepare(
         "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
       );
@@ -197,7 +208,7 @@ export const checkAndRecordCompliance = (
         ).run(now, leagueId, userId, phaseIdentifier);
         statusChanged = true;
         console.log(
-          `[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`
+          `[COMPLIANCE_SERVICE] User ${userId} in league ${leagueId} is now compliant for phase ${phaseIdentifier}. Timer stopped.`
         );
       } else if (!isCompliant && !wasTimerActive) {
         // CASE B: User became non-compliant, start the timer.
@@ -206,9 +217,12 @@ export const checkAndRecordCompliance = (
         ).run(now, now, leagueId, userId, phaseIdentifier);
         statusChanged = true;
         console.log(
-          `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
+          `[COMPLIANCE_SERVICE] User ${userId} in league ${leagueId} is now NON-compliant for phase ${phaseIdentifier}. Grace period timer started.`
         );
       }
+
+      // Update cache
+      complianceCache.set(cacheKey, { isCompliant, timestamp: now });
 
       return { statusChanged, isCompliant };
     })();
@@ -251,6 +265,7 @@ export const processUserComplianceAndPenalties = async (
 
     if (!hasLoggedIn) {
       finalMessage = `User ${userId} has never logged in. Penalty check skipped.`;
+      console.log(`[PENALTY_SERVICE] Skipping compliance check for user ${userId} in league ${leagueId}: User has never logged in.`);
       // Return compliant status to avoid showing P icon
       isNowCompliant = true;
       appliedPenaltyAmount = 0;
@@ -297,6 +312,7 @@ export const processUserComplianceAndPenalties = async (
       !["draft_active", "repair_active"].includes(league.status)
     ) {
       finalMessage = `League ${leagueId} not found or not in an active penalty phase.`;
+      console.log(`[PENALTY_SERVICE] Skipping compliance check for league ${leagueId}: Not in an active penalty phase (status: ${league?.status}).`);
       
       // Emit real-time event for compliance status change
       const { notifySocketServer } = await import("../../socket-emitter");
@@ -447,7 +463,8 @@ export const processUserComplianceAndPenalties = async (
             userId,
             phaseIdentifier
           );
-          finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties.`;
+          finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties for user ${userId} in league ${leagueId}.`;
+          console.log(`[PENALTY_SERVICE] Applied ${penaltiesToApply} penalties totaling ${appliedPenaltyAmount} credits to user ${userId} in league ${leagueId}.`);
         }
         // Update total penalty amount to return
         const updatedComplianceRecord = getComplianceStmt.get(
@@ -459,16 +476,19 @@ export const processUserComplianceAndPenalties = async (
           (updatedComplianceRecord.penalties_applied_this_cycle || 0) *
           PENALTY_AMOUNT;
       } else {
-        finalMessage = `User is non-compliant, but within grace period.`;
+        const timeRemaining = gracePeriodEndTime - now;
+        finalMessage = `User ${userId} is non-compliant, but within grace period. Time remaining: ${Math.floor(timeRemaining / 60)} minutes.`;
+        console.log(`[PENALTY_SERVICE] User ${userId} in league ${leagueId} is non-compliant but within grace period. ${timeRemaining} seconds remaining.`);
       }
     } else {
       if (complianceRecord.compliance_timer_start_at !== null) {
         db.prepare(
           "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
         ).run(now, leagueId, userId, phaseIdentifier);
-        finalMessage = `User is now compliant. Penalty cycle reset.`;
+        finalMessage = `User ${userId} is now compliant. Penalty cycle reset.`;
+        console.log(`[PENALTY_SERVICE] User ${userId} in league ${leagueId} is now compliant. Penalty timer reset.`);
       } else {
-        finalMessage = `User is compliant. No action needed.`;
+        finalMessage = `User ${userId} is compliant. No action needed.`;
       }
     }
 

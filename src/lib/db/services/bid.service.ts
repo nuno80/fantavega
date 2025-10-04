@@ -642,6 +642,16 @@ export const placeInitialBidAndCreateAuction = async (
       "[BID_SERVICE] createAndStartAuction - No auction_id in result, cannot emit auction-created event"
     );
   }
+
+  // Trigger compliance check for the user who started the auction
+  try {
+    console.log(`[BID_SERVICE] Triggering compliance check for user ${bidderUserIdParam} after starting auction ${result.auction_id}`);
+    const { processUserComplianceAndPenalties } = await import("./penalty.service");
+    await processUserComplianceAndPenalties(leagueIdParam, bidderUserIdParam);
+  } catch (error) {
+    console.error(`[BID_SERVICE] Non-critical error during compliance check for user ${bidderUserIdParam} after starting auction:`, error);
+  }
+
   return result;
 };
 
@@ -669,10 +679,11 @@ export async function placeBidOnExistingAuction({
     );
   }
 
-  const transaction = db.transaction(() => {
-    console.log(`[BID_SERVICE] Transaction started.`);
-    // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
-    const auction = db
+  try {
+    const transaction = db.transaction(() => {
+      console.log(`[BID_SERVICE] Transaction started.`);
+      // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
+      const auction = db
       .prepare(
         `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time, user_auction_states FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
       )
@@ -1070,14 +1081,14 @@ export async function placeBidOnExistingAuction({
         : undefined,
       autoBidAmount: finalAmount,
       finalBidAmount: finalAmount,
-      finalBidderId: finalBidderId,
-    };
-  });
+        finalBidderId: finalBidderId,
+      };
+    });
 
-  const result = transaction();
-  console.log(
-    `[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`
-  );
+    const result = transaction();
+    console.log(
+      `[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`
+    );
 
   // --- Gestione Timer di Risposta + COMPLIANCE CHECK PER UTENTI SUPERATI ---
   if (result.success) {
@@ -1089,28 +1100,13 @@ export async function placeBidOnExistingAuction({
     ) {
       try {
         console.log(
-          `[BID_SERVICE] Checking compliance for outbid user ${result.previousHighestBidderId}`
+          `[BID_SERVICE] Triggering compliance check for outbid user ${result.previousHighestBidderId}`
         );
-        const complianceResult = checkAndRecordCompliance(
-          result.previousHighestBidderId,
-          leagueId
-        );
-
-        if (complianceResult.statusChanged) {
-          console.log(
-            `[BID_SERVICE] Compliance status changed for outbid user ${result.previousHighestBidderId}: isCompliant=${complianceResult.isCompliant}`
-          );
-
-          // Se l'utente è diventato non-compliant, il timer è ripartito automaticamente
-          if (!complianceResult.isCompliant) {
-            console.log(
-              `[BID_SERVICE] CRITICAL: User ${result.previousHighestBidderId} became non-compliant after losing bid - penalty timer restarted`
-            );
-          }
-        }
+        const { processUserComplianceAndPenalties } = await import("./penalty.service");
+        await processUserComplianceAndPenalties(leagueId, result.previousHighestBidderId);
       } catch (error) {
         console.error(
-          `[BID_SERVICE] Error checking compliance for outbid user ${result.previousHighestBidderId}:`,
+          `[BID_SERVICE] Non-critical error during compliance check for outbid user ${result.previousHighestBidderId}:`,
           error
         );
       }
@@ -1123,24 +1119,13 @@ export async function placeBidOnExistingAuction({
     ) {
       try {
         console.log(
-          `[BID_SERVICE] Checking compliance for bidding user who didn't win ${userId}`
+          `[BID_SERVICE] Triggering compliance check for bidding user who didn't win ${userId}`
         );
-        const bidderComplianceResult = checkAndRecordCompliance(
-          userId,
-          leagueId
-        );
-
-        if (
-          bidderComplianceResult.statusChanged &&
-          !bidderComplianceResult.isCompliant
-        ) {
-          console.log(
-            `[BID_SERVICE] Bidding user ${userId} became non-compliant - penalty timer restarted`
-          );
-        }
+        const { processUserComplianceAndPenalties } = await import("./penalty.service");
+        await processUserComplianceAndPenalties(leagueId, userId);
       } catch (error) {
         console.error(
-          `[BID_SERVICE] Error checking compliance for bidding user ${userId}:`,
+          `[BID_SERVICE] Non-critical error during compliance check for bidding user ${userId}:`,
           error
         );
       }
@@ -1349,6 +1334,12 @@ export async function placeBidOnExistingAuction({
     : "Offerta piazzata con successo!";
 
   return { message };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during the bidding process.";
+    console.error(`[BID_SERVICE] CRITICAL ERROR in placeBidOnExistingAuction for user ${userId}, player ${playerId}: ${errorMessage}`, error);
+    // Re-throw a more user-friendly error
+    throw new Error(`Impossibile piazzare l'offerta: ${errorMessage}`);
+  }
 }
 
 export const getAuctionStatusForPlayer = async (
