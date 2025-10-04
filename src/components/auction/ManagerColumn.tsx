@@ -648,7 +648,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const currentBudget = manager?.current_budget || 0;
   const lockedCredits = manager?.locked_credits || 0;
   const availableBudget = currentBudget - lockedCredits;
-  const spentCredits = totalBudget - availableBudget;
+  const spentCredits = totalBudget - currentBudget;
   const spentPercentage =
     totalBudget > 0 ? (spentCredits / totalBudget) * 100 : 0;
 

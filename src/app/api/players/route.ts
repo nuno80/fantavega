@@ -15,6 +15,7 @@ import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
 // 2. Funzione GET per Recuperare i Giocatori
 export async function GET(request: NextRequest) {
   console.log("[API PLAYERS GET] Request received to list players.");
+  console.log("[API PLAYERS GET] Request URL:", request.nextUrl.toString());
 
   try {
     // 2.1. Estrarre i parametri di query dall'URL
@@ -25,6 +26,10 @@ export async function GET(request: NextRequest) {
     const team = searchParams.get("team") || undefined;
     const leagueIdStr = searchParams.get("leagueId");
     const leagueId = leagueIdStr ? parseInt(leagueIdStr, 10) : undefined;
+    
+    console.log("[API PLAYERS GET] Parsed parameters:", {
+      name, role, team, leagueId, leagueIdStr
+    });
 
     const sortBy =
       (searchParams.get("sortBy") as GetPlayersOptions["sortBy"]) || "name";
@@ -101,31 +106,53 @@ export async function GET(request: NextRequest) {
     console.log("[API PLAYERS GET] Calling service with options:", options);
 
     // 2.2. Chiamata al Servizio
-    const result: GetPlayersResult = await getPlayers(options);
+    let result: GetPlayersResult;
+    try {
+      result = await getPlayers(options);
+      console.log(`[API PLAYERS GET] Service returned ${result.players.length} players`);
+    } catch (serviceError) {
+      console.error("[API PLAYERS GET] Error in getPlayers service:", serviceError);
+      throw serviceError; // Re-throw to be caught by outer try-catch
+    }
 
     // 2.3. Aggiungere informazioni sui cooldown per l'utente corrente
     const user = await currentUser();
     if (user?.id) {
-      const playersWithCooldown = result.players.map((player) => {
-        const cooldownInfo = getUserCooldownInfo(user.id, player.id);
-        return {
-          ...player,
-          cooldownInfo: cooldownInfo.canBid
-            ? null
-            : {
-                timeRemaining: cooldownInfo.timeRemaining,
-                message: cooldownInfo.message,
-              },
-        };
-      });
+      try {
+        const playersWithCooldown = result.players.map((player) => {
+          try {
+            const cooldownInfo = getUserCooldownInfo(user.id, player.id);
+            return {
+              ...player,
+              cooldownInfo: cooldownInfo.canBid
+                ? null
+                : {
+                    timeRemaining: cooldownInfo.timeRemaining,
+                    message: cooldownInfo.message,
+                  },
+            };
+          } catch (cooldownError) {
+            console.error(`[API PLAYERS] Error getting cooldown for player ${player.id}:`, cooldownError);
+            // Return player without cooldown info if there's an error
+            return {
+              ...player,
+              cooldownInfo: null,
+            };
+          }
+        });
 
-      return NextResponse.json(
-        {
-          ...result,
-          players: playersWithCooldown,
-        },
-        { status: 200 }
-      );
+        return NextResponse.json(
+          {
+            ...result,
+            players: playersWithCooldown,
+          },
+          { status: 200 }
+        );
+      } catch (cooldownError) {
+        console.error('[API PLAYERS] Error processing cooldowns:', cooldownError);
+        // Return players without cooldown info if there's a general error
+        return NextResponse.json(result, { status: 200 });
+      }
     }
 
     return NextResponse.json(result, { status: 200 });

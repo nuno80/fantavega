@@ -106,8 +106,8 @@ export const getPlayers = async (
       SELECT 
         p.*,
         CASE
-          WHEN (SELECT 1 FROM player_assignments pa WHERE pa.player_id = p.id AND pa.auction_league_id = ?) THEN 'assigned'
-          WHEN (SELECT 1 FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') THEN 'active_auction'
+          WHEN EXISTS (SELECT 1 FROM player_assignments pa WHERE pa.player_id = p.id AND pa.auction_league_id = ?) THEN 'assigned'
+          WHEN EXISTS (SELECT 1 FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') THEN 'active_auction'
           ELSE 'no_auction'
         END as auction_status
     `;
@@ -162,14 +162,24 @@ export const getPlayers = async (
   const finalCountParams = [...filterParams];
 
   try {
+    console.log(`[SERVICE PLAYER] Executing count query: "${countQuery}"`);
+    console.log(`[SERVICE PLAYER] Count params:`, finalCountParams);
+    
     const totalPlayersStmt = db.prepare(countQuery);
     const totalResult = totalPlayersStmt.get(...finalCountParams) as {
       total: number;
     };
     const totalPlayers = totalResult.total;
+    
+    console.log(`[SERVICE PLAYER] Count result: ${totalPlayers} total players`);
 
+    console.log(`[SERVICE PLAYER] Executing main query: "${baseQuery}"`);
+    console.log(`[SERVICE PLAYER] Main query params:`, finalBaseParams);
+    
     const playersStmt = db.prepare(baseQuery);
     const players = playersStmt.all(...finalBaseParams) as Player[];
+    
+    console.log(`[SERVICE PLAYER] Query result: ${players.length} players returned`);
 
     const totalPages = Math.ceil(totalPlayers / validatedLimit);
 
@@ -184,10 +194,12 @@ export const getPlayers = async (
     const errorMessage =
       error instanceof Error ? error.message : "Unknown database error.";
     console.error(
-      `[SERVICE PLAYER] Error fetching players. Query: "${baseQuery}", Params: ${JSON.stringify(finalBaseParams)}`,
-      errorMessage,
-      error
+      `[SERVICE PLAYER] Error fetching players. Count Query: "${countQuery}", Count Params: ${JSON.stringify(finalCountParams)}`
     );
+    console.error(
+      `[SERVICE PLAYER] Main Query: "${baseQuery}", Main Params: ${JSON.stringify(finalBaseParams)}`
+    );
+    console.error(`[SERVICE PLAYER] Error details:`, errorMessage, error);
     throw new Error(`Failed to retrieve players: ${errorMessage}`);
   }
 };

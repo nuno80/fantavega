@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
+import { LeagueSelector } from "@/components/auction/LeagueSelector";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
 import { TeamSelectorModal } from "@/components/auction/TeamSelectorModal";
 import { SocketDebugger } from "@/components/debug/SocketDebugger";
@@ -42,8 +43,11 @@ interface UserBudgetInfo {
 interface LeagueInfo {
   id: number;
   name: string;
-  min_bid: number;
   status: string;
+  min_bid?: number;
+  team_name?: string;
+  current_budget?: number;
+  locked_credits?: number;
 }
 interface Manager {
   user_id: string;
@@ -181,8 +185,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
   const [userAutoBidOverlay, setUserAutoBidOverlay] = useState<Record<number, { max_amount: number; is_active: boolean }>>({});
   const [_bidHistory, setBidHistory] = useState<Bid[]>([]);
-  const [_leagues, setLeagues] = useState<LeagueInfo[]>([]);
-  const [_showLeagueSelector, _setShowLeagueSelector] = useState(false);
+  const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [userAuctionStates, setUserAuctionStates] = useState<
@@ -281,6 +284,47 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     ]);
   }, [fetchComplianceData, fetchBudgetData, fetchManagersData]);
 
+  // Add function to handle league change
+  const handleLeagueChange = async (newLeagueId: number) => {
+    if (newLeagueId === selectedLeagueId) return; // No change needed
+    
+    console.log(`[League Selector] Switching from league ${selectedLeagueId} to ${newLeagueId}`);
+    
+    try {
+      // Update selected league
+      setSelectedLeagueId(newLeagueId);
+      
+      // Find the league info
+      const league = leagues.find(l => l.id === newLeagueId);
+      if (league) {
+        setLeagueInfo(league);
+      }
+      
+      // Reset current states
+      setManagers([]);
+      setActiveAuctions([]);
+      setAutoBids([]);
+      setCurrentAuction(null);
+      setUserAuctionStates([]);
+      setComplianceData([]);
+      setUserAutoBidOverlay({});
+      
+      // Fetch data for the new league
+      await Promise.all([
+        fetchManagersData(newLeagueId),
+        fetchCurrentAuction(newLeagueId),
+        fetchBudgetData(newLeagueId),
+        fetchComplianceData(newLeagueId),
+        refreshUserAuctionStatesOld(newLeagueId),
+      ]);
+      
+      toast.success(`Passato alla lega: ${league?.name || newLeagueId}`);
+    } catch (error) {
+      console.error("Error switching league:", error);
+      toast.error("Errore nel cambio lega");
+    }
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -296,23 +340,36 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           }
           throw new Error(`Failed to fetch leagues: ${leaguesResponse.status}`);
         }
-        const leagues = await leaguesResponse.json();
-        if (leagues.length === 0) {
+        const fetchedLeagues = await leaguesResponse.json();
+        if (fetchedLeagues.length === 0) {
           toast.error("Non sei iscritto a nessuna lega");
           return;
         }
-        const league = leagues[0];
-        setSelectedLeagueId(league.id);
-        setLeagueInfo(league);
-        setLeagues(leagues);
+        
+        setLeagues(fetchedLeagues);
+        
+        // Try to get league from localStorage first, then fall back to first league
+        let selectedLeague;
+        const savedLeagueId = localStorage.getItem('selectedLeagueId');
+        if (savedLeagueId) {
+          selectedLeague = fetchedLeagues.find((l: any) => l.id === parseInt(savedLeagueId));
+        }
+        if (!selectedLeague) {
+          selectedLeague = fetchedLeagues[0];
+        }
+        
+        setSelectedLeagueId(selectedLeague.id);
+        setLeagueInfo(selectedLeague);
+        
+        console.log(`[League Selector] Selected league: ${selectedLeague.name} (ID: ${selectedLeague.id})`);
 
         // Other initial fetches...
         await Promise.all([
-          fetchManagersData(league.id),
-          fetchCurrentAuction(league.id),
-          fetchBudgetData(league.id),
-          fetchComplianceData(league.id),
-          refreshUserAuctionStatesOld(league.id),
+          fetchManagersData(selectedLeague.id),
+          fetchCurrentAuction(selectedLeague.id),
+          fetchBudgetData(selectedLeague.id),
+          fetchComplianceData(selectedLeague.id),
+          refreshUserAuctionStatesOld(selectedLeague.id),
         ]);
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -327,14 +384,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
     fetchInitialData();
-  }, [
-    userId,
-    router,
-    fetchManagersData,
-    fetchCurrentAuction,
-    fetchBudgetData,
-    fetchComplianceData,
-  ]);
+  }, [userId, router]); // Removed callback dependencies to prevent re-running
 
   // Add useEffect for processing expired auctions
   useEffect(() => {
@@ -676,6 +726,21 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       <div className="flex-shrink-0 border-b border-border bg-card p-4">
+        {/* League Selector Header */}
+        <div className="mb-4 flex items-center justify-between">
+          <LeagueSelector
+            leagues={leagues}
+            selectedLeagueId={selectedLeagueId}
+            onLeagueChange={handleLeagueChange}
+            isLoading={isLoading}
+          />
+          {selectedLeagueId && (
+            <div className="text-sm text-muted-foreground">
+              League ID: {selectedLeagueId}
+            </div>
+          )}
+        </div>
+        
         <CallPlayerInterface
           leagueId={selectedLeagueId || 0}
           userId={userId}
