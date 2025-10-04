@@ -1327,6 +1327,15 @@ export async function placeBidOnExistingAuction({
         );
       }
     }
+
+    // NEW: Trigger compliance check for the final winner
+    try {
+      console.log(`[BID_SERVICE] Triggering compliance check for final winner ${result.finalBidderId} after placing bid.`);
+      const { processUserComplianceAndPenalties } = await import("./penalty.service");
+      await processUserComplianceAndPenalties(leagueId, result.finalBidderId);
+    } catch (error) {
+      console.error(`[BID_SERVICE] Non-critical error during compliance check for final winner ${result.finalBidderId}:`, error);
+    }
   }
 
   const message = result.autoBidActivated
