@@ -45,9 +45,9 @@ interface LeagueInfo {
   name: string;
   status: string;
   min_bid?: number;
-  team_name?: string;
-  current_budget?: number;
-  locked_credits?: number;
+  team_name: string; // Made non-optional, assuming it's always provided or has a default
+  current_budget: number; // Made non-optional
+  locked_credits: number; // Made non-optional
 }
 interface Manager {
   user_id: string;
@@ -171,6 +171,8 @@ interface AutoBid {
 interface ComplianceStatus {
   user_id: string;
   compliance_timer_start_at: number | null;
+  totalPenalties?: number; // Added
+  newBudget?: number; // Added
 }
 
 export function AuctionPageContent({ userId }: AuctionPageContentProps) {
@@ -587,12 +589,26 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
 
-    const handlePenaltyApplied = (data: PenaltyAppliedData) => {
+    const handlePenaltyApplied = (data: PenaltyAppliedData & { newBudget?: number }) => {
       toast.error(`Penalità applicata: ${data.amount} crediti`, {
         description: data.reason,
         duration: 8000,
       });
-      fetchBudgetData(selectedLeagueId);
+      // Update the current user's budget directly if the penalty is for them
+      if (data.newBudget !== undefined && userId) {
+        setManagers((prevManagers) =>
+          prevManagers.map((manager) => {
+            if (manager.user_id === userId) {
+              return {
+                ...manager,
+                current_budget: data.newBudget,
+              };
+            }
+            return manager;
+          })
+        );
+      }
+      // No need to fetchBudgetData(selectedLeagueId) as we update managers directly
     };
 
     const handleAutoBidActivated = (data: AutoBidActivatedData) => {
@@ -603,11 +619,52 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     // Add handler for compliance status changes
-    const handleComplianceStatusChanged = (data: { userId: string; isNowCompliant: boolean }) => {
+    const handleComplianceStatusChanged = (data: { userId: string; isNowCompliant: boolean; totalPenalties?: number; newBudget?: number }) => {
       console.log("[Socket Client] Compliance status changed:", data);
-      // Refresh compliance data for all managers when any user's compliance status changes
-      if (selectedLeagueId) {
-        refreshComplianceData(selectedLeagueId);
+      setManagers((prevManagers) =>
+        prevManagers.map((manager) => {
+          if (manager.user_id === data.userId) {
+            return {
+              ...manager,
+              current_budget: data.newBudget ?? manager.current_budget ?? 0, // Ensure it's always a number
+              total_penalties: data.totalPenalties ?? manager.total_penalties ?? 0, // Ensure it's always a number
+            };
+          }
+          return manager;
+        })
+      );
+      // Update complianceData state for the specific user
+      setComplianceData((prevComplianceData) => {
+        const existingIndex = prevComplianceData.findIndex(
+          (c) => c.user_id === data.userId
+        );
+        if (existingIndex > -1) {
+          const newComplianceData = [...prevComplianceData];
+          newComplianceData[existingIndex] = {
+            ...newComplianceData[existingIndex],
+            compliance_timer_start_at: data.isNowCompliant ? null : Math.floor(Date.now() / 1000), // Set timer if non-compliant
+            totalPenalties: data.totalPenalties ?? 0, // Provide fallback
+            newBudget: data.newBudget ?? 0, // Provide fallback
+          };
+          return newComplianceData;
+        } else {
+          return [
+            ...prevComplianceData,
+            {
+              user_id: data.userId,
+              compliance_timer_start_at: data.isNowCompliant ? null : Math.floor(Date.now() / 1000),
+              totalPenalties: data.totalPenalties ?? 0, // Provide fallback
+              newBudget: data.newBudget ?? 0, // Provide fallback
+            },
+          ];
+        }
+      });
+      // If the current user's compliance status changed, update the local state
+      if (data.userId === userId) {
+        setUserComplianceStatus({
+          isCompliant: data.isNowCompliant,
+          isInGracePeriod: !data.isNowCompliant && (data.totalPenalties === 0 || data.totalPenalties === undefined), // Assuming grace period if no penalties yet
+        });
       }
     };
 

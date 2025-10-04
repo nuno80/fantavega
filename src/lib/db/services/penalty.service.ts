@@ -25,7 +25,7 @@ interface SlotRequirements {
 // 3. Costanti
 const PENALTY_AMOUNT = 5;
 const MAX_PENALTIES_PER_CYCLE = 5;
-const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
+const COMPLIANCE_GRACE_PERIOD_HOURS = 0.001; // Temporarily reduced for testing
 
 // Simple in-memory cache for compliance checks
 const complianceCache = new Map<string, { isCompliant: boolean; timestamp: number }>();
@@ -495,27 +495,50 @@ export const processUserComplianceAndPenalties = async (
     // Emit real-time event when compliance status changes
     if (complianceStatusChanged || complianceCheckResult.statusChanged) {
       const { notifySocketServer } = await import("../../socket-emitter");
+
+      // Fetch the latest budget and total penalties for the user
+      const latestManagerData = db.prepare(
+        `SELECT lp.current_budget, COALESCE(SUM(bt.amount), 0) as total_penalties
+         FROM league_participants lp
+         LEFT JOIN budget_transactions bt ON lp.user_id = bt.user_id AND lp.league_id = bt.auction_league_id AND bt.transaction_type = 'penalty_requirement'
+         WHERE lp.league_id = ? AND lp.user_id = ?
+         GROUP BY lp.current_budget`
+      ).get(leagueId, userId) as { current_budget: number; total_penalties: number } | undefined;
+
       await notifySocketServer({
         room: `league-${leagueId}`,
         event: "compliance-status-changed",
         data: {
           userId,
           isNowCompliant: isCurrentlyCompliant,
+          totalPenalties: latestManagerData?.total_penalties || 0, // Add total penalties
+          newBudget: latestManagerData?.current_budget || 0, // Add new budget
           timestamp: Date.now()
         }
       });
     }
 
-    // if (appliedPenaltyAmount > 0) {
-    //   await notifySocketServer({
-    //     room: `user-${userId}`,
-    //     event: 'penalty-applied-notification',
-    //     data: {
-    //       amount: appliedPenaltyAmount,
-    //       reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
-    //     }
-    //   });
-    // }
+    if (appliedPenaltyAmount > 0) {
+      const { notifySocketServer } = await import("../../socket-emitter");
+      // Fetch the latest budget for the user
+      const latestBudget = (
+        db
+          .prepare(
+            "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
+          )
+          .get(leagueId, userId) as { current_budget: number }
+      ).current_budget;
+
+      await notifySocketServer({
+        room: `user-${userId}`,
+        event: "penalty-applied-notification",
+        data: {
+          amount: appliedPenaltyAmount,
+          reason: "Mancato rispetto dei requisiti minimi di composizione della rosa.",
+          newBudget: latestBudget, // Include the new budget
+        },
+      });
+    }
 
     // Calculate timing information for non-compliant users
     let gracePeriodEndTime: number | undefined;
