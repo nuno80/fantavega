@@ -1590,8 +1590,8 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
 
   for (const auction of expiredAuctions) {
     try {
-      // Determina l'importo corretto da sbloccare
-      const autoBid = db
+      // CORREZIONE: Ottieni l'auto-bid del vincitore PRIMA di disattivarli
+      const winnerAutoBid = db
         .prepare(
           "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE"
         )
@@ -1600,30 +1600,36 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
         | undefined;
 
       const amountToUnlock =
-        autoBid?.max_amount || auction.current_highest_bid_amount;
+        winnerAutoBid?.max_amount || auction.current_highest_bid_amount;
+
+      console.log(`[CREDIT_FIX] Auction ${auction.id}: Winner ${auction.current_highest_bidder_id}, unlocking ${amountToUnlock} credits (auto-bid: ${winnerAutoBid?.max_amount || 'none'}, final price: ${auction.current_highest_bid_amount})`);
 
       db.transaction(() => {
         db.prepare(
           "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?"
         ).run(now, auction.id);
 
-        // Disattiva TUTTI gli auto-bid per questa asta (non solo quello del vincitore)
-        // Quando un'asta finisce, tutti gli auto-bid devono essere disattivati
+        // Ottieni TUTTI gli auto-bid prima di disattivarli
+        const allAutoBidsForAuction = db
+          .prepare(
+            "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND is_active = TRUE"
+          )
+          .all(auction.id) as {
+          user_id: string;
+          max_amount: number;
+        }[];
+
+        // Disattiva TUTTI gli auto-bid per questa asta
         db.prepare(
           "UPDATE auto_bids SET is_active = FALSE, updated_at = ? WHERE auction_id = ?"
         ).run(now, auction.id);
 
         // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
-        const allAutoBidsForAuction = db
-          .prepare(
-            "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ?"
-          )
-          .all(auction.id, auction.current_highest_bidder_id) as {
-          user_id: string;
-          max_amount: number;
-        }[];
+        const losingAutoBids = allAutoBidsForAuction.filter(
+          autoBid => autoBid.user_id !== auction.current_highest_bidder_id
+        );
 
-        for (const otherAutoBid of allAutoBidsForAuction) {
+        for (const otherAutoBid of losingAutoBids) {
           db.prepare(
             "UPDATE league_participants SET locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?"
           ).run(
@@ -1631,6 +1637,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
             auction.auction_league_id,
             otherAutoBid.user_id
           );
+          console.log(`[CREDIT_FIX] Unlocked ${otherAutoBid.max_amount} credits for losing bidder ${otherAutoBid.user_id}`);
         }
 
         db.prepare(
@@ -1689,7 +1696,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
 
         // NUOVO: Check compliance for all users who had auto-bids but didn't win
         // They might have become non-compliant after losing this auction
-        for (const otherAutoBid of allAutoBidsForAuction) {
+        for (const otherAutoBid of losingAutoBids) {
           try {
             console.log(
               `[AUCTION_EXPIRED] Checking compliance for user ${otherAutoBid.user_id} who lost auction ${auction.id}`
@@ -1728,7 +1735,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
         for (const losingBidder of allLosingBidders) {
           // Skip if already checked in auto-bid loop above
           if (
-            !allAutoBidsForAuction.some(
+            !losingAutoBids.some(
               (ab) => ab.user_id === losingBidder.user_id
             )
           ) {
@@ -1781,3 +1788,101 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
   }
   return { processedCount, failedCount, errors };
 };
+
+// FASE 3: Funzione di validazione per prevenire futuri problemi
+export function validateLockedCreditsConsistency(leagueId: number): {
+  isValid: boolean;
+  issues: Array<{
+    userId: string;
+    teamName: string;
+    expected: number;
+    actual: number;
+    difference: number;
+  }>;
+} {
+  console.log(`[CREDIT_VALIDATION] Validating locked credits for league ${leagueId}`);
+  
+  const participants = db.prepare(`
+    SELECT user_id, locked_credits, manager_team_name
+    FROM league_participants 
+    WHERE league_id = ?
+  `).all(leagueId) as Array<{
+    user_id: string;
+    locked_credits: number;
+    manager_team_name: string;
+  }>;
+
+  const issues = [];
+  
+  for (const participant of participants) {
+    // Calcola i crediti bloccati attesi sommando tutti gli auto-bid attivi
+    const expectedLocked = db.prepare(`
+      SELECT COALESCE(SUM(ab.max_amount), 0) as total
+      FROM auto_bids ab
+      JOIN auctions a ON ab.auction_id = a.id
+      WHERE a.auction_league_id = ? 
+        AND ab.user_id = ? 
+        AND ab.is_active = TRUE
+        AND a.status = 'active'
+    `).get(leagueId, participant.user_id) as { total: number };
+
+    if (participant.locked_credits !== expectedLocked.total) {
+      const difference = participant.locked_credits - expectedLocked.total;
+      issues.push({
+        userId: participant.user_id,
+        teamName: participant.manager_team_name,
+        expected: expectedLocked.total,
+        actual: participant.locked_credits,
+        difference: difference
+      });
+      
+      console.log(`[CREDIT_VALIDATION] Issue found for ${participant.manager_team_name}: expected ${expectedLocked.total}, actual ${participant.locked_credits}, difference ${difference}`);
+    }
+  }
+
+  const isValid = issues.length === 0;
+  console.log(`[CREDIT_VALIDATION] Validation ${isValid ? 'PASSED' : 'FAILED'} - ${issues.length} issues found`);
+  
+  return { isValid, issues };
+}
+
+// Funzione di correzione automatica per i crediti bloccati
+export function fixLockedCreditsConsistency(leagueId: number): {
+  fixedCount: number;
+  errors: string[];
+} {
+  console.log(`[CREDIT_FIX] Starting automatic fix for league ${leagueId}`);
+  
+  const validation = validateLockedCreditsConsistency(leagueId);
+  if (validation.isValid) {
+    console.log(`[CREDIT_FIX] No issues found, no fixes needed`);
+    return { fixedCount: 0, errors: [] };
+  }
+
+  let fixedCount = 0;
+  const errors: string[] = [];
+
+  const transaction = db.transaction(() => {
+    for (const issue of validation.issues) {
+      try {
+        db.prepare(`
+          UPDATE league_participants 
+          SET locked_credits = ? 
+          WHERE league_id = ? AND user_id = ?
+        `).run(issue.expected, leagueId, issue.userId);
+        
+        console.log(`[CREDIT_FIX] Fixed ${issue.teamName}: ${issue.actual} -> ${issue.expected} (difference: ${issue.difference})`);
+        fixedCount++;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`Failed to fix ${issue.teamName}: ${errorMsg}`);
+        console.error(`[CREDIT_FIX] Error fixing ${issue.teamName}:`, error);
+      }
+    }
+  });
+
+  transaction();
+  
+  console.log(`[CREDIT_FIX] Completed: ${fixedCount} fixed, ${errors.length} errors`);
+  return { fixedCount, errors };
+}
