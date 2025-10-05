@@ -339,22 +339,13 @@ export function CallPlayerInterface({
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        try {
-          const error = JSON.parse(errorText);
-          throw new Error(
-            error.error ||
-              error.message ||
-              "Errore sconosciuto nel creare l'asta"
-          );
-        } catch (e) {
-          throw new Error(
-            errorText || "Errore sconosciuto nel creare l'asta"
-          );
-        }
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error || "Errore sconosciuto nell'avviare l'asta.";
+        toast.error(errorMessage);
+        return; // Interrompi l'esecuzione qui
       }
 
-      toast.success("Asta avviata con successo!");
+      // toast.success("Asta avviata con successo!");
 
       // Reset selection after starting auction
       setSelectedPlayer("");
