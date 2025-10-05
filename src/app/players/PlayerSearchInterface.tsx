@@ -201,9 +201,8 @@ export function PlayerSearchInterface({
         if (response.ok) {
           const result = await response.json();
           if (result.processedCount > 0) {
-            console.log(`Processed ${result.processedCount} expired auctions`);
-            // Refresh players data
-            refreshPlayersData();
+            // console.log(`Processed ${result.processedCount} expired auctions`);
+            // Refresh data if needed, e.g., re-fetch active auctions
           }
         }
       } catch (error) {
@@ -382,7 +381,7 @@ export function PlayerSearchInterface({
 
   // Add this function to refresh player data
   const handleBidSuccess = useCallback(() => {
-    console.log("[PlayerSearchInterface] Handling bid success callback");
+    // console.log("[PlayerSearchInterface] Handling bid success callback");
     if (selectedLeagueId) {
       refreshPlayersData(selectedLeagueId);
     }
@@ -390,7 +389,7 @@ export function PlayerSearchInterface({
 
   const handleStartAuction = (player: PlayerWithAuctionStatus) => {
     // TODO: Implement start auction logic
-    console.log("Start auction for player:", player);
+    // console.log("Start auction for player:", player);
   };
 
   const handleTogglePlayerIcon = async (

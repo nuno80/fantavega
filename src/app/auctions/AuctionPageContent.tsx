@@ -278,7 +278,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const handleLeagueChange = async (newLeagueId: number) => {
     if (newLeagueId === selectedLeagueId) return; // No change needed
     
-    console.log(`[League Selector] Switching from league ${selectedLeagueId} to ${newLeagueId}`);
+    // console.log(`[League Selector] Switching from league ${selectedLeagueId} to ${newLeagueId}`);
     
     try {
       // Update selected league
@@ -322,9 +322,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         const leaguesResponse = await fetch("/api/user/leagues");
         if (!leaguesResponse.ok) {
           if (leaguesResponse.status === 401) {
-            console.log(
-              "[AUTH] User not authenticated, redirecting to sign-in"
-            );
+            // console.log(
+            //   "[AUTH] User not authenticated, redirecting to sign-in"
+            // );
             router.push("/sign-in" as Route);
             return;
           }
@@ -351,7 +351,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         setSelectedLeagueId(selectedLeague.id);
         setLeagueInfo(selectedLeague);
         
-        console.log(`[League Selector] Selected league: ${selectedLeague.name} (ID: ${selectedLeague.id})`);
+        // console.log(`[League Selector] Selected league: ${selectedLeague.name} (ID: ${selectedLeague.id})`);
 
         // Other initial fetches...
         await Promise.all([
@@ -401,7 +401,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         if (response.ok) {
           const result = await response.json();
           if (result.processedCount > 0) {
-            console.log(`Processed ${result.processedCount} expired auctions`);
+            // console.log(`Processed ${result.processedCount} expired auctions`);
             // Refresh relevant data
             fetchManagersData(selectedLeagueId);
           }
@@ -422,25 +422,25 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   useEffect(() => {
     if (!isConnected || !socket || !selectedLeagueId) {
-      console.log("[Socket Client] Socket effect skipped:", {
-        isConnected,
-        hasSocket: !!socket,
-        selectedLeagueId,
-      });
+      // console.log("[Socket Client] Socket effect skipped:", {
+      //   isConnected,
+      //   hasSocket: !!socket,
+      //   selectedLeagueId,
+      // });
       return;
     }
 
-    console.log(
-      `[Socket Client] Joining league room: league-${selectedLeagueId}`
-    );
+    // console.log(
+    //   `[Socket Client] Joining league room: league-${selectedLeagueId}`
+    // );
     socket.emit("join-league-room", selectedLeagueId.toString());
 
     const handleAuctionUpdate = (data: AuctionUpdateData) => {
-      console.log("[AUCTION UPDATE] Received auction update:", {
-        playerId: data.playerId,
-        newPrice: data.newPrice,
-        highestBidderId: data.highestBidderId,
-      });
+      // console.log("[AUCTION UPDATE] Received auction update:", {
+      //   playerId: data.playerId,
+      //   newPrice: data.newPrice,
+      //   highestBidderId: data.highestBidderId,
+      // });
       setCurrentAuction((prev) => {
         if (prev && data.playerId === prev.player_id) {
           return {
@@ -455,9 +455,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       setActiveAuctions((prevAuctions) =>
         prevAuctions.map((auction) => {
           if (auction.player_id === data.playerId) {
-            console.log(
-              `[AUCTION UPDATE] Updating active auction list for player ${data.playerId}`
-            );
+            // console.log(
+            //   `[AUCTION UPDATE] Updating active auction list for player ${data.playerId}`
+            // );
             return {
               ...auction,
               current_highest_bid_amount: data.newPrice,
@@ -522,20 +522,20 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     const handleAuctionCreated = (data: AuctionCreatedData) => {
-      console.log("[Socket Client] 🎯 AUCTION-CREATED event received:", data);
+      // console.log("[Socket Client] 🎯 AUCTION-CREATED event received:", data);
       const existingAuctionInList = activeAuctions.find(
         (a) => a.player_id === data.playerId
       );
       if (existingAuctionInList) {
-        console.log(
-          "[Socket Client] 🚨 DUPLICATE: Auction already exists, ignoring duplicate auction-created event",
-          {
-            playerId: data.playerId,
-          }
-        );
+        // console.log(
+        //   "[Socket Client] 🚨 DUPLICATE: Auction already exists, ignoring duplicate auction-created event",
+        //   {
+        //     playerId: data.playerId,
+        //   }
+        // );
         return;
       }
-      console.log("[Socket Client] 🆕 Processing NEW auction creation");
+      // console.log("[Socket Client] 🆕 Processing NEW auction creation");
       setActiveAuctions((prevAuctions) => {
         const newAuction: ActiveAuction = {
           player_id: data.playerId,
@@ -575,7 +575,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     const handleUserAbandoned = (data: UserAbandonedData) => {
-      console.log("[Socket Client] User abandoned auction:", data);
+      // console.log("[Socket Client] User abandoned auction:", data);
       refreshUserAuctionStatesOld(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       if (data.userId !== userId) {
@@ -623,7 +623,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
     // Add handler for compliance status changes
     const handleComplianceStatusChanged = (data: { userId: string; isNowCompliant: boolean; totalPenalties?: number; newBudget?: number }) => {
-      console.log("[Socket Client] Compliance status changed:", data);
+      // console.log("[Socket Client] Compliance status changed:", data);
       setManagers((prevManagers) =>
         prevManagers.map((manager) => {
           if (manager.user_id === data.userId) {
@@ -697,10 +697,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       socket.off("compliance-status-changed", handleComplianceStatusChanged); // Add this line
       socket.off("auction-state-changed");
-      console.log(
-        `[Socket Client] Leaving league room: league-${selectedLeagueId}`
-      );
-      socket.emit("leave-league-room", selectedLeagueId.toString());
+      // console.log(
+      //   `[Socket Client] Leaving league room: league-${selectedLeagueId}`
+      // );      socket.emit("leave-league-room", selectedLeagueId.toString());
     };
   }, [
     socket,

@@ -36,14 +36,14 @@ export default clerkMiddleware(async (auth, req) => {
   //console.log(`[AUTH] User ID: ${userId}`);
 
   if (isPublicRoute(req)) {
-    console.log(`[DECISION] Public route. Allowing for ${req.url}.`);
+    // console.log(`[DECISION] Public route. Allowing for ${req.url}.`);
     return NextResponse.next();
   }
 
   if (!userId) {
-    console.log("[DECISION] User not authenticated.");
+    // console.log("[DECISION] User not authenticated.");
     if (req.url.startsWith("/api")) {
-      console.log("[ACTION] Returning 401 for API request.");
+      // console.log("[ACTION] Returning 401 for API request.");
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -54,16 +54,16 @@ export default clerkMiddleware(async (auth, req) => {
       "redirect_url",
       req.nextUrl.pathname + req.nextUrl.search
     );
-    console.log(`[ACTION] Redirecting to sign-in: ${signInUrl.toString()}`);
+    // console.log(`[ACTION] Redirecting to sign-in: ${signInUrl.toString()}`);
     return NextResponse.redirect(signInUrl);
   }
 
-  console.log(`[AUTH] User ${userId} is authenticated.`);
+  // console.log(`[AUTH] User ${userId} is authenticated.`);
 
   if (isAdminRoute(req)) {
-    console.log(
-      `[ROUTE] Admin route matched for ${req.url}. Checking admin role for user ${userId}.`
-    );
+    // console.log(
+    //   `[ROUTE] Admin route matched for ${req.url}. Checking admin role for user ${userId}.`
+    // );
 
     let userIsAdmin = false;
     let roleSource = "none";
@@ -86,18 +86,18 @@ export default clerkMiddleware(async (auth, req) => {
       }
     }
 
-    console.log(
-      `[AUTH] Role source for admin check: ${roleSource}. Role found: ${userIsAdmin ? "admin" : "not admin or not found"}`
-    );
-    console.log(`[AUTH] Result of userIsAdmin check: ${userIsAdmin}`);
+    // console.log(
+    //   `[AUTH] Role source for admin check: ${roleSource}. Role found: ${userIsAdmin ? "admin" : "not admin or not found"}`
+    // );
+    // console.log(`[AUTH] Result of userIsAdmin check: ${userIsAdmin}`);
 
     if (userIsAdmin) {
-      console.log("[DECISION] Admin access GRANTED.");
+      // console.log("[DECISION] Admin access GRANTED.");
       return NextResponse.next();
     } else {
-      console.log("[DECISION] Admin access DENIED. User is not admin.");
+      // console.log("[DECISION] Admin access DENIED. User is not admin.");
       if (req.url.startsWith("/api")) {
-        console.log("[ACTION] Returning 403 for API admin request.");
+        // console.log("[ACTION] Returning 403 for API admin request.");
         return new NextResponse(
           JSON.stringify({ error: "Forbidden: Admin role required" }),
           {
@@ -107,21 +107,21 @@ export default clerkMiddleware(async (auth, req) => {
         );
       }
       const noAccessUrl = new URL("/no-access", req.url);
-      console.log("[ACTION] Redirecting to /no-access.");
+      // console.log("[ACTION] Redirecting to /no-access.");
       return NextResponse.redirect(noAccessUrl);
     }
   }
 
   if (isAuthenticatedRoute(req)) {
-    console.log(
-      `[ROUTE] Authenticated (non-admin) route matched for ${req.url}. Access GRANTED for user ${userId}.`
-    );
+    // console.log(
+    //   `[ROUTE] Authenticated (non-admin) route matched for ${req.url}. Access GRANTED for user ${userId}.`
+    // );
     return NextResponse.next();
   }
 
-  console.log(
-    `[ROUTE] Unspecified protected route for ${req.url}. Allowing access for authenticated user ${userId}.`
-  );
+  // console.log(
+  //   `[ROUTE] Unspecified protected route for ${req.url}. Allowing access for authenticated user ${userId}.`
+  // );
   return NextResponse.next();
 });
 
