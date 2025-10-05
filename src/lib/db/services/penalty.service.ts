@@ -454,10 +454,11 @@ export const processUserComplianceAndPenalties = async (
             );
           }
           db.prepare(
-            "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
+            "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, compliance_timer_start_at = ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
           ).run(
             now,
             penaltiesToApply,
+            now, /* Reset compliance_timer_start_at to now */
             now,
             leagueId,
             userId,

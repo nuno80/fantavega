@@ -18,18 +18,6 @@ import { useMobile } from "@/hooks/use-mobile";
 
 // src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
 
-// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
-
-// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
-
-// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
-
-// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
-
-// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
-
-// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
-
 // --- Interface Definitions ---
 interface AuctionPageContentProps {
   userId: string;
@@ -386,7 +374,15 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
     fetchInitialData();
-  }, [userId, router]); // Removed callback dependencies to prevent re-running
+  }, [
+    userId,
+    router,
+    fetchManagersData,
+    fetchCurrentAuction,
+    fetchBudgetData,
+    fetchComplianceData,
+    refreshUserAuctionStatesOld,
+  ]);
 
   // Add useEffect for processing expired auctions
   useEffect(() => {
@@ -594,21 +590,28 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         description: data.reason,
         duration: 8000,
       });
-      // Update the current user's budget directly if the penalty is for them
-      if (data.newBudget !== undefined && userId) {
-        setManagers((prevManagers) =>
-          prevManagers.map((manager) => {
-            if (manager.user_id === userId) {
-              return {
-                ...manager,
-                current_budget: data.newBudget,
-              };
-            }
-            return manager;
-          })
-        );
+
+      // Only proceed to update the budget if a new value is provided in the event.
+      if (data.newBudget === undefined) {
+        return;
       }
-      // No need to fetchBudgetData(selectedLeagueId) as we update managers directly
+
+      // Capture the validated budget value in a new constant.
+      // This helps TypeScript's type inference inside the nested 'map' function.
+      const newBudgetValue = data.newBudget;
+
+      // Update the manager state for the current user.
+      setManagers((prevManagers) =>
+        prevManagers.map((manager) => {
+          if (manager.user_id === userId) {
+            return {
+              ...manager,
+              current_budget: newBudgetValue,
+            };
+          }
+          return manager;
+        })
+      );
     };
 
     const handleAutoBidActivated = (data: AutoBidActivatedData) => {
