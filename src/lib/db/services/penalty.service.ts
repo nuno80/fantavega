@@ -25,10 +25,13 @@ interface SlotRequirements {
 // 3. Costanti
 const PENALTY_AMOUNT = 5;
 const MAX_PENALTIES_PER_CYCLE = 5;
-const COMPLIANCE_GRACE_PERIOD_HOURS = 0.001; // Temporarily reduced for testing
+const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
 
 // Simple in-memory cache for compliance checks
-const complianceCache = new Map<string, { isCompliant: boolean; timestamp: number }>();
+const complianceCache = new Map<
+  string,
+  { isCompliant: boolean; timestamp: number }
+>();
 const CACHE_DURATION_SECONDS = 10; // Cache results for 10 seconds
 
 // 4. Funzioni Helper (interne)
@@ -136,8 +139,10 @@ export const checkAndRecordCompliance = (
   const now = Math.floor(Date.now() / 1000);
   const cached = complianceCache.get(cacheKey);
 
-  if (cached && (now - cached.timestamp) < CACHE_DURATION_SECONDS) {
-    console.log(`[COMPLIANCE_SERVICE] Returning cached compliance status for user ${userId} in league ${leagueId}: ${cached.isCompliant}`);
+  if (cached && now - cached.timestamp < CACHE_DURATION_SECONDS) {
+    console.log(
+      `[COMPLIANCE_SERVICE] Returning cached compliance status for user ${userId} in league ${leagueId}: ${cached.isCompliant}`
+    );
     return { statusChanged: false, isCompliant: cached.isCompliant };
   }
 
@@ -265,11 +270,13 @@ export const processUserComplianceAndPenalties = async (
 
     if (!hasLoggedIn) {
       finalMessage = `User ${userId} has never logged in. Penalty check skipped.`;
-      console.log(`[PENALTY_SERVICE] Skipping compliance check for user ${userId} in league ${leagueId}: User has never logged in.`);
+      console.log(
+        `[PENALTY_SERVICE] Skipping compliance check for user ${userId} in league ${leagueId}: User has never logged in.`
+      );
       // Return compliant status to avoid showing P icon
       isNowCompliant = true;
       appliedPenaltyAmount = 0;
-      
+
       // Emit real-time event for compliance status change (even for users who never logged in)
       const { notifySocketServer } = await import("../../socket-emitter");
       await notifySocketServer({
@@ -278,10 +285,10 @@ export const processUserComplianceAndPenalties = async (
         data: {
           userId,
           isNowCompliant: true,
-          timestamp: Date.now()
-        }
+          timestamp: Date.now(),
+        },
       });
-      
+
       return {
         appliedPenaltyAmount,
         totalPenaltyAmount: 0,
@@ -307,13 +314,12 @@ export const processUserComplianceAndPenalties = async (
         >
       | undefined;
 
-    if (
-      !league ||
-      !["draft_active", "repair_active"].includes(league.status)
-    ) {
+    if (!league || !["draft_active", "repair_active"].includes(league.status)) {
       finalMessage = `League ${leagueId} not found or not in an active penalty phase.`;
-      console.log(`[PENALTY_SERVICE] Skipping compliance check for league ${leagueId}: Not in an active penalty phase (status: ${league?.status}).`);
-      
+      console.log(
+        `[PENALTY_SERVICE] Skipping compliance check for league ${leagueId}: Not in an active penalty phase (status: ${league?.status}).`
+      );
+
       // Emit real-time event for compliance status change
       const { notifySocketServer } = await import("../../socket-emitter");
       await notifySocketServer({
@@ -322,10 +328,10 @@ export const processUserComplianceAndPenalties = async (
         data: {
           userId,
           isNowCompliant: true, // Not in penalty phase, so compliant
-          timestamp: Date.now()
-        }
+          timestamp: Date.now(),
+        },
       });
-      
+
       return {
         appliedPenaltyAmount,
         totalPenaltyAmount: 0,
@@ -338,7 +344,7 @@ export const processUserComplianceAndPenalties = async (
       league.status,
       league.active_auction_roles
     );
-    
+
     // Get previous compliance status before making changes
     const getPreviousComplianceStmt = db.prepare(
       "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
@@ -348,14 +354,15 @@ export const processUserComplianceAndPenalties = async (
       userId,
       phaseIdentifier
     ) as { compliance_timer_start_at: number | null } | undefined;
-    
+
     // Store previous compliance status (null timer means compliant)
-    const wasPreviouslyCompliant = previousComplianceRecord?.compliance_timer_start_at === null;
+    const wasPreviouslyCompliant =
+      previousComplianceRecord?.compliance_timer_start_at === null;
 
     // Check and update compliance status
     const complianceCheckResult = checkAndRecordCompliance(userId, leagueId);
     isNowCompliant = complianceCheckResult.isCompliant;
-    
+
     // Determine if compliance status actually changed
     let complianceStatusChanged = false;
     if (wasPreviouslyCompliant !== null) {
@@ -400,8 +407,9 @@ export const processUserComplianceAndPenalties = async (
       userId,
       phaseIdentifier
     ) as UserLeagueComplianceStatus | undefined;
-    
-    const isCurrentlyCompliant = currentComplianceRecord?.compliance_timer_start_at === null;
+
+    const isCurrentlyCompliant =
+      currentComplianceRecord?.compliance_timer_start_at === null;
     complianceStatusChanged = wasPreviouslyCompliant !== isCurrentlyCompliant;
 
     if (!isNowCompliant) {
@@ -458,14 +466,16 @@ export const processUserComplianceAndPenalties = async (
           ).run(
             now,
             penaltiesToApply,
-            now, /* Reset compliance_timer_start_at to now */
+            now /* Reset compliance_timer_start_at to now */,
             now,
             leagueId,
             userId,
             phaseIdentifier
           );
           finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties for user ${userId} in league ${leagueId}.`;
-          console.log(`[PENALTY_SERVICE] Applied ${penaltiesToApply} penalties totaling ${appliedPenaltyAmount} credits to user ${userId} in league ${leagueId}.`);
+          console.log(
+            `[PENALTY_SERVICE] Applied ${penaltiesToApply} penalties totaling ${appliedPenaltyAmount} credits to user ${userId} in league ${leagueId}.`
+          );
         }
         // Update total penalty amount to return
         const updatedComplianceRecord = getComplianceStmt.get(
@@ -479,7 +489,9 @@ export const processUserComplianceAndPenalties = async (
       } else {
         const timeRemaining = gracePeriodEndTime - now;
         finalMessage = `User ${userId} is non-compliant, but within grace period. Time remaining: ${Math.floor(timeRemaining / 60)} minutes.`;
-        console.log(`[PENALTY_SERVICE] User ${userId} in league ${leagueId} is non-compliant but within grace period. ${timeRemaining} seconds remaining.`);
+        console.log(
+          `[PENALTY_SERVICE] User ${userId} in league ${leagueId} is non-compliant but within grace period. ${timeRemaining} seconds remaining.`
+        );
       }
     } else {
       if (complianceRecord.compliance_timer_start_at !== null) {
@@ -487,7 +499,9 @@ export const processUserComplianceAndPenalties = async (
           "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
         ).run(now, leagueId, userId, phaseIdentifier);
         finalMessage = `User ${userId} is now compliant. Penalty cycle reset.`;
-        console.log(`[PENALTY_SERVICE] User ${userId} in league ${leagueId} is now compliant. Penalty timer reset.`);
+        console.log(
+          `[PENALTY_SERVICE] User ${userId} in league ${leagueId} is now compliant. Penalty timer reset.`
+        );
       } else {
         finalMessage = `User ${userId} is compliant. No action needed.`;
       }
@@ -498,13 +512,17 @@ export const processUserComplianceAndPenalties = async (
       const { notifySocketServer } = await import("../../socket-emitter");
 
       // Fetch the latest budget and total penalties for the user
-      const latestManagerData = db.prepare(
-        `SELECT lp.current_budget, COALESCE(SUM(bt.amount), 0) as total_penalties
+      const latestManagerData = db
+        .prepare(
+          `SELECT lp.current_budget, COALESCE(SUM(bt.amount), 0) as total_penalties
          FROM league_participants lp
          LEFT JOIN budget_transactions bt ON lp.user_id = bt.user_id AND lp.league_id = bt.auction_league_id AND bt.transaction_type = 'penalty_requirement'
          WHERE lp.league_id = ? AND lp.user_id = ?
          GROUP BY lp.current_budget`
-      ).get(leagueId, userId) as { current_budget: number; total_penalties: number } | undefined;
+        )
+        .get(leagueId, userId) as
+        | { current_budget: number; total_penalties: number }
+        | undefined;
 
       await notifySocketServer({
         room: `league-${leagueId}`,
@@ -514,8 +532,8 @@ export const processUserComplianceAndPenalties = async (
           isNowCompliant: isCurrentlyCompliant,
           totalPenalties: latestManagerData?.total_penalties || 0, // Add total penalties
           newBudget: latestManagerData?.current_budget || 0, // Add new budget
-          timestamp: Date.now()
-        }
+          timestamp: Date.now(),
+        },
       });
     }
 
@@ -535,7 +553,8 @@ export const processUserComplianceAndPenalties = async (
         event: "penalty-applied-notification",
         data: {
           amount: appliedPenaltyAmount,
-          reason: "Mancato rispetto dei requisiti minimi di composizione della rosa.",
+          reason:
+            "Mancato rispetto dei requisiti minimi di composizione della rosa.",
           newBudget: latestBudget, // Include the new budget
         },
       });
