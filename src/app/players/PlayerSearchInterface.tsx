@@ -432,7 +432,7 @@ export function PlayerSearchInterface({
         )
       );
 
-      toast.success("Preferenza salvata con successo!");
+      // toast.success("Preferenza salvata con successo!");
     } catch (error) {
       toast.error(
         error instanceof Error

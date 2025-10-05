@@ -308,7 +308,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         refreshUserAuctionStatesOld(newLeagueId),
       ]);
       
-      toast.success(`Passato alla lega: ${league?.name || newLeagueId}`);
+      // toast.success(`Passato alla lega: ${league?.name || newLeagueId}`);
     } catch (error) {
       console.error("Error switching league:", error);
       toast.error("Errore nel cambio lega");
@@ -564,11 +564,11 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         }
         return prev;
       });
-      toast.info(`Nuova asta iniziata!`, {
-        description:
-          `${data.playerName || `Player ${data.playerId}`} (${data.playerRole || "?"}) - ${data.playerTeam || "?"}`.trim(),
-        duration: 4000,
-      });
+      // toast.info(`Nuova asta iniziata!`, {
+      //   description:
+      //     `${data.playerName || `Player ${data.playerId}`} (${data.playerRole || "?"}) - ${data.playerTeam || "?"}`.trim(),
+      //   duration: 4000,
+      // });
       if (selectedLeagueId) {
         fetchManagersData(selectedLeagueId);
       }
@@ -579,9 +579,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       refreshUserAuctionStatesOld(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       if (data.userId !== userId) {
-        toast.info(`Asta abbandonata`, {
-          description: `Un utente ha abbandonato l'asta per ${data.playerName || `Player ${data.playerId}`}`,
-        });
+        // toast.info(`Asta abbandonata`, {
+        //   description: `Un utente ha abbandonato l'asta per ${data.playerName || `Player ${data.playerId}`}`,
+        // });
       }
     };
 
@@ -615,10 +615,10 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     const handleAutoBidActivated = (data: AutoBidActivatedData) => {
-      toast.success(`Auto-bid attivata per ${data.playerName}!`, {
-        description: `Offerta automatica di ${data.bidAmount} crediti piazzata.`,
-        duration: 5000,
-      });
+      // toast.success(`Auto-bid attivata per ${data.playerName}!`, {
+      //   description: `Offerta automatica di ${data.bidAmount} crediti piazzata.`,
+      //   duration: 5000,
+      // });
     };
 
     // Add handler for compliance status changes
@@ -764,7 +764,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         const error = await response.json();
         throw new Error(error.error || "Errore nel piazzare l'offerta");
       }
-      toast.success("Offerta piazzata con successo!");
+      // toast.success("Offerta piazzata con successo!");
     } catch (error) {
       throw error;
     }

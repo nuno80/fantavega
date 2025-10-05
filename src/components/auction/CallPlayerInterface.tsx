@@ -691,7 +691,7 @@ export function CallPlayerInterface({
                     hasIntegrity: false,
                     hasFmv: false,
                   });
-                  toast.success("Tutti i filtri sono stati resettati");
+                  // toast.success("Tutti i filtri sono stati resettati");
                 }}
                 title="Reset tutti i filtri"
               >
