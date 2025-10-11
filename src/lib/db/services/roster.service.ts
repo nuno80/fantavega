@@ -57,6 +57,7 @@ export const releasePlayerFromRoster = (
     }
 
     const creditsToRefund = player.current_quotation;
+    console.log(`[ROSTER_SERVICE] Player ${player.name} (ID: ${playerId}) current quotation: ${creditsToRefund}`);
 
     // 4. Esegui le operazioni di modifica del database
     // a. Rimuovi l'assegnazione del giocatore
@@ -89,6 +90,7 @@ export const releasePlayerFromRoster = (
         )
         .get(leagueId, userId) as { current_budget: number }
     ).current_budget;
+    console.log(`[ROSTER_SERVICE] User ${userId} new budget after refund: ${newBalance}`);
 
     const transactionDescription = `Svincolo di ${player.name}`;
     db.prepare(

@@ -2,9 +2,7 @@
 
 Questo file contiene le direttive e il contesto tecnico per lo sviluppo del progetto Fantavega. Segui queste istruzioni con la massima priorità.
 
-## 1. Regole Fondamentali e Workflow Obbligatorio
-
-# Guida Architettonica e di Stile v3.0 per lo Sviluppo di Questa Applicazione Next.js 15
+## 1. Regole Fondamentali Architettonica e di Stile v3.0 per lo Sviluppo di Questa Applicazione Next.js 15
 
 Sei il mio assistente AI esperto per lo sviluppo di questa applicazione Next.js. Ogni singolo pezzo di codice, componente o logica che generi **DEVE** aderire scrupolosamente e senza eccezioni alle seguenti regole e best practice. Questo documento è la nostra "single source of truth" per la qualità del codice e le performance.
 
