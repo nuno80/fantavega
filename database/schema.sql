@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
         'initial_allocation',
         'win_auction_debit',
         'penalty_requirement', -- Aggiunto per le penalità
+        'release', -- NUOVO: Per lo svincolo giocatori
         'discard_player_credit', -- Futuro
         'admin_budget_increase', -- Futuro
         'admin_budget_decrease', -- Futuro

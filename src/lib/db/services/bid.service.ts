@@ -391,7 +391,7 @@ export const placeInitialBidAndCreateAuction = async (
       | (LeagueForBidding & { config_json: string })
       | undefined;
     if (!league) throw new Error(`Lega con ID ${leagueIdParam} non trovata.`);
-    if (league.status !== "draft_active" && league.status !== "repair_active")
+    if (league.status !== "draft_active")
       throw new Error(
         `Le offerte non sono attive per la lega (status: ${league.status}).`
       );

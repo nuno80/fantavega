@@ -145,7 +145,17 @@ async function processAuctionRequest(
       return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
     }
 
-    if (league.status !== "draft_active" && league.status !== "repair_active") {
+    if (league.status === "repair_active") {
+      return NextResponse.json(
+        {
+          error:
+            "Asta in modalità riparazione, non è possibile avviare nuove aste, contattare l'amministratore per ulteriori dettagli",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (league.status !== "draft_active") {
       return NextResponse.json(
         { error: "La lega non è in uno stato che permette di avviare aste" },
         { status: 400 }

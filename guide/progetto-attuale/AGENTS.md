@@ -156,8 +156,6 @@ Le Server Actions sono usate **ESCLUSIVAMENTE per le mutazioni** (create, update
   - **Lato Server:** Usare le funzioni fornite dal provider di autenticazione (es. `auth()` di Clerk).
   - **Lato Client:** Usare gli hook forniti (es. `useUser()` di Clerk) per non rompere il rendering statico dei layout.
 
-````
-
 ### La Regola d'Oro
 
 L'esecuzione dei task deve seguire **esclusivamente** l'ordine sequenziale definito nel file `tasks.json`. Non passare al task successivo finché quello corrente non è stato completato in tutti i suoi sub-task.
@@ -235,6 +233,7 @@ Attendi la mia conferma prima di procedere con il sub-task successivo.
 **Stato**: ✅ **Gestione Crediti TESTATA e FUNZIONANTE**
 
 **Test Effettuati**:
+
 - ✅ **Test rilanci**: Verificato corretto comportamento crediti bloccati durante rilanci successivi (caso Ahanor)
 - ✅ **Test abbandono aste**: Verificato che non si generano più crediti negativi quando si abbandona un'asta
 - ✅ **Test auto-bid vs manual bid**: Verificata coerenza tra auto-bid attivi e crediti bloccati
@@ -242,11 +241,13 @@ Attendi la mia conferma prima di procedere con il sub-task successivo.
 - ✅ **Bug fix applicato**: Risolto problema doppio rilascio crediti nel `bid.service.ts`
 
 **Requisiti Chiave**:
+
 - Sistema di gestione crediti robusto e coerente
 - Prevenzione crediti negativi
 - Corretto blocco/sblocco crediti durante le aste
 
 **Funzionalità Testate e Funzionanti**:
+
 - ✅ **Gestione Crediti**: Sistema completamente testato e funzionante
 - ✅ **Rilanci**: Gestione corretta dei crediti durante rilanci multipli
 - ✅ **Auto-bid**: Blocco/sblocco automatico crediti per auto-bid
@@ -406,4 +407,3 @@ Command Format: sqlite3 database/starter_default.db "SQL_QUERY"
 sqlite3 database/starter_default.db "UPDATE auction_leagues SET status = 'participants_joining' WHERE id = 1;"
 sqlite3 database/starter_default.db "SELECT \* FROM users WHERE id = 'user_2ybRb12u9haFhrS4U7w3d1Yl5zD';"
 ```
-````

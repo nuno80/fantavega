@@ -293,19 +293,26 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
   // Add function to handle league change
   const handleLeagueChange = async (newLeagueId: number) => {
-    if (newLeagueId === selectedLeagueId) return; // No change needed
-
-    // console.log(`[League Selector] Switching from league ${selectedLeagueId} to ${newLeagueId}`);
+    if (newLeagueId === selectedLeagueId) return;
 
     try {
-      // Update selected league
-      setSelectedLeagueId(newLeagueId);
+      // Ricarica la lista delle leghe per ottenere lo stato più aggiornato
+      const leaguesResponse = await fetch("/api/user/leagues");
+      if (!leaguesResponse.ok) {
+        throw new Error("Failed to re-fetch leagues");
+      }
+      const freshLeagues = await leaguesResponse.json();
+      setLeagues(freshLeagues);
 
-      // Find the league info
-      const league = leagues.find((l) => l.id === newLeagueId);
+      // Trova la lega dalla lista aggiornata
+      const league = freshLeagues.find((l: LeagueInfo) => l.id === newLeagueId);
+      
       if (league) {
         setLeagueInfo(league);
       }
+
+      // Update selected league ID
+      setSelectedLeagueId(newLeagueId);
 
       // Reset current states
       setManagers([]);
@@ -325,7 +332,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         refreshUserAuctionStatesOld(newLeagueId),
       ]);
 
-      // toast.success(`Passato alla lega: ${league?.name || newLeagueId}`);
     } catch (error) {
       console.error("Error switching league:", error);
       toast.error("Errore nel cambio lega");
@@ -878,6 +884,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                     manager.user_id
                   }
                   position={index + 1}
+                  leagueStatus={_leagueInfo?.status || ""} // <-- PROP AGGIUNTA
                   leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
                   autoBids={autoBids}

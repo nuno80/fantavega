@@ -355,39 +355,46 @@ async function processBidRequest(
       "An unexpected error occurred while processing your bid.";
 
     if (error instanceof Error) {
+      // Mantieni il messaggio originale per il logging, ma preparane uno per il client
       clientErrorMessage = error.message;
 
-      if (error.message.includes("not found")) {
+      // Controlla il caso specifico della modalità riparazione
+      if (error.message.includes("status: repair_active")) {
+        statusCode = 403; // Forbidden
+        clientErrorMessage =
+          "Asta in modalità riparazione, non è possibile fare offerte.";
+      } else if (
+        error.message.includes("not found") ||
+        error.message.includes("Invalid league ID or player ID")
+      ) {
         statusCode = 404;
+      } else if (error.message.includes("active auction already exists")) {
+        statusCode = 409; // Conflict
+      } else if (error.message.includes("rate limit")) {
+        statusCode = 429; // Too Many Requests
       } else if (
         error.message.includes("non sono attualmente attive") ||
         error.message.includes("Bidding is not currently active") ||
-        (error.message.includes("Player's role") &&
-          error.message.includes("is not currently active for bidding")) ||
-        error.message.includes("has already been assigned") ||
-        error.message.includes("must be > current bid") ||
-        error.message.includes(
-          "L'offerta deve essere superiore all'offerta attuale"
-        ) ||
-        error.message.includes("is already the highest bidder") ||
-        error.message.includes("Sei già il miglior offerente") ||
-        error.message.includes("Auction is not active or closing") ||
+        error.message.includes("non è in uno stato che permette") ||
+        error.message.includes("non è un 'manager'") ||
+        error.message.includes("non partecipa alla lega") ||
+        error.message.includes("Non autorizzato") ||
         error.message.includes("Insufficient budget") ||
-        error.message.startsWith("Insufficient available budget") ||
-        error.message.startsWith("Slot full, you cannot bid") ||
-        error.message.includes("is less than the minimum bid") ||
-        error.message.includes("is not a participant") ||
-        error.message.includes("is not a manager") ||
-        error.message.includes("Hai abbandonato l'asta per questo giocatore") ||
-        error.message.includes("Riprova tra")
+        error.message.includes("Slot full") ||
+        error.message.includes("offerta minima") ||
+        error.message.includes("offerta attuale") ||
+        error.message.includes("Sei già il miglior offerente") ||
+        error.message.includes("Giocatore già assegnato") ||
+        error.message.includes("cooldown attivo")
       ) {
-        statusCode = 400;
-      } else if (error.message.includes("active auction already exists")) {
-        statusCode = 409;
+        // Per questi errori, il messaggio del servizio è già chiaro per l'utente
+        statusCode = 400; // Bad Request
       } else {
+        // Maschera tutti gli altri errori non gestiti
         console.error(
           `[API BIDS POST] Unhandled service error being masked for client: ${error.message}`
         );
+        statusCode = 500;
         clientErrorMessage =
           "An unexpected error occurred while processing your bid.";
       }

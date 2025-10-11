@@ -91,6 +91,7 @@ interface ManagerColumnProps {
   isCurrentUser: boolean;
   isHighestBidder: boolean;
   position: number;
+  leagueStatus: string; // <-- NUOVA PROP
   leagueSlots?: LeagueSlots;
   activeAuctions?: ActiveAuction[];
   autoBids?: AutoBid[]; // Changed from AutoBidIndicator[] to AutoBid[]
@@ -171,9 +172,15 @@ const formatTimeRemaining = (endTime: number) => {
 function AssignedSlot({
   player,
   role,
+  leagueStatus,
+  onReleasePlayer,
+  isCurrentUser,
 }: {
   player: PlayerInRoster;
   role: string;
+  leagueStatus: string;
+  onReleasePlayer: (playerId: number, playerName: string) => void;
+  isCurrentUser: boolean;
 }) {
   const roleColor = getRoleColor(role);
 
@@ -214,7 +221,18 @@ function AssignedSlot({
         <span className="text-xs font-semibold text-foreground">
           {player.assignment_price}
         </span>
-        <Lock className="h-3 w-3 text-gray-400" />
+        {leagueStatus !== "repair_active" && (
+          <Lock className="h-3 w-3 text-gray-400" />
+        )}
+        {isCurrentUser && leagueStatus === "repair_active" && (
+          <button
+            onClick={() => onReleasePlayer(player.id, player.name)}
+            className="rounded p-0.5 transition-colors hover:bg-red-600"
+            title={`Svincola ${player.name}`}
+          >
+            <X className="h-3 w-3 text-red-400" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -462,6 +480,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   isCurrentUser,
   isHighestBidder,
   position,
+  leagueStatus, // <-- DESTRUTTURATA
   leagueSlots,
   activeAuctions = [],
   userAutoBid,
@@ -489,6 +508,55 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     isInGracePeriod: false,
     isPenaltyActive: false,
   });
+
+  // <-- NUOVA FUNZIONE HANDLER
+  const handleReleasePlayer = async (playerId: number, playerName: string) => {
+    if (!leagueId) {
+      toast.error("ID della lega non trovato.");
+      return;
+    }
+
+    const confirmation = window.confirm(
+      `Sei sicuro di voler svincolare ${playerName}? Questa azione è irreversibile.`
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/leagues/${leagueId}/roster/${playerId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Errore sconosciuto");
+      }
+
+      toast.success(
+        `${result.releasedPlayerName} svincolato con successo!`,
+        {
+          description: `Hai recuperato ${result.creditsRefunded} crediti.`,
+        }
+      );
+      
+      // Ricarica la pagina per aggiornare lo stato. Soluzione semplice ma efficace.
+      window.location.reload();
+
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Errore durante lo svincolo.";
+      toast.error("Fallimento Svincolo", {
+        description: errorMessage,
+      });
+    }
+  };
+
 
   useEffect(() => {
     const now = Math.floor(Date.now() / 1000);
@@ -853,6 +921,9 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                           key={index}
                           player={slot.player}
                           role={role}
+                          leagueStatus={leagueStatus}
+                          onReleasePlayer={handleReleasePlayer}
+                          isCurrentUser={isCurrentUser}
                         />
                       );
                     case "in_auction":
