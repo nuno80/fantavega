@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
+
 import { ChevronDown, Trophy, Users } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface League {
   id: number;
@@ -36,16 +37,33 @@ export function LeagueSelector({
 }: LeagueSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const currentLeague = leagues.find((league) => league.id === selectedLeagueId);
+  const currentLeague = leagues.find(
+    (league) => league.id === selectedLeagueId
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "draft_active":
-        return <Badge variant="outline" className="text-green-500 border-green-500">Asta Attiva</Badge>;
+        return (
+          <Badge variant="outline" className="border-green-500 text-green-500">
+            Asta Attiva
+          </Badge>
+        );
       case "participants_joining":
-        return <Badge variant="outline" className="text-yellow-500 border-yellow-500">In Attesa</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="border-yellow-500 text-yellow-500"
+          >
+            In Attesa
+          </Badge>
+        );
       case "completed":
-        return <Badge variant="outline" className="text-gray-500 border-gray-500">Completata</Badge>;
+        return (
+          <Badge variant="outline" className="border-gray-500 text-gray-500">
+            Completata
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -54,16 +72,18 @@ export function LeagueSelector({
   const handleLeagueSelect = (leagueId: number) => {
     onLeagueChange(leagueId);
     setIsOpen(false);
-    
+
     // Save to localStorage for persistence
-    localStorage.setItem('selectedLeagueId', leagueId.toString());
+    localStorage.setItem("selectedLeagueId", leagueId.toString());
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center space-x-2">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <span className="text-sm text-muted-foreground">Caricamento leghe...</span>
+        <span className="text-sm text-muted-foreground">
+          Caricamento leghe...
+        </span>
       </div>
     );
   }
@@ -84,7 +104,9 @@ export function LeagueSelector({
       <div className="flex items-center space-x-2">
         <Trophy className="h-4 w-4 text-primary" />
         <span className="font-medium">{league.name}</span>
-        <span className="text-sm text-muted-foreground">({league.team_name})</span>
+        <span className="text-sm text-muted-foreground">
+          ({league.team_name})
+        </span>
         {getStatusBadge(league.status)}
       </div>
     );
@@ -93,7 +115,7 @@ export function LeagueSelector({
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="justify-between min-w-[200px]">
+        <Button variant="outline" className="min-w-[200px] justify-between">
           <div className="flex items-center space-x-2">
             <Trophy className="h-4 w-4" />
             <span className="font-medium">
@@ -136,9 +158,7 @@ export function LeagueSelector({
                     <span>Bloccati: {league.locked_credits}</span>
                   )}
                 </div>
-                <div className="mt-2">
-                  {getStatusBadge(league.status)}
-                </div>
+                <div className="mt-2">{getStatusBadge(league.status)}</div>
               </div>
             </div>
           </DropdownMenuItem>

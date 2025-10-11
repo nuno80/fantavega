@@ -26,7 +26,6 @@ interface SlotRequirements {
 const PENALTY_AMOUNT = 5;
 const MAX_PENALTIES_PER_CYCLE = 5;
 const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
-
 // Simple in-memory cache for compliance checks
 const complianceCache = new Map<
   string,

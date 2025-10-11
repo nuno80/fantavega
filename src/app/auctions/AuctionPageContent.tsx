@@ -18,6 +18,18 @@ import { useMobile } from "@/hooks/use-mobile";
 
 // src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
 
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
 // --- Interface Definitions ---
 interface AuctionPageContentProps {
   userId: string;
@@ -173,7 +185,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
-  const [userAutoBidOverlay, setUserAutoBidOverlay] = useState<Record<number, { max_amount: number; is_active: boolean }>>({});
+  const [userAutoBidOverlay, setUserAutoBidOverlay] = useState<
+    Record<number, { max_amount: number; is_active: boolean }>
+  >({});
   const [_bidHistory, setBidHistory] = useState<Bid[]>([]);
   const [leagues, setLeagues] = useState<LeagueInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -253,7 +267,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       const response = await fetch(
         `/api/leagues/${leagueId}/all-compliance-status`,
         {
-          credentials: "include"
+          credentials: "include",
         }
       );
       if (response.ok) {
@@ -266,30 +280,33 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   }, []);
 
   // Add this new function to refresh all necessary data when compliance changes
-  const refreshComplianceData = useCallback(async (leagueId: number) => {
-    await Promise.all([
-      fetchComplianceData(leagueId),
-      fetchBudgetData(leagueId),
-      fetchManagersData(leagueId)
-    ]);
-  }, [fetchComplianceData, fetchBudgetData, fetchManagersData]);
+  const refreshComplianceData = useCallback(
+    async (leagueId: number) => {
+      await Promise.all([
+        fetchComplianceData(leagueId),
+        fetchBudgetData(leagueId),
+        fetchManagersData(leagueId),
+      ]);
+    },
+    [fetchComplianceData, fetchBudgetData, fetchManagersData]
+  );
 
   // Add function to handle league change
   const handleLeagueChange = async (newLeagueId: number) => {
     if (newLeagueId === selectedLeagueId) return; // No change needed
-    
+
     // console.log(`[League Selector] Switching from league ${selectedLeagueId} to ${newLeagueId}`);
-    
+
     try {
       // Update selected league
       setSelectedLeagueId(newLeagueId);
-      
+
       // Find the league info
-      const league = leagues.find(l => l.id === newLeagueId);
+      const league = leagues.find((l) => l.id === newLeagueId);
       if (league) {
         setLeagueInfo(league);
       }
-      
+
       // Reset current states
       setManagers([]);
       setActiveAuctions([]);
@@ -298,7 +315,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       setUserAuctionStates([]);
       setComplianceData([]);
       setUserAutoBidOverlay({});
-      
+
       // Fetch data for the new league
       await Promise.all([
         fetchManagersData(newLeagueId),
@@ -307,7 +324,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         fetchComplianceData(newLeagueId),
         refreshUserAuctionStatesOld(newLeagueId),
       ]);
-      
+
       // toast.success(`Passato alla lega: ${league?.name || newLeagueId}`);
     } catch (error) {
       console.error("Error switching league:", error);
@@ -335,22 +352,25 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           toast.error("Non sei iscritto a nessuna lega");
           return;
         }
-        
+
         setLeagues(fetchedLeagues);
-        
+
         // Try to get league from localStorage first, then fall back to first league
         let selectedLeague;
-        const savedLeagueId = localStorage.getItem('selectedLeagueId');
+        const savedLeagueId = localStorage.getItem("selectedLeagueId");
         if (savedLeagueId) {
-          selectedLeague = fetchedLeagues.find((l: any) => l.id === parseInt(savedLeagueId));
+          selectedLeague = fetchedLeagues.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (l: any) => l.id === parseInt(savedLeagueId)
+          );
         }
         if (!selectedLeague) {
           selectedLeague = fetchedLeagues[0];
         }
-        
+
         setSelectedLeagueId(selectedLeague.id);
         setLeagueInfo(selectedLeague);
-        
+
         // console.log(`[League Selector] Selected league: ${selectedLeague.name} (ID: ${selectedLeague.id})`);
 
         // Other initial fetches...
@@ -472,7 +492,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         setManagers((prevManagers) =>
           prevManagers.map((manager) => {
             const update = data.budgetUpdates?.find(
-              (u: { userId: string }) => u.userId === manager.user_id
+              (u) => u.userId === manager.user_id
             );
             if (update) {
               return {
@@ -585,7 +605,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
 
-    const handlePenaltyApplied = (data: PenaltyAppliedData & { newBudget?: number }) => {
+    const handlePenaltyApplied = (
+      data: PenaltyAppliedData & { newBudget?: number }
+    ) => {
       toast.error(`Penalità applicata: ${data.amount} crediti`, {
         description: data.reason,
         duration: 8000,
@@ -622,7 +644,12 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     };
 
     // Add handler for compliance status changes
-    const handleComplianceStatusChanged = (data: { userId: string; isNowCompliant: boolean; totalPenalties?: number; newBudget?: number }) => {
+    const handleComplianceStatusChanged = (data: {
+      userId: string;
+      isNowCompliant: boolean;
+      totalPenalties?: number;
+      newBudget?: number;
+    }) => {
       // console.log("[Socket Client] Compliance status changed:", data);
       setManagers((prevManagers) =>
         prevManagers.map((manager) => {
@@ -630,7 +657,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
             return {
               ...manager,
               current_budget: data.newBudget ?? manager.current_budget ?? 0, // Ensure it's always a number
-              total_penalties: data.totalPenalties ?? manager.total_penalties ?? 0, // Ensure it's always a number
+              total_penalties:
+                data.totalPenalties ?? manager.total_penalties ?? 0, // Ensure it's always a number
             };
           }
           return manager;
@@ -645,7 +673,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           const newComplianceData = [...prevComplianceData];
           newComplianceData[existingIndex] = {
             ...newComplianceData[existingIndex],
-            compliance_timer_start_at: data.isNowCompliant ? null : Math.floor(Date.now() / 1000), // Set timer if non-compliant
+            compliance_timer_start_at: data.isNowCompliant
+              ? null
+              : Math.floor(Date.now() / 1000), // Set timer if non-compliant
             totalPenalties: data.totalPenalties ?? 0, // Provide fallback
             newBudget: data.newBudget ?? 0, // Provide fallback
           };
@@ -655,7 +685,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
             ...prevComplianceData,
             {
               user_id: data.userId,
-              compliance_timer_start_at: data.isNowCompliant ? null : Math.floor(Date.now() / 1000),
+              compliance_timer_start_at: data.isNowCompliant
+                ? null
+                : Math.floor(Date.now() / 1000),
               totalPenalties: data.totalPenalties ?? 0, // Provide fallback
               newBudget: data.newBudget ?? 0, // Provide fallback
             },
@@ -666,7 +698,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       if (data.userId === userId) {
         setUserComplianceStatus({
           isCompliant: data.isNowCompliant,
-          isInGracePeriod: !data.isNowCompliant && (data.totalPenalties === 0 || data.totalPenalties === undefined), // Assuming grace period if no penalties yet
+          isInGracePeriod:
+            !data.isNowCompliant &&
+            (data.totalPenalties === 0 || data.totalPenalties === undefined), // Assuming grace period if no penalties yet
         });
       }
     };
@@ -679,7 +713,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
     socket.on("compliance-status-changed", handleComplianceStatusChanged); // Add this line
-    
+
     // Listen for direct user state changes to refresh response timers/states
     socket.on("auction-state-changed", () => {
       if (selectedLeagueId) {
@@ -711,7 +745,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     refreshUserAuctionStatesOld,
     userId,
     activeAuctions, // Add activeAuctions to dependency array
-    refreshComplianceData // Add refreshComplianceData to dependency array
+    refreshComplianceData, // Add refreshComplianceData to dependency array
   ]);
 
   const handlePlaceBid = async (
@@ -799,7 +833,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
             </div>
           )}
         </div>
-        
+
         <CallPlayerInterface
           leagueId={selectedLeagueId || 0}
           userId={userId}
@@ -857,7 +891,9 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
                   complianceTimerStartAt={
                     managerCompliance?.compliance_timer_start_at || null
                   }
-                  onPenaltyApplied={() => refreshComplianceData(selectedLeagueId!)}
+                  onPenaltyApplied={() =>
+                    refreshComplianceData(selectedLeagueId!)
+                  }
                   userAutoBidOverlay={userAutoBidOverlay}
                   setUserAutoBidOverlay={setUserAutoBidOverlay}
                 />

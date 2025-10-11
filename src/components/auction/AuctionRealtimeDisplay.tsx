@@ -30,6 +30,24 @@ import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
 // src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
 
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
+
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
+
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
+
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
+
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
+
+// src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
+// Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
+
 // Props del componente
 interface AuctionDisplayProps {
   initialAuctionData: AuctionStatusDetails;

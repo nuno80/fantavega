@@ -1,8 +1,8 @@
 // src/lib/db/services/auction-states.service.ts
 // Servizio per gestire gli stati dei giocatori nelle aste
 import { db } from "@/lib/db";
-import { notifySocketServer } from "@/lib/socket-emitter";
 import { isUserCurrentlyOnline } from "@/lib/db/services/session.service";
+import { notifySocketServer } from "@/lib/socket-emitter";
 
 // Stati possibili per un utente in un'asta
 export type UserAuctionState =
@@ -159,12 +159,7 @@ export const handleBidderChange = async (
         (auction_id, user_id, created_at, response_deadline, status) 
         VALUES (?, ?, ?, ?, 'pending')
       `
-      ).run(
-        auctionId,
-        previousBidderId,
-        now,
-        deadline
-      );
+      ).run(auctionId, previousBidderId, now, deadline);
 
       console.log(
         `[AUCTION_STATES] User ${previousBidderId} set to 'rilancio_possibile' with ${online ? "active 1h timer" : "pending timer (will start at login)"}`
@@ -184,7 +179,9 @@ export const handleAuctionAbandon = async (
   userId: string
 ): Promise<void> => {
   try {
-    console.log(`[AUCTION_STATES] User ${userId} is abandoning auction ${auctionId}.`);
+    console.log(
+      `[AUCTION_STATES] User ${userId} is abandoning auction ${auctionId}.`
+    );
     // Imposta stato abbandonato
     await setUserAuctionState(auctionId, userId, "asta_abbandonata");
 
@@ -228,7 +225,9 @@ export const handleAuctionAbandon = async (
         WHERE league_id = ? AND user_id = ?
       `
       ).run(userBid.amount, auction.auction_league_id, userId);
-      console.log(`[AUCTION_STATES] Unlocked ${userBid.amount} credits for user ${userId} in league ${auction.auction_league_id}.`);
+      console.log(
+        `[AUCTION_STATES] Unlocked ${userBid.amount} credits for user ${userId} in league ${auction.auction_league_id}.`
+      );
     }
 
     // Crea cooldown 48 ore
@@ -261,15 +260,28 @@ export const handleAuctionAbandon = async (
     // Trigger compliance check for the user who abandoned the auction
     if (auction) {
       try {
-        console.log(`[AUCTION_STATES] Triggering compliance check for user ${userId} after abandoning auction ${auctionId}`);
-        const { processUserComplianceAndPenalties } = await import("./penalty.service");
-        await processUserComplianceAndPenalties(auction.auction_league_id, userId);
+        console.log(
+          `[AUCTION_STATES] Triggering compliance check for user ${userId} after abandoning auction ${auctionId}`
+        );
+        const { processUserComplianceAndPenalties } = await import(
+          "./penalty.service"
+        );
+        await processUserComplianceAndPenalties(
+          auction.auction_league_id,
+          userId
+        );
       } catch (error) {
-        console.error(`[AUCTION_STATES] Non-critical error during compliance check for user ${userId} after abandoning auction:`, error);
+        console.error(
+          `[AUCTION_STATES] Non-critical error during compliance check for user ${userId} after abandoning auction:`,
+          error
+        );
       }
     }
   } catch (error) {
-    console.error(`[AUCTION_STATES] Error handling auction abandon for user ${userId}, auction ${auctionId}:`, error);
+    console.error(
+      `[AUCTION_STATES] Error handling auction abandon for user ${userId}, auction ${auctionId}:`,
+      error
+    );
     throw error;
   }
 };

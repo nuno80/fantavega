@@ -164,22 +164,24 @@ export const getPlayers = async (
   try {
     console.log(`[SERVICE PLAYER] Executing count query: "${countQuery}"`);
     console.log(`[SERVICE PLAYER] Count params:`, finalCountParams);
-    
+
     const totalPlayersStmt = db.prepare(countQuery);
     const totalResult = totalPlayersStmt.get(...finalCountParams) as {
       total: number;
     };
     const totalPlayers = totalResult.total;
-    
+
     console.log(`[SERVICE PLAYER] Count result: ${totalPlayers} total players`);
 
     console.log(`[SERVICE PLAYER] Executing main query: "${baseQuery}"`);
     console.log(`[SERVICE PLAYER] Main query params:`, finalBaseParams);
-    
+
     const playersStmt = db.prepare(baseQuery);
     const players = playersStmt.all(...finalBaseParams) as Player[];
-    
-    console.log(`[SERVICE PLAYER] Query result: ${players.length} players returned`);
+
+    console.log(
+      `[SERVICE PLAYER] Query result: ${players.length} players returned`
+    );
 
     const totalPages = Math.ceil(totalPlayers / validatedLimit);
 

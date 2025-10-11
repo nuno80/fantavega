@@ -198,7 +198,7 @@ export function QuickBidModal({
       // Force a refresh of player data to ensure UI updates
       // This is a fallback in case the socket event is throttled or not received promptly
       // We'll wait a short time before calling onBidSuccess to allow socket events to process
-      if (typeof _onBidSuccess === 'function') {
+      if (typeof _onBidSuccess === "function") {
         // Wait 500ms to allow socket event to be processed first
         setTimeout(() => {
           console.log("[QuickBidModal] Calling onBidSuccess fallback");

@@ -76,25 +76,14 @@ Attendi la mia conferma prima di procedere con il sub-task successivo.
 
 ## 2. Contesto di Sviluppo Attuale
 
-**Fase Attuale**: Completato Task 7 (Real-Time Notification System). L'applicazione ora supporta aggiornamenti live per le aste e notifiche personali via WebSocket, inclusa la notifica per le penalità applicate.
+**Fase Attuale**: Test delle funzionalità
 
-**Stato**: Implementazione del sistema di penalità con un approccio di "lazy evaluation". Il sub-task 5.4 (Applicazione Automatica delle Penalità) è stato completato.
+**Stato**: inserisci qui i test effettuati specificando se superati o meno
 
 **Requisiti Chiave**:
 
-- L'attivazione della verifica avviene durante le interazioni dell'utente (login, accesso alla pagina dell'asta).
-- Periodo di grazia di 1 ora per raggiungere la conformità.
-- Penalità di 5 crediti per ogni ora di non conformità.
-- Limite massimo di 25 crediti per ciclo di non conformità continuo.
-- Calcolo retroattivo per i periodi di inattività dell'utente.
-- Integrazione completa con il sistema di transazioni del budget.
-
 **Focus Implementativo**:
-
-1. Completare la logica di business in `penalty.service.ts`.
-2. Implementare la tabella `user_league_compliance_status` per il tracciamento.
-3. Creare l'endpoint `/api/leagues/[id]/check-compliance/`.
-4. Integrare nel frontend i trigger per la verifica della conformità.
+Inserisci qui i test effettuare
 
 ## 3. Riferimenti Tecnici del Progetto
 
@@ -138,6 +127,8 @@ Fantavega è un sistema di asta per fantacalcio basato su Next.js 15. Gestisce l
 - `src/middleware.ts`: Middleware per autenticazione e autorizzazione.
 - `database/`: Schema SQL e script di migrazione.
 - `docker/`: File di configurazione Docker.
+- `database/schema.sql`: Schema SQL per il database, includendo le tabelle, indici e vincoli.
+- `database/starter_default.db`: Database starter con schema predefinito.
 
 **File e Descrizioni Aggiuntive**:
 

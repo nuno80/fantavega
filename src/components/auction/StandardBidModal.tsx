@@ -165,15 +165,20 @@ export function StandardBidModal({
     try {
       // Pre-submit: sincronizza l'offerta minima con lo stato live del server
       try {
-        const statusResp = await fetch(`/api/leagues/${leagueId}/players/${playerId}/bids`);
+        const statusResp = await fetch(
+          `/api/leagues/${leagueId}/players/${playerId}/bids`
+        );
         if (statusResp.ok) {
           const statusData = await statusResp.json();
-          const liveCurrent = typeof statusData.current_highest_bid_amount === "number"
-            ? statusData.current_highest_bid_amount
-            : (currentBid ?? 0);
+          const liveCurrent =
+            typeof statusData.current_highest_bid_amount === "number"
+              ? statusData.current_highest_bid_amount
+              : (currentBid ?? 0);
           const liveMin = (liveCurrent ?? 0) + 1;
           if (bidAmount <= liveCurrent) {
-            toast.info(`L'offerta minima ora è ${liveMin} crediti. Ho aggiornato il campo.`);
+            toast.info(
+              `L'offerta minima ora è ${liveMin} crediti. Ho aggiornato il campo.`
+            );
             setBidAmount(liveMin);
             setIsSubmitting(false);
             return; // lascia all'utente la conferma con l'importo aggiornato
@@ -187,7 +192,7 @@ export function StandardBidModal({
         await onBidSuccess(
           bidAmount,
           useAutoBid ? "quick" : "manual",
-          useAutoBid ? maxAmount : undefined,
+          useAutoBid ? maxAmount : undefined
         );
         onClose();
       } else {

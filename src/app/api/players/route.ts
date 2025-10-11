@@ -26,9 +26,13 @@ export async function GET(request: NextRequest) {
     const team = searchParams.get("team") || undefined;
     const leagueIdStr = searchParams.get("leagueId");
     const leagueId = leagueIdStr ? parseInt(leagueIdStr, 10) : undefined;
-    
+
     console.log("[API PLAYERS GET] Parsed parameters:", {
-      name, role, team, leagueId, leagueIdStr
+      name,
+      role,
+      team,
+      leagueId,
+      leagueIdStr,
     });
 
     const sortBy =
@@ -109,9 +113,14 @@ export async function GET(request: NextRequest) {
     let result: GetPlayersResult;
     try {
       result = await getPlayers(options);
-      console.log(`[API PLAYERS GET] Service returned ${result.players.length} players`);
+      console.log(
+        `[API PLAYERS GET] Service returned ${result.players.length} players`
+      );
     } catch (serviceError) {
-      console.error("[API PLAYERS GET] Error in getPlayers service:", serviceError);
+      console.error(
+        "[API PLAYERS GET] Error in getPlayers service:",
+        serviceError
+      );
       throw serviceError; // Re-throw to be caught by outer try-catch
     }
 
@@ -132,7 +141,10 @@ export async function GET(request: NextRequest) {
                   },
             };
           } catch (cooldownError) {
-            console.error(`[API PLAYERS] Error getting cooldown for player ${player.id}:`, cooldownError);
+            console.error(
+              `[API PLAYERS] Error getting cooldown for player ${player.id}:`,
+              cooldownError
+            );
             // Return player without cooldown info if there's an error
             return {
               ...player,
@@ -149,7 +161,10 @@ export async function GET(request: NextRequest) {
           { status: 200 }
         );
       } catch (cooldownError) {
-        console.error('[API PLAYERS] Error processing cooldowns:', cooldownError);
+        console.error(
+          "[API PLAYERS] Error processing cooldowns:",
+          cooldownError
+        );
         // Return players without cooldown info if there's a general error
         return NextResponse.json(result, { status: 200 });
       }

@@ -265,7 +265,10 @@ export function PlayerSearchInterface({
               timeRemaining: Math.max(0, data.scheduledEndTime - now),
               current_highest_bidder_id: data.highestBidderId, // Add this line
               // If we have bidder info, update it
-              currentHighestBidderName: data.newBid?.bidder_username || data.newBid?.user_id || player.currentHighestBidderName,
+              currentHighestBidderName:
+                data.newBid?.bidder_username ||
+                data.newBid?.user_id ||
+                player.currentHighestBidderName,
             };
           }
           return player;

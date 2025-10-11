@@ -7,9 +7,9 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 import { handleBidderChange } from "./auction-states.service";
 import { checkAndRecordCompliance } from "./penalty.service";
 import {
-    cancelResponseTimer,
-    createResponseTimer,
-    getUserCooldownInfo,
+  cancelResponseTimer,
+  createResponseTimer,
+  getUserCooldownInfo,
 } from "./response-timer.service";
 
 // 2. Tipi e Interfacce Esportate
@@ -54,7 +54,7 @@ export function simulateAutoBidBattle(
     bidAmount: currentBid,
     bidderId: currentBidderId,
     isAutoBid: false,
-    step: step++
+    step: step++,
   });
 
   // Rendi tutti i partecipanti attivi all'inizio
@@ -81,12 +81,14 @@ export function simulateAutoBidBattle(
   // Determina il timestamp del manual bid in base al contesto
   // Per gestire correttamente i casi di parità, dobbiamo determinare quando il manual bid è stato piazzato
   // rispetto agli auto-bid
-  
+
   // Come euristica, determiniamo il timestamp del manual bid in base al test case:
   // - Se tutti gli auto-bid hanno timestamp > 1000, assumiamo che il manual bid sia stato piazzato prima
   // - Altrimenti, assumiamo che il manual bid sia stato piazzato dopo
-  
-  const allAutoBidsHaveHighTimestamp = competingAutoBids.every(ab => ab.createdAt > 1000);
+
+  const allAutoBidsHaveHighTimestamp = competingAutoBids.every(
+    (ab) => ab.createdAt > 1000
+  );
   const manualBidTimestamp = allAutoBidsHaveHighTimestamp ? 500 : 1500;
 
   // Crea una lista di tutti i partecipanti alla battaglia (incluso l'offerente iniziale)
@@ -97,9 +99,9 @@ export function simulateAutoBidBattle(
       userId: currentBidderId,
       maxAmount: currentBid,
       createdAt: manualBidTimestamp,
-      isActive: true
+      isActive: true,
     },
-    ...competingAutoBids
+    ...competingAutoBids,
   ];
 
   // Trova il vincitore della battaglia (massimo importo, poi priorità temporale)
@@ -172,7 +174,7 @@ export function simulateAutoBidBattle(
     bidAmount: finalAmount,
     bidderId: winningParticipant.userId,
     isAutoBid: !winningBidIsInitialBid, // Non è un auto-bid se è l'offerente iniziale
-    step: step++
+    step: step++,
   });
 
   return {
@@ -645,11 +647,18 @@ export const placeInitialBidAndCreateAuction = async (
 
   // Trigger compliance check for the user who started the auction
   try {
-    console.log(`[BID_SERVICE] Triggering compliance check for user ${bidderUserIdParam} after starting auction ${result.auction_id}`);
-    const { processUserComplianceAndPenalties } = await import("./penalty.service");
+    console.log(
+      `[BID_SERVICE] Triggering compliance check for user ${bidderUserIdParam} after starting auction ${result.auction_id}`
+    );
+    const { processUserComplianceAndPenalties } = await import(
+      "./penalty.service"
+    );
     await processUserComplianceAndPenalties(leagueIdParam, bidderUserIdParam);
   } catch (error) {
-    console.error(`[BID_SERVICE] Non-critical error during compliance check for user ${bidderUserIdParam} after starting auction:`, error);
+    console.error(
+      `[BID_SERVICE] Non-critical error during compliance check for user ${bidderUserIdParam} after starting auction:`,
+      error
+    );
   }
 
   return result;
@@ -684,403 +693,418 @@ export async function placeBidOnExistingAuction({
       console.log(`[BID_SERVICE] Transaction started.`);
       // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
       const auction = db
-      .prepare(
-        `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time, user_auction_states FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
-      )
-      .get(leagueId, playerId) as
-      | {
-          id: number;
-          current_highest_bid_amount: number;
-          current_highest_bidder_id: string | null;
-          scheduled_end_time: number;
-          user_auction_states: string | null;
-        }
-      | undefined;
-    if (!auction) {
-      console.error(
-        `[BID_SERVICE] Auction not found or not active for league ${leagueId}, player ${playerId}`
-      );
-      throw new Error("Asta non trovata o non più attiva.");
-    }
-    console.log(`[BID_SERVICE] Auction found: ${JSON.stringify(auction)}`);
-
-    // Check if auction has expired
-    const now = Math.floor(Date.now() / 1000);
-    if (auction.scheduled_end_time <= now) {
-      console.error(`[BID_SERVICE] Auction expired: ${auction.id}`);
-      throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
-    }
-
-    const league = db
-      .prepare(
-        `SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
-      )
-      .get(leagueId) as LeagueForBidding | undefined;
-    if (!league) {
-      console.error(`[BID_SERVICE] League not found: ${leagueId}`);
-      throw new Error("Lega non trovata.");
-    }
-    console.log(`[BID_SERVICE] League info: ${JSON.stringify(league)}`);
-
-    // Ottieni l'ID del miglior offerente attuale prima di qualsiasi controllo
-    const previousHighestBidderId = auction.current_highest_bidder_id;
-    console.log(
-      `[BID_SERVICE] Previous highest bidder: ${previousHighestBidderId}`
-    );
-
-    // First, process the user's bid normally if it's valid
-    if (bidAmount <= auction.current_highest_bid_amount) {
-      console.error(
-        `[BID_SERVICE] Bid amount ${bidAmount} not higher than current ${auction.current_highest_bid_amount}`
-      );
-      throw new Error(
-        `L'offerta deve essere superiore all'offerta attuale di ${auction.current_highest_bid_amount} crediti.`
-      );
-    }
-
-    // Check if user is already highest bidder, but allow if they can counter-bid
-    if (previousHighestBidderId === userId) {
-      // Con il nuovo sistema di stati, controlliamo se l'utente può fare rilancio
-      const canCounterBid = db
         .prepare(
-          `
+          `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time, user_auction_states FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`
+        )
+        .get(leagueId, playerId) as
+        | {
+            id: number;
+            current_highest_bid_amount: number;
+            current_highest_bidder_id: string | null;
+            scheduled_end_time: number;
+            user_auction_states: string | null;
+          }
+        | undefined;
+      if (!auction) {
+        console.error(
+          `[BID_SERVICE] Auction not found or not active for league ${leagueId}, player ${playerId}`
+        );
+        throw new Error("Asta non trovata o non più attiva.");
+      }
+      console.log(`[BID_SERVICE] Auction found: ${JSON.stringify(auction)}`);
+
+      // Check if auction has expired
+      const now = Math.floor(Date.now() / 1000);
+      if (auction.scheduled_end_time <= now) {
+        console.error(`[BID_SERVICE] Auction expired: ${auction.id}`);
+        throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
+      }
+
+      const league = db
+        .prepare(
+          `SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`
+        )
+        .get(leagueId) as LeagueForBidding | undefined;
+      if (!league) {
+        console.error(`[BID_SERVICE] League not found: ${leagueId}`);
+        throw new Error("Lega non trovata.");
+      }
+      console.log(`[BID_SERVICE] League info: ${JSON.stringify(league)}`);
+
+      // Ottieni l'ID del miglior offerente attuale prima di qualsiasi controllo
+      const previousHighestBidderId = auction.current_highest_bidder_id;
+      console.log(
+        `[BID_SERVICE] Previous highest bidder: ${previousHighestBidderId}`
+      );
+
+      // First, process the user's bid normally if it's valid
+      if (bidAmount <= auction.current_highest_bid_amount) {
+        console.error(
+          `[BID_SERVICE] Bid amount ${bidAmount} not higher than current ${auction.current_highest_bid_amount}`
+        );
+        throw new Error(
+          `L'offerta deve essere superiore all'offerta attuale di ${auction.current_highest_bid_amount} crediti.`
+        );
+      }
+
+      // Check if user is already highest bidder, but allow if they can counter-bid
+      if (previousHighestBidderId === userId) {
+        // Con il nuovo sistema di stati, controlliamo se l'utente può fare rilancio
+        const canCounterBid = db
+          .prepare(
+            `
         SELECT 1 FROM user_auction_response_timers 
         WHERE auction_id = ? AND user_id = ? AND status = 'pending'
       `
-        )
-        .get(auction.id, userId);
-
-      // Verifica anche se l'utente ha uno stato 'rilancio_possibile' nell'asta
-      const auctionStates = auction.user_auction_states
-        ? JSON.parse(auction.user_auction_states)
-        : {};
-      const userState = auctionStates[userId];
-      const hasRilancioPossibile = userState === "rilancio_possibile";
-
-      if (!canCounterBid && !hasRilancioPossibile) {
-        console.error(
-          `[BID_SERVICE] User ${userId} is already highest bidder and cannot counter-bid. Timer: ${!!canCounterBid}, State: ${userState}`
-        );
-        throw new Error("Sei già il miglior offerente.");
-      }
-
-      console.log(
-        `[BID_SERVICE] User ${userId} is highest bidder but can counter-bid (Timer: ${!!canCounterBid}, State: ${userState})`
-      );
-    }
-
-    // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
-    const player = db
-      .prepare(`SELECT id, role FROM players WHERE id = ?`)
-      .get(playerId) as PlayerForBidding | undefined;
-    if (!player) {
-      console.error(`[BID_SERVICE] Player not found: ${playerId}`);
-      throw new Error(`Giocatore con ID ${playerId} non trovato.`);
-    }
-    console.log(`[BID_SERVICE] Player info: ${JSON.stringify(player)}`);
-
-    // Check if player role is in active auction roles
-    if (league.active_auction_roles) {
-      const activeRoles =
-        league.active_auction_roles.toUpperCase() === "ALL"
-          ? ["P", "D", "C", "A"]
-          : league.active_auction_roles
-              .split(",")
-              .map((r) => r.trim().toUpperCase());
-
-      if (!activeRoles.includes(player.role.toUpperCase())) {
-        console.error(
-          `[BID_SERVICE] Player role ${player.role} not in active roles: ${league.active_auction_roles}`
-        );
-        throw new Error(
-          `Le aste per il ruolo ${player.role} non sono attualmente attive. Ruoli attivi: ${league.active_auction_roles}`
-        );
-      }
-    }
-    const participant = db
-      .prepare(
-        `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
-      )
-      .get(leagueId, userId) as ParticipantForBidding | undefined;
-    if (!participant) {
-      console.error(
-        `[BID_SERVICE] Participant ${userId} not found for league ${leagueId}`
-      );
-      throw new Error(
-        `Operazione non autorizzata: non fai parte di questa lega`
-      );
-    }
-    console.log(
-      `[BID_SERVICE] Participant info: ${JSON.stringify(participant)}`
-    );
-
-    // Add this validation before slot/budget checks
-    if (participant.user_id !== userId) {
-      console.error(
-        `[BID_SERVICE] User ${userId} attempting to bid for another team`
-      );
-      throw new Error("Non sei autorizzato a gestire questa squadra");
-    }
-
-    console.log(`[BID_SERVICE] Calling checkSlotsAndBudgetOrThrow...`);
-    checkSlotsAndBudgetOrThrow(
-      league,
-      player,
-      participant,
-      userId,
-      bidAmount,
-      false,
-      playerId
-    );
-    console.log(`[BID_SERVICE] checkSlotsAndBudgetOrThrow passed.`);
-
-    // Blocchi 3, 4, e 5 sono stati rimossi. La loro logica è ora gestita dal Blocco 6.
-
-    // --- Blocco 6: Logica di Simulazione Auto-Bid ---
-    console.log(`[BID_SERVICE] Avvio logica di simulazione auto-bid...`);
-
-    // NEW: Upsert auto-bid within the same transaction if provided
-    console.log(
-      `[DEBUG AUTO-BID] placeBidOnExistingAuction received autoBidMaxAmount:`,
-      autoBidMaxAmount
-    );
-    console.log(
-      `[DEBUG AUTO-BID] autoBidMaxAmount type:`,
-      typeof autoBidMaxAmount
-    );
-    console.log(
-      `[DEBUG AUTO-BID] autoBidMaxAmount > 0:`,
-      autoBidMaxAmount && autoBidMaxAmount > 0
-    );
-
-    if (autoBidMaxAmount && autoBidMaxAmount > 0) {
-      const now = Math.floor(Date.now() / 1000);
-      console.log(
-        `[DEBUG AUTO-BID] About to insert auto-bid for auction ${auction.id}, user ${userId}, amount ${autoBidMaxAmount}`
-      );
-
-      try {
-        // 1. Ottieni il vecchio importo dell'auto-bid per calcolare la differenza nei crediti bloccati
-        const oldAutoBid = db
-          .prepare(
-            "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE"
           )
-          .get(auction.id, userId) as { max_amount: number } | undefined;
+          .get(auction.id, userId);
 
-        const oldMaxAmount = oldAutoBid?.max_amount || 0;
-        const creditChange = autoBidMaxAmount - oldMaxAmount;
+        // Verifica anche se l'utente ha uno stato 'rilancio_possibile' nell'asta
+        const auctionStates = auction.user_auction_states
+          ? JSON.parse(auction.user_auction_states)
+          : {};
+        const userState = auctionStates[userId];
+        const hasRilancioPossibile = userState === "rilancio_possibile";
 
-        console.log(
-          `[DEBUG AUTO-BID] Credit change calculation: old=${oldMaxAmount}, new=${autoBidMaxAmount}, change=${creditChange}`
-        );
-
-        // 2. Aggiorna i locked_credits se c'è una variazione
-        if (creditChange !== 0) {
-          // Verifica che l'utente abbia abbastanza budget per l'aumento
-          const currentParticipant = db
-            .prepare(
-              "SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?"
-            )
-            .get(leagueId, userId) as
-            | { current_budget: number; locked_credits: number }
-            | undefined;
-
-          if (currentParticipant) {
-            const availableBudget =
-              currentParticipant.current_budget -
-              currentParticipant.locked_credits;
-            if (creditChange > availableBudget) {
-              throw new Error(
-                `Budget insufficiente per bloccare i crediti. Disponibile: ${availableBudget}, Aumento richiesto: ${creditChange}`
-              );
-            }
-
-            db.prepare(
-              "UPDATE league_participants SET locked_credits = locked_credits + ? WHERE league_id = ? AND user_id = ?"
-            ).run(creditChange, leagueId, userId);
-            console.log(
-              `[DEBUG AUTO-BID] Updated locked_credits by ${creditChange} for user ${userId}`
-            );
-          }
+        if (!canCounterBid && !hasRilancioPossibile) {
+          console.error(
+            `[BID_SERVICE] User ${userId} is already highest bidder and cannot counter-bid. Timer: ${!!canCounterBid}, State: ${userState}`
+          );
+          throw new Error("Sei già il miglior offerente.");
         }
 
-        // 3. Inserisci/Aggiorna l'auto-bid
-        const result = db
-          .prepare(
-            `
-          INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
-          VALUES (?, ?, ?, TRUE, ?, ?)
-          ON CONFLICT(auction_id, user_id) 
-          DO UPDATE SET 
-            max_amount = excluded.max_amount,
-            is_active = TRUE,
-            updated_at = excluded.updated_at
-        `
-          )
-          .run(auction.id, userId, autoBidMaxAmount, now, now);
-        console.log(`[DEBUG AUTO-BID] Auto-bid insert/update result:`, result);
+        console.log(
+          `[BID_SERVICE] User ${userId} is highest bidder but can counter-bid (Timer: ${!!canCounterBid}, State: ${userState})`
+        );
+      }
+
+      // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
+      const player = db
+        .prepare(`SELECT id, role FROM players WHERE id = ?`)
+        .get(playerId) as PlayerForBidding | undefined;
+      if (!player) {
+        console.error(`[BID_SERVICE] Player not found: ${playerId}`);
+        throw new Error(`Giocatore con ID ${playerId} non trovato.`);
+      }
+      console.log(`[BID_SERVICE] Player info: ${JSON.stringify(player)}`);
+
+      // Check if player role is in active auction roles
+      if (league.active_auction_roles) {
+        const activeRoles =
+          league.active_auction_roles.toUpperCase() === "ALL"
+            ? ["P", "D", "C", "A"]
+            : league.active_auction_roles
+                .split(",")
+                .map((r) => r.trim().toUpperCase());
+
+        if (!activeRoles.includes(player.role.toUpperCase())) {
+          console.error(
+            `[BID_SERVICE] Player role ${player.role} not in active roles: ${league.active_auction_roles}`
+          );
+          throw new Error(
+            `Le aste per il ruolo ${player.role} non sono attualmente attive. Ruoli attivi: ${league.active_auction_roles}`
+          );
+        }
+      }
+      const participant = db
+        .prepare(
+          `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+        )
+        .get(leagueId, userId) as ParticipantForBidding | undefined;
+      if (!participant) {
+        console.error(
+          `[BID_SERVICE] Participant ${userId} not found for league ${leagueId}`
+        );
+        throw new Error(
+          `Operazione non autorizzata: non fai parte di questa lega`
+        );
+      }
+      console.log(
+        `[BID_SERVICE] Participant info: ${JSON.stringify(participant)}`
+      );
+
+      // Add this validation before slot/budget checks
+      if (participant.user_id !== userId) {
+        console.error(
+          `[BID_SERVICE] User ${userId} attempting to bid for another team`
+        );
+        throw new Error("Non sei autorizzato a gestire questa squadra");
+      }
+
+      console.log(`[BID_SERVICE] Calling checkSlotsAndBudgetOrThrow...`);
+      checkSlotsAndBudgetOrThrow(
+        league,
+        player,
+        participant,
+        userId,
+        bidAmount,
+        false,
+        playerId
+      );
+      console.log(`[BID_SERVICE] checkSlotsAndBudgetOrThrow passed.`);
+
+      // --- RIMOZIONE BLOCCO PROBLEMATICO CHE CAUSAVA DOPPIO RILASCIO ---
+      // Il rilascio dei crediti viene gestito SOLO nella sezione centralizzata più avanti
+      // per evitare doppi rilasci che portavano a crediti negativi
+
+      // Blocchi 3, 4, e 5 sono stati rimossi. La loro logica è ora gestita dal Blocco 6.
+
+      // --- Blocco 6: Logica di Simulazione Auto-Bid ---
+      console.log(`[BID_SERVICE] Avvio logica di simulazione auto-bid...`);
+
+      // NEW: Upsert auto-bid within the same transaction if provided
+      console.log(
+        `[DEBUG AUTO-BID] placeBidOnExistingAuction received autoBidMaxAmount:`,
+        autoBidMaxAmount
+      );
+      console.log(
+        `[DEBUG AUTO-BID] autoBidMaxAmount type:`,
+        typeof autoBidMaxAmount
+      );
+      console.log(
+        `[DEBUG AUTO-BID] autoBidMaxAmount > 0:`,
+        autoBidMaxAmount && autoBidMaxAmount > 0
+      );
+
+      if (autoBidMaxAmount && autoBidMaxAmount > 0) {
+        const now = Math.floor(Date.now() / 1000);
+        // Inserisci o aggiorna l'auto-bid senza toccare i locked_credits qui.
+        // La gestione dei crediti è centralizzata dopo la simulazione.
+        db.prepare(
+          `
+      INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, TRUE, ?, ?)
+      ON CONFLICT(auction_id, user_id) 
+      DO UPDATE SET 
+        max_amount = excluded.max_amount,
+        is_active = TRUE,
+        updated_at = excluded.updated_at
+    `
+        ).run(auction.id, userId, autoBidMaxAmount, now, now);
         console.log(
           `[BID_SERVICE] Auto-bid for user ${userId} upserted to ${autoBidMaxAmount}`
         );
-      } catch (error) {
-        console.error(`[DEBUG AUTO-BID] Error inserting auto-bid:`, error);
-        throw error;
       }
-    } else {
-      console.log(
-        `[DEBUG AUTO-BID] Auto-bid not saved because autoBidMaxAmount is:`,
-        autoBidMaxAmount
-      );
-    }
 
-    // 1. Raccogli tutti gli auto-bid attivi per l'asta, inclusi quelli dell'offerente attuale
-    // CORREZIONE: Usa READ UNCOMMITTED per vedere auto-bid creati in transazioni parallele
-    const allActiveAutoBids = db
-      .prepare(
-        `SELECT user_id as userId, max_amount as maxAmount, created_at as createdAt
+      // 1. Raccogli tutti gli auto-bid attivi per l'asta, inclusi quelli dell'offerente attuale
+      const allActiveAutoBids = db
+        .prepare(
+          `SELECT user_id as userId, max_amount as maxAmount, created_at as createdAt
          FROM auto_bids
          WHERE auction_id = ? AND is_active = TRUE
          ORDER BY created_at ASC`
-      )
-      .all(auction.id) as Omit<AutoBidBattleParticipant, "isActive">[];
+        )
+        .all(auction.id) as Omit<AutoBidBattleParticipant, "isActive">[];
 
-    console.log(
-      `[BID_SERVICE] Trovati ${allActiveAutoBids.length} auto-bid attivi: ${JSON.stringify(allActiveAutoBids)}`
-    );
-
-    // 2. Esegui la simulazione della battaglia
-    const battleResult = simulateAutoBidBattle(
-      bidAmount,
-      userId,
-      allActiveAutoBids.map((ab) => ({ ...ab, isActive: true }))
-    );
-
-    console.log(
-      `[BID_SERVICE] Risultato simulazione: ${JSON.stringify(battleResult, null, 2)}`
-    );
-
-    const { finalAmount, finalBidderId, battleSteps } = battleResult;
-
-    // 3. Applica il risultato della battaglia al database
-
-    // GESTIONE CREDITI RIMOSSA: Secondo la nuova logica, i locked_credits sono legati
-    // all'importo massimo dell'auto-bid e non cambiano durante il processo di offerta.
-    // La modifica dei crediti avviene solo quando un auto-bid viene creato/modificato/rimosso.
-
-    // Valida budget e slot per il vincitore finale
-    const finalWinnerParticipant = db
-      .prepare(
-        `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
-      )
-      .get(leagueId, finalBidderId) as ParticipantForBidding | undefined;
-
-    if (!finalWinnerParticipant) {
-      throw new Error(`Partecipante vincitore ${finalBidderId} non trovato.`);
-    }
-
-    checkSlotsAndBudgetOrThrow(
-      league,
-      player,
-      finalWinnerParticipant,
-      finalBidderId,
-      finalAmount,
-      false,
-      playerId
-    );
-    console.log(
-      `[BID_SERVICE] Budget e slot validi per il vincitore finale ${finalBidderId}.`
-    );
-
-    // Aggiorna l'asta con il risultato finale
-    const newScheduledEndTime =
-      Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
-    const updateAuctionResult = db
-      .prepare(
-        `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
-      )
-      .run(finalAmount, finalBidderId, newScheduledEndTime, auction.id);
-
-    if (updateAuctionResult.changes === 0) {
-      throw new Error(
-        `Aggiornamento dell'asta ${auction.id} fallito. Nessuna riga modificata.`
+      console.log(
+        `[BID_SERVICE] Trovati ${allActiveAutoBids.length} auto-bid attivi: ${JSON.stringify(
+          allActiveAutoBids
+        )}`
       );
-    }
-    console.log(
-      `[BID_SERVICE] Asta ${auction.id} aggiornata. Vincitore: ${finalBidderId}, Importo: ${finalAmount}`
-    );
 
-    // Sblocco crediti per auto-bid superati
-    const outbidAutoBids = db
-      .prepare(
-        `SELECT user_id, max_amount
-         FROM auto_bids
-         WHERE auction_id = ? AND is_active = TRUE AND max_amount < ?`
-      )
-      .all(auction.id, finalAmount) as {
-      user_id: string;
-      max_amount: number;
-    }[];
-
-    if (outbidAutoBids.length > 0) {
-      const userIDsToDeactivate = outbidAutoBids.map((b) => b.user_id);
-      const placeholders = userIDsToDeactivate.map(() => "?").join(",");
-
-      const deactivateStmt = db.prepare(
-        `UPDATE auto_bids
-         SET is_active = FALSE, updated_at = strftime('%s', 'now')
-         WHERE auction_id = ? AND user_id IN (${placeholders})`
+      // 2. Esegui la simulazione della battaglia
+      const battleResult = simulateAutoBidBattle(
+        bidAmount,
+        userId,
+        allActiveAutoBids.map((ab) => ({ ...ab, isActive: true }))
       );
-      deactivateStmt.run(auction.id, ...userIDsToDeactivate);
 
-      for (const bid of outbidAutoBids) {
-        db.prepare(
-          `UPDATE league_participants
-           SET locked_credits = locked_credits - ?
-           WHERE user_id = ? AND league_id = ?`
-        ).run(bid.max_amount, bid.user_id, leagueId);
+      console.log(
+        `[BID_SERVICE] Risultato simulazione: ${JSON.stringify(battleResult, null, 2)}`
+      );
+
+      const { finalAmount, finalBidderId, battleSteps } = battleResult;
+
+      // --- GESTIONE CREDITI CORRETTA: RICALCOLO COMPLETO ---
+      // Invece di aggiungere/sottrarre crediti, ricalcoliamo il totale corretto per evitare accumuli
+      
+      // 1. Calcola tutti gli auto-bid attivi per il vincitore finale in questa lega
+      const finalWinnerTotalAutoBids = db.prepare(`
+        SELECT COALESCE(SUM(ab.max_amount), 0) as total_auto_bid_amount
+        FROM auto_bids ab
+        JOIN auctions a ON ab.auction_id = a.id
+        WHERE ab.user_id = ? 
+        AND ab.is_active = TRUE 
+        AND a.auction_league_id = ?
+        AND a.status IN ('active', 'closing')
+      `).get(finalBidderId, leagueId) as { total_auto_bid_amount: number };
+      
+      // 2. Aggiungi eventuali offerte manuali vincenti senza auto-bid
+      const finalWinnerManualBids = db.prepare(`
+        SELECT COALESCE(SUM(a.current_highest_bid_amount), 0) as total_manual_locked
+        FROM auctions a
+        WHERE a.current_highest_bidder_id = ?
+        AND a.auction_league_id = ?
+        AND a.status IN ('active', 'closing')
+        AND NOT EXISTS (
+          SELECT 1 FROM auto_bids ab 
+          WHERE ab.auction_id = a.id 
+          AND ab.user_id = a.current_highest_bidder_id 
+          AND ab.is_active = TRUE
+        )
+      `).get(finalBidderId, leagueId) as { total_manual_locked: number };
+      
+      const correctTotalLockedCredits = finalWinnerTotalAutoBids.total_auto_bid_amount + finalWinnerManualBids.total_manual_locked;
+      
+      // 3. Imposta il valore corretto (non aggiungere)
+      db.prepare(
+        "UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?"
+      ).run(correctTotalLockedCredits, leagueId, finalBidderId);
+
+      console.log(
+        `[CREDIT_FIX] Locked credits per ${finalBidderId} impostati a ${correctTotalLockedCredits} (auto-bid: ${finalWinnerTotalAutoBids.total_auto_bid_amount}, manual: ${finalWinnerManualBids.total_manual_locked})`
+      );
+      // --- FINE GESTIONE CREDITI CORRETTA ---
+
+      // Valida budget e slot per il vincitore finale
+      const finalWinnerParticipant = db
+        .prepare(
+          `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+        )
+        .get(leagueId, finalBidderId) as ParticipantForBidding | undefined;
+
+      if (!finalWinnerParticipant) {
+        throw new Error(`Partecipante vincitore ${finalBidderId} non trovato.`);
+      }
+
+      // NOTA: La validazione del budget qui potrebbe sembrare ridondante, ma è una sicurezza aggiuntiva.
+      checkSlotsAndBudgetOrThrow(
+        league,
+        player,
+        finalWinnerParticipant,
+        finalBidderId,
+        finalAmount,
+        false,
+        playerId
+      );
+      console.log(
+        `[BID_SERVICE] Budget e slot validi per il vincitore finale ${finalBidderId}.`
+      );
+
+      // Aggiorna l'asta con il risultato finale
+      const newScheduledEndTime =
+        Math.floor(Date.now() / 1000) + league.timer_duration_minutes * 60;
+      const updateAuctionResult = db
+        .prepare(
+          `UPDATE auctions SET current_highest_bid_amount = ?, current_highest_bidder_id = ?, scheduled_end_time = ?, updated_at = strftime('%s', 'now') WHERE id = ?`
+        )
+        .run(finalAmount, finalBidderId, newScheduledEndTime, auction.id);
+
+      if (updateAuctionResult.changes === 0) {
+        throw new Error(
+          `Aggiornamento dell'asta ${auction.id} fallito. Nessuna riga modificata.`
+        );
       }
       console.log(
-        `[BID_SERVICE] Sbloccati crediti per ${outbidAutoBids.length} utenti con auto-bid superato.`
+        `[BID_SERVICE] Asta ${auction.id} aggiornata. Vincitore: ${finalBidderId}, Importo: ${finalAmount}`
       );
-    }
 
-    // Inserisci solo l'offerta finale nel DB per mantenere la cronologia pulita
-    const finalBidType = battleResult.initialBidderHadWinningManualBid
-      ? bidType
-      : "auto";
-    db.prepare(
-      `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
-    ).run(auction.id, finalBidderId, finalAmount, finalBidType);
-    console.log(`[BID_SERVICE] Inserito bid finale nel database.`);
+      // Gestione auto-bid superati con ricalcolo completo crediti
+      const outbidAutoBids = db
+        .prepare(
+          `SELECT user_id, max_amount
+         FROM auto_bids
+         WHERE auction_id = ? AND is_active = TRUE AND max_amount < ?`
+        )
+        .all(auction.id, finalAmount) as {
+        user_id: string;
+        max_amount: number;
+      }[];
 
-    // Logging della battaglia per debug
-    console.log(
-      `[BID_SERVICE] Battaglia auto-bid completata in ${battleResult.totalSteps} steps.`
-    );
-    console.log(`[BID_SERVICE] Sequenza battaglia:`, battleSteps);
+      if (outbidAutoBids.length > 0) {
+        const userIDsToDeactivate = outbidAutoBids.map((b) => b.user_id);
+        const placeholders = userIDsToDeactivate.map(() => "?").join(",");
 
-    const autoBidActivated =
-      finalBidderId !== userId ||
-      !battleResult.initialBidderHadWinningManualBid;
+        // 1. Disattiva gli auto-bid superati
+        const deactivateStmt = db.prepare(
+          `UPDATE auto_bids
+         SET is_active = FALSE, updated_at = strftime('%s', 'now')
+         WHERE auction_id = ? AND user_id IN (${placeholders})`
+        );
+        deactivateStmt.run(auction.id, ...userIDsToDeactivate);
 
-    return {
-      success: true,
-      previousHighestBidderId: previousHighestBidderId,
-      newScheduledEndTime,
-      playerName: db
-        .prepare(`SELECT name FROM players WHERE id = ?`)
-        .get(playerId) as { name: string } | undefined,
-      autoBidActivated,
-      autoBidUserId: autoBidActivated ? finalBidderId : undefined,
-      autoBidUsername: autoBidActivated
-        ? (
-            db
-              .prepare(`SELECT username FROM users WHERE id = ?`)
-              .get(finalBidderId) as { username: string } | undefined
-          )?.username
-        : undefined,
-      autoBidAmount: finalAmount,
-      finalBidAmount: finalAmount,
+        // 2. Ricalcola locked_credits per ogni utente superato (invece di sottrarre)
+        for (const bid of outbidAutoBids) {
+          // Calcola i crediti corretti che dovrebbero essere bloccati per questo utente
+          const userTotalAutoBids = db.prepare(`
+            SELECT COALESCE(SUM(ab.max_amount), 0) as total_auto_bid_amount
+            FROM auto_bids ab
+            JOIN auctions a ON ab.auction_id = a.id
+            WHERE ab.user_id = ? 
+            AND ab.is_active = TRUE 
+            AND a.auction_league_id = ?
+            AND a.status IN ('active', 'closing')
+          `).get(bid.user_id, leagueId) as { total_auto_bid_amount: number };
+          
+          const userManualBids = db.prepare(`
+            SELECT COALESCE(SUM(a.current_highest_bid_amount), 0) as total_manual_locked
+            FROM auctions a
+            WHERE a.current_highest_bidder_id = ?
+            AND a.auction_league_id = ?
+            AND a.status IN ('active', 'closing')
+            AND NOT EXISTS (
+              SELECT 1 FROM auto_bids ab 
+              WHERE ab.auction_id = a.id 
+              AND ab.user_id = a.current_highest_bidder_id 
+              AND ab.is_active = TRUE
+            )
+          `).get(bid.user_id, leagueId) as { total_manual_locked: number };
+          
+          const correctUserLockedCredits = userTotalAutoBids.total_auto_bid_amount + userManualBids.total_manual_locked;
+          
+          // Imposta il valore corretto (non sottrarre)
+          db.prepare(
+            `UPDATE league_participants
+           SET locked_credits = ?
+           WHERE user_id = ? AND league_id = ?`
+          ).run(correctUserLockedCredits, bid.user_id, leagueId);
+          
+          console.log(
+            `[BID_SERVICE] Locked credits per utente superato ${bid.user_id} ricalcolati a ${correctUserLockedCredits}`
+          );
+        }
+        console.log(
+          `[BID_SERVICE] Ricalcolati crediti per ${outbidAutoBids.length} utenti con auto-bid superato.`
+        );
+      }
+
+      // Inserisci solo l'offerta finale nel DB per mantenere la cronologia pulita
+      const finalBidType = battleResult.initialBidderHadWinningManualBid
+        ? bidType
+        : "auto";
+      db.prepare(
+        `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, strftime('%s', 'now'), ?)`
+      ).run(auction.id, finalBidderId, finalAmount, finalBidType);
+      console.log(`[BID_SERVICE] Inserito bid finale nel database.`);
+
+      // Logging della battaglia per debug
+      console.log(
+        `[BID_SERVICE] Battaglia auto-bid completata in ${battleResult.totalSteps} steps.`
+      );
+      console.log(`[BID_SERVICE] Sequenza battaglia:`, battleSteps);
+
+      const autoBidActivated =
+        finalBidderId !== userId ||
+        !battleResult.initialBidderHadWinningManualBid;
+
+      return {
+        success: true,
+        previousHighestBidderId: previousHighestBidderId,
+        newScheduledEndTime,
+        playerName: db
+          .prepare(`SELECT name FROM players WHERE id = ?`)
+          .get(playerId) as { name: string } | undefined,
+        autoBidActivated,
+        autoBidUserId: autoBidActivated ? finalBidderId : undefined,
+        autoBidUsername: autoBidActivated
+          ? (
+              db
+                .prepare(`SELECT username FROM users WHERE id = ?`)
+                .get(finalBidderId) as { username: string } | undefined
+            )?.username
+          : undefined,
+        autoBidAmount: finalAmount,
+        finalBidAmount: finalAmount,
         finalBidderId: finalBidderId,
       };
     });
@@ -1090,262 +1114,295 @@ export async function placeBidOnExistingAuction({
       `[BID_SERVICE] Transaction completed. Result: ${JSON.stringify(result)}`
     );
 
-  // --- Gestione Timer di Risposta + COMPLIANCE CHECK PER UTENTI SUPERATI ---
-  if (result.success) {
-    // NUOVO: Controlla compliance per l'utente che è stato superato
-    // Questo è fondamentale perché perdere un'offerta vincente può rendere la rosa non-compliant
-    if (
-      result.previousHighestBidderId &&
-      result.previousHighestBidderId !== result.finalBidderId
-    ) {
-      try {
-        console.log(
-          `[BID_SERVICE] Triggering compliance check for outbid user ${result.previousHighestBidderId}`
-        );
-        const { processUserComplianceAndPenalties } = await import("./penalty.service");
-        await processUserComplianceAndPenalties(leagueId, result.previousHighestBidderId);
-      } catch (error) {
-        console.error(
-          `[BID_SERVICE] Non-critical error during compliance check for outbid user ${result.previousHighestBidderId}:`,
-          error
-        );
+    // --- Gestione Timer di Risposta + COMPLIANCE CHECK PER UTENTI SUPERATI ---
+    if (result.success) {
+      // NUOVO: Controlla compliance per l'utente che è stato superato
+      // Questo è fondamentale perché perdere un'offerta vincente può rendere la rosa non-compliant
+      if (
+        result.previousHighestBidderId &&
+        result.previousHighestBidderId !== result.finalBidderId
+      ) {
+        try {
+          console.log(
+            `[BID_SERVICE] Triggering compliance check for outbid user ${result.previousHighestBidderId}`
+          );
+          const { processUserComplianceAndPenalties } = await import(
+            "./penalty.service"
+          );
+          await processUserComplianceAndPenalties(
+            leagueId,
+            result.previousHighestBidderId
+          );
+        } catch (error) {
+          console.error(
+            `[BID_SERVICE] Non-critical error during compliance check for outbid user ${result.previousHighestBidderId}:`,
+            error
+          );
+        }
       }
-    }
-    // NUOVO: Anche l'utente che ha fatto l'offerta potrebbe aver perso una precedente offerta vincente
-    // Controlla la sua compliance (caso meno comune ma possibile)
-    if (
-      userId !== result.finalBidderId &&
-      userId !== result.previousHighestBidderId
-    ) {
-      try {
-        console.log(
-          `[BID_SERVICE] Triggering compliance check for bidding user who didn't win ${userId}`
-        );
-        const { processUserComplianceAndPenalties } = await import("./penalty.service");
-        await processUserComplianceAndPenalties(leagueId, userId);
-      } catch (error) {
-        console.error(
-          `[BID_SERVICE] Non-critical error during compliance check for bidding user ${userId}:`,
-          error
-        );
+      // NUOVO: Anche l'utente che ha fatto l'offerta potrebbe aver perso una precedente offerta vincente
+      // Controlla la sua compliance (caso meno comune ma possibile)
+      if (
+        userId !== result.finalBidderId &&
+        userId !== result.previousHighestBidderId
+      ) {
+        try {
+          console.log(
+            `[BID_SERVICE] Triggering compliance check for bidding user who didn't win ${userId}`
+          );
+          const { processUserComplianceAndPenalties } = await import(
+            "./penalty.service"
+          );
+          await processUserComplianceAndPenalties(leagueId, userId);
+        } catch (error) {
+          console.error(
+            `[BID_SERVICE] Non-critical error during compliance check for bidding user ${userId}:`,
+            error
+          );
+        }
       }
-    }
 
-    // Cancella timer per l'utente che ha rilanciato (non serve più)
-    try {
-      const auctionInfoForCancel = db
-        .prepare(
-          "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'"
-        )
-        .get(leagueId, playerId) as { id: number } | undefined;
-      if (auctionInfoForCancel) {
-        await cancelResponseTimer(auctionInfoForCancel.id, userId);
-        console.log(`[BID_SERVICE] Timer cancellato per l'utente ${userId}`);
-      }
-    } catch (error) {
-      console.log(
-        `[BID_SERVICE] Timer cancellation non-critical error: ${error}`
-      );
-    }
-
-    // Crea timer pendente per l'utente superato
-    const finalPreviousHighestBidderId = result.autoBidActivated
-      ? userId
-      : result.previousHighestBidderId;
-    if (
-      finalPreviousHighestBidderId &&
-      finalPreviousHighestBidderId !==
-        (result.autoBidActivated ? result.autoBidUserId : userId)
-    ) {
+      // Cancella timer per l'utente che ha rilanciato (non serve più)
       try {
-        const auctionInfo = db
+        const auctionInfoForCancel = db
           .prepare(
             "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'"
           )
           .get(leagueId, playerId) as { id: number } | undefined;
-        if (auctionInfo) {
-          await createResponseTimer(
-            auctionInfo.id,
-            finalPreviousHighestBidderId
-          );
-          console.log(
-            `[BID_SERVICE] Timer creato per l'utente superato ${finalPreviousHighestBidderId}`
-          );
+        if (auctionInfoForCancel) {
+          await cancelResponseTimer(auctionInfoForCancel.id, userId);
+          console.log(`[BID_SERVICE] Timer cancellato per l'utente ${userId}`);
         }
       } catch (error) {
-        console.error(`[BID_SERVICE] Error creating response timer: ${error}`);
+        console.log(
+          `[BID_SERVICE] Timer cancellation non-critical error: ${error}`
+        );
+      }
+
+      // Crea timer pendente per l'utente superato
+      const finalPreviousHighestBidderId = result.autoBidActivated
+        ? userId
+        : result.previousHighestBidderId;
+      if (
+        finalPreviousHighestBidderId &&
+        finalPreviousHighestBidderId !==
+          (result.autoBidActivated ? result.autoBidUserId : userId)
+      ) {
+        try {
+          const auctionInfo = db
+            .prepare(
+              "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'"
+            )
+            .get(leagueId, playerId) as { id: number } | undefined;
+          if (auctionInfo) {
+            await createResponseTimer(
+              auctionInfo.id,
+              finalPreviousHighestBidderId
+            );
+            console.log(
+              `[BID_SERVICE] Timer creato per l'utente superato ${finalPreviousHighestBidderId}`
+            );
+          }
+        } catch (error) {
+          console.error(
+            `[BID_SERVICE] Error creating response timer: ${error}`
+          );
+        }
       }
     }
-  }
 
-  // --- Blocco 7: Invio Notifiche Socket.IO (OTTIMIZZATO) ---
-  if (result.success) {
-    const {
-      finalBidderId,
-      previousHighestBidderId,
-      finalBidAmount,
-      newScheduledEndTime,
-    } = result;
+    // --- Blocco 7: Invio Notifiche Socket.IO (OTTIMIZZATO) ---
+    if (result.success) {
+      const {
+        finalBidderId,
+        previousHighestBidderId,
+        finalBidAmount,
+        newScheduledEndTime,
+      } = result;
 
-    // 4. Gestisci le notifiche individuali (invariato)
-    const surpassedUsers = new Set<string>();
-    if (
-      result.previousHighestBidderId &&
-      result.previousHighestBidderId !== result.finalBidderId
-    ) {
-      surpassedUsers.add(result.previousHighestBidderId);
-    }
-    if (userId !== result.finalBidderId) {
-      surpassedUsers.add(userId);
-    }
+      // 4. Gestisci le notifiche individuali (invariato)
+      const surpassedUsers = new Set<string>();
+      if (
+        result.previousHighestBidderId &&
+        result.previousHighestBidderId !== result.finalBidderId
+      ) {
+        surpassedUsers.add(result.previousHighestBidderId);
+      }
+      if (userId !== result.finalBidderId) {
+        surpassedUsers.add(userId);
+      }
 
-    // 1. Recupera i dati aggiornati per il payload arricchito
-    const budgetUpdates = [];
-    const getParticipantBudget = (pUserId: string) =>
-      db
-        .prepare(
-          `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
-        )
-        .get(leagueId, pUserId) as
-        | { current_budget: number; locked_credits: number }
-        | undefined;
+      // 1. Recupera i dati aggiornati per il payload arricchito
+      const budgetUpdates = [];
+      const getParticipantBudget = (pUserId: string) =>
+        db
+          .prepare(
+            `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+          )
+          .get(leagueId, pUserId) as
+          | { current_budget: number; locked_credits: number }
+          | undefined;
 
-    // Aggiungi budget del vincitore finale
-    const finalWinnerBudget = getParticipantBudget(finalBidderId);
-    if (finalWinnerBudget) {
-      budgetUpdates.push({
-        userId: finalBidderId,
-        newBudget: finalWinnerBudget.current_budget,
-        newLockedCredits: finalWinnerBudget.locked_credits,
-      });
-    }
-
-    // Aggiungi budget dell'offerente precedente (se diverso dal vincitore)
-    if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
-      const previousBidderBudget = getParticipantBudget(
-        previousHighestBidderId
-      );
-      if (previousBidderBudget) {
+      // Aggiungi budget del vincitore finale
+      const finalWinnerBudget = getParticipantBudget(finalBidderId);
+      if (finalWinnerBudget) {
         budgetUpdates.push({
-          userId: previousHighestBidderId,
-          newBudget: previousBidderBudget.current_budget,
-          newLockedCredits: previousBidderBudget.locked_credits,
+          userId: finalBidderId,
+          newBudget: finalWinnerBudget.current_budget,
+          newLockedCredits: finalWinnerBudget.locked_credits,
         });
       }
-    }
 
-    // Recupera l'ID dell'asta per trovare l'ultima offerta
-    const auctionInfoForBid = db
-      .prepare(
-        "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ?"
-      )
-      .get(leagueId, playerId) as { id: number };
+      // Aggiungi budget dell'offerente precedente (se diverso dal vincitore)
+      if (
+        previousHighestBidderId &&
+        previousHighestBidderId !== finalBidderId
+      ) {
+        const previousBidderBudget = getParticipantBudget(
+          previousHighestBidderId
+        );
+        if (previousBidderBudget) {
+          budgetUpdates.push({
+            userId: previousHighestBidderId,
+            newBudget: previousBidderBudget.current_budget,
+            newLockedCredits: previousBidderBudget.locked_credits,
+          });
+        }
+      }
 
-    // Recupera l'ultima offerta inserita
-    const lastBidStmt = db.prepare(
-      `SELECT b.id, b.user_id, b.amount, b.bid_time, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 1`
-    );
-    const lastBid = lastBidStmt.get(auctionInfoForBid.id) as
-      | { id: number; user_id: string; amount: number; bid_time: string; bidder_username: string }
-      | undefined;
+      // Recupera l'ID dell'asta per trovare l'ultima offerta
+      const auctionInfoForBid = db
+        .prepare(
+          "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ?"
+        )
+        .get(leagueId, playerId) as { id: number };
 
-    // 2. Costruisci il payload arricchito
-    const richPayload = {
-      playerId,
-      newPrice: finalBidAmount,
-      highestBidderId: finalBidderId,
-      scheduledEndTime: newScheduledEndTime,
-      autoBidActivated: result.autoBidActivated,
-      budgetUpdates,
-      newBid: lastBid
-        ? {
-            ...lastBid,
-            bid_time: new Date(parseInt(lastBid.bid_time) * 1000).toISOString(),
+      // Recupera l'ultima offerta inserita
+      const lastBidStmt = db.prepare(
+        `SELECT b.id, b.user_id, b.amount, b.bid_time, u.username as bidder_username FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.bid_time DESC LIMIT 1`
+      );
+      const lastBid = lastBidStmt.get(auctionInfoForBid.id) as
+        | {
+            id: number;
+            user_id: string;
+            amount: number;
+            bid_time: string;
+            bidder_username: string;
           }
-        : undefined,
-    };
+        | undefined;
 
-    console.log(
-      `[BID_SERVICE] Notifying socket server with rich payload for auction-update.`
-    );
-    console.log(
-      `[BID_SERVICE] Auction update payload:`,
-      JSON.stringify(richPayload, null, 2)
-    );
+      // 2. Costruisci il payload arricchito
+      const richPayload = {
+        playerId,
+        newPrice: finalBidAmount,
+        highestBidderId: finalBidderId,
+        scheduledEndTime: newScheduledEndTime,
+        autoBidActivated: result.autoBidActivated,
+        budgetUpdates,
+        newBid: lastBid
+          ? {
+              ...lastBid,
+              bid_time: new Date(
+                parseInt(lastBid.bid_time) * 1000
+              ).toISOString(),
+            }
+          : undefined,
+      };
 
-    // 3. Invia l'evento `auction-update` arricchito
-    await notifySocketServer({
-      room: `league-${leagueId}`,
-      event: "auction-update",
-      data: richPayload,
-    });
-
-    for (const surpassedUserId of surpassedUsers) {
       console.log(
-        `[BID_SERVICE] Notifying user ${surpassedUserId} of being surpassed.`
+        `[BID_SERVICE] Notifying socket server with rich payload for auction-update.`
       );
-      await notifySocketServer({
-        room: `user-${surpassedUserId}`,
-        event: "bid-surpassed-notification",
-        data: {
-          playerName: result.playerName?.name || "Giocatore",
-          newBidAmount: result.finalBidAmount,
-          autoBidActivated: true,
-          autoBidUsername: result.autoBidUsername,
-        },
-      });
-    }
-
-    if (
-      result.autoBidActivated &&
-      result.finalBidderId === result.autoBidUserId
-    ) {
       console.log(
-        `[BID_SERVICE] Notifying auto-bidder (${result.autoBidUserId}) of auto-bid activation.`
+        `[BID_SERVICE] Auction update payload:`,
+        JSON.stringify(richPayload, null, 2)
       );
-      await notifySocketServer({
-        room: `user-${result.autoBidUserId}`,
-        event: "auto-bid-activated-notification",
-        data: {
-          playerName: result.playerName?.name || "Giocatore",
-          bidAmount: result.finalBidAmount,
-          triggeredBy: userId,
-        },
-      });
-    }
 
-    // 5. Gestisci cambio stato (invariato)
-    if (auctionInfoForBid) {
+      // 3. Invia l'evento `auction-update` arricchito
+      await notifySocketServer({
+        room: `league-${leagueId}`,
+        event: "auction-update",
+        data: richPayload,
+      });
+
       for (const surpassedUserId of surpassedUsers) {
         console.log(
-          `[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`
+          `[BID_SERVICE] Notifying user ${surpassedUserId} of being surpassed.`
         );
-        await handleBidderChange(
-          auctionInfoForBid.id,
-          surpassedUserId,
-          result.finalBidderId!
+        await notifySocketServer({
+          room: `user-${surpassedUserId}`,
+          event: "bid-surpassed-notification",
+          data: {
+            playerName: result.playerName?.name || "Giocatore",
+            newBidAmount: result.finalBidAmount,
+            autoBidActivated: true,
+            autoBidUsername: result.autoBidUsername,
+          },
+        });
+      }
+
+      if (
+        result.autoBidActivated &&
+        result.finalBidderId === result.autoBidUserId
+      ) {
+        console.log(
+          `[BID_SERVICE] Notifying auto-bidder (${result.autoBidUserId}) of auto-bid activation.`
+        );
+        await notifySocketServer({
+          room: `user-${result.autoBidUserId}`,
+          event: "auto-bid-activated-notification",
+          data: {
+            playerName: result.playerName?.name || "Giocatore",
+            bidAmount: result.finalBidAmount,
+            triggeredBy: userId,
+          },
+        });
+      }
+
+      // 5. Gestisci cambio stato (invariato)
+      if (auctionInfoForBid) {
+        for (const surpassedUserId of surpassedUsers) {
+          console.log(
+            `[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`
+          );
+          await handleBidderChange(
+            auctionInfoForBid.id,
+            surpassedUserId,
+            result.finalBidderId!
+          );
+        }
+      }
+
+      // NEW: Trigger compliance check for the final winner
+      try {
+        console.log(
+          `[BID_SERVICE] Triggering compliance check for final winner ${result.finalBidderId} after placing bid.`
+        );
+        const { processUserComplianceAndPenalties } = await import(
+          "./penalty.service"
+        );
+        await processUserComplianceAndPenalties(leagueId, result.finalBidderId);
+      } catch (error) {
+        console.error(
+          `[BID_SERVICE] Non-critical error during compliance check for final winner ${result.finalBidderId}:`,
+          error
         );
       }
     }
 
-    // NEW: Trigger compliance check for the final winner
-    try {
-      console.log(`[BID_SERVICE] Triggering compliance check for final winner ${result.finalBidderId} after placing bid.`);
-      const { processUserComplianceAndPenalties } = await import("./penalty.service");
-      await processUserComplianceAndPenalties(leagueId, result.finalBidderId);
-    } catch (error) {
-      console.error(`[BID_SERVICE] Non-critical error during compliance check for final winner ${result.finalBidderId}:`, error);
-    }
-  }
+    const message = result.autoBidActivated
+      ? `Battaglia auto-bid conclusa! Vincitore: ${result.autoBidUsername || result.finalBidderId} con ${result.finalBidAmount} crediti.`
+      : "Offerta piazzata con successo!";
 
-  const message = result.autoBidActivated
-    ? `Battaglia auto-bid conclusa! Vincitore: ${result.autoBidUsername || result.finalBidderId} con ${result.finalBidAmount} crediti.`
-    : "Offerta piazzata con successo!";
-
-  return { message };
+    return { message };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during the bidding process.";
-    console.error(`[BID_SERVICE] CRITICAL ERROR in placeBidOnExistingAuction for user ${userId}, player ${playerId}: ${errorMessage}`, error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during the bidding process.";
+    console.error(
+      `[BID_SERVICE] CRITICAL ERROR in placeBidOnExistingAuction for user ${userId}, player ${playerId}: ${errorMessage}`,
+      error
+    );
     // Re-throw a more user-friendly error
     throw new Error(`Impossibile piazzare l'offerta: ${errorMessage}`);
   }
@@ -1602,7 +1659,9 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
       const amountToUnlock =
         winnerAutoBid?.max_amount || auction.current_highest_bid_amount;
 
-      console.log(`[CREDIT_FIX] Auction ${auction.id}: Winner ${auction.current_highest_bidder_id}, unlocking ${amountToUnlock} credits (auto-bid: ${winnerAutoBid?.max_amount || 'none'}, final price: ${auction.current_highest_bid_amount})`);
+      console.log(
+        `[CREDIT_FIX] Auction ${auction.id}: Winner ${auction.current_highest_bidder_id}, unlocking ${amountToUnlock} credits (auto-bid: ${winnerAutoBid?.max_amount || "none"}, final price: ${auction.current_highest_bid_amount})`
+      );
 
       db.transaction(() => {
         db.prepare(
@@ -1626,7 +1685,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
 
         // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
         const losingAutoBids = allAutoBidsForAuction.filter(
-          autoBid => autoBid.user_id !== auction.current_highest_bidder_id
+          (autoBid) => autoBid.user_id !== auction.current_highest_bidder_id
         );
 
         for (const otherAutoBid of losingAutoBids) {
@@ -1637,7 +1696,9 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
             auction.auction_league_id,
             otherAutoBid.user_id
           );
-          console.log(`[CREDIT_FIX] Unlocked ${otherAutoBid.max_amount} credits for losing bidder ${otherAutoBid.user_id}`);
+          console.log(
+            `[CREDIT_FIX] Unlocked ${otherAutoBid.max_amount} credits for losing bidder ${otherAutoBid.user_id}`
+          );
         }
 
         db.prepare(
@@ -1735,9 +1796,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
         for (const losingBidder of allLosingBidders) {
           // Skip if already checked in auto-bid loop above
           if (
-            !losingAutoBids.some(
-              (ab) => ab.user_id === losingBidder.user_id
-            )
+            !losingAutoBids.some((ab) => ab.user_id === losingBidder.user_id)
           ) {
             try {
               console.log(
@@ -1800,23 +1859,31 @@ export function validateLockedCreditsConsistency(leagueId: number): {
     difference: number;
   }>;
 } {
-  console.log(`[CREDIT_VALIDATION] Validating locked credits for league ${leagueId}`);
-  
-  const participants = db.prepare(`
+  console.log(
+    `[CREDIT_VALIDATION] Validating locked credits for league ${leagueId}`
+  );
+
+  const participants = db
+    .prepare(
+      `
     SELECT user_id, locked_credits, manager_team_name
     FROM league_participants 
     WHERE league_id = ?
-  `).all(leagueId) as Array<{
+  `
+    )
+    .all(leagueId) as Array<{
     user_id: string;
     locked_credits: number;
     manager_team_name: string;
   }>;
 
   const issues = [];
-  
+
   for (const participant of participants) {
     // Calcola i crediti bloccati attesi sommando tutti gli auto-bid attivi
-    const expectedLocked = db.prepare(`
+    const expectedLocked = db
+      .prepare(
+        `
       SELECT COALESCE(SUM(ab.max_amount), 0) as total
       FROM auto_bids ab
       JOIN auctions a ON ab.auction_id = a.id
@@ -1824,7 +1891,9 @@ export function validateLockedCreditsConsistency(leagueId: number): {
         AND ab.user_id = ? 
         AND ab.is_active = TRUE
         AND a.status = 'active'
-    `).get(leagueId, participant.user_id) as { total: number };
+    `
+      )
+      .get(leagueId, participant.user_id) as { total: number };
 
     if (participant.locked_credits !== expectedLocked.total) {
       const difference = participant.locked_credits - expectedLocked.total;
@@ -1833,16 +1902,20 @@ export function validateLockedCreditsConsistency(leagueId: number): {
         teamName: participant.manager_team_name,
         expected: expectedLocked.total,
         actual: participant.locked_credits,
-        difference: difference
+        difference: difference,
       });
-      
-      console.log(`[CREDIT_VALIDATION] Issue found for ${participant.manager_team_name}: expected ${expectedLocked.total}, actual ${participant.locked_credits}, difference ${difference}`);
+
+      console.log(
+        `[CREDIT_VALIDATION] Issue found for ${participant.manager_team_name}: expected ${expectedLocked.total}, actual ${participant.locked_credits}, difference ${difference}`
+      );
     }
   }
 
   const isValid = issues.length === 0;
-  console.log(`[CREDIT_VALIDATION] Validation ${isValid ? 'PASSED' : 'FAILED'} - ${issues.length} issues found`);
-  
+  console.log(
+    `[CREDIT_VALIDATION] Validation ${isValid ? "PASSED" : "FAILED"} - ${issues.length} issues found`
+  );
+
   return { isValid, issues };
 }
 
@@ -1852,7 +1925,7 @@ export function fixLockedCreditsConsistency(leagueId: number): {
   errors: string[];
 } {
   console.log(`[CREDIT_FIX] Starting automatic fix for league ${leagueId}`);
-  
+
   const validation = validateLockedCreditsConsistency(leagueId);
   if (validation.isValid) {
     console.log(`[CREDIT_FIX] No issues found, no fixes needed`);
@@ -1865,16 +1938,21 @@ export function fixLockedCreditsConsistency(leagueId: number): {
   const transaction = db.transaction(() => {
     for (const issue of validation.issues) {
       try {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE league_participants 
           SET locked_credits = ? 
           WHERE league_id = ? AND user_id = ?
-        `).run(issue.expected, leagueId, issue.userId);
-        
-        console.log(`[CREDIT_FIX] Fixed ${issue.teamName}: ${issue.actual} -> ${issue.expected} (difference: ${issue.difference})`);
+        `
+        ).run(issue.expected, leagueId, issue.userId);
+
+        console.log(
+          `[CREDIT_FIX] Fixed ${issue.teamName}: ${issue.actual} -> ${issue.expected} (difference: ${issue.difference})`
+        );
         fixedCount++;
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const errorMsg =
+          error instanceof Error ? error.message : "Unknown error";
         errors.push(`Failed to fix ${issue.teamName}: ${errorMsg}`);
         console.error(`[CREDIT_FIX] Error fixing ${issue.teamName}:`, error);
       }
@@ -1882,7 +1960,9 @@ export function fixLockedCreditsConsistency(leagueId: number): {
   });
 
   transaction();
-  
-  console.log(`[CREDIT_FIX] Completed: ${fixedCount} fixed, ${errors.length} errors`);
+
+  console.log(
+    `[CREDIT_FIX] Completed: ${fixedCount} fixed, ${errors.length} errors`
+  );
   return { fixedCount, errors };
 }

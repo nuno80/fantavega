@@ -3,25 +3,25 @@
 import { useEffect, useState } from "react";
 
 import {
-    Ban,
-    Clock,
-    Dumbbell,
-    Gavel,
-    Shield,
-    TrendingUp,
-    Trophy,
-    User,
-    Users,
+  Ban,
+  Clock,
+  Dumbbell,
+  Gavel,
+  Shield,
+  TrendingUp,
+  Trophy,
+  User,
+  Users,
 } from "lucide-react";
 
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardFooter,
-    CardHeader,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
 } from "@/components/ui/card";
 
 interface PlayerSearchCardProps {
@@ -60,7 +60,7 @@ export function PlayerSearchCard({
       currentBid: player.currentBid,
       current_highest_bidder_id: player.current_highest_bidder_id,
       userId: userId,
-      isHighestBidder: player.current_highest_bidder_id === userId
+      isHighestBidder: player.current_highest_bidder_id === userId,
     });
   }, [player, userId]);
 
@@ -193,10 +193,10 @@ export function PlayerSearchCard({
 
   const hasCooldown =
     cooldownTimeRemaining !== null && cooldownTimeRemaining > 0;
-  
+
   // Check if current user is the highest bidder
   const isHighestBidder = player.current_highest_bidder_id === userId;
-  
+
   const canBid =
     (player.auctionStatus === "active_auction" ||
       player.auctionStatus === "no_auction") &&
@@ -213,7 +213,7 @@ export function PlayerSearchCard({
       auctionStatus: player.auctionStatus,
       isAssignedToUser: player.isAssignedToUser,
       hasCooldown: hasCooldown,
-      isHighestBidder: isHighestBidder
+      isHighestBidder: isHighestBidder,
     });
   }, [canBid, player, hasCooldown, isHighestBidder]);
 

@@ -114,9 +114,14 @@ interface ManagerColumnProps {
   ) => Promise<void>;
   complianceTimerStartAt: number | null;
   onPenaltyApplied?: () => void; // Callback for when penalty is applied
-  userAutoBidOverlay?: Record<number, { max_amount: number; is_active: boolean }>;
+  userAutoBidOverlay?: Record<
+    number,
+    { max_amount: number; is_active: boolean }
+  >;
   setUserAutoBidOverlay?: React.Dispatch<
-    React.SetStateAction<Record<number, { max_amount: number; is_active: boolean }>>
+    React.SetStateAction<
+      Record<number, { max_amount: number; is_active: boolean }>
+    >
   >;
 }
 
@@ -367,14 +372,20 @@ function InAuctionSlot({
   overlayAutoBidMaxAmount?: number;
   overlayAutoBidIsActive?: boolean;
 }) {
-  const timeInfo = formatTimeRemaining((scheduledEndTime ?? player.scheduled_end_time) || 0);
+  const timeInfo = formatTimeRemaining(
+    (scheduledEndTime ?? player.scheduled_end_time) || 0
+  );
   const roleColor = getRoleColor(role);
 
   // Show user's auto-bid for this specific player (only their own)
-  const showUserAutoBid = isCurrentUser && (
-    (overlayAutoBidIsActive && overlayAutoBidMaxAmount !== undefined && overlayAutoBidMaxAmount !== null) ||
-    (player.user_auto_bid_is_active && player.user_auto_bid_max_amount !== null && player.user_auto_bid_max_amount !== undefined)
-  );
+  const showUserAutoBid =
+    isCurrentUser &&
+    ((overlayAutoBidIsActive &&
+      overlayAutoBidMaxAmount !== undefined &&
+      overlayAutoBidMaxAmount !== null) ||
+      (player.user_auto_bid_is_active &&
+        player.user_auto_bid_max_amount !== null &&
+        player.user_auto_bid_max_amount !== undefined));
 
   // Classi esplicite per ogni ruolo
   let bgClass = "bg-gray-700";
@@ -413,7 +424,9 @@ function InAuctionSlot({
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
             <span className="font-semibold text-blue-600 dark:text-blue-400">
-              {overlayAutoBidIsActive && overlayAutoBidMaxAmount != null ? overlayAutoBidMaxAmount : player.user_auto_bid_max_amount}
+              {overlayAutoBidIsActive && overlayAutoBidMaxAmount != null
+                ? overlayAutoBidMaxAmount
+                : player.user_auto_bid_max_amount}
             </span>
           )}
           {showUserAutoBid && <span className="text-gray-400">|</span>}
@@ -573,7 +586,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
     // Prepara un set dei player in stato di risposta necessaria per l'utente corrente
     const responseNeededSet = new Set<number>(
-      (isCurrentUser ? (userAuctionStates || []) : [])
+      (isCurrentUser ? userAuctionStates || [] : [])
         .filter((s) => s.user_state === "rilancio_possibile")
         .map((s) => s.player_id)
     );
@@ -581,15 +594,25 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
     playersForRole.forEach((player) => {
       // Se l'utente corrente non è più il miglior offerente su un player marcato come "winning"
       // e ha stato 'rilancio_possibile', trasformiamo lo slot in "response_needed" senza rifare il fetch.
-      if (isCurrentUser && player.player_status === "winning" && responseNeededSet.has(player.id)) {
-        const s = (userAuctionStates || []).find((st) => st.player_id === player.id);
-        const aa = (activeAuctions || []).find((a) => a.player_id === player.id);
+      if (
+        isCurrentUser &&
+        player.player_status === "winning" &&
+        responseNeededSet.has(player.id)
+      ) {
+        const s = (userAuctionStates || []).find(
+          (st) => st.player_id === player.id
+        );
+        const aa = (activeAuctions || []).find(
+          (a) => a.player_id === player.id
+        );
         const syntheticPlayer: PlayerInRoster = {
           ...player,
           assignment_price: s?.current_bid ?? player.assignment_price,
           player_status: "pending_decision",
-          scheduled_end_time: aa?.scheduled_end_time ?? player.scheduled_end_time,
-          response_deadline: s?.response_deadline ?? player.response_deadline ?? null,
+          scheduled_end_time:
+            aa?.scheduled_end_time ?? player.scheduled_end_time,
+          response_deadline:
+            s?.response_deadline ?? player.response_deadline ?? null,
         };
         slots.push({ type: "response_needed", player: syntheticPlayer });
         return;
@@ -600,7 +623,9 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           slots.push({ type: "assigned", player });
           break;
         case "winning": {
-          const aa = (activeAuctions || []).find((a) => a.player_id === player.id);
+          const aa = (activeAuctions || []).find(
+            (a) => a.player_id === player.id
+          );
           if (aa && aa.current_highest_bidder_id === manager.user_id) {
             slots.push({ type: "in_auction", player });
           }
@@ -614,12 +639,18 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
     // Merge userAuctionStates to inject response-needed slots for current user without refetch
     if (isCurrentUser && (userAuctionStates || []).length > 0) {
-      const statesForRole = (userAuctionStates || []).filter((s) => s.user_state === "rilancio_possibile");
+      const statesForRole = (userAuctionStates || []).filter(
+        (s) => s.user_state === "rilancio_possibile"
+      );
       for (const s of statesForRole) {
-        const aa = (activeAuctions || []).find((a) => a.player_id === s.player_id);
+        const aa = (activeAuctions || []).find(
+          (a) => a.player_id === s.player_id
+        );
         if (!aa) continue;
         if (aa.player_role.toUpperCase() !== role.toUpperCase()) continue;
-        const alreadyInRoster = playersForRole.some((p) => p.id === s.player_id);
+        const alreadyInRoster = playersForRole.some(
+          (p) => p.id === s.player_id
+        );
         if (alreadyInRoster) continue;
         const syntheticPlayer: PlayerInRoster = {
           id: s.player_id,
@@ -843,7 +874,8 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                             (activeAuctions || []).find(
                               (a) => a.player_id === slot.player.id
                             )?.scheduled_end_time ??
-                            slot.player.scheduled_end_time ?? undefined
+                            slot.player.scheduled_end_time ??
+                            undefined
                           }
                           overlayAutoBidIsActive={
                             userAutoBidOverlay?.[slot.player.id]?.is_active

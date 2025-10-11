@@ -19,6 +19,18 @@ import { useSocket } from "@/contexts/SocketContext";
 
 // src/components/debug/SocketDebugger.tsx
 
+// src/components/debug/SocketDebugger.tsx
+
+// src/components/debug/SocketDebugger.tsx
+
+// src/components/debug/SocketDebugger.tsx
+
+// src/components/debug/SocketDebugger.tsx
+
+// src/components/debug/SocketDebugger.tsx
+
+// src/components/debug/SocketDebugger.tsx
+
 interface SocketEvent {
   timestamp: Date;
   event: string;
@@ -148,13 +160,13 @@ export function SocketDebugger({ leagueId }: { leagueId: number }) {
                     </span>
                   ) : null;
                 })()}
-                {event.data &&
-                  typeof event.data === "object" &&
-                  Object.keys(event.data).length > 0 && (
-                    <pre className="mt-1 whitespace-pre-wrap text-gray-600">
-                      {JSON.stringify(event.data, null, 2)}
-                    </pre>
-                  )}
+                {event.data != null && (
+                  <pre className="mt-1 whitespace-pre-wrap text-gray-600">
+                    {typeof event.data === "object"
+                      ? JSON.stringify(event.data, null, 2)
+                      : String(event.data)}
+                  </pre>
+                )}
               </div>
             </div>
           ))}

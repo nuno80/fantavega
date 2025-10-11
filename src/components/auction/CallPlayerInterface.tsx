@@ -340,7 +340,8 @@ export function CallPlayerInterface({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        const errorMessage = errorData?.error || "Errore sconosciuto nell'avviare l'asta.";
+        const errorMessage =
+          errorData?.error || "Errore sconosciuto nell'avviare l'asta.";
         toast.error(errorMessage);
         return; // Interrompi l'esecuzione qui
       }

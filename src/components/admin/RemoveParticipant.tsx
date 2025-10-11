@@ -72,6 +72,24 @@ import { removeParticipantAction } from "@/lib/actions/league.actions";
 // src/components/admin/RemoveParticipant.tsx v.1.0
 // Componente client per la rimozione di un partecipante da una lega.
 
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
+// src/components/admin/RemoveParticipant.tsx v.1.0
+// Componente client per la rimozione di un partecipante da una lega.
+
 // 2. Props del componente
 interface RemoveParticipantProps {
   leagueId: number;

@@ -69,6 +69,24 @@ import {
 // src/components/admin/EditTeamName.tsx v.1.0
 // Componente client per modificare il nome della squadra di un partecipante.
 
+// src/components/admin/EditTeamName.tsx v.1.0
+// Componente client per modificare il nome della squadra di un partecipante.
+
+// src/components/admin/EditTeamName.tsx v.1.0
+// Componente client per modificare il nome della squadra di un partecipante.
+
+// src/components/admin/EditTeamName.tsx v.1.0
+// Componente client per modificare il nome della squadra di un partecipante.
+
+// src/components/admin/EditTeamName.tsx v.1.0
+// Componente client per modificare il nome della squadra di un partecipante.
+
+// src/components/admin/EditTeamName.tsx v.1.0
+// Componente client per modificare il nome della squadra di un partecipante.
+
+// src/components/admin/EditTeamName.tsx v.1.0
+// Componente client per modificare il nome della squadra di un partecipante.
+
 // 2. Props del componente
 interface EditTeamNameProps {
   leagueId: number;

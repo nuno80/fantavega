@@ -128,7 +128,7 @@ describe("Integration Tests - Complete Penalty Workflows", () => {
       const mockDb = await import("@/lib/db");
 
       // Mock Clerk auth response
-      (auth as Mock).mockResolvedValue({
+      (auth as unknown as Mock).mockResolvedValue({
         userId: "user_123",
         sessionId: "session_456",
       });
@@ -178,7 +178,7 @@ describe("Integration Tests - Complete Penalty Workflows", () => {
       const { auth } = await import("@clerk/nextjs/server");
       const mockDb = await import("@/lib/db");
 
-      (auth as Mock).mockResolvedValue({
+      (auth as unknown as Mock).mockResolvedValue({
         userId: "user_123",
         sessionId: "session_456",
       });
