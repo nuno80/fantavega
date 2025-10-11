@@ -112,9 +112,9 @@ export const GET = async (_request: Request): Promise<NextResponse> => {
     }
 
     console.log(`[API] GET /api/admin/leagues request by admin: ${user.id}`);
-    const leagues = await getAuctionLeaguesByAdmin(user.id); // Chiama la funzione corretta
+    const leagues = await getAuctionLeaguesByAdmin(user.id);
 
-    return NextResponse.json(leagues, { status: 200 });
+    return NextResponse.json({ leagues }, { status: 200 });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";

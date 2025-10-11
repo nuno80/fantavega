@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 import { currentUser } from "@clerk/nextjs/server";
 
@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get("format") || "csv";
 
     if (!leagueIdParam) {
-      return NextResponse.json({ error: "ID lega richiesto" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID lega richiesto" },
+        { status: 400 }
+      );
     }
 
     const leagueId = parseInt(leagueIdParam, 10);
@@ -33,123 +36,105 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Recupera i dati delle squadre nel formato richiesto
-    const exportData = await getLeagueRostersForExport(leagueId, format as 'csv' | 'excel' | 'json');
+    // 1. Recupera i dati strutturati dal servizio
+    const exportData = await getLeagueRostersForExport(leagueId);
 
-    if ((exportData.csvRows?.length === 0 && !exportData.jsonData) || 
-        (exportData.metadata.totalTeams === 0)) {
+    // 2. Validazione corretta dei dati ricevuti
+    if (!exportData || !exportData.teams || exportData.teams.length === 0) {
       return NextResponse.json(
-        { error: "Nessun dato trovato per questa lega" },
+        { error: "Nessun dato o squadra da esportare per questa lega." },
         { status: 404 }
       );
     }
 
-    // Genera il contenuto basato sul formato richiesto
-    let content: string | Buffer;
-    let contentType: string;
+    const { league, exportInfo, teams } = exportData;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    let headers = new Headers();
     let fileName: string;
 
+    // 3. Switch corretto per i formati
     switch (format) {
-      case "excel":
-        // Genera vero file Excel con SheetJS
-        const workbook = XLSX.utils.book_new();
-        
-        // Foglio principale con tutti i dati
-        const mainSheetData = [];
-        mainSheetData.push(['# Esportazione Rose - ' + exportData.metadata.leagueName]);
-        mainSheetData.push(['# Data Export: ' + exportData.metadata.exportDate]);
-        mainSheetData.push(['# Squadre: ' + exportData.metadata.totalTeams + ', Giocatori: ' + exportData.metadata.totalPlayers]);
-        mainSheetData.push([]);
-        mainSheetData.push(['Nome Squadra', 'ID Giocatore', 'Nome Giocatore', 'Ruolo', 'Squadra Reale', 'FVM', 'Costo Acquisto']);
-        
-        // Aggiungi dati dalle righe CSV (saltando header e commenti)
-        if (exportData.csvRows) {
-          exportData.csvRows.forEach(row => {
-            if (!row.startsWith('#') && row.trim() !== '' && row !== '$,$,$') {
-              const parts = row.split(',');
-              if (parts.length >= 7) {
-                mainSheetData.push(parts);
-              }
-            }
-          });
-        }
-        
-        const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
-        XLSX.utils.book_append_sheet(workbook, mainSheet, "Rose Complete");
-        
-        // Aggiungi foglio riassuntivo se abbiamo dati JSON
-        if (exportData.jsonData) {
-          const summaryData = [
-            ['Nome Squadra', 'Manager', 'Budget Residuo', 'Budget Speso', 'Giocatori', 'Valore Totale'],
+      case "xlsx":
+        const wb = XLSX.utils.book_new();
+        const summaryData = [
+          ["Nome Lega", league.name],
+          ["Data Export", exportInfo.exportDate],
+          ["Squadre Totali", exportInfo.totalTeams],
+          ["Giocatori Totali", exportInfo.totalPlayers],
+        ];
+        const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, summaryWs, "Riepilogo");
+
+        teams.forEach((team) => {
+          const teamHeader = [
+            "ID Giocatore",
+            "Nome Giocatore",
+            "Ruolo",
+            "Squadra",
+            "FVM",
+            "Prezzo Acquisto",
           ];
-          
-          exportData.jsonData.teams.forEach((team: any) => {
-            summaryData.push([
-              team.teamName,
-              team.managerUsername || '',
-              team.currentBudget,
-              team.spentBudget,
-              team.totalPlayers,
-              team.totalValue
-            ]);
-          });
-          
-          const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-          XLSX.utils.book_append_sheet(workbook, summarySheet, "Riassunto Squadre");
-        }
-        
-        content = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-        contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        fileName = `squadre_${exportData.metadata.leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_${leagueId}.xlsx`;
-        break;
+          const playersData = team.players.map((p) => [
+            p.player_id,
+            p.player_name,
+            p.role,
+            p.team,
+            p.fvm || "N/A",
+            p.purchase_price,
+          ]);
+          const teamWs = XLSX.utils.aoa_to_sheet([teamHeader, ...playersData]);
+          const sheetName = team.teamName
+            .substring(0, 31)
+            .replace(/[\\/?*[\]]/g, "");
+          XLSX.utils.book_append_sheet(wb, teamWs, sheetName);
+        });
+
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        fileName = `fantavega_rosters_${league.id}_${timestamp}.xlsx`;
+        headers.set(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        return new NextResponse(Buffer.from(buf), { status: 200, headers });
 
       case "custom":
-        // Formato JSON dettagliato
-        if (!exportData.jsonData) {
-          const jsonExport = await getLeagueRostersForExport(leagueId, 'json');
-          content = JSON.stringify(jsonExport.jsonData, null, 2);
-        } else {
-          content = JSON.stringify(exportData.jsonData, null, 2);
-        }
-        contentType = "application/json";
-        fileName = `squadre_${exportData.metadata.leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_${leagueId}.json`;
-        break;
+        fileName = `fantavega_rosters_${league.id}_${timestamp}.json`;
+        headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        return NextResponse.json(exportData, { status: 200, headers });
 
       case "csv":
       default:
-        content = exportData.csvRows?.join("\n") || '';
-        contentType = "text/csv; charset=utf-8";
-        fileName = `squadre_${exportData.metadata.leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_${leagueId}.csv`;
-        break;
+        const csvRows: string[] = [];
+
+        teams.forEach((team) => {
+          // Aggiungi il separatore prima di ogni squadra
+          csvRows.push("$,$,$");
+
+          if (team.players.length > 0) {
+            team.players.forEach((player) => {
+              const row = [
+                team.teamName,
+                player.player_id,
+                player.purchase_price,
+              ].join(",");
+              csvRows.push(row);
+            });
+          } else {
+            // Se una squadra non ha giocatori, aggiungi una riga con solo il nome del team
+            csvRows.push(`${team.teamName},,`);
+          }
+        });
+
+        fileName = `fantavega_rosters_${league.id}_${timestamp}.csv`;
+        headers.set("Content-Type", "text/csv; charset=utf-8");
+        headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        return new NextResponse(csvRows.join("\n"), { status: 200, headers });
     }
-
-    // Crea la risposta con il file
-    const headers: Record<string, string> = {
-      "Content-Type": contentType,
-      "Content-Disposition": `attachment; filename="${fileName}"`,
-      "Cache-Control": "no-cache",
-      "X-Export-Metadata": JSON.stringify(exportData.metadata),
-    };
-
-    // Aggiungi header specifici per i diversi formati
-    if (format === "excel") {
-      headers["Content-Length"] = (content as Buffer).length.toString();
-    } else {
-      headers["Content-Length"] = Buffer.byteLength(content as string, 'utf8').toString();
-    }
-
-    const response = new NextResponse(content, {
-      status: 200,
-      headers,
-    });
-
-    console.log(`[TEAMS_EXPORT] Successfully exported ${format} for league ${leagueId}: ${fileName}`);
-    return response;
   } catch (error) {
     console.error("Errore durante l'esportazione delle squadre:", error);
-    return NextResponse.json(
-      { error: "Errore interno del server" },
-      { status: 500 }
-    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore interno del server";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
