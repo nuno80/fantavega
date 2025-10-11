@@ -78,12 +78,25 @@ Attendi la mia conferma prima di procedere con il sub-task successivo.
 
 **Fase Attuale**: Test delle funzionalità
 
-**Stato**: inserisci qui i test effettuati specificando se superati o meno
+**Stato**: ✅ **Gestione Crediti TESTATA e FUNZIONANTE**
+
+**Test Effettuati**:
+- ✅ **Test rilanci**: Verificato corretto comportamento crediti bloccati durante rilanci successivi (caso Ahanor)
+- ✅ **Test abbandono aste**: Verificato che non si generano più crediti negativi quando si abbandona un'asta
+- ✅ **Test auto-bid vs manual bid**: Verificata coerenza tra auto-bid attivi e crediti bloccati
+- ✅ **Test aste concluse**: Verificato che auto-bid vengano disattivati correttamente su aste concluse
+- ✅ **Bug fix applicato**: Risolto problema doppio rilascio crediti nel `bid.service.ts`
 
 **Requisiti Chiave**:
+- Sistema di gestione crediti robusto e coerente
+- Prevenzione crediti negativi
+- Corretto blocco/sblocco crediti durante le aste
 
-**Focus Implementativo**:
-Inserisci qui i test effettuare
+**Funzionalità Testate e Funzionanti**:
+- ✅ **Gestione Crediti**: Sistema completamente testato e funzionante
+- ✅ **Rilanci**: Gestione corretta dei crediti durante rilanci multipli
+- ✅ **Auto-bid**: Blocco/sblocco automatico crediti per auto-bid
+- ✅ **Aste concluse**: Pulizia automatica auto-bid su aste terminate
 
 ## 3. Riferimenti Tecnici del Progetto
 
