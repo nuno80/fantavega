@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as XLSX from 'xlsx';
 
 import { currentUser } from "@clerk/nextjs/server";
 
-import { getLeagueRostersForCsvExport } from "@/lib/db/services/auction-league.service";
+import { getLeagueRostersForExport } from "@/lib/db/services/auction-league.service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,10 +33,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Recupera i dati delle squadre
-    const csvRows = await getLeagueRostersForCsvExport(leagueId);
+    // Recupera i dati delle squadre nel formato richiesto
+    const exportData = await getLeagueRostersForExport(leagueId, format as 'csv' | 'excel' | 'json');
 
-    if (csvRows.length === 0) {
+    if ((exportData.csvRows?.length === 0 && !exportData.jsonData) || 
+        (exportData.metadata.totalTeams === 0)) {
       return NextResponse.json(
         { error: "Nessun dato trovato per questa lega" },
         { status: 404 }
@@ -43,44 +45,105 @@ export async function GET(request: NextRequest) {
     }
 
     // Genera il contenuto basato sul formato richiesto
-    let content: string;
+    let content: string | Buffer;
     let contentType: string;
     let fileName: string;
 
     switch (format) {
       case "excel":
-        // Per Excel, generiamo comunque CSV ma con estensione .xlsx
-        // In futuro si potrebbe implementare un vero formato Excel
-        content = csvRows.join("\n");
-        contentType =
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        fileName = `squadre_lega_${leagueId}.xlsx`;
+        // Genera vero file Excel con SheetJS
+        const workbook = XLSX.utils.book_new();
+        
+        // Foglio principale con tutti i dati
+        const mainSheetData = [];
+        mainSheetData.push(['# Esportazione Rose - ' + exportData.metadata.leagueName]);
+        mainSheetData.push(['# Data Export: ' + exportData.metadata.exportDate]);
+        mainSheetData.push(['# Squadre: ' + exportData.metadata.totalTeams + ', Giocatori: ' + exportData.metadata.totalPlayers]);
+        mainSheetData.push([]);
+        mainSheetData.push(['Nome Squadra', 'ID Giocatore', 'Nome Giocatore', 'Ruolo', 'Squadra Reale', 'FVM', 'Costo Acquisto']);
+        
+        // Aggiungi dati dalle righe CSV (saltando header e commenti)
+        if (exportData.csvRows) {
+          exportData.csvRows.forEach(row => {
+            if (!row.startsWith('#') && row.trim() !== '' && row !== '$,$,$') {
+              const parts = row.split(',');
+              if (parts.length >= 7) {
+                mainSheetData.push(parts);
+              }
+            }
+          });
+        }
+        
+        const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
+        XLSX.utils.book_append_sheet(workbook, mainSheet, "Rose Complete");
+        
+        // Aggiungi foglio riassuntivo se abbiamo dati JSON
+        if (exportData.jsonData) {
+          const summaryData = [
+            ['Nome Squadra', 'Manager', 'Budget Residuo', 'Budget Speso', 'Giocatori', 'Valore Totale'],
+          ];
+          
+          exportData.jsonData.teams.forEach((team: any) => {
+            summaryData.push([
+              team.teamName,
+              team.managerUsername || '',
+              team.currentBudget,
+              team.spentBudget,
+              team.totalPlayers,
+              team.totalValue
+            ]);
+          });
+          
+          const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+          XLSX.utils.book_append_sheet(workbook, summarySheet, "Riassunto Squadre");
+        }
+        
+        content = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        fileName = `squadre_${exportData.metadata.leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_${leagueId}.xlsx`;
         break;
 
       case "custom":
-        content = csvRows.join("\n");
-        contentType = "text/plain";
-        fileName = `squadre_lega_${leagueId}.txt`;
+        // Formato JSON dettagliato
+        if (!exportData.jsonData) {
+          const jsonExport = await getLeagueRostersForExport(leagueId, 'json');
+          content = JSON.stringify(jsonExport.jsonData, null, 2);
+        } else {
+          content = JSON.stringify(exportData.jsonData, null, 2);
+        }
+        contentType = "application/json";
+        fileName = `squadre_${exportData.metadata.leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_${leagueId}.json`;
         break;
 
       case "csv":
       default:
-        content = csvRows.join("\n");
-        contentType = "text/csv";
-        fileName = `squadre_lega_${leagueId}.csv`;
+        content = exportData.csvRows?.join("\n") || '';
+        contentType = "text/csv; charset=utf-8";
+        fileName = `squadre_${exportData.metadata.leagueName.replace(/[^a-zA-Z0-9]/g, '_')}_${leagueId}.csv`;
         break;
     }
 
     // Crea la risposta con il file
+    const headers: Record<string, string> = {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Cache-Control": "no-cache",
+      "X-Export-Metadata": JSON.stringify(exportData.metadata),
+    };
+
+    // Aggiungi header specifici per i diversi formati
+    if (format === "excel") {
+      headers["Content-Length"] = (content as Buffer).length.toString();
+    } else {
+      headers["Content-Length"] = Buffer.byteLength(content as string, 'utf8').toString();
+    }
+
     const response = new NextResponse(content, {
       status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${fileName}"`,
-        "Cache-Control": "no-cache",
-      },
+      headers,
     });
 
+    console.log(`[TEAMS_EXPORT] Successfully exported ${format} for league ${leagueId}: ${fileName}`);
     return response;
   } catch (error) {
     console.error("Errore durante l'esportazione delle squadre:", error);

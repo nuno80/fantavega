@@ -956,26 +956,53 @@ export const getPlayerAssignmentStatus = async (
 };
 
 /**
- * Prepara i dati per l'esportazione CSV delle rose di tutti i manager in una lega.
+ * Prepara i dati per l'esportazione delle rose di tutti i manager in una lega.
  * @param leagueId L'ID della lega.
- * @returns Una Promise che risolve in un array di stringhe, dove ogni stringa è una riga CSV.
+ * @param format Formato di export: 'csv', 'excel', 'json'
+ * @returns Una Promise che risolve in un oggetto con i dati formattati.
  */
-export const getLeagueRostersForCsvExport = async (
-  leagueId: number
-): Promise<string[]> => {
+export const getLeagueRostersForExport = async (
+  leagueId: number,
+  format: 'csv' | 'excel' | 'json' = 'csv'
+): Promise<{
+  csvRows?: string[];
+  jsonData?: any;
+  metadata: {
+    leagueName: string;
+    exportDate: string;
+    totalTeams: number;
+    totalPlayers: number;
+  };
+}> => {
   console.log(
-    `[SERVICE AUCTION_LEAGUE] Preparing CSV export data for league ${leagueId}`
+    `[SERVICE AUCTION_LEAGUE] Preparing ${format} export data for league ${leagueId}`
   );
-  const csvRows: string[] = [];
 
   try {
-    // 1. Recupera tutti i partecipanti della lega, con il nome del loro team e username
-    //    Ordiniamo per manager_team_name o username per un output CSV consistente.
+    // 1. Recupera metadati della lega
+    const leagueInfo = db.prepare(`
+      SELECT name, status, league_type, initial_budget_per_manager
+      FROM auction_leagues 
+      WHERE id = ?
+    `).get(leagueId) as {
+      name: string;
+      status: string;
+      league_type: string;
+      initial_budget_per_manager: number;
+    } | undefined;
+
+    if (!leagueInfo) {
+      throw new Error(`Lega con ID ${leagueId} non trovata.`);
+    }
+
+    // 2. Recupera tutti i partecipanti della lega, con il nome del loro team e username
     const participantsStmt = db.prepare(`
       SELECT 
         lp.user_id,
-        COALESCE(lp.manager_team_name, u.username, u.id) AS effective_team_name, -- Fallback chain per il nome del team
-        u.username AS user_username -- Mantenuto per possibile uso o logging
+        COALESCE(lp.manager_team_name, u.username, u.id) AS effective_team_name,
+        u.username AS user_username,
+        lp.current_budget,
+        lp.locked_credits
       FROM league_participants lp
       JOIN users u ON lp.user_id = u.id
       WHERE lp.league_id = ?
@@ -985,22 +1012,33 @@ export const getLeagueRostersForCsvExport = async (
       user_id: string;
       effective_team_name: string;
       user_username: string | null;
+      current_budget: number;
+      locked_credits: number;
     }[];
 
     if (participants.length === 0) {
       console.log(
-        `[SERVICE AUCTION_LEAGUE] No participants found for league ${leagueId}. CSV will be empty.`
+        `[SERVICE AUCTION_LEAGUE] No participants found for league ${leagueId}. Export will be empty.`
       );
-      return [];
+      const metadata = {
+        leagueName: leagueInfo.name,
+        exportDate: new Date().toISOString(),
+        totalTeams: 0,
+        totalPlayers: 0,
+      };
+      return { csvRows: [], jsonData: null, metadata };
     }
 
-    // 2. Prepara lo statement per recuperare i giocatori assegnati a un manager
+    // 3. Prepara lo statement per recuperare i giocatori assegnati a un manager
     const rosterForManagerStmt = db.prepare(`
       SELECT
         p.id AS player_id,
+        p.name AS player_name,
+        p.role,
+        p.team,
+        p.fvm,
         pa.purchase_price,
-        p.role, -- Per l'ordinamento
-        p.name  -- Per l'ordinamento
+        pa.assigned_at
       FROM player_assignments pa
       JOIN players p ON pa.player_id = p.id
       WHERE pa.auction_league_id = @leagueId AND pa.user_id = @managerUserId
@@ -1015,11 +1053,12 @@ export const getLeagueRostersForCsvExport = async (
         p.name ASC
     `);
 
-    // 3. Itera su ogni partecipante per costruire le righe CSV
-    for (let i = 0; i < participants.length; i++) {
-      const participant = participants[i];
-      const managerTeamName = participant.effective_team_name; // Usa il nome del team effettivo
+    // 4. Raccogli tutti i dati strutturati
+    const teamsData = [];
+    let totalPlayers = 0;
 
+    for (const participant of participants) {
+      const managerTeamName = participant.effective_team_name;
       console.log(
         `[SERVICE AUCTION_LEAGUE] Processing roster for manager: ${managerTeamName} (User ID: ${participant.user_id})`
       );
@@ -1027,62 +1066,101 @@ export const getLeagueRostersForCsvExport = async (
       const rosterPlayers = rosterForManagerStmt.all({
         leagueId: leagueId,
         managerUserId: participant.user_id,
-      }) as RosterPlayerForExport[];
+      }) as (RosterPlayerForExport & {
+        player_name: string;
+        role: string;
+        team: string;
+        fvm: number | null;
+        assigned_at: number;
+      })[];
 
-      if (rosterPlayers.length > 0) {
-        rosterPlayers.forEach((player) => {
-          // Formato riga: NomeSquadraManager,IDGiocatore,CostoAcquisto
-          // Assicurati che managerTeamName non contenga virgole o racchiudilo tra virgolette se necessario.
-          // Per semplicità, ora non gestiamo l'escaping CSV complesso.
-          const csvRow = `${managerTeamName},${player.player_id},${player.purchase_price}`;
+      totalPlayers += rosterPlayers.length;
+
+      const teamData = {
+        teamName: managerTeamName,
+        managerUsername: participant.user_username,
+        currentBudget: participant.current_budget,
+        lockedCredits: participant.locked_credits,
+        spentBudget: leagueInfo.initial_budget_per_manager - participant.current_budget,
+        players: rosterPlayers,
+        totalPlayers: rosterPlayers.length,
+        totalValue: rosterPlayers.reduce((sum, p) => sum + p.purchase_price, 0),
+      };
+
+      teamsData.push(teamData);
+    }
+
+    // 5. Prepara metadati
+    const metadata = {
+      leagueName: leagueInfo.name,
+      exportDate: new Date().toISOString(),
+      totalTeams: participants.length,
+      totalPlayers: totalPlayers,
+    };
+
+    // 6. Genera output basato sul formato richiesto
+    if (format === 'json') {
+      const jsonData = {
+        league: {
+          id: leagueId,
+          name: leagueInfo.name,
+          status: leagueInfo.status,
+          type: leagueInfo.league_type,
+          initialBudget: leagueInfo.initial_budget_per_manager,
+        },
+        exportInfo: metadata,
+        teams: teamsData,
+      };
+      return { jsonData, metadata };
+    }
+
+    // 7. Genera CSV (per csv e excel)
+    const csvRows: string[] = [];
+    
+    // Header CSV migliorato
+    csvRows.push(`# Esportazione Rose - ${leagueInfo.name}`);
+    csvRows.push(`# Data Export: ${metadata.exportDate}`);
+    csvRows.push(`# Squadre: ${metadata.totalTeams}, Giocatori: ${metadata.totalPlayers}`);
+    csvRows.push('# Formato: NomeSquadra,IDGiocatore,NomeGiocatore,Ruolo,SquadraReale,FVM,CostoAcquisto');
+    csvRows.push('');
+    
+    for (let i = 0; i < teamsData.length; i++) {
+      const team = teamsData[i];
+      
+      if (team.players.length > 0) {
+        team.players.forEach((player) => {
+          const csvRow = `${team.teamName},${player.player_id},${player.player_name},${player.role},${player.team},${player.fvm || ''},${player.purchase_price}`;
           csvRows.push(csvRow);
         });
       } else {
-        // Se un manager non ha giocatori, potremmo voler comunque includere il suo nome squadra
-        // seguito da nessuna riga giocatore, o una riga placeholder.
-        // Per ora, se non ha giocatori, non aggiungiamo righe per lui,
-        // ma il separatore $,$,$ verrà aggiunto dopo (se non è l'ultimo).
-        // Potremmo aggiungere una riga vuota con il nome squadra per rappresentarlo:
-        // csvRows.push(`${managerTeamName},,`); // Esempio: NomeSquadra,,
-        console.log(
-          `[SERVICE AUCTION_LEAGUE] Manager ${managerTeamName} has no players in roster.`
-        );
+        csvRows.push(`${team.teamName},,,,,, # Squadra senza giocatori`);
       }
 
-      // Aggiungi il separatore `$,$,$` se non è l'ultimo partecipante
-      // E se il partecipante corrente (o quelli precedenti) avevano giocatori.
-      // Questo evita un separatore alla fine del file o separatori doppi se team intermedi sono vuoti.
-      if (i < participants.length - 1) {
-        // Aggiungiamo il separatore solo se questo team aveva giocatori O se il CSV non è vuoto
-        // per evitare separatori all'inizio se i primi team sono vuoti.
-        // Una logica più semplice è aggiungerlo sempre tranne per l'ultimo,
-        // e poi l'API handler potrebbe pulire eventuali separatori finali.
-        // Per ora, lo aggiungiamo sempre tranne per l'ultimo.
+      // Separatore tra squadre (tranne per l'ultima)
+      if (i < teamsData.length - 1) {
         csvRows.push("$,$,$");
       }
     }
-
-    // Rimuovi un eventuale separatore $,$,$ finale se l'ultimo team non aveva giocatori
-    // o se l'array è solo [ '$,$,$' ]
-    if (csvRows.length > 0 && csvRows[csvRows.length - 1] === "$,$,$") {
-      csvRows.pop();
-    }
+    return { csvRows, metadata };
   } catch (error) {
     const errorMessage =
       error instanceof Error
         ? error.message
-        : "Unknown error preparing CSV data.";
+        : "Unknown error preparing export data.";
     console.error(
-      `[SERVICE AUCTION_LEAGUE] Error preparing CSV data for league ${leagueId}: ${errorMessage}`,
+      `[SERVICE AUCTION_LEAGUE] Error preparing ${format} data for league ${leagueId}: ${errorMessage}`,
       error
     );
-    throw new Error(`Failed to prepare CSV data: ${errorMessage}`);
+    throw new Error(`Failed to prepare ${format} data: ${errorMessage}`);
   }
+};
 
-  console.log(
-    `[SERVICE AUCTION_LEAGUE] CSV data preparation finished for league ${leagueId}. Total rows: ${csvRows.length}`
-  );
-  return csvRows;
+// Manteniamo la funzione legacy per compatibilità
+export const getLeagueRostersForCsvExport = async (
+  leagueId: number
+): Promise<string[]> => {
+  const result = await getLeagueRostersForExport(leagueId, 'csv');
+  return result.csvRows || [];
 };
 
 // 5. Tipi e Funzioni per la Dashboard di Gestione Lega
