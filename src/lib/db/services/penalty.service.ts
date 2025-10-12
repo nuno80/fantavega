@@ -477,14 +477,6 @@ export const processUserComplianceAndPenalties = async (
           );
         }
         // Update total penalty amount to return
-        const updatedComplianceRecord = getComplianceStmt.get(
-          leagueId,
-          userId,
-          phaseIdentifier
-        ) as UserLeagueComplianceStatus;
-        appliedPenaltyAmount =
-          (updatedComplianceRecord.penalties_applied_this_cycle || 0) *
-          PENALTY_AMOUNT;
       } else {
         const timeRemaining = gracePeriodEndTime - now;
         finalMessage = `User ${userId} is non-compliant, but within grace period. Time remaining: ${Math.floor(timeRemaining / 60)} minutes.`;
