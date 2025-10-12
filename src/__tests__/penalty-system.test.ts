@@ -7,7 +7,11 @@
  * - Grace period handling
  */
 import { Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkAndRecordCompliance, processUserComplianceAndPenalties } from "@/lib/db/services/penalty.service";
+
+import {
+  checkAndRecordCompliance,
+  processUserComplianceAndPenalties,
+} from "@/lib/db/services/penalty.service";
 
 // Mock the penalty service functions
 vi.mock("@/lib/db/services/penalty.service", () => ({

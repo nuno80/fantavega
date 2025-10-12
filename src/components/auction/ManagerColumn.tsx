@@ -538,16 +538,12 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         throw new Error(result.error || "Errore sconosciuto");
       }
 
-      toast.success(
-        `${result.releasedPlayerName} svincolato con successo!`,
-        {
-          description: `Hai recuperato ${result.creditsRefunded} crediti.`,
-        }
-      );
-      
+      toast.success(`${result.releasedPlayerName} svincolato con successo!`, {
+        description: `Hai recuperato ${result.creditsRefunded} crediti.`,
+      });
+
       // Ricarica la pagina per aggiornare lo stato. Soluzione semplice ma efficace.
       window.location.reload();
-
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Errore durante lo svincolo.";
@@ -556,7 +552,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
       });
     }
   };
-
 
   useEffect(() => {
     const now = Math.floor(Date.now() / 1000);

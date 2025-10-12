@@ -31,6 +31,8 @@ import { useSocket } from "@/contexts/SocketContext";
 
 // src/components/debug/SocketDebugger.tsx
 
+// src/components/debug/SocketDebugger.tsx
+
 interface SocketEvent {
   timestamp: Date;
   event: string;

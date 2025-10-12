@@ -85,6 +85,7 @@ La scelta della strategia di rendering dipende dalla natura del contenuto della 
 
 - **Utilizzo:** **Questa è la strategia preferita per la maggior parte delle pagine.** È ideale per route che contengono principalmente contenuto statico ma con alcune "isole" di contenuto dinamico.
 - **Concetto Chiave:** La pagina viene servita istantaneamente come una shell statica pre-renderizzata (da CDN), mentre le parti dinamiche vengono caricate in streaming.
+
 - **Regola di Implementazione:**
   1. **Abilitazione:** Attivare il flag in `next.config.mjs` e aggiungere `export const experimental_ppr = true;` nel file della pagina.
   2. **Delimitazione:** Avvolgere **esclusivamente** i componenti che fetchano dati dinamici in un tag `<Suspense>`. **Ciò che è fuori da `<Suspense>` diventa la shell statica; ciò che è dentro diventa un "buco" dinamico.**

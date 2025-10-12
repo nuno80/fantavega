@@ -1,8 +1,8 @@
 // src/app/api/leagues/[league-id]/roster/[player-id]/route.ts
 // API endpoint per svincolare un giocatore dalla propria rosa.
+import { NextRequest, NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
 
 import { releasePlayerFromRoster } from "@/lib/db/services/roster.service";
 

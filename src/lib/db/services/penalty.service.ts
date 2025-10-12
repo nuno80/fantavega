@@ -25,7 +25,8 @@ interface SlotRequirements {
 // 3. Costanti
 const PENALTY_AMOUNT = 5;
 const MAX_PENALTIES_PER_CYCLE = 5;
-const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
+// const COMPLIANCE_GRACE_PERIOD_HOURS = 1; // Produzione: 1 ora
+const COMPLIANCE_GRACE_PERIOD_HOURS = 0.25; // Test: 15 minuti (0.25 ore)
 // Simple in-memory cache for compliance checks
 const complianceCache = new Map<
   string,
@@ -163,11 +164,10 @@ export const checkAndRecordCompliance = (
           >
         | undefined;
 
-      if (
-        !league ||
-        !["draft_active", "repair_active"].includes(league.status)
-      ) {
+      if (!league || league.status !== "draft_active") {
         // Not a phase where penalties apply, so no status change.
+        // NOTA: Le penalità sono attive SOLO durante "draft_active",
+        // NON durante "repair_active" o altri stati
         return { statusChanged: false, isCompliant: true };
       }
 
@@ -313,10 +313,10 @@ export const processUserComplianceAndPenalties = async (
         >
       | undefined;
 
-    if (!league || !["draft_active", "repair_active"].includes(league.status)) {
+    if (!league || league.status !== "draft_active") {
       finalMessage = `League ${leagueId} not found or not in an active penalty phase.`;
       console.log(
-        `[PENALTY_SERVICE] Skipping compliance check for league ${leagueId}: Not in an active penalty phase (status: ${league?.status}).`
+        `[PENALTY_SERVICE] Skipping compliance check for league ${leagueId}: Not in an active penalty phase (status: ${league?.status}). Penalties are ONLY active during 'draft_active', NOT during 'repair_active' or other states.`
       );
 
       // Emit real-time event for compliance status change

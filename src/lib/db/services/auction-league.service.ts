@@ -992,7 +992,7 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
     }
 
     // 2. Recupera tutti i partecipanti della lega
-    const participants = (db
+    const participants = db
       .prepare(
         `
       SELECT 
@@ -1013,8 +1013,7 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
       user_username: string | null;
       current_budget: number;
       locked_credits: number;
-    }[]
-    );
+    }[];
 
     // 3. Prepara lo statement per recuperare i giocatori assegnati
     const rosterForManagerStmt = db.prepare(`
@@ -1041,7 +1040,9 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
     `);
 
     // 4. Raccogli i dati delle squadre
-    console.log(`[EXPORT_DEBUG] Found ${participants.length} participants. Starting to map teams...`);
+    console.log(
+      `[EXPORT_DEBUG] Found ${participants.length} participants. Starting to map teams...`
+    );
     const teamsData = participants.map((participant) => {
       const rosterPlayers = rosterForManagerStmt.all({
         leagueId: leagueId,
@@ -1056,7 +1057,9 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
         assigned_at: number;
       }[];
 
-      console.log(`[EXPORT_DEBUG] For participant ${participant.effective_team_name}, found ${rosterPlayers.length} players.`);
+      console.log(
+        `[EXPORT_DEBUG] For participant ${participant.effective_team_name}, found ${rosterPlayers.length} players.`
+      );
 
       return {
         teamName: participant.effective_team_name,
@@ -1067,10 +1070,7 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
           leagueInfo.initial_budget_per_manager - participant.current_budget,
         players: rosterPlayers,
         totalPlayers: rosterPlayers.length,
-        totalValue: rosterPlayers.reduce(
-          (sum, p) => sum + p.purchase_price,
-          0
-        ),
+        totalValue: rosterPlayers.reduce((sum, p) => sum + p.purchase_price, 0),
       };
     });
 
@@ -1088,7 +1088,10 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
       teams: teamsData,
     };
 
-    console.log('[EXPORT_DEBUG] Final exportData structure:', JSON.stringify(exportData, null, 2));
+    console.log(
+      "[EXPORT_DEBUG] Final exportData structure:",
+      JSON.stringify(exportData, null, 2)
+    );
 
     return exportData;
   } catch (error) {
@@ -1103,8 +1106,6 @@ export const getLeagueRostersForExport = async (leagueId: number) => {
     throw new Error(`Failed to prepare structured data: ${errorMessage}`);
   }
 };
-
-
 
 // 5. Tipi e Funzioni per la Dashboard di Gestione Lega
 

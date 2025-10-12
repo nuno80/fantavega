@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
 
 import { currentUser } from "@clerk/nextjs/server";
+import * as XLSX from "xlsx";
 
 import { getLeagueRostersForExport } from "@/lib/db/services/auction-league.service";
 
@@ -22,10 +22,7 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get("format") || "csv";
 
     if (!leagueIdParam) {
-      return NextResponse.json(
-        { error: "ID lega richiesto" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "ID lega richiesto" }, { status: 400 });
     }
 
     const leagueId = parseInt(leagueIdParam, 10);
@@ -49,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const { league, exportInfo, teams } = exportData;
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    let headers = new Headers();
+    const headers = new Headers();
     let fileName: string;
 
     // 3. Switch corretto per i formati
@@ -95,12 +92,18 @@ export async function GET(request: NextRequest) {
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         );
-        headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        headers.set(
+          "Content-Disposition",
+          `attachment; filename="${fileName}"`
+        );
         return new NextResponse(Buffer.from(buf), { status: 200, headers });
 
       case "custom":
         fileName = `fantavega_rosters_${league.id}_${timestamp}.json`;
-        headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        headers.set(
+          "Content-Disposition",
+          `attachment; filename="${fileName}"`
+        );
         return NextResponse.json(exportData, { status: 200, headers });
 
       case "csv":
@@ -128,7 +131,10 @@ export async function GET(request: NextRequest) {
 
         fileName = `fantavega_rosters_${league.id}_${timestamp}.csv`;
         headers.set("Content-Type", "text/csv; charset=utf-8");
-        headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        headers.set(
+          "Content-Disposition",
+          `attachment; filename="${fileName}"`
+        );
         return new NextResponse(csvRows.join("\n"), { status: 200, headers });
     }
   } catch (error) {

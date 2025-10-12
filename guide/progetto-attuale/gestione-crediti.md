@@ -134,3 +134,94 @@ if (user.lostBid && user.becameNonCompliant) {
 - **Viene superato nell'asta** → rimane solo con 1 Portiere assegnato
 - Nuovo stato: ❌ NON-Compliant (ha 1, serve 1, ma regola è N-1 quindi OK)
 - **Sistema rileva il cambiamento e riavvia timer se necessario**
+
+✅ Controllo Offerta Massima Implementato con Successo │
+│ │
+│ Ho implementato con successo il controllo fondamentale che │
+│ impedisce agli utenti di spendere tutti i crediti su un │
+│ singolo giocatore senza considerare gli slot rimanenti da │
+│ riempire. │
+│ │
+│ 🎯 Funzionalità Implementata │
+│ │
+│ Formula di Calcolo: │
+│ │
+│ │
+│ Offerta_Max = Budget_Disponibile - (Slot_Rimanenti - 1) │
+│ │
+│ │
+│ Logica Implementata: │
+│ │
+│ 1 Calcolo Slot Rimanenti: Total_Slots - Slot_Acquisiti │
+│ 2 Crediti da Riservare: Slot_Rimanenti - 1 (escluso lo slot │
+│ corrente) │
+│ 3 Offerta Massima: Budget_Disponibile - │
+│ Crediti_da_Riservare │
+│ 4 Eccezione Ultimo Slot: Se rimane solo 1 slot, può │
+│ spendere tutto │
+│ │
+│ 🔧 Modifiche Implementate │
+│ │
+│ 1. Nuova Funzione Helper │
+│ │
+│ • calculateMaxAllowedBid(): Calcola l'offerta massima │
+│ consentita │
+│ • Considera: Budget disponibile, slot totali, slot │
+│ acquisiti │
+│ • Gestisce: Caso ultimo slot (può spendere tutto) │
+│ │
+│ 2. Validazione Integrata │
+│ │
+│ • Controllo in checkSlotsAndBudgetOrThrow() │
+│ • Messaggio di errore dettagliato con spiegazione │
+│ matematica │
+│ • Applica a: Offerte iniziali, rilanci, auto-bid │
+│ │
+│ 3. Interface Aggiornata │
+│ │
+│ • ParticipantForBidding: Campi slot acquisiti ora │
+│ obbligatori │
+│ • Query Database: Aggiornate per includere conteggi slot │
+│ │
+│ 📊 Test Risultati │
+│ │
+│ Scenario di Test Verificato: │
+│ │
+│ • Lega: 24 slot totali (2P + 4D + 4C + 3A + 11 panchina) │
+│ • Utente: 500 crediti, 0 giocatori acquisiti │
+│ • Offerta Max Calcolata: 477 crediti ✅ │
+│ • Logica: 500 - (24 - 1) = 477 crediti │
+│ │
+│ 🛡️ Protezioni Implementate │
+│ │
+│ Scenari Gestiti: │
+│ │
+│ 1 Primo Giocatore: Max 477 crediti (su 500 budget, 24 slot) │
+│ 2 Ultimi Giocatori: Max budget - 1 credito per slot │
+│ rimanente │
+│ 3 Ultimo Slot: Può spendere tutto il budget disponibile │
+│ 4 Budget Insufficiente: Non può fare offerte negative │
+│ │
+│ Messaggi di Errore: │
+│ │
+│ │
+│ "Offerta troppo alta. Massimo consentito: 477 crediti. │
+│ Devi riservare almeno 1 credito per ciascuno dei 23 slot │
+│ rimanenti da riempire. │
+│ (Slot totali: 24, Acquisiti: 0, Rimanenti: 24)" │
+│ │
+│ │
+│ 🎉 Benefici │
+│ │
+│ 1 🚫 Previene Situazioni Impossibili: Non può più spendere │
+│ tutto su Maradona │
+│ 2 ⚖️ Garantisce Equità: Tutti devono riempire la rosa │
+│ completamente │
+│ 3 📱 UX Migliorata: Messaggi di errore chiari e informativi │
+│ 4 🔒 Robustezza: Controllo integrato in tutto il sistema di │
+│ offerte │
+│ │
+│ Il sistema ora implementa correttamente la logica │
+│ fondamentale che hai richiesto e impedisce agli utenti di │
+│ fare offerte che li renderebbero impossibilitati a │
+│ completare la propria rosa! 🎯

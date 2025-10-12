@@ -30,6 +30,8 @@ import { useMobile } from "@/hooks/use-mobile";
 
 // src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
 
+// src/app/auctions/AuctionPageContent.tsx - Patched with 8dbeada changes
+
 // --- Interface Definitions ---
 interface AuctionPageContentProps {
   userId: string;
@@ -306,7 +308,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
       // Trova la lega dalla lista aggiornata
       const league = freshLeagues.find((l: LeagueInfo) => l.id === newLeagueId);
-      
+
       if (league) {
         setLeagueInfo(league);
       }
@@ -331,7 +333,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         fetchComplianceData(newLeagueId),
         refreshUserAuctionStatesOld(newLeagueId),
       ]);
-
     } catch (error) {
       console.error("Error switching league:", error);
       toast.error("Errore nel cambio lega");

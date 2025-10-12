@@ -209,10 +209,10 @@ export interface ParticipantForBidding {
   user_id: string;
   current_budget: number;
   locked_credits: number;
-  players_P_acquired?: number;
-  players_D_acquired?: number;
-  players_C_acquired?: number;
-  players_A_acquired?: number;
+  players_P_acquired: number;
+  players_D_acquired: number;
+  players_C_acquired: number;
+  players_A_acquired: number;
 }
 
 export interface BidRecord {
@@ -273,7 +273,42 @@ interface ExpiredAuctionData {
   player_name?: string;
 }
 
-// 3. Funzione Helper Interna per Controllo Slot e Budget
+// 3. Funzioni Helper Interne per Controllo Slot e Budget
+
+// Calcola l'offerta massima consentita considerando la necessità di riempire tutti gli slot
+const calculateMaxAllowedBid = (
+  participant: ParticipantForBidding,
+  league: LeagueForBidding
+): number => {
+  const availableBudget =
+    participant.current_budget - participant.locked_credits;
+
+  // Calcola slot totali della lega
+  const totalSlots =
+    league.slots_P + league.slots_D + league.slots_C + league.slots_A;
+
+  // Calcola slot già acquisiti dall'utente
+  const acquiredSlots =
+    participant.players_P_acquired +
+    participant.players_D_acquired +
+    participant.players_C_acquired +
+    participant.players_A_acquired;
+
+  const remainingSlots = totalSlots - acquiredSlots;
+
+  // Se è l'ultimo slot o non ci sono slot rimanenti, può spendere tutto il budget disponibile
+  if (remainingSlots <= 1) {
+    return availableBudget;
+  }
+
+  // Altrimenti deve riservare almeno 1 credito per ogni slot rimanente (escluso quello corrente)
+  const creditsToReserve = remainingSlots - 1;
+  const maxBid = availableBudget - creditsToReserve;
+
+  // Non può mai fare un'offerta negativa
+  return Math.max(0, maxBid);
+};
+
 const checkSlotsAndBudgetOrThrow = (
   league: LeagueForBidding,
   player: PlayerForBidding,
@@ -289,6 +324,28 @@ const checkSlotsAndBudgetOrThrow = (
     throw new Error(
       `Budget disponibile insufficiente. Disponibile: ${availableBudget}, Offerta: ${bidAmountForCheck}.`
     );
+  }
+
+  // NUOVO: Controllo offerta massima considerando la necessità di riempire tutti gli slot
+  const maxAllowedBid = calculateMaxAllowedBid(participant, league);
+  if (bidAmountForCheck > maxAllowedBid) {
+    const totalSlots =
+      league.slots_P + league.slots_D + league.slots_C + league.slots_A;
+    const acquiredSlots =
+      participant.players_P_acquired +
+      participant.players_D_acquired +
+      participant.players_C_acquired +
+      participant.players_A_acquired;
+    const remainingSlots = totalSlots - acquiredSlots;
+
+    if (remainingSlots > 1) {
+      const creditsToReserve = remainingSlots - 1;
+      throw new Error(
+        `Offerta troppo alta. Massimo consentito: ${maxAllowedBid} crediti. ` +
+          `Devi riservare almeno 1 credito per ciascuno dei ${creditsToReserve} slot rimanenti da riempire. ` +
+          `(Slot totali: ${totalSlots}, Acquisiti: ${acquiredSlots}, Rimanenti: ${remainingSlots})`
+      );
+    }
   }
 
   const countAssignedPlayerForRoleStmt = db.prepare(
@@ -443,7 +500,7 @@ export const placeInitialBidAndCreateAuction = async (
     }
 
     const participantStmt = db.prepare(
-      "SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?"
+      "SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?"
     );
     const participant = participantStmt.get(
       leagueIdParam,
@@ -808,7 +865,7 @@ export async function placeBidOnExistingAuction({
       }
       const participant = db
         .prepare(
-          `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+          `SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?`
         )
         .get(leagueId, userId) as ParticipantForBidding | undefined;
       if (!participant) {
@@ -917,9 +974,11 @@ export async function placeBidOnExistingAuction({
 
       // --- GESTIONE CREDITI CORRETTA: RICALCOLO COMPLETO ---
       // Invece di aggiungere/sottrarre crediti, ricalcoliamo il totale corretto per evitare accumuli
-      
+
       // 1. Calcola tutti gli auto-bid attivi per il vincitore finale in questa lega
-      const finalWinnerTotalAutoBids = db.prepare(`
+      const finalWinnerTotalAutoBids = db
+        .prepare(
+          `
         SELECT COALESCE(SUM(ab.max_amount), 0) as total_auto_bid_amount
         FROM auto_bids ab
         JOIN auctions a ON ab.auction_id = a.id
@@ -927,10 +986,14 @@ export async function placeBidOnExistingAuction({
         AND ab.is_active = TRUE 
         AND a.auction_league_id = ?
         AND a.status IN ('active', 'closing')
-      `).get(finalBidderId, leagueId) as { total_auto_bid_amount: number };
-      
+      `
+        )
+        .get(finalBidderId, leagueId) as { total_auto_bid_amount: number };
+
       // 2. Aggiungi eventuali offerte manuali vincenti senza auto-bid
-      const finalWinnerManualBids = db.prepare(`
+      const finalWinnerManualBids = db
+        .prepare(
+          `
         SELECT COALESCE(SUM(a.current_highest_bid_amount), 0) as total_manual_locked
         FROM auctions a
         WHERE a.current_highest_bidder_id = ?
@@ -942,10 +1005,14 @@ export async function placeBidOnExistingAuction({
           AND ab.user_id = a.current_highest_bidder_id 
           AND ab.is_active = TRUE
         )
-      `).get(finalBidderId, leagueId) as { total_manual_locked: number };
-      
-      const correctTotalLockedCredits = finalWinnerTotalAutoBids.total_auto_bid_amount + finalWinnerManualBids.total_manual_locked;
-      
+      `
+        )
+        .get(finalBidderId, leagueId) as { total_manual_locked: number };
+
+      const correctTotalLockedCredits =
+        finalWinnerTotalAutoBids.total_auto_bid_amount +
+        finalWinnerManualBids.total_manual_locked;
+
       // 3. Imposta il valore corretto (non aggiungere)
       db.prepare(
         "UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?"
@@ -959,7 +1026,7 @@ export async function placeBidOnExistingAuction({
       // Valida budget e slot per il vincitore finale
       const finalWinnerParticipant = db
         .prepare(
-          `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`
+          `SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?`
         )
         .get(leagueId, finalBidderId) as ParticipantForBidding | undefined;
 
@@ -1026,7 +1093,9 @@ export async function placeBidOnExistingAuction({
         // 2. Ricalcola locked_credits per ogni utente superato (invece di sottrarre)
         for (const bid of outbidAutoBids) {
           // Calcola i crediti corretti che dovrebbero essere bloccati per questo utente
-          const userTotalAutoBids = db.prepare(`
+          const userTotalAutoBids = db
+            .prepare(
+              `
             SELECT COALESCE(SUM(ab.max_amount), 0) as total_auto_bid_amount
             FROM auto_bids ab
             JOIN auctions a ON ab.auction_id = a.id
@@ -1034,9 +1103,13 @@ export async function placeBidOnExistingAuction({
             AND ab.is_active = TRUE 
             AND a.auction_league_id = ?
             AND a.status IN ('active', 'closing')
-          `).get(bid.user_id, leagueId) as { total_auto_bid_amount: number };
-          
-          const userManualBids = db.prepare(`
+          `
+            )
+            .get(bid.user_id, leagueId) as { total_auto_bid_amount: number };
+
+          const userManualBids = db
+            .prepare(
+              `
             SELECT COALESCE(SUM(a.current_highest_bid_amount), 0) as total_manual_locked
             FROM auctions a
             WHERE a.current_highest_bidder_id = ?
@@ -1048,17 +1121,21 @@ export async function placeBidOnExistingAuction({
               AND ab.user_id = a.current_highest_bidder_id 
               AND ab.is_active = TRUE
             )
-          `).get(bid.user_id, leagueId) as { total_manual_locked: number };
-          
-          const correctUserLockedCredits = userTotalAutoBids.total_auto_bid_amount + userManualBids.total_manual_locked;
-          
+          `
+            )
+            .get(bid.user_id, leagueId) as { total_manual_locked: number };
+
+          const correctUserLockedCredits =
+            userTotalAutoBids.total_auto_bid_amount +
+            userManualBids.total_manual_locked;
+
           // Imposta il valore corretto (non sottrarre)
           db.prepare(
             `UPDATE league_participants
            SET locked_credits = ?
            WHERE user_id = ? AND league_id = ?`
           ).run(correctUserLockedCredits, bid.user_id, leagueId);
-          
+
           console.log(
             `[BID_SERVICE] Locked credits per utente superato ${bid.user_id} ricalcolati a ${correctUserLockedCredits}`
           );

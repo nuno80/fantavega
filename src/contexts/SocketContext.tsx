@@ -53,6 +53,9 @@ import { Socket, io } from "socket.io-client";
 // src/contexts/SocketContext.tsx v.1.0
 // Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
 
+// src/contexts/SocketContext.tsx v.1.0
+// Definisce un React Context per gestire la connessione Socket.IO in tutta l'applicazione.
+
 // 3. Definizione del tipo per il nostro Context
 interface SocketContextType {
   socket: Socket | null;
