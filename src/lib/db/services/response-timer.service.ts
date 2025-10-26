@@ -364,14 +364,24 @@ export const processExpiredResponseTimers = (): {
         `
         ).run(now, timer.id);
 
-        // Sblocca i crediti dell'utente
+        // Sblocca i crediti dell'utente - CORREZIONE: usa l'auto-bid specifico dell'utente
+        const userAutoBid = db.prepare(
+          "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE"
+        ).get(timer.auction_id, timer.user_id) as { max_amount: number } | undefined;
+
+        const creditsToUnlock = userAutoBid?.max_amount || timer.current_highest_bid_amount;
+        
         db.prepare(
           `
           UPDATE league_participants 
           SET locked_credits = locked_credits - ?
           WHERE user_id = ? AND league_id = ?
         `
-        ).run(timer.current_highest_bid_amount, timer.user_id, timer.league_id);
+        ).run(creditsToUnlock, timer.user_id, timer.league_id);
+
+        console.log(
+          `[TIMER_EXPIRED_FIX] User ${timer.user_id}: unlocked ${creditsToUnlock} credits (auto-bid: ${userAutoBid?.max_amount || "none"}, current_bid: ${timer.current_highest_bid_amount})`
+        );
 
         // Applica cooldown 48h per questo giocatore
         const cooldownExpiry = now + ABANDON_COOLDOWN_HOURS * 3600;
@@ -551,14 +561,24 @@ export const abandonAuction = async (
     `
     ).run(now, timer.id);
 
-    // Sblocca crediti
+    // Sblocca crediti - CORREZIONE: usa l'auto-bid specifico dell'utente
+    const userAutoBid = db.prepare(
+      "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE"
+    ).get(auction.id, userId) as { max_amount: number } | undefined;
+
+    const creditsToUnlock = userAutoBid?.max_amount || auction.current_highest_bid_amount;
+    
     db.prepare(
       `
       UPDATE league_participants 
       SET locked_credits = locked_credits - ?
       WHERE user_id = ? AND league_id = ?
     `
-    ).run(auction.current_highest_bid_amount, userId, leagueId);
+    ).run(creditsToUnlock, userId, leagueId);
+
+    console.log(
+      `[ABANDON_FIX] User ${userId}: unlocked ${creditsToUnlock} credits (auto-bid: ${userAutoBid?.max_amount || "none"}, current_bid: ${auction.current_highest_bid_amount})`
+    );
 
     // Applica cooldown 48h
     const cooldownExpiry = now + ABANDON_COOLDOWN_HOURS * 3600;

@@ -435,30 +435,54 @@ export const processUserComplianceAndPenalties = async (
 
         if (penaltiesToApply > 0) {
           for (let i = 0; i < penaltiesToApply; i++) {
-            db.prepare(
-              "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
-            ).run(PENALTY_AMOUNT, leagueId, userId);
-            appliedPenaltyAmount += PENALTY_AMOUNT;
-            const newBalance = (
+            // CORREZIONE: Controlla che l'utente abbia crediti sufficienti prima di applicare la penalità
+            const currentBalance = (
               db
                 .prepare(
                   "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
                 )
                 .get(leagueId, userId) as { current_budget: number }
             ).current_budget;
-            const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${
-              (complianceRecord.penalties_applied_this_cycle || 0) + i + 1
-            }/${MAX_PENALTIES_PER_CYCLE}).`;
-            db.prepare(
-              `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
-            ).run(
-              leagueId,
-              userId,
-              PENALTY_AMOUNT,
-              penaltyDescription,
-              newBalance,
-              now
-            );
+
+            // Se il budget è insufficiente, applica solo la penalità parziale per non andare in negativo
+            const actualPenaltyAmount = Math.min(PENALTY_AMOUNT, Math.max(0, currentBalance));
+            
+            if (actualPenaltyAmount > 0) {
+              db.prepare(
+                "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
+              ).run(actualPenaltyAmount, leagueId, userId);
+              appliedPenaltyAmount += actualPenaltyAmount;
+              
+              const newBalance = currentBalance - actualPenaltyAmount;
+              const penaltyDescription = actualPenaltyAmount < PENALTY_AMOUNT 
+                ? `Penalità parziale ${actualPenaltyAmount}/${PENALTY_AMOUNT} crediti (budget insufficiente) - Ora ${
+                    (complianceRecord.penalties_applied_this_cycle || 0) + i + 1
+                  }/${MAX_PENALTIES_PER_CYCLE}.`
+                : `Penalità per mancato rispetto requisiti rosa (Ora ${
+                    (complianceRecord.penalties_applied_this_cycle || 0) + i + 1
+                  }/${MAX_PENALTIES_PER_CYCLE}).`;
+              
+              db.prepare(
+                `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
+              ).run(
+                leagueId,
+                userId,
+                actualPenaltyAmount,
+                penaltyDescription,
+                newBalance,
+                now
+              );
+
+              console.log(
+                `[PENALTY_FIX] User ${userId}: Applied penalty ${actualPenaltyAmount}/${PENALTY_AMOUNT} crediti (balance: ${currentBalance} → ${newBalance})`
+              );
+            } else {
+              console.log(
+                `[PENALTY_FIX] User ${userId}: Skipped penalty - insufficient credits (balance: ${currentBalance})`
+              );
+              // Interrompi il loop se non ci sono più crediti disponibili
+              break;
+            }
           }
           db.prepare(
             "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, compliance_timer_start_at = ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
