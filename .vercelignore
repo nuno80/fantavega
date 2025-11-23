@@ -1,0 +1,32 @@
+# Test files
+test-*.ts
+*_test.ts
+*.test.ts
+*.spec.ts
+
+# Development scripts
+check_*.ts
+update_*.ts
+debug_*.ts
+
+# Database files
+database/*.db
+database/*.db-shm
+database/*.db-wal
+database/backups/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
