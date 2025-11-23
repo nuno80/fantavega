@@ -11,7 +11,7 @@ const discardPlayerSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { "league-id": string } }
+  { params }: { params: Promise<{ "league-id": string }> }
 ) {
   try {
     const user = await currentUser();
@@ -19,7 +19,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const leagueId = parseInt(params["league-id"]);
+    const { "league-id": leagueIdStr } = await params;
+    const leagueId = parseInt(leagueIdStr);
     if (isNaN(leagueId)) {
       return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
     }

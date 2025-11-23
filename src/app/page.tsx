@@ -28,7 +28,7 @@ export default function Home() {
 
           {/* Subtitle */}
           <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground">
-            La piattaforma di aste fantasy più emozionante d'Italia. Preparati a
+            La piattaforma di aste fantasy più emozionante d&apos;Italia. Preparati a
             vivere tensioni, delusioni e (forse) qualche vittoria!
           </p>
 
@@ -86,7 +86,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Vivi l'adrenalina dell'asta dal vivo. Ogni secondo conta, ogni
+                  Vivi l&apos;adrenalina dell&apos;asta dal vivo. Ogni secondo conta, ogni
                   offerta è una pugnalata al cuore.
                 </p>
               </CardContent>
@@ -101,7 +101,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Lascia che l'IA faccia le offerte per te. Così potrai piangere
+                  Lascia che l&apos;IA faccia le offerte per te. Così potrai piangere
                   anche quando non ci sei!
                 </p>
               </CardContent>
@@ -181,9 +181,9 @@ export default function Home() {
             <Card>
               <CardContent className="p-6">
                 <p className="mb-4 italic">
-                  "Ho perso Mbappé per 1 credito. Ancora non riesco a dormire.
+                  &quot;Ho perso Mbappé per 1 credito. Ancora non riesco a dormire.
                   Fantavega mi ha rovinato la vita... e non posso più farne a
-                  meno! 😭"
+                  meno! 😭&quot;
                 </p>
                 <p className="text-sm font-semibold">
                   - Marco, utente dal 2024
@@ -194,11 +194,11 @@ export default function Home() {
             <Card>
               <CardContent className="p-6">
                 <p className="mb-4 italic">
-                  "L'auto-bid ha comprato Pellegrini per 15 crediti mentre ero
-                  al bagno. Perfetto, proprio quello che volevo... NOT! 💸"
+                  &quot;L&apos;auto-bid ha comprato Pellegrini per 15 crediti mentre ero
+                  al bagno. Perfetto, proprio quello che volevo... NOT! 💸&quot;
                 </p>
                 <p className="text-sm font-semibold">
-                  - Giulia, vittima dell'IA
+                  - Giulia, vittima dell&apos;IA
                 </p>
               </CardContent>
             </Card>

@@ -65,8 +65,8 @@ const calculateRequiredSlotsMinusOne = (
     league.active_auction_roles.toUpperCase() === "ALL"
       ? ["P", "D", "C", "A"]
       : league.active_auction_roles
-          .split(",")
-          .map((r) => r.trim().toUpperCase());
+        .split(",")
+        .map((r) => r.trim().toUpperCase());
   if (activeRoles.includes("P"))
     requirements.P = Math.max(0, league.slots_P - 1);
   if (activeRoles.includes("D"))
@@ -139,15 +139,15 @@ export const checkAndRecordCompliance = (
     );
     const league = leagueStmt.get(leagueId) as
       | Pick<
-          AuctionLeague,
-          | "id"
-          | "status"
-          | "active_auction_roles"
-          | "slots_P"
-          | "slots_D"
-          | "slots_C"
-          | "slots_A"
-        >
+        AuctionLeague,
+        | "id"
+        | "status"
+        | "active_auction_roles"
+        | "slots_P"
+        | "slots_D"
+        | "slots_C"
+        | "slots_A"
+      >
       | undefined;
 
     if (
@@ -224,10 +224,10 @@ export const checkAndRecordCompliance = (
             isCompliant,
             timestamp: now
           }
-        }).catch((error: any) => {
+        }).catch((error: unknown) => {
           console.error("Failed to notify compliance status change:", error);
         });
-      }).catch((error: any) => {
+      }).catch((error: unknown) => {
         console.error("Failed to import socket emitter:", error);
       });
     }
@@ -286,15 +286,15 @@ export const processUserComplianceAndPenalties = async (
       );
       const league = leagueStmt.get(leagueId) as
         | Pick<
-            AuctionLeague,
-            | "id"
-            | "status"
-            | "active_auction_roles"
-            | "slots_P"
-            | "slots_D"
-            | "slots_C"
-            | "slots_A"
-          >
+          AuctionLeague,
+          | "id"
+          | "status"
+          | "active_auction_roles"
+          | "slots_P"
+          | "slots_D"
+          | "slots_C"
+          | "slots_A"
+        >
         | undefined;
 
       if (
@@ -356,9 +356,9 @@ export const processUserComplianceAndPenalties = async (
               "SELECT COALESCE(SUM(amount), 0) as current_total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
             )
             .get(leagueId, userId) as { current_total: number };
-          
+
           const currentTotalPenalties = currentTotalPenaltiesResult.current_total;
-          
+
           if (currentTotalPenalties >= MAX_TOTAL_PENALTY_CREDITS) {
             finalMessage = `User has reached maximum penalty limit of ${MAX_TOTAL_PENALTY_CREDITS} credits. No additional penalties applied.`;
           } else {
@@ -366,13 +366,13 @@ export const processUserComplianceAndPenalties = async (
               complianceRecord.last_penalty_applied_for_hour_ending_at ||
               gracePeriodEndTime;
             const hoursSince = Math.floor((now - refTime) / 3600);
-            
+
             // Calcola quante penalità possono essere applicate rispettando sia il limite del ciclo che il limite assoluto
             const remainingPenaltiesInCycle = MAX_PENALTIES_PER_CYCLE -
               (complianceRecord.penalties_applied_this_cycle || 0);
             const remainingCreditsFromLimit = MAX_TOTAL_PENALTY_CREDITS - currentTotalPenalties;
             const maxPenaltiesFromLimit = Math.floor(remainingCreditsFromLimit / PENALTY_AMOUNT);
-            
+
             const penaltiesToApply = Math.min(
               hoursSince,
               remainingPenaltiesInCycle,
@@ -380,43 +380,42 @@ export const processUserComplianceAndPenalties = async (
             );
 
             if (penaltiesToApply > 0) {
-            for (let i = 0; i < penaltiesToApply; i++) {
+              for (let i = 0; i < penaltiesToApply; i++) {
+                db.prepare(
+                  "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
+                ).run(PENALTY_AMOUNT, leagueId, userId);
+                appliedPenaltyAmount += PENALTY_AMOUNT;
+                const newBalance = (
+                  db
+                    .prepare(
+                      "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
+                    )
+                    .get(leagueId, userId) as { current_budget: number }
+                ).current_budget;
+                const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${(complianceRecord.penalties_applied_this_cycle || 0) + i + 1
+                  }/${MAX_PENALTIES_PER_CYCLE}).`;
+                db.prepare(
+                  `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
+                ).run(
+                  leagueId,
+                  userId,
+                  PENALTY_AMOUNT,
+                  penaltyDescription,
+                  newBalance,
+                  now
+                );
+              }
               db.prepare(
-                "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
-              ).run(PENALTY_AMOUNT, leagueId, userId);
-              appliedPenaltyAmount += PENALTY_AMOUNT;
-              const newBalance = (
-                db
-                  .prepare(
-                    "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
-                  )
-                  .get(leagueId, userId) as { current_budget: number }
-              ).current_budget;
-              const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${
-                (complianceRecord.penalties_applied_this_cycle || 0) + i + 1
-              }/${MAX_PENALTIES_PER_CYCLE}).`;
-              db.prepare(
-                `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
+                "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
               ).run(
+                now,
+                penaltiesToApply,
+                now,
                 leagueId,
                 userId,
-                PENALTY_AMOUNT,
-                penaltyDescription,
-                newBalance,
-                now
+                phaseIdentifier
               );
-            }
-            db.prepare(
-              "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-            ).run(
-              now,
-              penaltiesToApply,
-              now,
-              leagueId,
-              userId,
-              phaseIdentifier
-            );
-            finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties.`;
+              finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties.`;
             } else if (currentTotalPenalties < MAX_TOTAL_PENALTY_CREDITS) {
               finalMessage = `User is non-compliant, but no penalties due this hour.`;
             }
@@ -479,8 +478,8 @@ export const processUserComplianceAndPenalties = async (
                   "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?"
                 )
                 .get(leagueId) as
-                | { status: string; active_auction_roles: string }
-                | undefined
+              | { status: string; active_auction_roles: string }
+              | undefined
             )?.status || "draft_active",
             (
               db
@@ -488,8 +487,8 @@ export const processUserComplianceAndPenalties = async (
                   "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?"
                 )
                 .get(leagueId) as
-                | { status: string; active_auction_roles: string }
-                | undefined
+              | { status: string; active_auction_roles: string }
+              | undefined
             )?.active_auction_roles || null
           )
         ) as { compliance_timer_start_at: number | null } | undefined;

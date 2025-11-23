@@ -105,7 +105,6 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
   const [leagueSlots, setLeagueSlots] = useState<LeagueSlots | null>(null);
   const [activeAuctions, setActiveAuctions] = useState<ActiveAuction[]>([]);
   const [autoBids, setAutoBids] = useState<AutoBid[]>([]);
-  const [bidHistory, setBidHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userAuctionStates, setUserAuctionStates] = useState<
     UserAuctionState[]
@@ -247,14 +246,14 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
 
     socket.emit("join-league-room", selectedLeagueId.toString());
 
-    const handleAuctionCreated = (data: any) => {
+    const handleAuctionCreated = (data: { playerName: string }) => {
       console.log("Socket event: auction-created", data);
       toast.info(`Nuova asta: ${data.playerName}`);
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
     };
 
-    const handleAuctionUpdate = (data: any) => {
+    const handleAuctionUpdate = (data: unknown) => {
       console.log("Socket event: auction-update", data);
       // This is the robust fix: re-fetch all relevant data
       fetchManagersData(selectedLeagueId);
@@ -280,7 +279,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       toast.error(`Penalità applicata: ${data.amount} crediti`, {
         description: data.reason,
       });
-      
+
       // Refresh compliance data for all users when a penalty is applied
       refreshComplianceData();
     };
@@ -293,28 +292,28 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       timestamp: number;
     }) => {
       console.log("Socket event: compliance-status-changed", data);
-      
+
       // Check if this is a duplicate notification (within a 5-second window)
-      const isDuplicate = lastComplianceNotification && 
-        lastComplianceNotification.userId === data.userId && 
+      const isDuplicate = lastComplianceNotification &&
+        lastComplianceNotification.userId === data.userId &&
         lastComplianceNotification.isCompliant === data.isCompliant &&
         Date.now() - lastComplianceNotification.timestamp < 5000; // 5-second window
-      
+
       // Update the last notification state
       setLastComplianceNotification({
         userId: data.userId,
         isCompliant: data.isCompliant,
         timestamp: Date.now() // Use current time instead of event timestamp
       });
-      
+
       // Refresh compliance data for all users when compliance status changes
       fetchComplianceData(selectedLeagueId);
-      
+
       // If this is for the current user and not a duplicate, show a notification
       if (data.userId === userId && !isDuplicate) {
         toast.info(
-          data.isCompliant 
-            ? "La tua squadra è ora conforme ai requisiti!" 
+          data.isCompliant
+            ? "La tua squadra è ora conforme ai requisiti!"
             : "La tua squadra non è conforme ai requisiti minimi."
         );
       }

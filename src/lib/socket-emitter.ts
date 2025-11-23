@@ -72,7 +72,7 @@ export async function notifySocketServer(params: EmitParams) {
       params.data &&
       typeof params.data === "object" &&
       "budgetUpdates" in params.data &&
-      (params.data as any).budgetUpdates.length > 0
+      (params.data as { budgetUpdates: unknown[] }).budgetUpdates.length > 0
     ) {
       console.error(
         `[Socket Emitter] 🚨 CRITICAL DEBUG: Un evento 'auction-update' con 'budgetUpdates' è stato bloccato dal throttling!`,
