@@ -1,4 +1,4 @@
-// src/lib/db/services/user.service.ts v.1.7 (Definitivo)
+// src/lib/db/services/user.service.ts v.2.0 (Async Turso Migration)
 // getEligibleUsersForLeague ora restituisce nome e cognome per una migliore UX.
 // 1. Importazioni
 import {
@@ -31,7 +31,7 @@ export interface EligibleUser {
   lastName: string | null;
 }
 
-// 3. Funzione per ottenere gli utenti con i dettagli delle leghe (invariato)
+// 3. Funzione per ottenere gli utenti con i dettagli delle leghe
 export async function getUsersWithLeagueDetails(): Promise<
   UserWithLeagueDetails[]
 > {
@@ -41,19 +41,28 @@ export async function getUsersWithLeagueDetails(): Promise<
   if (!userListResponse || !Array.isArray(userListResponse.data)) {
     return [];
   }
-  const getLeaguesForUserStmt = db.prepare(
-    `SELECT al.id, al.name, al.status FROM auction_leagues al JOIN league_participants lp ON al.id = lp.league_id WHERE lp.user_id = ?`
+
+  const usersWithLeagues = await Promise.all(
+    userListResponse.data.map(async (user: User) => {
+      const leaguesResult = await db.execute({
+        sql: `SELECT al.id, al.name, al.status FROM auction_leagues al JOIN league_participants lp ON al.id = lp.league_id WHERE lp.user_id = ?`,
+        args: [user.id],
+      });
+
+      return {
+        id: user.id,
+        primaryEmail: user.emailAddresses.find(
+          (e: EmailAddress) => e.id === user.primaryEmailAddressId
+        )?.emailAddress,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: (user.publicMetadata?.role as string) || "manager",
+        leagues: leaguesResult.rows as unknown as UserLeagueInfo[],
+      };
+    })
   );
-  return userListResponse.data.map((user: User) => ({
-    id: user.id,
-    primaryEmail: user.emailAddresses.find(
-      (e: EmailAddress) => e.id === user.primaryEmailAddressId
-    )?.emailAddress,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: (user.publicMetadata?.role as string) || "manager",
-    leagues: getLeaguesForUserStmt.all(user.id) as UserLeagueInfo[],
-  }));
+
+  return usersWithLeagues;
 }
 
 // 4. Funzione per aggiornare il ruolo di un utente (invariato)
@@ -94,10 +103,11 @@ export async function getEligibleUsersForLeague(
     (user) => ((user.publicMetadata?.role as string) || "manager") === "manager"
   );
 
-  const participantsStmt = db.prepare(
-    `SELECT user_id FROM league_participants WHERE league_id = ?`
-  );
-  const participants = participantsStmt.all(leagueId) as { user_id: string }[];
+  const participantsResult = await db.execute({
+    sql: `SELECT user_id FROM league_participants WHERE league_id = ?`,
+    args: [leagueId],
+  });
+  const participants = participantsResult.rows as unknown as { user_id: string }[];
   const participantIds = new Set(participants.map((p) => p.user_id));
 
   const eligibleUsers = allManagers
@@ -105,8 +115,8 @@ export async function getEligibleUsersForLeague(
     .map((user) => ({
       id: user.id,
       username: user.username,
-      firstName: user.firstName, // <-- Aggiunto
-      lastName: user.lastName, // <-- Aggiunto
+      firstName: user.firstName,
+      lastName: user.lastName,
     }));
 
   eligibleUsers.sort((a, b) =>

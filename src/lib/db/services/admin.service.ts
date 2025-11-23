@@ -1,4 +1,4 @@
-// src/lib/db/services/admin.service.ts v.1.0
+// src/lib/db/services/admin.service.ts v.2.0 (Async Turso Migration)
 // Servizio per le funzioni di business legate al pannello di amministrazione.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -20,21 +20,25 @@ export interface DashboardStats {
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     // Query per contare tutti gli utenti registrati
-    const usersCountStmt = db.prepare("SELECT COUNT(id) as count FROM users");
-    const totalUsers = (usersCountStmt.get() as { count: number }).count;
+    const usersResult = await db.execute({
+      sql: "SELECT COUNT(id) as count FROM users",
+      args: [],
+    });
+    const totalUsers = Number(usersResult.rows[0].count);
 
     // Query per contare tutte le leghe create
-    const leaguesCountStmt = db.prepare(
-      "SELECT COUNT(id) as count FROM auction_leagues"
-    );
-    const totalLeagues = (leaguesCountStmt.get() as { count: number }).count;
+    const leaguesResult = await db.execute({
+      sql: "SELECT COUNT(id) as count FROM auction_leagues",
+      args: [],
+    });
+    const totalLeagues = Number(leaguesResult.rows[0].count);
 
     // Query per contare solo le aste attualmente attive
-    const activeAuctionsCountStmt = db.prepare(
-      "SELECT COUNT(id) as count FROM auctions WHERE status = 'active'"
-    );
-    const activeAuctions = (activeAuctionsCountStmt.get() as { count: number })
-      .count;
+    const auctionsResult = await db.execute({
+      sql: "SELECT COUNT(id) as count FROM auctions WHERE status = 'active'",
+      args: [],
+    });
+    const activeAuctions = Number(auctionsResult.rows[0].count);
 
     // Ritorna l'oggetto con tutte le statistiche
     return {

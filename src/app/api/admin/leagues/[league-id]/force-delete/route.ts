@@ -1,4 +1,4 @@
-// API per eliminazione diretta lega via SQLite (bypass React hooks)
+// API per eliminazione diretta lega via Turso (async)
 import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
@@ -31,19 +31,23 @@ export async function POST(
     }
 
     // Verifica che la lega esista
-    const league = db
-      .prepare("SELECT id, name FROM auction_leagues WHERE id = ?")
-      .get(leagueId) as League | undefined;
+    const leagueResult = await db.execute({
+      sql: "SELECT id, name FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = leagueResult.rows[0] as League | undefined;
+
     if (!league) {
       return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
     }
 
-    // Eliminazione diretta via SQLite (cascade delete)
-    const deleteResult = db
-      .prepare("DELETE FROM auction_leagues WHERE id = ?")
-      .run(leagueId);
+    // Eliminazione diretta via Turso (cascade delete)
+    const deleteResult = await db.execute({
+      sql: "DELETE FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
 
-    if (deleteResult.changes > 0) {
+    if (deleteResult.rowsAffected > 0) {
       console.log(
         `[FORCE_DELETE] Admin ${user.id} deleted league ${leagueId} (${league.name})`
       );
