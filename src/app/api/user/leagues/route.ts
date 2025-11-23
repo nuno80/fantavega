@@ -7,6 +7,17 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { recordUserLogin } from "@/lib/db/services/session.service";
 
+// Type per le righe restituite dalla query
+interface UserLeagueRow {
+  id: number;
+  name: string;
+  status: string;
+  min_bid: number;
+  team_name: string;
+  current_budget: number;
+  locked_credits: number;
+}
+
 export async function GET(_request: NextRequest) {
   try {
     const user = await currentUser();
@@ -24,9 +35,8 @@ export async function GET(_request: NextRequest) {
     }
 
     // Get leagues where the user is a participant
-    const userLeagues = db
-      .prepare(
-        `SELECT 
+    const userLeaguesResult = await db.execute({
+      sql: `SELECT
           al.id,
           al.name,
           al.status,
@@ -37,9 +47,20 @@ export async function GET(_request: NextRequest) {
          FROM auction_leagues al
          JOIN league_participants lp ON al.id = lp.league_id
          WHERE lp.user_id = ?
-         ORDER BY al.created_at DESC`
-      )
-      .all(user.id);
+         ORDER BY al.created_at DESC`,
+      args: [user.id]
+    });
+
+    // Conversione sicura da Row[] a UserLeagueRow[]
+    const userLeagues: UserLeagueRow[] = userLeaguesResult.rows.map(row => ({
+      id: row.id as number,
+      name: row.name as string,
+      status: row.status as string,
+      min_bid: row.min_bid as number,
+      team_name: row.team_name as string,
+      current_budget: row.current_budget as number,
+      locked_credits: row.locked_credits as number,
+    }));
 
     return NextResponse.json(userLeagues);
   } catch (error) {

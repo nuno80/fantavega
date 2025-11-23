@@ -8,6 +8,23 @@ export interface DiscardPlayerResult {
   playerName?: string;
 }
 
+interface PlayerAssignmentRow {
+  user_id: string;
+  assignment_price: number;
+  player_name: string;
+  current_quotation: number;
+  role: string;
+  team: string;
+}
+
+interface UserBudgetRow {
+  current_budget: number;
+}
+
+interface LeagueCheckRow {
+  status: string;
+}
+
 export const discardPlayerFromRoster = async (
   leagueId: number,
   playerId: number,
@@ -15,21 +32,30 @@ export const discardPlayerFromRoster = async (
 ): Promise<DiscardPlayerResult> => {
   try {
     // Start a transaction for atomicity
-    const transaction = db.transaction(() => {
+    const transaction = await db.transaction("write");
+
+    try {
       // 1. Verify league is in repair mode
-      const leagueCheck = db
-        .prepare("SELECT status FROM auction_leagues WHERE id = ?")
-        .get(leagueId) as { status: string } | undefined;
+      const leagueCheckResult = await transaction.execute({
+        sql: "SELECT status FROM auction_leagues WHERE id = ?",
+        args: [leagueId]
+      });
+
+      const leagueCheck: LeagueCheckRow | undefined = leagueCheckResult.rows[0]
+        ? {
+          status: leagueCheckResult.rows[0].status as string
+        }
+        : undefined;
 
       if (!leagueCheck || leagueCheck.status !== "repair_active") {
+        await transaction.rollback();
         throw new Error("League is not in repair mode");
       }
 
       // 2. Verify player ownership and get player details
-      const playerAssignment = db
-        .prepare(
-          `
-          SELECT 
+      const playerAssignmentResult = await transaction.execute({
+        sql: `
+          SELECT
             pa.user_id,
             pa.purchase_price as assignment_price,
             p.name as player_name,
@@ -39,37 +65,46 @@ export const discardPlayerFromRoster = async (
           FROM player_assignments pa
           JOIN players p ON pa.player_id = p.id
           WHERE pa.auction_league_id = ? AND pa.player_id = ? AND pa.user_id = ?
-        `
-        )
-        .get(leagueId, playerId, userId) as
-        | {
-            user_id: string;
-            assignment_price: number;
-            player_name: string;
-            current_quotation: number;
-            role: string;
-            team: string;
-          }
-        | undefined;
+        `,
+        args: [leagueId, playerId, userId]
+      });
+
+      const playerAssignment: PlayerAssignmentRow | undefined = playerAssignmentResult.rows[0]
+        ? {
+          user_id: playerAssignmentResult.rows[0].user_id as string,
+          assignment_price: playerAssignmentResult.rows[0].assignment_price as number,
+          player_name: playerAssignmentResult.rows[0].player_name as string,
+          current_quotation: playerAssignmentResult.rows[0].current_quotation as number,
+          role: playerAssignmentResult.rows[0].role as string,
+          team: playerAssignmentResult.rows[0].team as string,
+        }
+        : undefined;
 
       if (!playerAssignment) {
+        await transaction.rollback();
         throw new Error(
           "Player not found in your roster or you don't own this player"
         );
       }
 
       // 3. Get current user budget
-      const userBudget = db
-        .prepare(
-          `
+      const userBudgetResult = await transaction.execute({
+        sql: `
           SELECT current_budget
           FROM league_participants
           WHERE league_id = ? AND user_id = ?
-        `
-        )
-        .get(leagueId, userId) as { current_budget: number } | undefined;
+        `,
+        args: [leagueId, userId]
+      });
+
+      const userBudget: UserBudgetRow | undefined = userBudgetResult.rows[0]
+        ? {
+          current_budget: userBudgetResult.rows[0].current_budget as number
+        }
+        : undefined;
 
       if (!userBudget) {
+        await transaction.rollback();
         throw new Error("User not found in league");
       }
 
@@ -77,38 +112,37 @@ export const discardPlayerFromRoster = async (
       const refundAmount = playerAssignment.current_quotation;
 
       // 5. Remove player from roster (this automatically returns them to available pool)
-      const deleteResult = db
-        .prepare(
-          `
+      const deleteResult = await transaction.execute({
+        sql: `
           DELETE FROM player_assignments
           WHERE auction_league_id = ? AND player_id = ? AND user_id = ?
-        `
-        )
-        .run(leagueId, playerId, userId);
+        `,
+        args: [leagueId, playerId, userId]
+      });
 
-      if (deleteResult.changes === 0) {
+      if (deleteResult.rowsAffected === 0) {
+        await transaction.rollback();
         throw new Error("Failed to remove player from roster");
       }
 
       // 6. Refund credits to user budget
-      const updateBudgetResult = db
-        .prepare(
-          `
+      const updateBudgetResult = await transaction.execute({
+        sql: `
           UPDATE league_participants
           SET current_budget = current_budget + ?
           WHERE league_id = ? AND user_id = ?
-        `
-        )
-        .run(refundAmount, leagueId, userId);
+        `,
+        args: [refundAmount, leagueId, userId]
+      });
 
-      if (updateBudgetResult.changes === 0) {
+      if (updateBudgetResult.rowsAffected === 0) {
+        await transaction.rollback();
         throw new Error("Failed to update user budget");
       }
 
       // 7. Record the transaction
-      const insertTransactionResult = db
-        .prepare(
-          `
+      const insertTransactionResult = await transaction.execute({
+        sql: `
           INSERT INTO budget_transactions (
             auction_league_id,
             league_id,
@@ -119,9 +153,8 @@ export const discardPlayerFromRoster = async (
             related_player_id,
             balance_after_in_league
           ) VALUES (?, ?, ?, 'discard_player_credit', ?, ?, ?, ?)
-        `
-        )
-        .run(
+        `,
+        args: [
           leagueId,
           leagueId,
           userId,
@@ -129,11 +162,16 @@ export const discardPlayerFromRoster = async (
           `Rimborso per scarto giocatore: ${playerAssignment.player_name}`,
           playerId,
           userBudget.current_budget + refundAmount
-        );
+        ]
+      });
 
-      if (insertTransactionResult.changes === 0) {
+      if (insertTransactionResult.rowsAffected === 0) {
+        await transaction.rollback();
         throw new Error("Failed to record budget transaction");
       }
+
+      // Commit the transaction
+      await transaction.commit();
 
       console.log("[PLAYER_DISCARD] Successfully discarded player:", {
         leagueId,
@@ -146,18 +184,15 @@ export const discardPlayerFromRoster = async (
       });
 
       return {
+        success: true,
         refundAmount,
         playerName: playerAssignment.player_name,
       };
-    });
-
-    const result = transaction();
-
-    return {
-      success: true,
-      refundAmount: result.refundAmount,
-      playerName: result.playerName,
-    };
+    } catch (error) {
+      // Rollback on any error
+      await transaction.rollback();
+      throw error;
+    }
   } catch (error) {
     console.error("[PLAYER_DISCARD] Error:", error);
 

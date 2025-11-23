@@ -5,6 +5,11 @@ import { Webhook } from "svix";
 import { db } from "@/lib/db";
 import { processUserComplianceAndPenalties } from "@/lib/db/services/penalty.service";
 
+interface LeagueRow {
+  league_id: number;
+  status: string;
+}
+
 export async function POST(req: Request) {
   // You can find this in the Clerk Dashboard -> Webhooks -> choose the webhook
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -65,14 +70,18 @@ export async function POST(req: Request) {
 
     try {
       // Find all active leagues the user is a part of
-      const leagues = db
-        .prepare(
-          `SELECT al.id as league_id, al.status 
-         FROM league_participants lp 
-         JOIN auction_leagues al ON lp.league_id = al.id 
-         WHERE lp.user_id = ? AND al.status IN ('draft_active', 'repair_active')`
-        )
-        .all(userId) as { league_id: number; status: string }[];
+      const leaguesResult = await db.execute({
+        sql: `SELECT al.id as league_id, al.status
+         FROM league_participants lp
+         JOIN auction_leagues al ON lp.league_id = al.id
+         WHERE lp.user_id = ? AND al.status IN ('draft_active', 'repair_active')`,
+        args: [userId]
+      });
+
+      const leagues: LeagueRow[] = leaguesResult.rows.map(row => ({
+        league_id: row.league_id as number,
+        status: row.status as string
+      }));
 
       if (leagues.length > 0) {
         console.log(
