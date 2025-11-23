@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
     // Aggiungere validazioni più specifiche per i campi in body se necessario
 
-    const updatedPlayer = updatePlayer(playerId, body);
+    const updatedPlayer = await updatePlayer(playerId, body);
 
     if (!updatedPlayer) {
       return NextResponse.json(
@@ -104,7 +104,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    const result = deletePlayer(playerId);
+    const result = await deletePlayer(playerId);
 
     if (!result.success) {
       // Il servizio deletePlayer ora lancia eccezioni per errori DB, quindi questo blocco
