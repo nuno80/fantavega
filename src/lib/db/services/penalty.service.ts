@@ -1,4 +1,4 @@
-// src/lib/db/services/penalty.service.ts v.1.1
+// src/lib/db/services/penalty.service.ts v.2.0 (Async Turso Migration)
 // Servizio per la logica di business relativa al sistema di penalità, con notifiche real-time.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -78,32 +78,34 @@ const calculateRequiredSlotsMinusOne = (
   return requirements;
 };
 
-const countCoveredSlots = (
+const countCoveredSlots = async (
   leagueId: number,
   userId: string
-): SlotRequirements => {
+): Promise<SlotRequirements> => {
   const covered: SlotRequirements = { P: 0, D: 0, C: 0, A: 0 };
-  const assignmentsStmt = db.prepare(
-    `SELECT p.role, COUNT(pa.player_id) as count FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? AND pa.user_id = ? GROUP BY p.role`
-  );
-  const assignments = assignmentsStmt.all(leagueId, userId) as {
+  const assignmentsResult = await db.execute({
+    sql: `SELECT p.role, COUNT(pa.player_id) as count FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? AND pa.user_id = ? GROUP BY p.role`,
+    args: [leagueId, userId],
+  });
+  const assignments = assignmentsResult.rows as unknown as {
     role: string;
     count: number;
   }[];
   for (const assign of assignments) {
     if (assign.role in covered)
-      covered[assign.role as keyof SlotRequirements] += assign.count;
+      covered[assign.role as keyof SlotRequirements] += Number(assign.count);
   }
-  const activeWinningBidsStmt = db.prepare(
-    `SELECT p.role, COUNT(DISTINCT a.player_id) as count FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ? AND a.status = 'active' GROUP BY p.role`
-  );
-  const winningBids = activeWinningBidsStmt.all(leagueId, userId) as {
+  const activeWinningBidsResult = await db.execute({
+    sql: `SELECT p.role, COUNT(DISTINCT a.player_id) as count FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ? AND a.status = 'active' GROUP BY p.role`,
+    args: [leagueId, userId],
+  });
+  const winningBids = activeWinningBidsResult.rows as unknown as {
     role: string;
     count: number;
   }[];
   for (const bid of winningBids) {
     if (bid.role in covered)
-      covered[bid.role as keyof SlotRequirements] += bid.count;
+      covered[bid.role as keyof SlotRequirements] += Number(bid.count);
   }
   return covered;
 };
@@ -126,18 +128,19 @@ const checkUserCompliance = (
   return true;
 };
 
-export const checkAndRecordCompliance = (
+export const checkAndRecordCompliance = async (
   userId: string,
   leagueId: number
-): { statusChanged: boolean; isCompliant: boolean } => {
+): Promise<{ statusChanged: boolean; isCompliant: boolean }> => {
   try {
     // Rimosso db.transaction() per evitare transazioni annidate
     const now = Math.floor(Date.now() / 1000);
 
-    const leagueStmt = db.prepare(
-      "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
-    );
-    const league = leagueStmt.get(leagueId) as
+    const leagueResult = await db.execute({
+      sql: "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = leagueResult.rows[0] as unknown as
       | Pick<
         AuctionLeague,
         | "id"
@@ -164,48 +167,49 @@ export const checkAndRecordCompliance = (
     );
 
     const requiredSlots = calculateRequiredSlotsMinusOne(league);
-    const coveredSlots = countCoveredSlots(leagueId, userId);
+    const coveredSlots = await countCoveredSlots(leagueId, userId);
     const isCompliant = checkUserCompliance(
       requiredSlots,
       coveredSlots,
       league.active_auction_roles
     );
 
-    const getComplianceStmt = db.prepare(
-      "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-    );
-    let complianceRecord = getComplianceStmt.get(
-      leagueId,
-      userId,
-      phaseIdentifier
-    ) as { compliance_timer_start_at: number | null } | undefined;
+    const getComplianceResult = await db.execute({
+      sql: "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+      args: [leagueId, userId, phaseIdentifier],
+    });
+    let complianceRecord = getComplianceResult.rows[0] as unknown as
+      | { compliance_timer_start_at: number | null }
+      | undefined;
 
     // If no record exists, create a placeholder. The logic below will handle it.
     if (!complianceRecord) {
-      db.prepare(
-        `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
-      ).run(leagueId, userId, phaseIdentifier, now, now);
+      await db.execute({
+        sql: `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+        args: [leagueId, userId, phaseIdentifier, now, now],
+      });
       complianceRecord = { compliance_timer_start_at: null };
     }
 
-    const wasTimerActive =
-      complianceRecord.compliance_timer_start_at !== null;
+    const wasTimerActive = complianceRecord.compliance_timer_start_at !== null;
     let statusChanged = false;
 
     if (isCompliant && wasTimerActive) {
       // CASE A: User became compliant, stop the timer.
-      db.prepare(
-        "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-      ).run(now, leagueId, userId, phaseIdentifier);
+      await db.execute({
+        sql: "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+        args: [now, leagueId, userId, phaseIdentifier],
+      });
       statusChanged = true;
       console.log(
         `[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`
       );
     } else if (!isCompliant && !wasTimerActive) {
       // CASE B: User became non-compliant, start the timer.
-      db.prepare(
-        "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-      ).run(now, now, leagueId, userId, phaseIdentifier);
+      await db.execute({
+        sql: "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+        args: [now, now, leagueId, userId, phaseIdentifier],
+      });
       statusChanged = true;
       console.log(
         `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
@@ -215,21 +219,23 @@ export const checkAndRecordCompliance = (
     // If the compliance status changed, notify all users in the league
     if (statusChanged) {
       // Import notifySocketServer function
-      import("../../socket-emitter").then(({ notifySocketServer }) => {
-        notifySocketServer({
-          room: `league-${leagueId}`,
-          event: 'compliance-status-changed',
-          data: {
-            userId,
-            isCompliant,
-            timestamp: now
-          }
-        }).catch((error: unknown) => {
-          console.error("Failed to notify compliance status change:", error);
+      import("../../socket-emitter")
+        .then(({ notifySocketServer }) => {
+          notifySocketServer({
+            room: `league-${leagueId}`,
+            event: "compliance-status-changed",
+            data: {
+              userId,
+              isCompliant,
+              timestamp: now,
+            },
+          }).catch((error: unknown) => {
+            console.error("Failed to notify compliance status change:", error);
+          });
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to import socket emitter:", error);
         });
-      }).catch((error: unknown) => {
-        console.error("Failed to import socket emitter:", error);
-      });
     }
 
     return { statusChanged, isCompliant };
@@ -263,28 +269,39 @@ export const processUserComplianceAndPenalties = async (
   let isNowCompliant = false;
 
   try {
-    db.transaction(() => {
+    const tx = await db.transaction("write");
+    let result;
+
+    try {
       // --- INIZIO MODIFICA ---
       // Controlla se l'utente ha mai effettuato un login prima di procedere
-      const sessionCheckStmt = db.prepare(
-        "SELECT 1 FROM user_sessions WHERE user_id = ? LIMIT 1"
-      );
-      const hasLoggedIn = sessionCheckStmt.get(userId);
+      const sessionCheckResult = await tx.execute({
+        sql: "SELECT 1 FROM user_sessions WHERE user_id = ? LIMIT 1",
+        args: [userId],
+      });
+      const hasLoggedIn = sessionCheckResult.rows.length > 0;
 
       if (!hasLoggedIn) {
         finalMessage = `User ${userId} has never logged in. Penalty check skipped.`;
         // Restituiamo uno stato di conformità per evitare che l'icona P appaia
         isNowCompliant = true;
         appliedPenaltyAmount = 0;
-        return { wasModified: false };
+        await tx.commit();
+        return {
+          appliedPenaltyAmount,
+          isNowCompliant,
+          message: finalMessage,
+          totalPenaltyAmount: 0,
+        };
       }
       // --- FINE MODIFICA ---
 
       const now = Math.floor(Date.now() / 1000);
-      const leagueStmt = db.prepare(
-        "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?"
-      );
-      const league = leagueStmt.get(leagueId) as
+      const leagueResult = await tx.execute({
+        sql: "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?",
+        args: [leagueId],
+      });
+      const league = leagueResult.rows[0] as unknown as
         | Pick<
           AuctionLeague,
           | "id"
@@ -302,35 +319,41 @@ export const processUserComplianceAndPenalties = async (
         !["draft_active", "repair_active"].includes(league.status)
       ) {
         finalMessage = `League ${leagueId} not found or not in an active penalty phase.`;
-        return { wasModified: false };
+        await tx.commit();
+        return {
+          appliedPenaltyAmount: 0,
+          isNowCompliant: true,
+          message: finalMessage,
+          totalPenaltyAmount: 0,
+        };
       }
 
       const phaseIdentifier = getCurrentPhaseIdentifier(
         league.status,
         league.active_auction_roles
       );
-      const getComplianceStmt = db.prepare(
-        "SELECT * FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-      );
-      let complianceRecord = getComplianceStmt.get(
-        leagueId,
-        userId,
-        phaseIdentifier
-      ) as UserLeagueComplianceStatus | undefined;
+      const getComplianceResult = await tx.execute({
+        sql: "SELECT * FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+        args: [leagueId, userId, phaseIdentifier],
+      });
+      let complianceRecord = getComplianceResult.rows[0] as unknown as
+        | UserLeagueComplianceStatus
+        | undefined;
 
       if (!complianceRecord) {
-        db.prepare(
-          `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, compliance_timer_start_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`
-        ).run(leagueId, userId, phaseIdentifier, now, now, now);
-        complianceRecord = getComplianceStmt.get(
-          leagueId,
-          userId,
-          phaseIdentifier
-        ) as UserLeagueComplianceStatus;
+        await tx.execute({
+          sql: `INSERT INTO user_league_compliance_status (league_id, user_id, phase_identifier, compliance_timer_start_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+          args: [leagueId, userId, phaseIdentifier, now, now, now],
+        });
+        const newRecordResult = await tx.execute({
+          sql: "SELECT * FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+          args: [leagueId, userId, phaseIdentifier],
+        });
+        complianceRecord = newRecordResult.rows[0] as UserLeagueComplianceStatus;
       }
 
       const requiredSlots = calculateRequiredSlotsMinusOne(league);
-      const coveredSlots = countCoveredSlots(leagueId, userId);
+      const coveredSlots = await countCoveredSlots(leagueId, userId);
 
       isNowCompliant = checkUserCompliance(
         requiredSlots,
@@ -342,22 +365,23 @@ export const processUserComplianceAndPenalties = async (
         let timerToUse = complianceRecord.compliance_timer_start_at;
         if (timerToUse === null) {
           timerToUse = now;
-          db.prepare(
-            "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-          ).run(now, now, leagueId, userId, phaseIdentifier);
+          await tx.execute({
+            sql: "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+            args: [now, now, leagueId, userId, phaseIdentifier],
+          });
         }
 
         const gracePeriodEndTime =
           timerToUse + COMPLIANCE_GRACE_PERIOD_HOURS * 3600;
         if (now >= gracePeriodEndTime) {
           // Controllo del limite massimo assoluto di penalità
-          const currentTotalPenaltiesResult = db
-            .prepare(
-              "SELECT COALESCE(SUM(amount), 0) as current_total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
-            )
-            .get(leagueId, userId) as { current_total: number };
-
-          const currentTotalPenalties = currentTotalPenaltiesResult.current_total;
+          const currentTotalPenaltiesResult = await tx.execute({
+            sql: "SELECT COALESCE(SUM(amount), 0) as current_total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'",
+            args: [leagueId, userId],
+          });
+          const currentTotalPenalties = Number(
+            currentTotalPenaltiesResult.rows[0].current_total
+          );
 
           if (currentTotalPenalties >= MAX_TOTAL_PENALTY_CREDITS) {
             finalMessage = `User has reached maximum penalty limit of ${MAX_TOTAL_PENALTY_CREDITS} credits. No additional penalties applied.`;
@@ -368,10 +392,14 @@ export const processUserComplianceAndPenalties = async (
             const hoursSince = Math.floor((now - refTime) / 3600);
 
             // Calcola quante penalità possono essere applicate rispettando sia il limite del ciclo che il limite assoluto
-            const remainingPenaltiesInCycle = MAX_PENALTIES_PER_CYCLE -
+            const remainingPenaltiesInCycle =
+              MAX_PENALTIES_PER_CYCLE -
               (complianceRecord.penalties_applied_this_cycle || 0);
-            const remainingCreditsFromLimit = MAX_TOTAL_PENALTY_CREDITS - currentTotalPenalties;
-            const maxPenaltiesFromLimit = Math.floor(remainingCreditsFromLimit / PENALTY_AMOUNT);
+            const remainingCreditsFromLimit =
+              MAX_TOTAL_PENALTY_CREDITS - currentTotalPenalties;
+            const maxPenaltiesFromLimit = Math.floor(
+              remainingCreditsFromLimit / PENALTY_AMOUNT
+            );
 
             const penaltiesToApply = Math.min(
               hoursSince,
@@ -381,40 +409,43 @@ export const processUserComplianceAndPenalties = async (
 
             if (penaltiesToApply > 0) {
               for (let i = 0; i < penaltiesToApply; i++) {
-                db.prepare(
-                  "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?"
-                ).run(PENALTY_AMOUNT, leagueId, userId);
+                await tx.execute({
+                  sql: "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?",
+                  args: [PENALTY_AMOUNT, leagueId, userId],
+                });
                 appliedPenaltyAmount += PENALTY_AMOUNT;
-                const newBalance = (
-                  db
-                    .prepare(
-                      "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?"
-                    )
-                    .get(leagueId, userId) as { current_budget: number }
-                ).current_budget;
+                const newBalanceResult = await tx.execute({
+                  sql: "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?",
+                  args: [leagueId, userId],
+                });
+                const newBalance = Number(
+                  newBalanceResult.rows[0].current_budget
+                );
                 const penaltyDescription = `Penalità per mancato rispetto requisiti rosa (Ora ${(complianceRecord.penalties_applied_this_cycle || 0) + i + 1
                   }/${MAX_PENALTIES_PER_CYCLE}).`;
-                db.prepare(
-                  `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`
-                ).run(
+                await tx.execute({
+                  sql: `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'penalty_requirement', ?, ?, ?, ?)`,
+                  args: [
+                    leagueId,
+                    userId,
+                    PENALTY_AMOUNT,
+                    penaltyDescription,
+                    newBalance,
+                    now,
+                  ],
+                });
+              }
+              await tx.execute({
+                sql: "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+                args: [
+                  now,
+                  penaltiesToApply,
+                  now,
                   leagueId,
                   userId,
-                  PENALTY_AMOUNT,
-                  penaltyDescription,
-                  newBalance,
-                  now
-                );
-              }
-              db.prepare(
-                "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-              ).run(
-                now,
-                penaltiesToApply,
-                now,
-                leagueId,
-                userId,
-                phaseIdentifier
-              );
+                  phaseIdentifier,
+                ],
+              });
               finalMessage = `Applied ${appliedPenaltyAmount} credits in penalties.`;
             } else if (currentTotalPenalties < MAX_TOTAL_PENALTY_CREDITS) {
               finalMessage = `User is non-compliant, but no penalties due this hour.`;
@@ -425,38 +456,45 @@ export const processUserComplianceAndPenalties = async (
         }
       } else {
         if (complianceRecord.compliance_timer_start_at !== null) {
-          db.prepare(
-            "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-          ).run(now, leagueId, userId, phaseIdentifier);
+          await tx.execute({
+            sql: "UPDATE user_league_compliance_status SET compliance_timer_start_at = NULL, last_penalty_applied_for_hour_ending_at = NULL, penalties_applied_this_cycle = 0, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+            args: [now, leagueId, userId, phaseIdentifier],
+          });
           finalMessage = `User is now compliant. Penalty cycle reset.`;
         } else {
           finalMessage = `User is compliant. No action needed.`;
         }
       }
-      return { wasModified: true };
-    })();
+
+      await tx.commit();
+      // result = { wasModified: true };
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
 
     if (appliedPenaltyAmount > 0) {
       await notifySocketServer({
         room: `user-${userId}`,
-        event: 'penalty-applied-notification',
+        event: "penalty-applied-notification",
         data: {
           amount: appliedPenaltyAmount,
-          reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
-        }
+          reason:
+            "Mancato rispetto dei requisiti minimi di composizione della rosa.",
+        },
       });
     }
 
     // Notify all users in the league about the compliance status change
     await notifySocketServer({
       room: `league-${leagueId}`,
-      event: 'compliance-status-changed',
+      event: "compliance-status-changed",
       data: {
         userId,
         isCompliant: isNowCompliant,
         appliedPenaltyAmount,
-        timestamp: Math.floor(Date.now() / 1000)
-      }
+        timestamp: Math.floor(Date.now() / 1000),
+      },
     });
 
     // Calculate timing information for non-compliant users
@@ -464,34 +502,26 @@ export const processUserComplianceAndPenalties = async (
     let timeRemainingSeconds: number | undefined;
 
     if (!isNowCompliant) {
-      const complianceRecord = db
-        .prepare(
-          "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?"
-        )
-        .get(
-          leagueId,
-          userId,
-          getCurrentPhaseIdentifier(
-            (
-              db
-                .prepare(
-                  "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?"
-                )
-                .get(leagueId) as
-              | { status: string; active_auction_roles: string }
-              | undefined
-            )?.status || "draft_active",
-            (
-              db
-                .prepare(
-                  "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?"
-                )
-                .get(leagueId) as
-              | { status: string; active_auction_roles: string }
-              | undefined
-            )?.active_auction_roles || null
-          )
-        ) as { compliance_timer_start_at: number | null } | undefined;
+      const leagueInfoResult = await db.execute({
+        sql: "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?",
+        args: [leagueId],
+      });
+      const leagueInfo = leagueInfoResult.rows[0] as unknown as
+        | { status: string; active_auction_roles: string }
+        | undefined;
+
+      const phaseId = getCurrentPhaseIdentifier(
+        leagueInfo?.status || "draft_active",
+        leagueInfo?.active_auction_roles || null
+      );
+
+      const complianceRecordResult = await db.execute({
+        sql: "SELECT compliance_timer_start_at FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+        args: [leagueId, userId, phaseId],
+      });
+      const complianceRecord = complianceRecordResult.rows[0] as unknown as
+        | { compliance_timer_start_at: number | null }
+        | undefined;
 
       if (complianceRecord?.compliance_timer_start_at) {
         gracePeriodEndTime =
@@ -503,13 +533,13 @@ export const processUserComplianceAndPenalties = async (
     }
 
     // Calculate total historical penalties for this user in this league
-    const totalPenaltiesResult = db
-      .prepare(
-        "SELECT COALESCE(SUM(amount), 0) as total_penalties FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'"
-      )
-      .get(leagueId, userId) as { total_penalties: number };
-
-    const totalPenaltyAmount = totalPenaltiesResult.total_penalties;
+    const totalPenaltiesResult = await db.execute({
+      sql: "SELECT COALESCE(SUM(amount), 0) as total_penalties FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'",
+      args: [leagueId, userId],
+    });
+    const totalPenaltyAmount = Number(
+      totalPenaltiesResult.rows[0].total_penalties
+    );
 
     return {
       appliedPenaltyAmount,
@@ -544,15 +574,16 @@ export const processExpiredComplianceTimers = async (): Promise<{
   const errors: string[] = [];
 
   try {
-    console.log(`[COMPLIANCE_SERVICE] Processing expired compliance timers at ${now}`);
+    console.log(
+      `[COMPLIANCE_SERVICE] Processing expired compliance timers at ${now}`
+    );
 
     // Trova tutti i timer di compliance scaduti
     // Un timer è scaduto se:
     // 1. compliance_timer_start_at non è null (timer attivo)
     // 2. La grace period è terminata (compliance_timer_start_at + 3600 <= now)
-    const expiredTimers = db
-      .prepare(
-        `
+    const expiredTimersResult = await db.execute({
+      sql: `
         SELECT ulcs.league_id, ulcs.user_id, ulcs.phase_identifier,
                ulcs.compliance_timer_start_at, ulcs.last_penalty_applied_for_hour_ending_at,
                ulcs.penalties_applied_this_cycle, al.status, al.active_auction_roles
@@ -561,20 +592,23 @@ export const processExpiredComplianceTimers = async (): Promise<{
         WHERE ulcs.compliance_timer_start_at IS NOT NULL
           AND ulcs.compliance_timer_start_at + 3600 <= ?
           AND al.status IN ('draft_active', 'repair_active')
-        `
-      )
-      .all(now) as Array<{
-        league_id: number;
-        user_id: string;
-        phase_identifier: string;
-        compliance_timer_start_at: number;
-        last_penalty_applied_for_hour_ending_at: number | null;
-        penalties_applied_this_cycle: number;
-        status: string;
-        active_auction_roles: string | null;
-      }>;
+        `,
+      args: [now],
+    });
+    const expiredTimers = expiredTimersResult.rows as unknown as Array<{
+      league_id: number;
+      user_id: string;
+      phase_identifier: string;
+      compliance_timer_start_at: number;
+      last_penalty_applied_for_hour_ending_at: number | null;
+      penalties_applied_this_cycle: number;
+      status: string;
+      active_auction_roles: string | null;
+    }>;
 
-    console.log(`[COMPLIANCE_SERVICE] Found ${expiredTimers.length} expired compliance timers`);
+    console.log(
+      `[COMPLIANCE_SERVICE] Found ${expiredTimers.length} expired compliance timers`
+    );
 
     // Processa ogni timer scaduto
     for (const timer of expiredTimers) {
@@ -597,11 +631,12 @@ export const processExpiredComplianceTimers = async (): Promise<{
           // Notifica via Socket.IO se è stata applicata una penalità
           await notifySocketServer({
             room: `user-${timer.user_id}`,
-            event: 'penalty-applied-notification',
+            event: "penalty-applied-notification",
             data: {
               amount: result.appliedPenaltyAmount,
-              reason: 'Mancato rispetto dei requisiti minimi di composizione della rosa.'
-            }
+              reason:
+                "Mancato rispetto dei requisiti minimi di composizione della rosa.",
+            },
           });
         }
 
@@ -625,7 +660,10 @@ export const processExpiredComplianceTimers = async (): Promise<{
 
     return { processedCount, errors };
   } catch (error) {
-    console.error("[COMPLIANCE_SERVICE] Error processing expired compliance timers:", error);
+    console.error(
+      "[COMPLIANCE_SERVICE] Error processing expired compliance timers:",
+      error
+    );
     throw error;
   }
 };

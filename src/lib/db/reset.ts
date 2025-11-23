@@ -1,10 +1,7 @@
-// src/db/reset.ts
+// src/lib/db/reset.ts
+import { closeDbConnection, db as currentDbInstance } from "@/lib/db";
 import fs from "fs-extra";
 import path from "path";
-
-// Importa normalmente, anche se lo chiuderemo e cancelleremo il suo file
-import { closeDbConnection, db as currentDbInstance } from "@/lib/db";
-
 import { createBackup } from "./backup-utils";
 
 const projectRoot = process.cwd();
@@ -13,7 +10,26 @@ const dbName = "starter_default.db";
 const dbPath = path.join(dbDir, dbName);
 
 async function resetDatabase() {
-  console.log(`[Reset Script] Attempting to reset database: ${dbPath}`);
+  console.log(`[Reset Script] Attempting to reset database...`);
+
+  const isRemote =
+    process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN;
+
+  if (isRemote) {
+    console.warn(
+      "[Reset Script] WARNING: You are configured to use a Remote Turso Database."
+    );
+    console.warn(
+      "[Reset Script] This script currently only supports resetting LOCAL SQLite files by deletion."
+    );
+    console.warn(
+      "[Reset Script] To reset your Turso database, please drop all tables manually or use the Turso CLI/Dashboard."
+    );
+    console.warn("[Reset Script] Operation aborted for safety.");
+    return;
+  }
+
+  console.log(`[Reset Script] Target local DB: ${dbPath}`);
 
   try {
     await createBackup("pre-reset");
@@ -24,7 +40,7 @@ async function resetDatabase() {
     );
   }
 
-  if (currentDbInstance && currentDbInstance.open) {
+  if (currentDbInstance) {
     console.log("[Reset Script] Closing existing database connection...");
     closeDbConnection();
   }

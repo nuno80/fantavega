@@ -1,4 +1,4 @@
-// src/lib/db/services/auction-league.service.ts v.1.11
+// src/lib/db/services/auction-league.service.ts v.2.0 (Async Turso Migration)
 // Aggiunta l'importazione mancante di clerkClient.
 // 1. Importazioni
 import { clerkClient } from "@clerk/nextjs/server";
@@ -12,14 +12,14 @@ export interface AuctionLeague {
   league_type: "classic" | "mantra";
   initial_budget_per_manager: number;
   status:
-    | "setup"
-    | "participants_joining"
-    | "draft_active"
-    | "repair_active"
-    | "market_closed"
-    | "season_active"
-    | "completed"
-    | "archived";
+  | "setup"
+  | "participants_joining"
+  | "draft_active"
+  | "repair_active"
+  | "market_closed"
+  | "season_active"
+  | "completed"
+  | "archived";
   active_auction_roles: string | null;
   draft_window_start: number | null; // Timestamp Unix
   draft_window_end: number | null; // Timestamp Unix
@@ -166,40 +166,35 @@ export const createAuctionLeague = async (
   const initialStatus: AuctionLeague["status"] = "setup";
 
   try {
-    // Nota: max_players_per_team è un campo generato, non serve specificarlo nell'INSERT.
-    // draft_window_start, draft_window_end, repair_1_window_start, repair_1_window_end
-    // e active_auction_roles saranno null/default all'inizio.
-    const stmt = db.prepare(
-      `INSERT INTO auction_leagues (
+    const result = await db.execute({
+      sql: `INSERT INTO auction_leagues (
         name, league_type, initial_budget_per_manager, status, admin_creator_id,
         slots_P, slots_D, slots_C, slots_A, config_json,
         created_at, updated_at
       ) VALUES (
-        @name, @league_type, @initial_budget_per_manager, @status, @admin_creator_id,
-        @slots_P, @slots_D, @slots_C, @slots_A, @config_json,
-        @created_at, @updated_at
-      ) RETURNING *`
-    );
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?
+      ) RETURNING *`,
+      args: [
+        name.trim(),
+        league_type,
+        initial_budget_per_manager,
+        initialStatus,
+        adminUserId,
+        slots_P,
+        slots_D,
+        slots_C,
+        slots_A,
+        config_json ?? null,
+        now,
+        now,
+      ],
+    });
 
-    // Esegui la query e fai un cast al tipo atteso.
-    // .get() è corretto per RETURNING * quando ci si aspetta una singola riga.
-    const newLeague = stmt.get({
-      name: name.trim(),
-      league_type,
-      initial_budget_per_manager,
-      status: initialStatus,
-      admin_creator_id: adminUserId,
-      slots_P,
-      slots_D,
-      slots_C,
-      slots_A,
-      config_json: config_json ?? null, // Assicura che sia null se undefined
-      created_at: now,
-      updated_at: now,
-    }) as AuctionLeague | undefined; // Cast perché .get può restituire undefined
+    const newLeague = result.rows[0] as unknown as AuctionLeague | undefined;
 
     if (!newLeague) {
-      // Questo blocco è un paracadute. Con RETURNING *, better-sqlite3 dovrebbe popolare newLeague.
       console.error(
         "Failed to retrieve the new league directly after insert using RETURNING *."
       );
@@ -212,8 +207,6 @@ export const createAuctionLeague = async (
   } catch (error) {
     console.error(`Error in createAuctionLeague: ${error}`);
     if (error instanceof Error) {
-      // Verifica se l'errore è dovuto a un vincolo di unicità sul nome
-      // Il messaggio esatto può variare leggermente a seconda della versione di SQLite/better-sqlite3
       if (
         error.message
           .toLowerCase()
@@ -222,7 +215,6 @@ export const createAuctionLeague = async (
         throw new Error(`League name "${name.trim()}" already exists.`);
       }
     }
-    // Per altri errori, solleva un errore più generico
     throw new Error(
       "Failed to create auction league due to a database error or unexpected issue."
     );
@@ -239,10 +231,11 @@ export const getAuctionLeaguesByAdmin = async (
     `[SERVICE] getAuctionLeaguesByAdmin called for admin ID: ${adminUserId}`
   );
   try {
-    const stmt = db.prepare(
-      "SELECT * FROM auction_leagues WHERE admin_creator_id = ? ORDER BY created_at DESC"
-    );
-    const leagues = stmt.all(adminUserId) as AuctionLeague[];
+    const result = await db.execute({
+      sql: "SELECT * FROM auction_leagues WHERE admin_creator_id = ? ORDER BY created_at DESC",
+      args: [adminUserId],
+    });
+    const leagues = result.rows as unknown as AuctionLeague[];
 
     console.log(
       `[SERVICE] Found ${leagues.length} leagues for admin ID: ${adminUserId}`
@@ -269,11 +262,11 @@ export const getAuctionLeagueByIdForAdmin = async (
     `[SERVICE] getAuctionLeagueByIdForAdmin called for league ID: ${leagueId}, by admin ID: ${adminUserId}`
   );
   try {
-    const stmt = db.prepare(
-      "SELECT * FROM auction_leagues WHERE id = ? AND admin_creator_id = ?"
-    );
-    // stmt.get() restituisce la riga o undefined se non trovata
-    const league = stmt.get(leagueId, adminUserId) as AuctionLeague | undefined;
+    const result = await db.execute({
+      sql: "SELECT * FROM auction_leagues WHERE id = ? AND admin_creator_id = ?",
+      args: [leagueId, adminUserId],
+    });
+    const league = result.rows[0] as unknown as AuctionLeague | undefined;
 
     if (!league) {
       console.log(
@@ -300,7 +293,7 @@ export const getAuctionLeagueByIdForAdmin = async (
  */
 export const updateAuctionLeague = async (
   leagueId: number,
-  data: UpdateAuctionLeagueData, // Assicurati che UpdateAuctionLeagueData sia definita/importata
+  data: UpdateAuctionLeagueData,
   adminUserId: string
 ): Promise<AuctionLeague> => {
   console.log(
@@ -313,8 +306,6 @@ export const updateAuctionLeague = async (
     throw new Error("League not found or user is not authorized to update it.");
   }
 
-  // Logica di validazione: quali campi possono essere aggiornati e quando?
-  // Esempio: initial_budget e slots modificabili solo se lo status è 'setup'
   if (league.status !== "setup") {
     if (
       data.initial_budget_per_manager !== undefined &&
@@ -335,123 +326,117 @@ export const updateAuctionLeague = async (
       );
     }
   }
-  // Altre validazioni qui (es. name non vuoto se fornito)
   if (data.name !== undefined && data.name.trim() === "") {
     throw new Error("League name cannot be empty.");
   }
 
-  // Costruisci la parte SET della query dinamicamente
   const fieldsToUpdate: string[] = [];
-  const values: (string | number | null)[] = [];
+  const args: (string | number | null)[] = [];
   const now = Math.floor(Date.now() / 1000);
 
-  // Aggiungi i campi da aggiornare solo se sono presenti nei dati e diversi dal valore attuale
-  // (o se vuoi permettere di impostare a null)
   if (data.name !== undefined && data.name !== league.name) {
     fieldsToUpdate.push("name = ?");
-    values.push(data.name.trim());
+    args.push(data.name.trim());
   }
   if (
     data.league_type !== undefined &&
     data.league_type !== league.league_type
   ) {
     fieldsToUpdate.push("league_type = ?");
-    values.push(data.league_type);
+    args.push(data.league_type);
   }
   if (
     data.initial_budget_per_manager !== undefined &&
     data.initial_budget_per_manager !== league.initial_budget_per_manager
   ) {
     fieldsToUpdate.push("initial_budget_per_manager = ?");
-    values.push(data.initial_budget_per_manager);
+    args.push(data.initial_budget_per_manager);
   }
   if (data.status !== undefined && data.status !== league.status) {
     fieldsToUpdate.push("status = ?");
-    values.push(data.status);
+    args.push(data.status);
   }
   if (
     data.active_auction_roles !== undefined &&
     data.active_auction_roles !== league.active_auction_roles
   ) {
     fieldsToUpdate.push("active_auction_roles = ?");
-    values.push(data.active_auction_roles);
+    args.push(data.active_auction_roles);
   }
-  // Aggiungi qui gli altri campi aggiornabili: draft_window_start/end, repair_1_window_start/end, slots_P/D/C/A, config_json
   if (
     data.draft_window_start !== undefined &&
     data.draft_window_start !== league.draft_window_start
   ) {
     fieldsToUpdate.push("draft_window_start = ?");
-    values.push(data.draft_window_start);
+    args.push(data.draft_window_start);
   }
   if (
     data.draft_window_end !== undefined &&
     data.draft_window_end !== league.draft_window_end
   ) {
     fieldsToUpdate.push("draft_window_end = ?");
-    values.push(data.draft_window_end);
+    args.push(data.draft_window_end);
   }
   if (
     data.repair_1_window_start !== undefined &&
     data.repair_1_window_start !== league.repair_1_window_start
   ) {
     fieldsToUpdate.push("repair_1_window_start = ?");
-    values.push(data.repair_1_window_start);
+    args.push(data.repair_1_window_start);
   }
   if (
     data.repair_1_window_end !== undefined &&
     data.repair_1_window_end !== league.repair_1_window_end
   ) {
     fieldsToUpdate.push("repair_1_window_end = ?");
-    values.push(data.repair_1_window_end);
+    args.push(data.repair_1_window_end);
   }
   if (data.slots_P !== undefined && data.slots_P !== league.slots_P) {
     fieldsToUpdate.push("slots_P = ?");
-    values.push(data.slots_P);
+    args.push(data.slots_P);
   }
   if (data.slots_D !== undefined && data.slots_D !== league.slots_D) {
     fieldsToUpdate.push("slots_D = ?");
-    values.push(data.slots_D);
+    args.push(data.slots_D);
   }
   if (data.slots_C !== undefined && data.slots_C !== league.slots_C) {
     fieldsToUpdate.push("slots_C = ?");
-    values.push(data.slots_C);
+    args.push(data.slots_C);
   }
   if (data.slots_A !== undefined && data.slots_A !== league.slots_A) {
     fieldsToUpdate.push("slots_A = ?");
-    values.push(data.slots_A);
+    args.push(data.slots_A);
   }
   if (
     data.config_json !== undefined &&
     data.config_json !== league.config_json
   ) {
     fieldsToUpdate.push("config_json = ?");
-    values.push(data.config_json);
+    args.push(data.config_json);
   }
 
   if (fieldsToUpdate.length === 0) {
     console.log("[SERVICE] No fields to update for league ID:", leagueId);
-    return league; // Nessun cambiamento, restituisci la lega esistente
+    return league;
   }
 
   fieldsToUpdate.push("updated_at = ?");
-  values.push(now);
+  args.push(now);
 
   const setClause = fieldsToUpdate.join(", ");
-  values.push(leagueId); // Per la clausola WHERE id = ?
-  values.push(adminUserId); // Per la clausola WHERE admin_creator_id = ?
+  args.push(leagueId);
+  args.push(adminUserId);
 
   try {
-    const updateStmt = db.prepare(
-      `UPDATE auction_leagues SET ${setClause} WHERE id = ? AND admin_creator_id = ? RETURNING *`
-    );
-    const updatedLeague = updateStmt.get(...values) as
+    const result = await db.execute({
+      sql: `UPDATE auction_leagues SET ${setClause} WHERE id = ? AND admin_creator_id = ? RETURNING *`,
+      args: args,
+    });
+    const updatedLeague = result.rows[0] as unknown as
       | AuctionLeague
       | undefined;
 
     if (!updatedLeague) {
-      // Questo potrebbe accadere se l'ID è corretto ma l'adminUserId non matcha più (improbabile se il check sopra è passato)
-      // o se c'è un problema con RETURNING *.
       throw new Error(
         "Failed to update league or retrieve updated data. Ensure you are the league admin."
       );
@@ -473,9 +458,6 @@ export const updateAuctionLeague = async (
 
 // --- Gestione Partecipanti Lega ---
 
-//Aggiunge un utente (manager) a una lega d'asta.
-//Solo l'admin creatore della lega può farlo.
-
 export async function addParticipantToLeague(
   leagueId: number,
   adminUserId: string,
@@ -487,20 +469,17 @@ export async function addParticipantToLeague(
   participant_user_id?: string;
 }> {
   try {
-    // --- FASE 1: OPERAZIONI ASINCRONE E DI LETTURA (FUORI DALLA TRANSAZIONE) ---
-
-    // 1.1. Validazione Lega e Autorizzazione Admin
-    const league = db
-      .prepare(
-        "SELECT id, admin_creator_id, initial_budget_per_manager, status FROM auction_leagues WHERE id = ?"
-      )
-      .get(leagueId) as
+    const leagueResult = await db.execute({
+      sql: "SELECT id, admin_creator_id, initial_budget_per_manager, status FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = leagueResult.rows[0] as unknown as
       | {
-          id: number;
-          admin_creator_id: string;
-          initial_budget_per_manager: number;
-          status: string;
-        }
+        id: number;
+        admin_creator_id: string;
+        initial_budget_per_manager: number;
+        status: string;
+      }
       | undefined;
 
     if (!league) throw new Error("Lega non trovata.");
@@ -513,10 +492,11 @@ export async function addParticipantToLeague(
         `Non è possibile aggiungere partecipanti quando lo stato della lega è '${league.status}'.`
       );
 
-    // 1.2. Validazione e Sincronizzazione Utente
-    let userInDb = db
-      .prepare("SELECT id, role, username FROM users WHERE id = ?")
-      .get(participantUserId) as
+    let userInDbResult = await db.execute({
+      sql: "SELECT id, role, username FROM users WHERE id = ?",
+      args: [participantUserId],
+    });
+    let userInDb = userInDbResult.rows[0] as unknown as
       | { id: string; role: string; username?: string }
       | undefined;
 
@@ -533,23 +513,24 @@ export async function addParticipantToLeague(
           const primaryEmail = clerkUser.emailAddresses.find(
             (e) => e.id === clerkUser.primaryEmailAddressId
           )?.emailAddress;
-          // Inseriamo l'utente nel nostro DB locale (questa è un'operazione di scrittura, ma la facciamo qui per semplicità)
-          db.prepare(
-            `INSERT OR IGNORE INTO users (id, email, username, role, status) VALUES (?, ?, ?, ?, ?)`
-          ).run(
-            clerkUser.id,
-            primaryEmail || "no-email@example.com",
-            clerkUser.username,
-            (clerkUser.publicMetadata?.role as string) || "manager",
-            "active"
-          );
+          await db.execute({
+            sql: `INSERT OR IGNORE INTO users (id, email, username, role, status) VALUES (?, ?, ?, ?, ?)`,
+            args: [
+              clerkUser.id,
+              primaryEmail || "no-email@example.com",
+              clerkUser.username,
+              (clerkUser.publicMetadata?.role as string) || "manager",
+              "active",
+            ],
+          });
           console.log(
             `[SYNC] Utente ${clerkUser.id} sincronizzato con successo nel DB locale.`
           );
-          // Ora lo rileggiamo dal DB per continuare
-          userInDb = db
-            .prepare("SELECT id, role, username FROM users WHERE id = ?")
-            .get(participantUserId) as
+          userInDbResult = await db.execute({
+            sql: "SELECT id, role, username FROM users WHERE id = ?",
+            args: [participantUserId],
+          });
+          userInDb = userInDbResult.rows[0] as unknown as
             | { id: string; role: string; username?: string }
             | undefined;
         } else {
@@ -577,41 +558,44 @@ export async function addParticipantToLeague(
         `L'utente ${userInDb.username || userInDb.id} non è un 'manager'.`
       );
 
-    // 1.3. Controllo Duplicati
-    const existingParticipant = db
-      .prepare(
-        "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
-      )
-      .get(leagueId, participantUserId);
-    if (existingParticipant)
+    const existingParticipantResult = await db.execute({
+      sql: "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueId, participantUserId],
+    });
+    if (existingParticipantResult.rows.length > 0)
       throw new Error(
         `L'utente ${userInDb.username || userInDb.id} è già un partecipante.`
       );
 
-    // --- FASE 2: OPERAZIONI DI SCRITTURA SINCRONE (DENTRO LA TRANSAZIONE) ---
-    db.transaction(() => {
-      // Inserisci il nuovo partecipante
-      db.prepare(
-        `INSERT INTO league_participants (league_id, user_id, current_budget, manager_team_name) VALUES (?, ?, ?, ?)`
-      ).run(
-        leagueId,
-        participantUserId,
-        league.initial_budget_per_manager,
-        teamName
-      );
+    // Transaction
+    const tx = await db.transaction("write");
+    try {
+      await tx.execute({
+        sql: `INSERT INTO league_participants (league_id, user_id, current_budget, manager_team_name) VALUES (?, ?, ?, ?)`,
+        args: [
+          leagueId,
+          participantUserId,
+          league.initial_budget_per_manager,
+          teamName,
+        ],
+      });
 
-      // Registra la transazione di budget iniziale
-      db.prepare(
-        `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(
-        leagueId,
-        participantUserId,
-        "initial_allocation",
-        league.initial_budget_per_manager,
-        league.initial_budget_per_manager,
-        "Allocazione budget iniziale"
-      );
-    })();
+      await tx.execute({
+        sql: `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [
+          leagueId,
+          participantUserId,
+          "initial_allocation",
+          league.initial_budget_per_manager,
+          league.initial_budget_per_manager,
+          "Allocazione budget iniziale",
+        ],
+      });
+      await tx.commit();
+    } catch (txError) {
+      await tx.rollback();
+      throw txError;
+    }
 
     return {
       success: true,
@@ -629,9 +613,6 @@ export async function addParticipantToLeague(
   }
 }
 
-/**
- * Ottiene tutti i partecipanti di una lega d'asta, includendo alcuni dettagli dell'utente.
- */
 export const getLeagueParticipants = async (
   leagueId: number
 ): Promise<LeagueParticipant[]> => {
@@ -639,18 +620,19 @@ export const getLeagueParticipants = async (
     `[SERVICE] getLeagueParticipants called for league ID: ${leagueId}`
   );
   try {
-    const stmt = db.prepare(
-      `SELECT 
-         lp.*, 
-         u.username AS user_username, 
+    const result = await db.execute({
+      sql: `SELECT
+         lp.*,
+         u.username AS user_username,
          u.full_name AS user_full_name,
-         u.avatar_url AS user_avatar_url 
+         u.avatar_url AS user_avatar_url
        FROM league_participants lp
        JOIN users u ON lp.user_id = u.id
        WHERE lp.league_id = ?
-       ORDER BY lp.joined_at ASC`
-    );
-    const participants = stmt.all(leagueId) as (LeagueParticipant & {
+       ORDER BY lp.joined_at ASC`,
+      args: [leagueId],
+    });
+    const participants = result.rows as unknown as (LeagueParticipant & {
       user_username?: string;
       user_full_name?: string;
       user_avatar_url?: string;
@@ -671,22 +653,19 @@ export const getLeagueParticipants = async (
 
 export async function removeParticipantFromLeague(
   leagueId: number,
-  adminUserId: string, // L'ID dell'admin che esegue l'azione
-  userIdToRemove: string // L'ID dell'utente da rimuovere
+  adminUserId: string,
+  userIdToRemove: string
 ): Promise<{ success: boolean; message: string }> {
   console.log(
     `[SERVICE] removeParticipantFromLeague called for league ID: ${leagueId}, user to remove: ${userIdToRemove}, by admin ID: ${adminUserId}`
   );
 
   try {
-    // --- FASE 1: Controlli di Prevenzione (FUORI dalla transazione) ---
-
-    // 1.1. Verifica che la lega esista e che l'esecutore sia l'admin
-    const league = db
-      .prepare(
-        "SELECT admin_creator_id, status FROM auction_leagues WHERE id = ?"
-      )
-      .get(leagueId) as
+    const leagueResult = await db.execute({
+      sql: "SELECT admin_creator_id, status FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = leagueResult.rows[0] as unknown as
       | { admin_creator_id: string; status: string }
       | undefined;
 
@@ -699,19 +678,19 @@ export async function removeParticipantFromLeague(
       );
     }
 
-    // 1.2. REGOLA DI BUSINESS CRITICA: Controlla lo stato della lega
     if (league.status !== "participants_joining") {
       throw new Error(
         `Impossibile rimuovere partecipanti quando la lega è nello stato '${league.status}'.`
       );
     }
 
-    // 1.3. Controlla se l'utente è il miglior offerente in un'asta (sicurezza aggiuntiva)
-    const activeBidCheck = db
-      .prepare(
-        `SELECT COUNT(*) as count FROM auctions WHERE auction_league_id = ? AND current_highest_bidder_id = ? AND status = 'active'`
-      )
-      .get(leagueId, userIdToRemove) as { count: number };
+    const activeBidCheckResult = await db.execute({
+      sql: `SELECT COUNT(*) as count FROM auctions WHERE auction_league_id = ? AND current_highest_bidder_id = ? AND status = 'active'`,
+      args: [leagueId, userIdToRemove],
+    });
+    const activeBidCheck = activeBidCheckResult.rows[0] as unknown as {
+      count: number;
+    };
 
     if (activeBidCheck.count > 0) {
       throw new Error(
@@ -719,28 +698,34 @@ export async function removeParticipantFromLeague(
       );
     }
 
-    // --- FASE 2: Esecuzione della Rimozione Atomica (DENTRO la transazione) ---
-    db.transaction(() => {
-      // Rimuovi tutte le dipendenze prima di rimuovere il partecipante
-      db.prepare(
-        `DELETE FROM player_assignments WHERE auction_league_id = ? AND user_id = ?`
-      ).run(leagueId, userIdToRemove);
-      db.prepare(
-        `DELETE FROM budget_transactions WHERE auction_league_id = ? AND user_id = ?`
-      ).run(leagueId, userIdToRemove);
-      db.prepare(
-        `DELETE FROM bids WHERE user_id = ? AND auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ?)`
-      ).run(userIdToRemove, leagueId);
+    const tx = await db.transaction("write");
+    try {
+      await tx.execute({
+        sql: `DELETE FROM player_assignments WHERE auction_league_id = ? AND user_id = ?`,
+        args: [leagueId, userIdToRemove],
+      });
+      await tx.execute({
+        sql: `DELETE FROM budget_transactions WHERE auction_league_id = ? AND user_id = ?`,
+        args: [leagueId, userIdToRemove],
+      });
+      await tx.execute({
+        sql: `DELETE FROM bids WHERE user_id = ? AND auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ?)`,
+        args: [userIdToRemove, leagueId],
+      });
 
-      const deletedParticipant = db
-        .prepare(
-          `DELETE FROM league_participants WHERE league_id = ? AND user_id = ?`
-        )
-        .run(leagueId, userIdToRemove).changes;
-      if (deletedParticipant === 0) {
+      const deletedParticipantResult = await tx.execute({
+        sql: `DELETE FROM league_participants WHERE league_id = ? AND user_id = ?`,
+        args: [leagueId, userIdToRemove],
+      });
+
+      if (deletedParticipantResult.rowsAffected === 0) {
         throw new Error("Partecipante non trovato in questa lega.");
       }
-    })();
+      await tx.commit();
+    } catch (txError) {
+      await tx.rollback();
+      throw txError;
+    }
 
     return { success: true, message: "Partecipante rimosso con successo." };
   } catch (error) {
@@ -754,12 +739,6 @@ export async function removeParticipantFromLeague(
   }
 }
 
-/**
- * Recupera la rosa dei giocatori assegnati a un manager specifico in una lega.
- * @param leagueId L'ID della lega.
- * @param managerUserId L'ID del manager.
- * @returns Una Promise che risolve in un array di RosterPlayer.
- */
 export const getManagerRoster = async (
   leagueId: number,
   managerUserId: string
@@ -769,19 +748,20 @@ export const getManagerRoster = async (
   );
 
   try {
-    const stmt = db.prepare(`
+    const result = await db.execute({
+      sql: `
       SELECT
-        p.id AS player_id, 
+        p.id AS player_id,
         p.name,
         p.role,
         p.team,
-        p.fvm, 
+        p.fvm,
         pa.purchase_price,
         pa.assigned_at
       FROM player_assignments pa
       JOIN players p ON pa.player_id = p.id
-      WHERE pa.auction_league_id = @leagueId AND pa.user_id = @managerUserId
-      ORDER BY 
+      WHERE pa.auction_league_id = ? AND pa.user_id = ?
+      ORDER BY
         CASE p.role  -- Ordinamento personalizzato per ruolo: P, D, C, A
           WHEN 'P' THEN 1
           WHEN 'D' THEN 2
@@ -789,13 +769,12 @@ export const getManagerRoster = async (
           WHEN 'A' THEN 4
           ELSE 5
         END,
-        p.name ASC -- Poi per nome all'interno di ogni ruolo
-    `);
+        p.name ASC
+    `,
+      args: [leagueId, managerUserId],
+    });
 
-    const roster = stmt.all({
-      leagueId: leagueId,
-      managerUserId: managerUserId,
-    }) as RosterPlayer[];
+    const roster = result.rows as unknown as RosterPlayer[];
 
     console.log(
       `[SERVICE AUCTION_LEAGUE] Found ${roster.length} players in roster for manager ${managerUserId}, league ${leagueId}.`
@@ -814,12 +793,6 @@ export const getManagerRoster = async (
   }
 };
 
-/**
- * Recupera lo stato di assegnazione di un giocatore specifico in una lega.
- * @param leagueId L'ID della lega.
- * @param playerId L'ID del giocatore.
- * @returns Una Promise che risolve in un oggetto PlayerAssignmentStatus.
- */
 export const getPlayerAssignmentStatus = async (
   leagueId: number,
   playerId: number
@@ -829,7 +802,8 @@ export const getPlayerAssignmentStatus = async (
   );
 
   try {
-    const stmt = db.prepare(`
+    const result = await db.execute({
+      sql: `
       SELECT
         pa.user_id AS manager_user_id,
         u.username AS manager_username,
@@ -838,15 +812,14 @@ export const getPlayerAssignmentStatus = async (
         pa.assigned_at
       FROM player_assignments pa
       JOIN users u ON pa.user_id = u.id
-      WHERE pa.auction_league_id = @leagueId AND pa.player_id = @playerId
-    `);
+      WHERE pa.auction_league_id = ? AND pa.player_id = ?
+    `,
+      args: [leagueId, playerId],
+    });
 
-    const assignment = stmt.get({
-      leagueId: leagueId,
-      playerId: playerId,
-    }) as
+    const assignment = result.rows[0] as unknown as
       | Omit<PlayerAssignmentStatus, "is_assigned" | "player_id" | "league_id">
-      | undefined; // Omit per evitare conflitti con i campi che aggiungiamo
+      | undefined;
 
     if (assignment) {
       console.log(
@@ -864,8 +837,8 @@ export const getPlayerAssignmentStatus = async (
       );
       return {
         is_assigned: false,
-        player_id: playerId, // Includiamo comunque per riferimento
-        league_id: leagueId, // Includiamo comunque per riferimento
+        player_id: playerId,
+        league_id: leagueId,
       };
     }
   } catch (error) {
@@ -883,11 +856,6 @@ export const getPlayerAssignmentStatus = async (
   }
 };
 
-/**
- * Prepara i dati per l'esportazione CSV delle rose di tutti i manager in una lega.
- * @param leagueId L'ID della lega.
- * @returns Una Promise che risolve in un array di stringhe, dove ogni stringa è una riga CSV.
- */
 export const getLeagueRostersForCsvExport = async (
   leagueId: number
 ): Promise<string[]> => {
@@ -897,16 +865,19 @@ export const getLeagueRostersForCsvExport = async (
   const csvRows: string[] = [];
 
   try {
-    const participantsStmt = db.prepare(`
-      SELECT 
+    const participantsResult = await db.execute({
+      sql: `
+      SELECT
         lp.user_id,
         COALESCE(lp.manager_team_name, u.username, u.id) AS effective_team_name
       FROM league_participants lp
       JOIN users u ON lp.user_id = u.id
       WHERE lp.league_id = ?
       ORDER BY effective_team_name ASC
-    `);
-    const participants = participantsStmt.all(leagueId) as {
+    `,
+      args: [leagueId],
+    });
+    const participants = participantsResult.rows as unknown as {
       user_id: string;
       effective_team_name: string;
     }[];
@@ -915,14 +886,14 @@ export const getLeagueRostersForCsvExport = async (
       return [];
     }
 
-    const rosterForManagerStmt = db.prepare(`
+    const rosterQuery = `
       SELECT
         p.id AS player_id,
         pa.purchase_price
       FROM player_assignments pa
       JOIN players p ON pa.player_id = p.id
-      WHERE pa.auction_league_id = @leagueId AND pa.user_id = @managerUserId
-      ORDER BY 
+      WHERE pa.auction_league_id = ? AND pa.user_id = ?
+      ORDER BY
         CASE p.role
           WHEN 'P' THEN 1
           WHEN 'D' THEN 2
@@ -931,15 +902,15 @@ export const getLeagueRostersForCsvExport = async (
           ELSE 5
         END,
         p.name ASC
-    `);
+    `;
 
     for (const participant of participants) {
-      const rosterPlayers = rosterForManagerStmt.all({
-        leagueId: leagueId,
-        managerUserId: participant.user_id,
-      }) as RosterPlayerForExport[];
+      const rosterResult = await db.execute({
+        sql: rosterQuery,
+        args: [leagueId, participant.user_id],
+      });
+      const rosterPlayers = rosterResult.rows as unknown as RosterPlayerForExport[];
 
-      // Aggiungi il separatore solo se ci sono giocatori per questo team o per i team precedenti
       if (csvRows.length > 0 || rosterPlayers.length > 0) {
         csvRows.push("$,$,$");
       }
@@ -971,7 +942,6 @@ export const getLeagueRostersForCsvExport = async (
 
 // 5. Tipi e Funzioni per la Dashboard di Gestione Lega
 
-// 5.1. Tipi di dati per la dashboard
 export interface LeagueParticipantDetails {
   userId: string;
   username: string | null;
@@ -992,14 +962,11 @@ export interface LeagueDashboardDetails {
   activeAuctionRoles: string | null;
 }
 
-// 5.2. Funzione per recuperare i dettagli della lega per la dashboard admin
 export async function getLeagueDetailsForAdminDashboard(
   leagueId: number
 ): Promise<LeagueDashboardDetails | null> {
-  // 1. Recupera i dettagli principali della lega
-  const league = db
-    .prepare(
-      `SELECT
+  const leagueResult = await db.execute({
+    sql: `SELECT
         id,
         name,
         status,
@@ -1008,18 +975,19 @@ export async function getLeagueDetailsForAdminDashboard(
         timer_duration_minutes as timerDurationMinutes,
         active_auction_roles as activeAuctionRoles
        FROM auction_leagues
-       WHERE id = ?`
-    )
-    .get(leagueId) as Omit<LeagueDashboardDetails, "participants"> | undefined;
+       WHERE id = ?`,
+    args: [leagueId],
+  });
+  const league = leagueResult.rows[0] as unknown as
+    | Omit<LeagueDashboardDetails, "participants">
+    | undefined;
 
   if (!league) {
-    return null; // La lega non è stata trovata
+    return null;
   }
 
-  // 2. Recupera i partecipanti della lega, unendo la tabella utenti per ottenere il nome utente
-  const participants = db
-    .prepare(
-      `SELECT
+  const participantsResult = await db.execute({
+    sql: `SELECT
           lp.user_id as userId,
           u.username,
           lp.manager_team_name as teamName,
@@ -1029,33 +997,28 @@ export async function getLeagueDetailsForAdminDashboard(
        FROM league_participants lp
        JOIN users u ON lp.user_id = u.id
        WHERE lp.league_id = ?
-       ORDER BY lp.joined_at ASC`
-    )
-    .all(leagueId) as LeagueParticipantDetails[];
+       ORDER BY lp.joined_at ASC`,
+    args: [leagueId],
+  });
+  const participants = participantsResult.rows as unknown as LeagueParticipantDetails[];
 
-  // 3. Combina i risultati e restituiscili
   return {
     ...league,
     participants,
   };
 }
 
-// 6. Funzione per aggiornare lo stato di una lega
 export async function updateLeagueStatus(
   leagueId: number,
   newStatus: string
 ): Promise<{ success: boolean; message: string }> {
-  // Qui potremmo aggiungere una logica di validazione complessa per assicurarsi
-  // che le transizioni di stato siano valide (es. da 'setup' a 'completed' non è permesso).
-  // Per ora, ci limitiamo ad aggiornare lo stato.
-
   try {
-    const stmt = db.prepare(
-      `UPDATE auction_leagues SET status = ? WHERE id = ?`
-    );
-    const result = stmt.run(newStatus, leagueId);
+    const result = await db.execute({
+      sql: `UPDATE auction_leagues SET status = ? WHERE id = ?`,
+      args: [newStatus, leagueId],
+    });
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
       throw new Error(
         `Nessuna lega trovata con ID ${leagueId}, o lo stato è già '${newStatus}'.`
       );
@@ -1078,7 +1041,6 @@ export async function updateLeagueStatus(
 
 // 7. Tipi e Funzioni per la Lista delle Leghe
 
-// 7.1. Tipo di dati per la lista
 export interface LeagueForAdminList {
   id: number;
   name: string;
@@ -1088,12 +1050,10 @@ export interface LeagueForAdminList {
   adminCreatorId: string;
 }
 
-// 7.2. Funzione per recuperare tutte le leghe per la vista admin
 export async function getLeaguesForAdminList(): Promise<LeagueForAdminList[]> {
   try {
-    const leagues = db
-      .prepare(
-        `
+    const result = await db.execute({
+      sql: `
       SELECT
         al.id,
         al.name,
@@ -1105,18 +1065,18 @@ export async function getLeaguesForAdminList(): Promise<LeagueForAdminList[]> {
         auction_leagues al
       ORDER BY
         al.created_at DESC
-    `
-      )
-      .all() as LeagueForAdminList[];
+    `,
+      args: [],
+    });
+    const leagues = result.rows as unknown as LeagueForAdminList[];
 
     return leagues;
   } catch (error) {
     console.error("Errore nel recuperare la lista delle leghe:", error);
-    return []; // Ritorna un array vuoto in caso di errore
+    return [];
   }
 }
 
-// 9. Funzione per Modificare il Nome della Squadra di un Partecipante
 export async function updateParticipantTeamName(
   leagueId: number,
   userId: string,
@@ -1129,12 +1089,12 @@ export async function updateParticipantTeamName(
       );
     }
 
-    const stmt = db.prepare(
-      `UPDATE league_participants SET manager_team_name = ? WHERE league_id = ? AND user_id = ?`
-    );
-    const result = stmt.run(newTeamName, leagueId, userId);
+    const result = await db.execute({
+      sql: `UPDATE league_participants SET manager_team_name = ? WHERE league_id = ? AND user_id = ?`,
+      args: [newTeamName, leagueId, userId],
+    });
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
       throw new Error("Partecipante non trovato in questa lega.");
     }
 

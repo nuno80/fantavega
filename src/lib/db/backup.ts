@@ -1,13 +1,27 @@
-// src/db/backup.ts
+// src/lib/db/backup.ts
 import { closeDbConnection, db } from "@/lib/db";
-
-// Importa db per chiudere la connessione
 import { createBackup } from "./backup-utils";
 
 async function runManualBackup() {
+  const isRemote =
+    process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN;
+
+  if (isRemote) {
+    console.warn(
+      "[Manual Backup CLI] WARNING: You are configured to use a Remote Turso Database."
+    );
+    console.warn(
+      "[Manual Backup CLI] This script currently only supports backing up LOCAL SQLite files."
+    );
+    console.warn(
+      "[Manual Backup CLI] To backup your Turso database, please use the Turso CLI/Dashboard."
+    );
+    return;
+  }
+
   // È una buona pratica chiudere la connessione al DB prima di fare un backup del file,
   // specialmente se la modalità WAL è attiva, per assicurare la consistenza.
-  if (db && db.open) {
+  if (db) {
     console.log(
       "[Manual Backup CLI] Closing database connection before backup..."
     );
@@ -31,7 +45,6 @@ async function runManualBackup() {
     console.error("[Manual Backup CLI] Manual backup process failed:", error);
     process.exit(1);
   }
-  // Non è necessario riaprire la connessione qui, lo script termina.
 }
 
 runManualBackup();

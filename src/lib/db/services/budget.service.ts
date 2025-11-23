@@ -1,4 +1,4 @@
-// src/lib/db/services/budget.service.ts v.1.0
+// src/lib/db/services/budget.service.ts v.2.0 (Async Turso Migration)
 // Servizio per la logica di business relativa alla gestione del budget e delle transazioni.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -45,7 +45,8 @@ export const getBudgetTransactionHistory = async (
   try {
     // Query per selezionare le transazioni, facendo un LEFT JOIN con players per ottenere il nome del giocatore
     // se la transazione è relativa a un'asta per un giocatore.
-    const stmt = db.prepare(`
+    const result = await db.execute({
+      sql: `
       SELECT
         bt.id,
         bt.transaction_type,
@@ -55,17 +56,16 @@ export const getBudgetTransactionHistory = async (
         bt.transaction_time,
         bt.related_auction_id,
         bt.related_player_id,
-        p.name AS player_name 
+        p.name AS player_name
       FROM budget_transactions bt
       LEFT JOIN players p ON bt.related_player_id = p.id
-      WHERE bt.auction_league_id = @leagueId AND bt.user_id = @userId
+      WHERE bt.auction_league_id = ? AND bt.user_id = ?
       ORDER BY bt.transaction_time DESC -- Le transazioni più recenti prima
-    `);
+    `,
+      args: [leagueId, userId],
+    });
 
-    const transactions = stmt.all({
-      leagueId: leagueId,
-      userId: userId,
-    }) as BudgetTransactionView[];
+    const transactions = result.rows as unknown as BudgetTransactionView[];
 
     console.log(
       `[SERVICE BUDGET] Found ${transactions.length} transactions for user ${userId} in league ${leagueId}.`

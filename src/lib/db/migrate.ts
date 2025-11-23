@@ -1,12 +1,9 @@
-// src/db/migrate.ts
-// Assicurati che l'alias @ funzioni o usa '../lib/db'
+// src/lib/db/migrate.ts
+import dotenv from "dotenv";
 import path from "path";
 
-import { closeDbConnection, db } from "@/lib/db";
-
-import { applySchemaToDb } from "./utils";
-
-// Assicurati che il percorso a utils.ts sia corretto
+// Load environment variables from .env.local BEFORE importing db
+dotenv.config({ path: path.join(process.cwd(), ".env.local") });
 
 async function runFullSchemaMigration() {
   const schemaPath = path.join(process.cwd(), "database", "schema.sql");
@@ -15,38 +12,32 @@ async function runFullSchemaMigration() {
   );
 
   try {
-    if (!db || !db.open) {
+    // Dynamic import to ensure env vars are loaded first
+    const { db, closeDbConnection } = await import("@/lib/db");
+    const { applySchemaToDb } = await import("./utils");
+
+    if (!db) {
       console.error(
-        "[Migrate Script] Database connection not found or not open. This script relies on a connection being established by importing from @/lib/db. Exiting."
+        "[Migrate Script] Database connection not found. This script relies on a connection being established by importing from @/lib/db. Exiting."
       );
-      process.exit(1); // Esce se la connessione DB non è valida
+      process.exit(1);
     }
 
-    applySchemaToDb(db, schemaPath);
+    await applySchemaToDb(db, schemaPath);
     console.log(
       "[Migrate Script] Schema application script finished successfully."
     );
+
+    closeDbConnection();
   } catch (e: unknown) {
-    // Blocco catch inizia qui
     console.error(
       "[Migrate Script] Script failed:",
       e instanceof Error ? e.message : String(e)
     );
-    // Se vuoi loggare lo stack trace per debug più approfondito:
-    // if (e instanceof Error && e.stack) {
-    //   console.error("[Migrate Script] Stack trace:", e.stack);
-    // }
-    process.exit(1); // Esci con codice di errore
+    process.exit(1);
   } finally {
-    // Blocco finally inizia qui
-    // Chiudi la connessione dopo l'esecuzione dello script, sia in caso di successo che di errore
-    if (db && db.open) {
-      console.log("[Migrate Script] Closing database connection.");
-      closeDbConnection();
-    }
     console.log("[Migrate Script] Script execution finished.");
   }
 }
 
-// Esegui la funzione principale
 runFullSchemaMigration();

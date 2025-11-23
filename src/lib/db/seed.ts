@@ -1,6 +1,6 @@
-// src/lib/db/seed.ts v.1.3
+// src/lib/db/seed.ts v.2.0 (Async Turso Migration)
 // Aggiunto seeding per leghe e partecipanti per creare uno scenario di test completo.
-import { db } from "./index";
+import { closeDbConnection, db } from "./index";
 
 // Dati di esempio
 const users = [
@@ -81,16 +81,19 @@ const participants = [
 ];
 
 // Funzione di seeding
-function seedDatabase() {
+async function seedDatabase() {
   console.log("--- [SEED SCRIPT] LOG B: Funzione seedDatabase() INVOCATA ---");
-  db.transaction(() => {
+
+  const tx = await db.transaction("write");
+
+  try {
     // Seeding Utenti
     console.log("[SEED] Attempting to seed users...");
-    const userStmt = db.prepare(
-      "INSERT OR IGNORE INTO users (id, email, username, role) VALUES (?, ?, ?, ?)"
-    );
     for (const user of users) {
-      userStmt.run(user.id, user.email, user.username, user.role);
+      await tx.execute({
+        sql: "INSERT OR IGNORE INTO users (id, email, username, role) VALUES (?, ?, ?, ?)",
+        args: [user.id, user.email, user.username, user.role]
+      });
     }
     console.log(
       `[SEED] User seeding completed. Processed: ${users.length} users.`
@@ -98,16 +101,11 @@ function seedDatabase() {
 
     // Seeding Leghe
     console.log("[SEED] Attempting to seed leagues...");
-    const leagueStmt = db.prepare(
-      "INSERT OR IGNORE INTO auction_leagues (id, name, initial_budget_per_manager, admin_creator_id) VALUES (?, ?, ?, ?)"
-    );
     for (const league of leagues) {
-      leagueStmt.run(
-        league.id,
-        league.name,
-        league.initial_budget_per_manager,
-        league.admin_creator_id
-      );
+      await tx.execute({
+        sql: "INSERT OR IGNORE INTO auction_leagues (id, name, initial_budget_per_manager, admin_creator_id) VALUES (?, ?, ?, ?)",
+        args: [league.id, league.name, league.initial_budget_per_manager, league.admin_creator_id]
+      });
     }
     console.log(
       `[SEED] League seeding completed. Processed: ${leagues.length} leagues.`
@@ -115,45 +113,47 @@ function seedDatabase() {
 
     // Seeding Partecipanti
     console.log("[SEED] Attempting to seed participants...");
-    const participantStmt = db.prepare(
-      "INSERT OR IGNORE INTO league_participants (league_id, user_id, current_budget, manager_team_name) VALUES (?, ?, ?, ?)"
-    );
     for (const participant of participants) {
-      participantStmt.run(
-        participant.league_id,
-        participant.user_id,
-        participant.current_budget,
-        participant.manager_team_name
-      );
+      await tx.execute({
+        sql: "INSERT OR IGNORE INTO league_participants (league_id, user_id, current_budget, manager_team_name) VALUES (?, ?, ?, ?)",
+        args: [participant.league_id, participant.user_id, participant.current_budget, participant.manager_team_name]
+      });
     }
     console.log(
       `[SEED] Participant seeding completed. Processed: ${participants.length} participants.`
     );
-  })();
+
+    await tx.commit();
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
 }
 
 // Esecuzione dello script
-try {
-  console.log(
-    "--- [SEED SCRIPT] LOG A: Script seed.ts caricato ed eseguito da tsx ---"
-  );
-  console.log("--- [SEED SCRIPT] LOG D: Sto per chiamare seedDatabase() ---");
-  seedDatabase();
-  console.log(
-    "--- [SEED SCRIPT] LOG E: seedDatabase() eseguita senza errori. ---"
-  );
-} catch (error) {
-  console.error(
-    "--- [SEED SCRIPT] ERROR during seedDatabase() execution, transaction rolled back. ---",
-    error
-  );
-} finally {
-  console.log(
-    "--- [SEED SCRIPT] LOG G: Blocco finally raggiunto. Tento di chiudere la connessione DB. ---"
-  );
-  db.close();
-  console.log(
-    "[SEED SCRIPT] Direct DB instance closed by seed script's finally block."
-  );
-  console.log("--- [SEED SCRIPT] LOG H: Script seed.ts terminato. ---");
-}
+(async () => {
+  try {
+    console.log(
+      "--- [SEED SCRIPT] LOG A: Script seed.ts caricato ed eseguito da tsx ---"
+    );
+    console.log("--- [SEED SCRIPT] LOG D: Sto per chiamare seedDatabase() ---");
+    await seedDatabase();
+    console.log(
+      "--- [SEED SCRIPT] LOG E: seedDatabase() eseguita senza errori. ---"
+    );
+  } catch (error) {
+    console.error(
+      "--- [SEED SCRIPT] ERROR during seedDatabase() execution, transaction rolled back. ---",
+      error
+    );
+  } finally {
+    console.log(
+      "--- [SEED SCRIPT] LOG G: Blocco finally raggiunto. Tento di chiudere la connessione DB. ---"
+    );
+    closeDbConnection();
+    console.log(
+      "[SEED SCRIPT] Direct DB instance closed by seed script's finally block."
+    );
+    console.log("--- [SEED SCRIPT] LOG H: Script seed.ts terminato. ---");
+  }
+})();

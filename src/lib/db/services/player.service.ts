@@ -1,4 +1,4 @@
-// src/lib/db/services/player.service.ts v.1.7 (Definitive Fix)
+// src/lib/db/services/player.service.ts v.2.0 (Async Turso Migration)
 // Servizio per recuperare, filtrare e gestire i dati dei giocatori.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -103,7 +103,7 @@ export const getPlayers = async (
 
   if (leagueId) {
     selectClause = `
-      SELECT 
+      SELECT
         p.*,
         CASE
           WHEN (SELECT 1 FROM player_assignments pa WHERE pa.player_id = p.id AND pa.auction_league_id = ?) THEN 'assigned'
@@ -162,14 +162,17 @@ export const getPlayers = async (
   const finalCountParams = [...filterParams];
 
   try {
-    const totalPlayersStmt = db.prepare(countQuery);
-    const totalResult = totalPlayersStmt.get(...finalCountParams) as {
-      total: number;
-    };
-    const totalPlayers = totalResult.total;
+    const totalResult = await db.execute({
+      sql: countQuery,
+      args: finalCountParams,
+    });
+    const totalPlayers = Number(totalResult.rows[0].total);
 
-    const playersStmt = db.prepare(baseQuery);
-    const players = playersStmt.all(...finalBaseParams) as Player[];
+    const playersResult = await db.execute({
+      sql: baseQuery,
+      args: finalBaseParams,
+    });
+    const players = playersResult.rows as unknown as Player[];
 
     const totalPages = Math.ceil(totalPlayers / validatedLimit);
 
@@ -193,7 +196,9 @@ export const getPlayers = async (
 };
 
 // 4. Funzioni CRUD per Giocatori (invariate)
-export const createPlayer = (playerData: CreatePlayerData): Player => {
+export const createPlayer = async (
+  playerData: CreatePlayerData
+): Promise<Player> => {
   console.log("[SERVICE PLAYER] Creating new player:", playerData);
   const now = Math.floor(Date.now() / 1000);
 
@@ -201,35 +206,39 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
     INSERT INTO players (
       id, role, name, team, initial_quotation, current_quotation,
       role_mantra, current_quotation_mantra, initial_quotation_mantra,
-      fvm, fvm_mantra, photo_url, 
+      fvm, fvm_mantra, photo_url,
       last_updated_from_source, created_at, updated_at
     ) VALUES (
-      @id, @role, @name, @team, @initial_quotation, @current_quotation,
-      @role_mantra, @current_quotation_mantra, @initial_quotation_mantra,
-      @fvm, @fvm_mantra, @photo_url,
-      @last_updated_from_source, @created_at, @updated_at
-    ) RETURNING *; 
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, ?
+    ) RETURNING *;
   `;
 
   try {
-    const stmt = db.prepare(sql);
-    const newPlayer = stmt.get({
-      id: playerData.id,
-      role: playerData.role,
-      name: playerData.name,
-      team: playerData.team,
-      initial_quotation: playerData.initial_quotation,
-      current_quotation: playerData.current_quotation,
-      role_mantra: playerData.role_mantra ?? null,
-      current_quotation_mantra: playerData.current_quotation_mantra ?? null,
-      initial_quotation_mantra: playerData.initial_quotation_mantra ?? null,
-      fvm: playerData.fvm ?? null,
-      fvm_mantra: playerData.fvm_mantra ?? null,
-      photo_url: playerData.photo_url ?? null,
-      last_updated_from_source: now,
-      created_at: now,
-      updated_at: now,
-    }) as Player | undefined;
+    const result = await db.execute({
+      sql,
+      args: [
+        playerData.id,
+        playerData.role,
+        playerData.name,
+        playerData.team,
+        playerData.initial_quotation,
+        playerData.current_quotation,
+        playerData.role_mantra ?? null,
+        playerData.current_quotation_mantra ?? null,
+        playerData.initial_quotation_mantra ?? null,
+        playerData.fvm ?? null,
+        playerData.fvm_mantra ?? null,
+        playerData.photo_url ?? null,
+        now,
+        now,
+        now,
+      ],
+    });
+
+    const newPlayer = result.rows[0] as unknown as Player | undefined;
 
     if (!newPlayer) {
       throw new Error("Failed to create player or retrieve data after insert.");
@@ -261,10 +270,10 @@ export const createPlayer = (playerData: CreatePlayerData): Player => {
   }
 };
 
-export const updatePlayer = (
+export const updatePlayer = async (
   playerId: number,
   playerData: UpdatePlayerData
-): Player | null => {
+): Promise<Player | null> => {
   console.log(
     `[SERVICE PLAYER] Updating player ID ${playerId} with data:`,
     playerData
@@ -272,21 +281,21 @@ export const updatePlayer = (
   const now = Math.floor(Date.now() / 1000);
 
   const setClauses: string[] = [];
-  const params: Record<string, unknown> = { id: playerId, updated_at: now };
+  const args: (string | number | null)[] = [];
 
   Object.keys(playerData).forEach((keyStr) => {
     const key = keyStr as keyof UpdatePlayerData;
     if (playerData[key] !== undefined) {
-      setClauses.push(`${key} = @${key}`);
+      setClauses.push(`${key} = ?`);
       if (typeof playerData[key] === "boolean") {
-        params[key] = playerData[key] ? 1 : 0;
+        args.push(playerData[key] ? 1 : 0);
       } else if (
         playerData[key] === "" &&
         ["role_mantra", "photo_url"].includes(key)
       ) {
-        params[key] = null;
+        args.push(null);
       } else {
-        params[key] = playerData[key];
+        args.push(playerData[key] as string | number | null);
       }
     }
   });
@@ -296,22 +305,26 @@ export const updatePlayer = (
       "[SERVICE PLAYER] No fields provided for update for player ID:",
       playerId
     );
-    const existingPlayer = db
-      .prepare("SELECT * FROM players WHERE id = ?")
-      .get(playerId) as Player | undefined;
-    return existingPlayer || null;
+    const existingPlayerResult = await db.execute({
+      sql: "SELECT * FROM players WHERE id = ?",
+      args: [playerId],
+    });
+    return (existingPlayerResult.rows[0] as unknown as Player) || null;
   }
+
+  args.push(now);
+  args.push(playerId);
 
   const sql = `
     UPDATE players
-    SET ${setClauses.join(", ")}, updated_at = @updated_at
-    WHERE id = @id
+    SET ${setClauses.join(", ")}, updated_at = ?
+    WHERE id = ?
     RETURNING *;
   `;
 
   try {
-    const stmt = db.prepare(sql);
-    const updatedPlayer = stmt.get(params) as Player | undefined;
+    const result = await db.execute({ sql, args });
+    const updatedPlayer = result.rows[0] as unknown as Player | undefined;
 
     if (!updatedPlayer) {
       console.warn(
@@ -333,16 +346,18 @@ export const updatePlayer = (
   }
 };
 
-export const deletePlayer = (
+export const deletePlayer = async (
   playerId: number
-): { success: boolean; message?: string } => {
+): Promise<{ success: boolean; message?: string }> => {
   console.log(`[SERVICE PLAYER] Deleting player ID ${playerId}`);
 
   try {
-    const stmt = db.prepare("DELETE FROM players WHERE id = ?");
-    const result = stmt.run(playerId);
+    const result = await db.execute({
+      sql: "DELETE FROM players WHERE id = ?",
+      args: [playerId],
+    });
 
-    if (result.changes > 0) {
+    if (result.rowsAffected > 0) {
       console.log(
         `[SERVICE PLAYER] Player ID ${playerId} deleted successfully.`
       );

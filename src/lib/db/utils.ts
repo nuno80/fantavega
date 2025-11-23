@@ -1,23 +1,23 @@
-// src/db/utils.ts
-import type { Database } from "better-sqlite3";
+// src/lib/db/utils.ts
+import type { Client } from "@libsql/client";
 import fs from "fs";
 
 /**
  * Applica un file di schema SQL a un'istanza di database fornita.
- * @param dbInstance L'istanza di better-sqlite3 Database.
+ * @param client L'istanza del client @libsql/client.
  * @param schemaFilePath Il percorso al file .sql dello schema.
  */
-export function applySchemaToDb(
-  dbInstance: Database,
+export async function applySchemaToDb(
+  client: Client,
   schemaFilePath: string
-): void {
+): Promise<void> {
   console.log(
     `[Schema Apply Util] Attempting to apply schema from: ${schemaFilePath}`
   );
   if (!fs.existsSync(schemaFilePath)) {
     const errorMessage = `[Schema Apply Util] Error: Schema file not found at ${schemaFilePath}. Cannot apply schema.`;
     console.error(errorMessage);
-    throw new Error(errorMessage); // Lancia un errore se lo schema non è trovato, è un problema serio.
+    throw new Error(errorMessage);
   }
 
   try {
@@ -26,17 +26,20 @@ export function applySchemaToDb(
       console.warn(
         `[Schema Apply Util] Schema file (${schemaFilePath}) is empty. No schema applied.`
       );
-      return; // Esce se lo schema è vuoto, ma non è un errore fatale.
+      return;
     }
 
     console.log(`[Schema Apply Util] Executing SQL from ${schemaFilePath}...`);
-    dbInstance.exec(schemaSql); // Esegue l'intero script SQL
+
+    // @libsql/client supporta executeMultiple per eseguire script SQL completi
+    await client.executeMultiple(schemaSql);
+
     console.log("[Schema Apply Util] Schema SQL applied successfully.");
   } catch (error) {
     console.error(
       `[Schema Apply Util] Error applying schema SQL from ${schemaFilePath}:`,
       error
     );
-    throw error; // Rilancia l'errore per essere gestito dal chiamante dello script di migrazione/reset
+    throw error;
   }
 }
