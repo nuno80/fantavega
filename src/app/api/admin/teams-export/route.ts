@@ -7,10 +7,13 @@ import { db } from "@/lib/db";
 import { getLeagueRostersForCsvExport } from "@/lib/db/services/auction-league.service";
 
 // Funzione helper per ottenere il nome della lega
-const getLeagueName = (leagueId: number): string => {
+const getLeagueName = async (leagueId: number): Promise<string> => {
   try {
-    const stmt = db.prepare("SELECT name FROM auction_leagues WHERE id = ?");
-    const league = stmt.get(leagueId) as { name: string } | undefined;
+    const result = await db.execute({
+      sql: "SELECT name FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = result.rows[0] as unknown as { name: string } | undefined;
     return league?.name || "unknown-league";
   } catch (error) {
     console.error(`Error fetching league name for ID ${leagueId}:`, error);
@@ -40,7 +43,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid League ID" }, { status: 400 });
     }
 
-    const leagueName = getLeagueName(leagueId);
+    const leagueName = await getLeagueName(leagueId);
     const sanitizedLeagueName = leagueName.replace(/[^a-zA-Z0-9]/g, "-");
     const fileName = `export-${sanitizedLeagueName}-L${leagueId}-${Date.now()}`;
 
