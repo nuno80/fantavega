@@ -23,11 +23,11 @@ export async function POST(
     }
 
     // Verifica che l'utente appartenga alla lega
-    const participantCheck = db
-      .prepare(
-        "SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?"
-      )
-      .get(user.id, leagueId);
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?",
+      args: [user.id, leagueId],
+    });
+    const participantCheck = participantCheckResult.rows.length > 0;
 
     if (!participantCheck) {
       return NextResponse.json(
@@ -86,25 +86,28 @@ export async function POST(
       sqliteValue = value as number;
     }
 
-    // Upsert della preferenza
-    const upsertStmt = db.prepare(`
-      INSERT INTO user_player_preferences (user_id, player_id, league_id, ${column}, updated_at)
-      VALUES (?, ?, ?, ?, strftime('%s', 'now'))
-      ON CONFLICT(user_id, player_id, league_id) 
-      DO UPDATE SET ${column} = excluded.${column}, updated_at = excluded.updated_at
-    `);
+    const now = Math.floor(Date.now() / 1000);
 
-    upsertStmt.run(user.id, playerId, leagueId, sqliteValue);
+    // Upsert della preferenza
+    await db.execute({
+      sql: `
+        INSERT INTO user_player_preferences (user_id, player_id, league_id, ${column}, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, player_id, league_id)
+        DO UPDATE SET ${column} = excluded.${column}, updated_at = excluded.updated_at
+      `,
+      args: [user.id, playerId, leagueId, sqliteValue, now],
+    });
 
     // Recupera la preferenza aggiornata
-    const updatedPreference = db
-      .prepare(
-        `
-        SELECT * FROM user_player_preferences 
+    const updatedPreferenceResult = await db.execute({
+      sql: `
+        SELECT * FROM user_player_preferences
         WHERE user_id = ? AND player_id = ? AND league_id = ?
-      `
-      )
-      .get(user.id, playerId, leagueId);
+      `,
+      args: [user.id, playerId, leagueId],
+    });
+    const updatedPreference = updatedPreferenceResult.rows[0];
 
     return NextResponse.json({
       success: true,
@@ -138,11 +141,11 @@ export async function GET(
     }
 
     // Verifica che l'utente appartenga alla lega
-    const participantCheck = db
-      .prepare(
-        "SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?"
-      )
-      .get(user.id, leagueId);
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?",
+      args: [user.id, leagueId],
+    });
+    const participantCheck = participantCheckResult.rows.length > 0;
 
     if (!participantCheck) {
       return NextResponse.json(
@@ -160,14 +163,14 @@ export async function GET(
     }
 
     // Recupera le preferenze dell'utente per questo giocatore in questa lega
-    const preference = db
-      .prepare(
-        `
-        SELECT * FROM user_player_preferences 
+    const preferenceResult = await db.execute({
+      sql: `
+        SELECT * FROM user_player_preferences
         WHERE user_id = ? AND player_id = ? AND league_id = ?
-      `
-      )
-      .get(user.id, playerId, leagueId);
+      `,
+      args: [user.id, playerId, leagueId],
+    });
+    const preference = preferenceResult.rows[0];
 
     return NextResponse.json({
       preference: preference || {
