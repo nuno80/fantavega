@@ -1,4 +1,4 @@
-// src/app/api/leagues/[league-id]/check-compliance/route.ts v.1.1
+// src/app/api/leagues/[league-id]/check-compliance/route.ts v.2.0 (Async Turso Migration)
 // API Route per triggerare il controllo di conformità, ora accetta un userId nel body
 // per permettere il controllo su utenti specifici da parte di altri partecipanti.
 import { NextResponse } from "next/server";
@@ -13,7 +13,7 @@ interface RouteContext {
 }
 
 export async function POST(
-  request: Request, // Rinominato da _request a request
+  request: Request,
   context: RouteContext
 ) {
   console.log("[API CHECK_COMPLIANCE POST] Request received.");
@@ -40,13 +40,11 @@ export async function POST(
     }
 
     // L'utente autenticato deve essere un partecipante per eseguire qualsiasi check
-    const participantCheckStmt = db.prepare(
-      "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-    );
-    const isParticipant = participantCheckStmt.get(
-      leagueIdNum,
-      authenticatedUserId
-    );
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueIdNum, authenticatedUserId],
+    });
+    const isParticipant = participantCheckResult.rows.length > 0;
 
     if (!isParticipant) {
       console.warn(
