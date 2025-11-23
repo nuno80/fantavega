@@ -80,10 +80,11 @@ export async function POST(request: Request, context: RouteContext) {
     );
 
     try {
-      const leagueCheckStmt = db.prepare(
-        "SELECT admin_creator_id FROM auction_leagues WHERE id = ?"
-      );
-      const leagueFromDb = leagueCheckStmt.get(leagueIdNum) as
+      const leagueCheckResult = await db.execute({
+        sql: "SELECT admin_creator_id FROM auction_leagues WHERE id = ?",
+        args: [leagueIdNum],
+      });
+      const leagueFromDb = leagueCheckResult.rows[0] as unknown as
         | { admin_creator_id: string }
         | undefined;
       if (leagueFromDb) {
