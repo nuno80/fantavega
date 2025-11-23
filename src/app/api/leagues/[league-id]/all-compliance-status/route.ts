@@ -48,11 +48,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Verify the user is a participant of the league to authorize the request
-    const participantCheck = db
-      .prepare(
-        "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-      )
-      .get(leagueId, userId);
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueId, userId],
+    });
+    const participantCheck = participantCheckResult.rows.length > 0;
 
     if (!participantCheck) {
       return new NextResponse(
@@ -64,33 +64,34 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Get the current phase identifier for the league using the same logic as penalty.service.ts
-    const leagueInfo = db
-      .prepare("SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?")
-      .get(leagueId) as { status: string; active_auction_roles: string | null } | undefined;
-    
+    const leagueInfoResult = await db.execute({
+      sql: "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const leagueInfo = leagueInfoResult.rows[0] as unknown as { status: string; active_auction_roles: string | null } | undefined;
+
     if (!leagueInfo) {
       return new NextResponse("League not found", { status: 404 });
     }
-    
+
     // Construct the phase identifier using the same logic as in penalty.service.ts
     const phaseIdentifier = getCurrentPhaseIdentifier(
       leagueInfo.status,
       leagueInfo.active_auction_roles
     );
-    
+
     console.log(`[GET_ALL_COMPLIANCE_STATUS] Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
-    
+
     // Define type for compliance data
     interface ComplianceRecord {
       user_id: number;
       compliance_timer_start_at: string | null;
     }
-    
+
     // Get compliance data for all users in the league with the specific phase identifier
     // Use a subquery to get only the most recent record for each user based on updated_at timestamp
-    const complianceData = db
-      .prepare(
-        `SELECT t1.user_id, t1.compliance_timer_start_at 
+    const complianceDataResult = await db.execute({
+      sql: `SELECT t1.user_id, t1.compliance_timer_start_at
          FROM user_league_compliance_status t1
          INNER JOIN (
            SELECT user_id, MAX(updated_at) as max_updated_at
@@ -98,12 +99,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
            WHERE league_id = ? AND phase_identifier = ?
            GROUP BY user_id
          ) t2 ON t1.user_id = t2.user_id AND t1.updated_at = t2.max_updated_at
-         WHERE t1.league_id = ? AND t1.phase_identifier = ?`
-      )
-      .all(leagueId, phaseIdentifier, leagueId, phaseIdentifier) as ComplianceRecord[];
-      
+         WHERE t1.league_id = ? AND t1.phase_identifier = ?`,
+      args: [leagueId, phaseIdentifier, leagueId, phaseIdentifier],
+    });
+    const complianceData = complianceDataResult.rows as unknown as ComplianceRecord[];
+
     console.log(`[GET_ALL_COMPLIANCE_STATUS] Found ${complianceData.length} compliance records for league ${leagueId} and phase ${phaseIdentifier}`);
-    
+
     // Log the compliance data for debugging
     complianceData.forEach((record: ComplianceRecord) => {
       console.log(`[GET_ALL_COMPLIANCE_STATUS] User ${record.user_id}: compliance_timer_start_at = ${record.compliance_timer_start_at}`);

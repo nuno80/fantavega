@@ -32,10 +32,17 @@ function initializeDatabaseClient(): Client {
       `[DB Connection] Initializing Local SQLite connection at ${dbPath}...`
     );
     // For local development with @libsql/client, we use the file: protocol
-    // Note: @libsql/client 'file:' url requires the 'better-sqlite3' package to be installed as a peer dependency, which we have.
-    return createClient({
-      url: `file:${dbPath}`,
-    });
+    // Note: @libsql/client 'file:' url requires the 'better-sqlite3' package to be installed as a peer dependency.
+    // Since we removed better-sqlite3, we should only support remote Turso connection in production or if configured.
+    // However, for local dev without Turso, we might still need a local file.
+    // But the user requirement was "Turso-only configuration" and "remove better-sqlite3".
+    // If we remove better-sqlite3, we CANNOT use file: protocol with @libsql/client in Node.js environment usually, unless we use the pure JS implementation or similar?
+    // Actually @libsql/client for Node.js uses better-sqlite3 under the hood for file: URLs.
+    // If the user wants "Turso-only", we should throw an error if no credentials are provided, OR assume we are always connecting to Turso.
+
+    // Let's assume we MUST have Turso credentials.
+    console.warn("[DB Connection] No Turso credentials found. Please set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.");
+    throw new Error("Turso credentials missing. Local file fallback is disabled.");
   }
 }
 

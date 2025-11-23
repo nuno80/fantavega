@@ -109,10 +109,9 @@ async function getBudgetDataLogic(
   userId: string,
   leagueId: string
 ): Promise<BudgetData | null> {
-  const budgetInfo = db
-    .prepare(
-      `
-    SELECT 
+  const budgetInfoResult = await db.execute({
+    sql: `
+    SELECT
       lp.current_budget,
       lp.locked_credits,
       lp.manager_team_name as team_name,
@@ -120,11 +119,11 @@ async function getBudgetDataLogic(
     FROM league_participants lp
     JOIN auction_leagues al ON lp.league_id = al.id
     WHERE lp.league_id = ? AND lp.user_id = ?
-  `
-    )
-    .get(parseInt(leagueId), userId);
+  `,
+    args: [parseInt(leagueId), userId],
+  });
 
-  return budgetInfo as BudgetData | null;
+  return (budgetInfoResult.rows[0] as unknown as BudgetData) || null;
 }
 
 /**
@@ -134,10 +133,9 @@ async function getCurrentAuctionLogic(
   leagueId: string
 ): Promise<AuctionStatusDetails | null> {
   // Get current active auction
-  const activeAuction = db
-    .prepare(
-      `
-    SELECT 
+  const activeAuctionResult = await db.execute({
+    sql: `
+    SELECT
       a.id,
       a.player_id,
       a.current_highest_bid_amount,
@@ -151,9 +149,10 @@ async function getCurrentAuctionLogic(
     WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')
     ORDER BY a.created_at DESC
     LIMIT 1
-  `
-    )
-    .get(parseInt(leagueId)) as ActiveAuction | undefined;
+  `,
+    args: [parseInt(leagueId)],
+  });
+  const activeAuction = activeAuctionResult.rows[0] as unknown as ActiveAuction | undefined;
 
   if (!activeAuction) {
     return null; // No active auction
@@ -175,10 +174,9 @@ async function getUserAuctionStatesLogic(
   userId: string,
   leagueId: string
 ): Promise<UserState[]> {
-  const involvedAuctions = db
-    .prepare(
-      `
-    SELECT 
+  const involvedAuctionsResult = await db.execute({
+    sql: `
+    SELECT
       a.id as auction_id,
       a.player_id,
       p.name as player_name,
@@ -194,15 +192,16 @@ async function getUserAuctionStatesLogic(
     LEFT JOIN user_player_preferences upp ON a.player_id = upp.player_id AND upp.user_id = ? AND upp.league_id = a.auction_league_id AND upp.preference_type = 'cooldown' AND upp.expires_at > ?
     WHERE a.auction_league_id = ? AND a.status = 'active'
     GROUP BY a.id
-  `
-    )
-    .all(
+  `,
+    args: [
       userId,
       userId,
       userId,
       Math.floor(Date.now() / 1000),
-      leagueId
-    ) as InvolvedAuction[];
+      leagueId,
+    ],
+  });
+  const involvedAuctions = involvedAuctionsResult.rows as unknown as InvolvedAuction[];
 
   const now = Math.floor(Date.now() / 1000);
 
@@ -240,22 +239,24 @@ async function getUserAuctionStatesLogic(
  */
 async function getManagersDataLogic(leagueId: string) {
   // Get league slots configuration
-  const leagueInfoStmt = db.prepare(`
-    SELECT 
+  const leagueInfoResult = await db.execute({
+    sql: `
+    SELECT
       slots_P,
       slots_D,
       slots_C,
       slots_A
     FROM auction_leagues
     WHERE id = ?
-  `);
-  const leagueSlots = leagueInfoStmt.get(
-    parseInt(leagueId)
-  ) as LeagueSlots | null;
+  `,
+    args: [parseInt(leagueId)],
+  });
+  const leagueSlots = (leagueInfoResult.rows[0] as unknown as LeagueSlots) || null;
 
   // Get all managers/participants in the league
-  const managersStmt = db.prepare(`
-    SELECT 
+  const managersResult = await db.execute({
+    sql: `
+    SELECT
       lp.user_id,
       lp.manager_team_name,
       lp.current_budget,
@@ -265,12 +266,15 @@ async function getManagersDataLogic(leagueId: string) {
     JOIN auction_leagues al ON lp.league_id = al.id
     WHERE lp.league_id = ?
     ORDER BY lp.manager_team_name ASC, lp.user_id ASC
-  `);
-  const managers = managersStmt.all(parseInt(leagueId)) as Manager[];
+  `,
+    args: [parseInt(leagueId)],
+  });
+  const managers = managersResult.rows as unknown as Manager[];
 
   // Get active auctions with current bid amounts
-  const activeAuctionsStmt = db.prepare(`
-    SELECT 
+  const activeAuctionsResult = await db.execute({
+    sql: `
+    SELECT
       a.player_id,
       p.name as player_name,
       p.role as player_role,
@@ -281,27 +285,31 @@ async function getManagersDataLogic(leagueId: string) {
     FROM auctions a
     JOIN players p ON a.player_id = p.id
     WHERE a.auction_league_id = ? AND a.status = 'active'
-  `);
-  const activeAuctions = activeAuctionsStmt.all(
-    parseInt(leagueId)
-  ) as ActiveAuction[];
+  `,
+    args: [parseInt(leagueId)],
+  });
+  const activeAuctions = activeAuctionsResult.rows as unknown as ActiveAuction[];
 
   // Get auto bid indicators for all active auctions
-  const autoBidsStmt = db.prepare(`
-    SELECT 
+  const autoBidsResult = await db.execute({
+    sql: `
+    SELECT
       a.player_id,
       COUNT(ab.user_id) as auto_bid_count
     FROM auto_bids ab
     JOIN auctions a ON ab.auction_id = a.id
     WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1
     GROUP BY a.player_id
-  `);
-  const autoBids = autoBidsStmt.all(parseInt(leagueId)) as AutoBidIndicator[];
+  `,
+    args: [parseInt(leagueId)],
+  });
+  const autoBids = autoBidsResult.rows as unknown as AutoBidIndicator[];
 
   // --- OTTIMIZZAZIONE N+1 QUERY ---
   // 1. Recupera TUTTI i giocatori per la lega in una sola query
-  const allPlayersStmt = db.prepare(`
-    SELECT 
+  const allPlayersResult = await db.execute({
+    sql: `
+    SELECT
       p.id, p.name, p.role, p.team,
       pa.purchase_price as assignment_price,
       pa.user_id // Aggiungi user_id per il mapping
@@ -309,10 +317,10 @@ async function getManagersDataLogic(leagueId: string) {
     JOIN players p ON pa.player_id = p.id
     WHERE pa.auction_league_id = ?
     ORDER BY p.role, p.name
-  `);
-  const allPlayers = allPlayersStmt.all(
-    parseInt(leagueId)
-  ) as PlayerWithAssignment[];
+  `,
+    args: [parseInt(leagueId)],
+  });
+  const allPlayers = allPlayersResult.rows as unknown as PlayerWithAssignment[];
 
   // 2. Raggruppa i giocatori per manager in una mappa per un accesso veloce
   const playersByManager = new Map<string, PlayerWithAssignment[]>();

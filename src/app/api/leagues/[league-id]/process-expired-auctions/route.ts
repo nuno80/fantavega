@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 
+import { db } from "@/lib/db";
 import { processExpiredAuctionsAndAssignPlayers } from "@/lib/db/services/bid.service";
 
 interface RouteContext {
@@ -32,12 +33,11 @@ export async function POST(_request: Request, context: RouteContext) {
     }
 
     // Verify user is participant in this league (or admin)
-    const { db } = await import("@/lib/db");
-    const participantCheck = db
-      .prepare(
-        "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-      )
-      .get(leagueIdNum, user.id);
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueIdNum, user.id],
+    });
+    const participantCheck = participantCheckResult.rows.length > 0;
 
     const userRole = user.publicMetadata?.role as string | undefined;
 

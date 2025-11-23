@@ -28,18 +28,18 @@ export async function GET(
     }
 
     // Get user's budget information for this league
-    const budgetInfo = db
-      .prepare(
-        `SELECT 
+    const budgetInfoResult = await db.execute({
+      sql: `SELECT
           lp.current_budget,
           lp.locked_credits,
           lp.manager_team_name as team_name,
           al.initial_budget_per_manager as total_budget
          FROM league_participants lp
          JOIN auction_leagues al ON lp.league_id = al.id
-         WHERE lp.league_id = ? AND lp.user_id = ?`
-      )
-      .get(leagueId, user.id);
+         WHERE lp.league_id = ? AND lp.user_id = ?`,
+      args: [leagueId, user.id],
+    });
+    const budgetInfo = budgetInfoResult.rows[0];
 
     if (!budgetInfo) {
       return NextResponse.json(

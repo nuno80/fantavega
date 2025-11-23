@@ -97,11 +97,11 @@ async function processAuctionRequest(
 
     // If user is a manager, check if they are a participant in this league
     if (userRole === "manager") {
-      const participation = db
-        .prepare(
-          "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
-        )
-        .get(leagueId, user.id);
+      const participationResult = await db.execute({
+        sql: "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?",
+        args: [leagueId, user.id],
+      });
+      const participation = participationResult.rows[0];
 
       if (!participation) {
         return NextResponse.json(
@@ -129,18 +129,18 @@ async function processAuctionRequest(
     }
 
     // Verify league exists and is in correct status
-    const league = db
-      .prepare(
-        "SELECT id, status, min_bid, timer_duration_minutes, config_json FROM auction_leagues WHERE id = ?"
-      )
-      .get(leagueId) as
+    const leagueResult = await db.execute({
+      sql: "SELECT id, status, min_bid, timer_duration_minutes, config_json FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = leagueResult.rows[0] as unknown as
       | {
-          id: number;
-          status: string;
-          min_bid: number;
-          timer_duration_minutes: number;
-          config_json: string;
-        }
+        id: number;
+        status: string;
+        min_bid: number;
+        timer_duration_minutes: number;
+        config_json: string;
+      }
       | undefined;
 
     if (!league) {
@@ -155,14 +155,16 @@ async function processAuctionRequest(
     }
 
     // Check if player exists and is not already assigned or in auction
-    const player = db
-      .prepare("SELECT id, name, current_quotation FROM players WHERE id = ?")
-      .get(parseInt(playerId)) as
+    const playerResult = await db.execute({
+      sql: "SELECT id, name, current_quotation FROM players WHERE id = ?",
+      args: [parseInt(playerId)],
+    });
+    const player = playerResult.rows[0] as unknown as
       | {
-          id: number;
-          name: string;
-          current_quotation: number;
-        }
+        id: number;
+        name: string;
+        current_quotation: number;
+      }
       | undefined;
 
     if (!player) {
@@ -173,11 +175,11 @@ async function processAuctionRequest(
     }
 
     // Check if player is already assigned
-    const assignment = db
-      .prepare(
-        "SELECT player_id FROM player_assignments WHERE auction_league_id = ? AND player_id = ?"
-      )
-      .get(leagueId, parseInt(playerId));
+    const assignmentResult = await db.execute({
+      sql: "SELECT player_id FROM player_assignments WHERE auction_league_id = ? AND player_id = ?",
+      args: [leagueId, parseInt(playerId)],
+    });
+    const assignment = assignmentResult.rows[0];
 
     if (assignment) {
       return NextResponse.json(
@@ -187,11 +189,11 @@ async function processAuctionRequest(
     }
 
     // ENHANCED: Double-check for existing auction with explicit logging
-    const existingAuction = db
-      .prepare(
-        "SELECT id, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')"
-      )
-      .get(leagueId, parseInt(playerId)) as
+    const existingAuctionResult = await db.execute({
+      sql: "SELECT id, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')",
+      args: [leagueId, parseInt(playerId)],
+    });
+    const existingAuction = existingAuctionResult.rows[0] as unknown as
       | { id: number; status: string }
       | undefined;
 

@@ -69,13 +69,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     // 3.3. Autorizzazione: Verifica che l'utente autenticato sia partecipante della lega
     // Questo per assicurare che solo chi è coinvolto nella lega possa vedere lo stato dei giocatori al suo interno.
     // Gli admin di sistema potrebbero bypassare questo controllo se necessario, ma per ora lo richiediamo.
-    const participantCheckStmt = db.prepare(
-      "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-    );
-    const isParticipant = participantCheckStmt.get(
-      leagueIdNum,
-      authenticatedUserId
-    );
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueIdNum, authenticatedUserId],
+    });
+    const isParticipant = participantCheckResult.rows.length > 0;
 
     const isAdmin = authUser.publicMetadata?.role === "admin";
 

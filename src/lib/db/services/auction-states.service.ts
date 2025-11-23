@@ -16,20 +16,20 @@ interface UserAuctionStates {
 /**
  * Ottiene lo stato di un utente per un'asta specifica
  */
-export const getUserAuctionState = (
+export const getUserAuctionState = async (
   auctionId: number,
   userId: string
-): UserAuctionState => {
+): Promise<UserAuctionState> => {
   try {
-    const auction = db
-      .prepare(
-        `
-      SELECT user_auction_states, current_highest_bidder_id 
-      FROM auctions 
+    const auctionResult = await db.execute({
+      sql: `
+      SELECT user_auction_states, current_highest_bidder_id
+      FROM auctions
       WHERE id = ?
-    `
-      )
-      .get(auctionId) as
+    `,
+      args: [auctionId],
+    });
+    const auction = auctionResult.rows[0] as
       | { user_auction_states: string; current_highest_bidder_id: string }
       | undefined;
 
@@ -67,20 +67,20 @@ export const setUserAuctionState = async (
 ): Promise<void> => {
   try {
     // Ottieni gli stati attuali
-    const auction = db
-      .prepare(
-        `
+    const auctionResult = await db.execute({
+      sql: `
       SELECT user_auction_states, current_highest_bidder_id, player_id
       FROM auctions a
       WHERE a.id = ?
-    `
-      )
-      .get(auctionId) as
+    `,
+      args: [auctionId],
+    });
+    const auction = auctionResult.rows[0] as
       | {
-          user_auction_states: string;
-          current_highest_bidder_id: string;
-          player_id: number;
-        }
+        user_auction_states: string;
+        current_highest_bidder_id: string;
+        player_id: number;
+      }
       | undefined;
 
     if (!auction) {
@@ -95,13 +95,14 @@ export const setUserAuctionState = async (
     currentStates[userId] = state;
 
     // Salva nel database
-    db.prepare(
-      `
-      UPDATE auctions 
-      SET user_auction_states = ? 
+    await db.execute({
+      sql: `
+      UPDATE auctions
+      SET user_auction_states = ?
       WHERE id = ?
-    `
-    ).run(JSON.stringify(currentStates), auctionId);
+    `,
+      args: [JSON.stringify(currentStates), auctionId],
+    });
 
     console.log(
       `[AUCTION_STATES] Set state '${state}' for user ${userId} in auction ${auctionId}`
@@ -151,18 +152,19 @@ export const handleBidderChange = async (
       const deadline = Math.floor(Date.now() / 1000) + 1 * 3600; // 1 ora
 
       // Salva timer per il countdown UI
-      db.prepare(
-        `
-        INSERT OR REPLACE INTO user_auction_response_timers 
-        (auction_id, user_id, created_at, response_deadline, status) 
+      await db.execute({
+        sql: `
+        INSERT OR REPLACE INTO user_auction_response_timers
+        (auction_id, user_id, created_at, response_deadline, status)
         VALUES (?, ?, ?, ?, 'pending')
-      `
-      ).run(
-        auctionId,
-        previousBidderId,
-        Math.floor(Date.now() / 1000),
-        deadline
-      );
+      `,
+        args: [
+          auctionId,
+          previousBidderId,
+          Math.floor(Date.now() / 1000),
+          deadline,
+        ],
+      });
 
       console.log(
         `[AUCTION_STATES] User ${previousBidderId} set to 'rilancio_possibile' with 1h timer`
@@ -186,45 +188,47 @@ export const handleAuctionAbandon = async (
     await setUserAuctionState(auctionId, userId, "asta_abbandonata");
 
     // Trova l'offerta dell'utente per sbloccare i crediti
-    const userBid = db
-      .prepare(
-        `
-      SELECT amount FROM bids 
-      WHERE auction_id = ? AND user_id = ? 
+    const userBidResult = await db.execute({
+      sql: `
+      SELECT amount FROM bids
+      WHERE auction_id = ? AND user_id = ?
       ORDER BY bid_time DESC LIMIT 1
-    `
-      )
-      .get(auctionId, userId) as { amount: number } | undefined;
+    `,
+      args: [auctionId, userId],
+    });
+    const userBid = userBidResult.rows[0] as { amount: number } | undefined;
 
     // Trova la lega e il giocatore per aggiornare i crediti e il cooldown
-    const auction = db
-      .prepare(
-        `
+    const auctionResult = await db.execute({
+      sql: `
       SELECT auction_league_id, player_id FROM auctions WHERE id = ?
-    `
-      )
-      .get(auctionId) as
+    `,
+      args: [auctionId],
+    });
+    const auction = auctionResult.rows[0] as
       | { auction_league_id: number; player_id: number }
       | undefined;
 
     // Rimuovi timer di risposta se esistente
-    db.prepare(
-      `
-      UPDATE user_auction_response_timers 
-      SET status = 'action_taken' 
+    await db.execute({
+      sql: `
+      UPDATE user_auction_response_timers
+      SET status = 'action_taken'
       WHERE auction_id = ? AND user_id = ? AND status = 'pending'
-    `
-    ).run(auctionId, userId);
+    `,
+      args: [auctionId, userId],
+    });
 
     // Sblocca i crediti dell'utente se aveva fatto un'offerta
     if (userBid && auction) {
-      db.prepare(
-        `
-        UPDATE league_participants 
-        SET locked_credits = locked_credits - ? 
+      await db.execute({
+        sql: `
+        UPDATE league_participants
+        SET locked_credits = locked_credits - ?
         WHERE league_id = ? AND user_id = ?
-      `
-      ).run(userBid.amount, auction.auction_league_id, userId);
+      `,
+        args: [userBid.amount, auction.auction_league_id, userId],
+      });
     }
 
     // Crea cooldown 48 ore
@@ -234,20 +238,21 @@ export const handleAuctionAbandon = async (
 
       // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
       // Standardizzato su user_player_preferences con preference_type = 'cooldown'
-      db.prepare(
-        `
-        INSERT OR REPLACE INTO user_player_preferences 
-        (user_id, player_id, league_id, preference_type, expires_at, created_at, updated_at) 
+      await db.execute({
+        sql: `
+        INSERT OR REPLACE INTO user_player_preferences
+        (user_id, player_id, league_id, preference_type, expires_at, created_at, updated_at)
         VALUES (?, ?, ?, 'cooldown', ?, ?, ?)
-      `
-      ).run(
-        userId,
-        auction.player_id,
-        auction.auction_league_id,
-        cooldownEnd,
-        now,
-        now
-      );
+      `,
+        args: [
+          userId,
+          auction.player_id,
+          auction.auction_league_id,
+          cooldownEnd,
+          now,
+          now,
+        ],
+      });
 
       console.log(
         `[AUCTION_STATES] User ${userId} abandoned auction ${auctionId}, 48h cooldown active`
@@ -262,19 +267,20 @@ export const handleAuctionAbandon = async (
 /**
  * Ottiene tutti gli utenti con stato 'rilancio_possibile' per una lega
  */
-export const getUsersWithPendingResponse = (
+export const getUsersWithPendingResponse = async (
   leagueId: number
-): Array<{
-  user_id: string;
-  auction_id: number;
-  player_id: number;
-  player_name: string;
-  response_deadline: number;
-}> => {
-  return db
-    .prepare(
-      `
-    SELECT DISTINCT 
+): Promise<
+  Array<{
+    user_id: string;
+    auction_id: number;
+    player_id: number;
+    player_name: string;
+    response_deadline: number;
+  }>
+> => {
+  const result = await db.execute({
+    sql: `
+    SELECT DISTINCT
       urt.user_id,
       urt.auction_id,
       a.player_id,
@@ -283,13 +289,14 @@ export const getUsersWithPendingResponse = (
     FROM user_auction_response_timers urt
     JOIN auctions a ON urt.auction_id = a.id
     JOIN players p ON a.player_id = p.id
-    WHERE a.auction_league_id = ? 
+    WHERE a.auction_league_id = ?
       AND urt.status = 'pending'
       AND a.status = 'active'
     ORDER BY urt.response_deadline ASC
-  `
-    )
-    .all(leagueId) as Array<{
+  `,
+    args: [leagueId],
+  });
+  return result.rows as unknown as Array<{
     user_id: string;
     auction_id: number;
     player_id: number;
@@ -311,19 +318,19 @@ export const processExpiredResponseStates = async (): Promise<{
 
   try {
     // Trova timer scaduti
-    const expiredTimers = db
-      .prepare(
-        `
+    const expiredTimersResult = await db.execute({
+      sql: `
       SELECT urt.auction_id, urt.user_id, a.player_id, p.name as player_name
       FROM user_auction_response_timers urt
       JOIN auctions a ON urt.auction_id = a.id
       JOIN players p ON a.player_id = p.id
-      WHERE urt.status = 'pending' 
+      WHERE urt.status = 'pending'
         AND urt.response_deadline <= ?
         AND a.status = 'active'
-    `
-      )
-      .all(now) as Array<{
+    `,
+      args: [now],
+    });
+    const expiredTimers = expiredTimersResult.rows as unknown as Array<{
       auction_id: number;
       user_id: string;
       player_id: number;

@@ -29,11 +29,11 @@ export async function GET(
     }
 
     // Verify user is participant in this league
-    const participation = db
-      .prepare(
-        "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
-      )
-      .get(leagueId, user.id);
+    const participationResult = await db.execute({
+      sql: "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueId, user.id],
+    });
+    const participation = participationResult.rows[0];
 
     if (!participation) {
       return NextResponse.json(
@@ -43,9 +43,8 @@ export async function GET(
     }
 
     // Get current active auction
-    const activeAuction = db
-      .prepare(
-        `SELECT 
+    const activeAuctionResult = await db.execute({
+      sql: `SELECT
           a.id,
           a.player_id,
           a.current_highest_bid_amount,
@@ -58,19 +57,20 @@ export async function GET(
          JOIN players p ON a.player_id = p.id
          WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')
          ORDER BY a.created_at DESC
-         LIMIT 1`
-      )
-      .get(leagueId) as
+         LIMIT 1`,
+      args: [leagueId],
+    });
+    const activeAuction = activeAuctionResult.rows[0] as unknown as
       | {
-          id: number;
-          player_id: number;
-          current_highest_bid_amount: number;
-          current_highest_bidder_id: string | null;
-          scheduled_end_time: number;
-          status: string;
-          player_name: string;
-          player_role: string;
-        }
+        id: number;
+        player_id: number;
+        current_highest_bid_amount: number;
+        current_highest_bidder_id: string | null;
+        scheduled_end_time: number;
+        status: string;
+        player_name: string;
+        player_role: string;
+      }
       | undefined;
 
     if (!activeAuction) {

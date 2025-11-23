@@ -1,5 +1,5 @@
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
+// src/lib/actions/league.actions.ts v.1.9 (Async Migration)
+// Migrated to async database operations for Turso compatibility
 
 "use server";
 
@@ -16,60 +16,6 @@ import {
   updateParticipantTeamName,
 } from "@/lib/db/services/auction-league.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
-
-// src/lib/actions/league.actions.ts v.1.8 (Definitivo)
-// Corretto il tipo nel blocco catch di removeParticipantAction.
 
 // 2. Action: Creare una Lega
 export type CreateLeagueFormState = {
@@ -127,7 +73,8 @@ export async function createLeague(
     // eslint-disable-next-line prefer-const
     let newLeagueId: number;
 
-    const transaction = db.transaction(() => {
+    const transaction = await db.transaction("write");
+    try {
       const fields = [
         "name",
         "league_type",
@@ -163,21 +110,34 @@ export async function createLeague(
         values.push(min_bid.toString());
       }
 
-      const leagueStmt = db.prepare(
-        `INSERT INTO auction_leagues (${fields.join(", ")}) VALUES (${fields
-          .map(() => "?")
-          .join(", ")})`
-      );
+      const sql = `INSERT INTO auction_leagues (${fields.join(", ")}) VALUES (${fields
+        .map(() => "?")
+        .join(", ")}) RETURNING id`;
 
-      console.log("[createLeague] Query SQL:", leagueStmt.source);
+      console.log("[createLeague] Query SQL:", sql);
       console.log("[createLeague] Valori:", values);
 
-      const leagueResult = leagueStmt.run(...values);
-      const id = leagueResult.lastInsertRowid as number;
-      return id;
-    });
-    // eslint-disable-next-line prefer-const
-    newLeagueId = transaction();
+      const leagueResult = await transaction.execute({
+        sql,
+        args: values,
+      });
+
+      // Handle returning id differently based on driver/client support, but RETURNING id is standard in SQLite
+      // @libsql/client returns rows even for INSERT if RETURNING is used
+      const id = leagueResult.rows[0]?.id as number;
+
+      if (!id && leagueResult.lastInsertRowid) {
+        newLeagueId = Number(leagueResult.lastInsertRowid);
+      } else {
+        newLeagueId = id;
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      transaction.rollback();
+      throw error;
+    }
+
     console.log("[createLeague] Lega creata con ID:", newLeagueId);
     revalidatePath("/admin/leagues");
     return {
@@ -383,11 +343,11 @@ export async function deleteLeagueAction(
 
   try {
     // Verifica che l'admin sia il creatore della lega
-    const leagueCheck = db
-      .prepare(
-        `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`
-      )
-      .get(leagueId) as { admin_creator_id: string; name: string } | undefined;
+    const leagueCheckResult = await db.execute({
+      sql: `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`,
+      args: [leagueId],
+    });
+    const leagueCheck = leagueCheckResult.rows[0] as { admin_creator_id: string; name: string } | undefined;
 
     if (!leagueCheck) {
       return { success: false, message: "Lega non trovata." };
@@ -401,11 +361,12 @@ export async function deleteLeagueAction(
     }
 
     // Elimina la lega (le foreign key CASCADE elimineranno automaticamente i dati correlati)
-    const deleteResult = db
-      .prepare(`DELETE FROM auction_leagues WHERE id = ?`)
-      .run(leagueId);
+    const deleteResult = await db.execute({
+      sql: `DELETE FROM auction_leagues WHERE id = ?`,
+      args: [leagueId],
+    });
 
-    if (deleteResult.changes === 0) {
+    if (deleteResult.rowsAffected === 0) {
       return { success: false, message: "Errore durante l'eliminazione." };
     }
 
@@ -450,9 +411,10 @@ export async function updateActiveRolesAction(
 
   // 7.3. Chiamata diretta al DB (un servizio separato sarebbe eccessivo per una singola query)
   try {
-    db.prepare(
-      `UPDATE auction_leagues SET active_auction_roles = ? WHERE id = ?`
-    ).run(activeRolesString, leagueId);
+    await db.execute({
+      sql: `UPDATE auction_leagues SET active_auction_roles = ? WHERE id = ?`,
+      args: [activeRolesString, leagueId],
+    });
 
     // 7.4. Revalidazione del path per aggiornare la UI
     revalidatePath(`/admin/leagues/${leagueId}/dashboard`);

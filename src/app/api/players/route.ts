@@ -106,18 +106,20 @@ export async function GET(request: NextRequest) {
     // 2.3. Aggiungere informazioni sui cooldown per l'utente corrente
     const user = await currentUser();
     if (user?.id) {
-      const playersWithCooldown = result.players.map((player) => {
-        const cooldownInfo = getUserCooldownInfo(user.id, player.id);
-        return {
-          ...player,
-          cooldownInfo: cooldownInfo.canBid
-            ? null
-            : {
+      const playersWithCooldown = await Promise.all(
+        result.players.map(async (player) => {
+          const cooldownInfo = await getUserCooldownInfo(user.id, player.id);
+          return {
+            ...player,
+            cooldownInfo: cooldownInfo.canBid
+              ? null
+              : {
                 timeRemaining: cooldownInfo.timeRemaining,
                 message: cooldownInfo.message,
               },
-        };
-      });
+          };
+        })
+      );
 
       return NextResponse.json(
         {

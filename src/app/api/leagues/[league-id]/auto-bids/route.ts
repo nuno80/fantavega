@@ -24,11 +24,11 @@ export async function GET(
     }
 
     // Verifica che l'utente partecipi alla lega
-    const participation = db
-      .prepare(
-        `SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?`
-      )
-      .get(user.id, leagueId);
+    const participationResult = await db.execute({
+      sql: `SELECT 1 FROM league_participants WHERE user_id = ? AND league_id = ?`,
+      args: [user.id, leagueId],
+    });
+    const participation = participationResult.rows[0];
 
     if (!participation) {
       return NextResponse.json(
@@ -38,10 +38,9 @@ export async function GET(
     }
 
     // Restituisce tutti gli auto-bid attivi della lega (di tutti i manager)
-    const autoBids = db
-      .prepare(
-        `
-        SELECT 
+    const autoBidsResult = await db.execute({
+      sql: `
+        SELECT
           ab.player_id,
           ab.max_amount,
           ab.is_active,
@@ -49,9 +48,16 @@ export async function GET(
         FROM auto_bids ab
         JOIN auctions a ON ab.auction_id = a.id
         WHERE a.auction_league_id = ? AND ab.is_active = TRUE
-      `
-      )
-      .all(leagueId);
+      `,
+      args: [leagueId],
+    });
+
+    const autoBids = autoBidsResult.rows.map((row) => ({
+      player_id: row.player_id as number,
+      max_amount: row.max_amount as number,
+      is_active: Boolean(row.is_active),
+      user_id: row.user_id as string,
+    }));
 
     return NextResponse.json({ autoBids }, { status: 200 });
   } catch (error) {

@@ -29,11 +29,11 @@ export async function GET(
     }
 
     // Verify user is participant in this league
-    const participation = db
-      .prepare(
-        "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?"
-      )
-      .get(leagueId, user.id);
+    const participationResult = await db.execute({
+      sql: "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueId, user.id],
+    });
+    const participation = participationResult.rows[0];
 
     if (!participation) {
       return NextResponse.json(
@@ -43,9 +43,8 @@ export async function GET(
     }
 
     // Get all players with their auction status and user preferences
-    const playersWithStatus = db
-      .prepare(
-        `SELECT 
+    const playersWithStatusResult = await db.execute({
+      sql: `SELECT
           p.id,
           p.role,
           p.role_mantra as roleDetail,
@@ -59,57 +58,58 @@ export async function GET(
           (p.current_quotation_mantra - p.initial_quotation_mantra) as diffM,
           p.fvm,
           p.fvm_mantra as fvmM,
-          
+
           -- User preferences
           COALESCE(upp.is_starter, 0) as isStarter,
           COALESCE(upp.is_favorite, 0) as isFavorite,
           COALESCE(upp.integrity_value, 0) as integrityValue,
           COALESCE(upp.has_fmv, 0) as hasFmv,
-          
+
           -- Auction status
-          CASE 
+          CASE
             WHEN pa.player_id IS NOT NULL THEN 'assigned'
             WHEN a.id IS NOT NULL AND a.status = 'active' THEN 'active_auction'
             ELSE 'no_auction'
           END as auctionStatus,
-          
+
           -- Auction details
           a.id as auctionId,
           a.current_highest_bid_amount as currentBid,
           a.scheduled_end_time,
           a.current_highest_bidder_id,
           u_bidder.username as currentHighestBidderName,
-          
+
           -- Assignment details
           pa.user_id as assignedUserId,
           u.username as assignedToTeam,
           pa.purchase_price as finalPrice,
-          
+
           -- User-specific info
           CASE WHEN pa.user_id = ? THEN 1 ELSE 0 END as isAssignedToUser
-          
+
          FROM players p
          LEFT JOIN auctions a ON p.id = a.player_id AND a.auction_league_id = ? AND a.status IN ('active', 'closing')
          LEFT JOIN player_assignments pa ON p.id = pa.player_id AND pa.auction_league_id = ?
          LEFT JOIN users u ON pa.user_id = u.id
          LEFT JOIN users u_bidder ON a.current_highest_bidder_id = u_bidder.id
          LEFT JOIN user_player_preferences upp ON p.id = upp.player_id AND upp.user_id = ? AND upp.league_id = ?
-         ORDER BY p.name ASC`
-      )
-      .all(user.id, leagueId, leagueId, user.id, leagueId);
+         ORDER BY p.name ASC`,
+      args: [user.id, leagueId, leagueId, user.id, leagueId],
+    });
+    const playersWithStatus = playersWithStatusResult.rows;
 
     // Get only the current user's auto-bid information for active auctions
-    const userAutoBidsData = db
-      .prepare(
-        `SELECT 
+    const userAutoBidsResult = await db.execute({
+      sql: `SELECT
           a.player_id,
           ab.max_amount,
           ab.is_active
          FROM auto_bids ab
          JOIN auctions a ON ab.auction_id = a.id
-         WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = 1 AND a.status = 'active'`
-      )
-      .all(leagueId, user.id);
+         WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = 1 AND a.status = 'active'`,
+      args: [leagueId, user.id],
+    });
+    const userAutoBidsData = userAutoBidsResult.rows;
 
     // Create a map of user's auto-bids by player ID
     interface UserAutoBid {
@@ -122,7 +122,7 @@ export async function GET(
     }
 
     const userAutoBidsByPlayer = (
-      userAutoBidsData as Array<{
+      userAutoBidsData as unknown as Array<{
         player_id: number;
         max_amount: number;
         is_active: number;
@@ -137,28 +137,34 @@ export async function GET(
 
     // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = (
-      playersWithStatus as Array<{
-        id: number;
-        scheduled_end_time?: number;
-        [key: string]: unknown;
-      }>
-    ).map((player, _index) => {
-      const cooldownInfo = getUserCooldownInfo(user.id, player.id, leagueId);
-      return {
-        ...player,
-        timeRemaining: player.scheduled_end_time
-          ? Math.max(0, player.scheduled_end_time - now)
-          : undefined,
-        userAutoBid: userAutoBidsByPlayer[player.id] || null,
-        cooldownInfo: cooldownInfo.canBid
-          ? null
-          : {
+    const processedPlayers = await Promise.all(
+      (
+        playersWithStatus as unknown as Array<{
+          id: number;
+          scheduled_end_time?: number;
+          [key: string]: unknown;
+        }>
+      ).map(async (player, _index) => {
+        const cooldownInfo = await getUserCooldownInfo(
+          user.id,
+          player.id,
+          leagueId
+        );
+        return {
+          ...player,
+          timeRemaining: player.scheduled_end_time
+            ? Math.max(0, player.scheduled_end_time - now)
+            : undefined,
+          userAutoBid: userAutoBidsByPlayer[player.id] || null,
+          cooldownInfo: cooldownInfo.canBid
+            ? null
+            : {
               timeRemaining: cooldownInfo.timeRemaining,
               message: cooldownInfo.message,
             },
-      };
-    });
+        };
+      })
+    );
 
     return NextResponse.json(processedPlayers);
   } catch (error) {

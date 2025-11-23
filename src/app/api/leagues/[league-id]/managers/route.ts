@@ -60,11 +60,11 @@ export async function GET(
     }
 
     // Check if user is participant in this league
-    const participantCheck = db
-      .prepare(
-        "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-      )
-      .get(leagueId, user.id);
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueId, user.id],
+    });
+    const participantCheck = participantCheckResult.rows.length > 0;
 
     if (!participantCheck) {
       return NextResponse.json(
@@ -74,48 +74,57 @@ export async function GET(
     }
 
     // Get league slots configuration and managers
-    const leagueInfoStmt = db.prepare(`
-      SELECT 
-        slots_P,
-        slots_D,
-        slots_C,
-        slots_A
-      FROM auction_leagues
-      WHERE id = ?
-    `);
+    const leagueInfoResult = await db.execute({
+      sql: `
+        SELECT
+          slots_P,
+          slots_D,
+          slots_C,
+          slots_A
+        FROM auction_leagues
+        WHERE id = ?
+      `,
+      args: [leagueId],
+    });
 
-    const leagueSlots = leagueInfoStmt.get(leagueId) as LeagueSlots;
+    const leagueSlots = leagueInfoResult.rows[0] as unknown as LeagueSlots;
 
     // Get all managers/participants in the league
-    const managersStmt = db.prepare(`
-      SELECT 
-        lp.user_id,
-        lp.manager_team_name,
-        lp.current_budget,
-        lp.locked_credits,
-        al.initial_budget_per_manager as total_budget
-      FROM league_participants lp
-      JOIN auction_leagues al ON lp.league_id = al.id
-      WHERE lp.league_id = ?
-      ORDER BY lp.manager_team_name ASC, lp.user_id ASC
-    `);
+    const managersResult = await db.execute({
+      sql: `
+        SELECT
+          lp.user_id,
+          lp.manager_team_name,
+          lp.current_budget,
+          lp.locked_credits,
+          al.initial_budget_per_manager as total_budget
+        FROM league_participants lp
+        JOIN auction_leagues al ON lp.league_id = al.id
+        WHERE lp.league_id = ?
+        ORDER BY lp.manager_team_name ASC, lp.user_id ASC
+      `,
+      args: [leagueId],
+    });
 
-    const managers = managersStmt.all(leagueId) as Omit<
+    const managers = managersResult.rows as unknown as Omit<
       Manager,
       "players" | "firstName" | "lastName" | "total_penalties"
     >[];
 
     // Get total penalties for each manager
-    const penaltiesStmt = db.prepare(`
-      SELECT 
-        user_id,
-        COALESCE(SUM(amount), 0) as total_penalties
-      FROM budget_transactions 
-      WHERE auction_league_id = ? AND transaction_type = 'penalty_requirement'
-      GROUP BY user_id
-    `);
+    const penaltiesResult = await db.execute({
+      sql: `
+        SELECT
+          user_id,
+          COALESCE(SUM(amount), 0) as total_penalties
+        FROM budget_transactions
+        WHERE auction_league_id = ? AND transaction_type = 'penalty_requirement'
+        GROUP BY user_id
+      `,
+      args: [leagueId],
+    });
 
-    const penaltiesData = penaltiesStmt.all(leagueId) as {
+    const penaltiesData = penaltiesResult.rows as unknown as {
       user_id: string;
       total_penalties: number;
     }[];
@@ -135,56 +144,63 @@ export async function GET(
     }
 
     // Get active auctions with current bid amounts
-    const activeAuctionsStmt = db.prepare(`
-      SELECT 
-        a.player_id,
-        p.name as player_name,
-        p.role as player_role,
-        p.team as player_team,
-        a.current_highest_bidder_id,
-        a.current_highest_bid_amount,
-        a.scheduled_end_time
-      FROM auctions a
-      JOIN players p ON a.player_id = p.id
-      WHERE a.auction_league_id = ? AND a.status = 'active'
-    `);
+    const activeAuctionsResult = await db.execute({
+      sql: `
+        SELECT
+          a.player_id,
+          p.name as player_name,
+          p.role as player_role,
+          p.team as player_team,
+          a.current_highest_bidder_id,
+          a.current_highest_bid_amount,
+          a.scheduled_end_time
+        FROM auctions a
+        JOIN players p ON a.player_id = p.id
+        WHERE a.auction_league_id = ? AND a.status = 'active'
+      `,
+      args: [leagueId],
+    });
 
-    const activeAuctions = activeAuctionsStmt.all(leagueId) as ActiveAuction[];
+    const activeAuctions = activeAuctionsResult.rows as unknown as ActiveAuction[];
 
     // Get auto bid indicators for all active auctions (without revealing amounts)
-    const autoBidsStmt = db.prepare(`
-      SELECT 
-        a.player_id,
-        COUNT(ab.user_id) as auto_bid_count
-      FROM auto_bids ab
-      JOIN auctions a ON ab.auction_id = a.id
-      WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1
-      GROUP BY a.player_id
-    `);
+    const autoBidsResult = await db.execute({
+      sql: `
+        SELECT
+          a.player_id,
+          COUNT(ab.user_id) as auto_bid_count
+        FROM auto_bids ab
+        JOIN auctions a ON ab.auction_id = a.id
+        WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1
+        GROUP BY a.player_id
+      `,
+      args: [leagueId],
+    });
 
-    const autoBids = autoBidsStmt.all(leagueId) as {
+    const autoBids = autoBidsResult.rows as unknown as {
       player_id: number;
       auto_bid_count: number;
     }[];
 
     // Get all players for the league in one go
-    const allPlayersStmt = db.prepare(`
-      SELECT 
-        pa.user_id,
-        p.id,
-        p.name,
-        p.role,
-        p.team,
-        pa.purchase_price as assignment_price
-      FROM player_assignments pa
-      JOIN players p ON pa.player_id = p.id
-      WHERE pa.auction_league_id = ?
-      ORDER BY p.role, p.name
-    `);
+    const allPlayersResult = await db.execute({
+      sql: `
+        SELECT
+          pa.user_id,
+          p.id,
+          p.name,
+          p.role,
+          p.team,
+          pa.purchase_price as assignment_price
+        FROM player_assignments pa
+        JOIN players p ON pa.player_id = p.id
+        WHERE pa.auction_league_id = ?
+        ORDER BY p.role, p.name
+      `,
+      args: [leagueId],
+    });
 
-    const allPlayersInLeague = allPlayersStmt.all(
-      leagueId
-    ) as (PlayerInRoster & { user_id: string })[];
+    const allPlayersInLeague = allPlayersResult.rows as unknown as (PlayerInRoster & { user_id: string })[];
 
     // Group players by manager
     const playersByManager = new Map<string, PlayerInRoster[]>();

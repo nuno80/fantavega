@@ -41,13 +41,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     const leagueIdNum = parseInt(leagueIdStr, 10);
 
-    // ... (resto della funzione GET rimane invariato dalla versione v.1.0 che ti ho dato) ...
-    // ovvero, da "if (isNaN(leagueIdNum))" in poi.
-    // Per brevità, non ripeto tutto il resto della funzione.
-    // Assicurati di avere la logica di autorizzazione, verifica partecipante,
-    // chiamata al servizio e gestione errori come nella v.1.0.
-
-    // Esempio del blocco successivo (assicurati sia completo nel tuo file)
     if (isNaN(leagueIdNum)) {
       console.warn(
         `[API MANAGER_ROSTER GET] Invalid league ID format: ${leagueIdStr}`
@@ -87,13 +80,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    const participantCheckStmt = db.prepare(
-      "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-    );
-    const participantExists = participantCheckStmt.get(
-      leagueIdNum,
-      managerUserIdFromParams
-    );
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueIdNum, managerUserIdFromParams],
+    });
+    const participantExists = participantCheckResult.rows.length > 0;
 
     if (!participantExists) {
       if (authenticatedUserId === managerUserIdFromParams) {
