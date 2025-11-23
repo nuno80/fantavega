@@ -1,6 +1,6 @@
-// src/app/api/leagues/[league-id]/budget-history/route.ts v.1.2
+// src/app/api/leagues/[league-id]/budget-history/route.ts v.2.0 (Async Turso Migration)
 // API Route per recuperare la cronologia delle transazioni di budget.
-// 1. Importazioni (invariate)
+// 1. Importazioni
 import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
@@ -8,10 +8,9 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { getBudgetTransactionHistory } from "@/lib/db/services/budget.service";
 
-// 2. Interfaccia per il Contesto della Rotta (MODIFICATA)
+// 2. Interfaccia per il Contesto della Rotta
 interface RouteContext {
   params: Promise<{
-    // << MODIFICA: params ora è una Promise
     "league-id": string;
   }>;
 }
@@ -21,7 +20,7 @@ export async function GET(_request: Request, context: RouteContext) {
   console.log("[API BUDGET_HISTORY GET] Request received.");
 
   try {
-    // 3.1. Autenticazione Utente (invariata)
+    // 3.1. Autenticazione Utente
     const user = await currentUser();
     if (!user || !user.id) {
       console.warn(
@@ -31,9 +30,9 @@ export async function GET(_request: Request, context: RouteContext) {
     }
     const authenticatedUserId = user.id;
 
-    // 3.2. Parsing e Validazione Parametri Rotta (MODIFICATO)
-    const routeParams = await context.params; // << MODIFICA: Aggiunto await qui
-    const leagueIdStr = routeParams["league-id"]; // Accedi alla proprietà dopo l'await
+    // 3.2. Parsing e Validazione Parametri Rotta
+    const routeParams = await context.params;
+    const leagueIdStr = routeParams["league-id"];
     const leagueIdNum = parseInt(leagueIdStr, 10);
 
     if (isNaN(leagueIdNum)) {
@@ -50,14 +49,12 @@ export async function GET(_request: Request, context: RouteContext) {
       `[API BUDGET_HISTORY GET] User ${authenticatedUserId} requesting budget history for league ${leagueIdNum}.`
     );
 
-    // 3.3. Verifica Partecipazione Utente alla Lega (logica invariata)
-    const participantCheckStmt = db.prepare(
-      "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?"
-    );
-    const participantExists = participantCheckStmt.get(
-      leagueIdNum,
-      authenticatedUserId
-    );
+    // 3.3. Verifica Partecipazione Utente alla Lega
+    const participantCheckResult = await db.execute({
+      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueIdNum, authenticatedUserId],
+    });
+    const participantExists = participantCheckResult.rows.length > 0;
 
     if (!participantExists) {
       const isAdmin = user.publicMetadata?.role === "admin";
@@ -75,7 +72,7 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    // 3.4. Chiamata al Servizio per Ottenere la Cronologia (invariata)
+    // 3.4. Chiamata al Servizio per Ottenere la Cronologia
     const history = await getBudgetTransactionHistory(
       leagueIdNum,
       authenticatedUserId
@@ -86,7 +83,7 @@ export async function GET(_request: Request, context: RouteContext) {
     );
     return NextResponse.json(history, { status: 200 });
   } catch (error) {
-    // 3.5. Gestione Errori Generali (invariata)
+    // 3.5. Gestione Errori Generali
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     console.error(`[API BUDGET_HISTORY GET] Error: ${errorMessage}`, error);
@@ -107,5 +104,5 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 }
 
-// 4. Configurazione della Route (invariata)
+// 4. Configurazione della Route
 export const dynamic = "force-dynamic";

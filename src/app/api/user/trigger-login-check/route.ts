@@ -1,4 +1,4 @@
-// src/app/api/user/trigger-login-check/route.ts
+// src/app/api/user/trigger-login-check/route.ts v.2.0 (Async Turso Migration)
 import { NextResponse } from "next/server";
 
 import { auth } from "@clerk/nextjs/server";
@@ -15,10 +15,11 @@ export async function POST(_req: Request) {
     }
 
     // 1. Check if this session has already been processed
-    const checkStmt = db.prepare(
-      "SELECT session_id FROM processed_login_sessions WHERE session_id = ?"
-    );
-    const existingSession = checkStmt.get(sessionId);
+    const checkResult = await db.execute({
+      sql: "SELECT session_id FROM processed_login_sessions WHERE session_id = ?",
+      args: [sessionId],
+    });
+    const existingSession = checkResult.rows[0];
 
     if (existingSession) {
       return NextResponse.json({
@@ -31,21 +32,23 @@ export async function POST(_req: Request) {
       `Performing first-time login compliance check for session: ${sessionId}`
     );
 
-    const leagues = db
-      .prepare("SELECT league_id FROM league_participants WHERE user_id = ?")
-      .all(userId) as { league_id: number }[];
+    const leaguesResult = await db.execute({
+      sql: "SELECT league_id FROM league_participants WHERE user_id = ?",
+      args: [userId],
+    });
+    const leagues = leaguesResult.rows as unknown as { league_id: number }[];
 
     if (leagues.length > 0) {
       for (const league of leagues) {
-        checkAndRecordCompliance(userId, league.league_id);
+        await checkAndRecordCompliance(userId, league.league_id);
       }
     }
 
     // 3. Record this session as processed to prevent re-running
-    const insertStmt = db.prepare(
-      "INSERT INTO processed_login_sessions (session_id, user_id) VALUES (?, ?)"
-    );
-    insertStmt.run(sessionId, userId);
+    await db.execute({
+      sql: "INSERT INTO processed_login_sessions (session_id, user_id) VALUES (?, ?)",
+      args: [sessionId, userId],
+    });
 
     return NextResponse.json({
       message: "Login compliance check performed successfully.",
