@@ -347,7 +347,12 @@ export async function deleteLeagueAction(
       sql: `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`,
       args: [leagueId],
     });
-    const leagueCheck = leagueCheckResult.rows[0] as { admin_creator_id: string; name: string } | undefined;
+    const leagueCheck = leagueCheckResult.rows[0]
+      ? {
+        admin_creator_id: leagueCheckResult.rows[0].admin_creator_id as string,
+        name: leagueCheckResult.rows[0].name as string
+      }
+      : undefined;
 
     if (!leagueCheck) {
       return { success: false, message: "Lega non trovata." };
