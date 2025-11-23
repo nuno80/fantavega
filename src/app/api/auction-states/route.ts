@@ -12,21 +12,21 @@ export async function GET(request: Request) {
     }
 
     // Fetch all active auctions in the league
-    const activeAuctions = db
-      .prepare(
-        `
-      SELECT 
-        a.id as auction_id,
-        a.player_id,
-        p.name as player_name,
-        a.current_highest_bidder_id,
-        a.current_highest_bid_amount
-      FROM auctions a
-      JOIN players p ON a.player_id = p.id
-      WHERE a.auction_league_id = ? AND a.status = 'active'
-    `
-      )
-      .all(leagueId) as Array<{
+    const activeAuctionsResult = await db.execute({
+      sql: `
+        SELECT
+          a.id as auction_id,
+          a.player_id,
+          p.name as player_name,
+          a.current_highest_bidder_id,
+          a.current_highest_bid_amount
+        FROM auctions a
+        JOIN players p ON a.player_id = p.id
+        WHERE a.auction_league_id = ? AND a.status = 'active'
+      `,
+      args: [leagueId],
+    });
+    const activeAuctions = activeAuctionsResult.rows as unknown as Array<{
       auction_id: number;
       player_id: number;
       player_name: string;
@@ -35,30 +35,30 @@ export async function GET(request: Request) {
     }>;
 
     // Fetch all participants (managers) in the league
-    const leagueParticipants = db
-      .prepare(
-        `
-      SELECT user_id FROM league_participants WHERE league_id = ?
-    `
-      )
-      .all(leagueId) as Array<{ user_id: string }>;
+    const leagueParticipantsResult = await db.execute({
+      sql: `
+        SELECT user_id FROM league_participants WHERE league_id = ?
+      `,
+      args: [leagueId],
+    });
+    const leagueParticipants = leagueParticipantsResult.rows as unknown as Array<{ user_id: string }>;
 
     // Fetch all relevant response timers for active auctions in this league, for all users
-    const allResponseTimers = db
-      .prepare(
-        `
-      SELECT 
-        urt.auction_id,
-        urt.user_id,
-        urt.response_deadline,
-        urt.activated_at,
-        urt.status
-      FROM user_auction_response_timers urt
-      JOIN auctions a ON urt.auction_id = a.id
-      WHERE a.auction_league_id = ? AND a.status = 'active'
-    `
-      )
-      .all(leagueId) as Array<{
+    const allResponseTimersResult = await db.execute({
+      sql: `
+        SELECT
+          urt.auction_id,
+          urt.user_id,
+          urt.response_deadline,
+          urt.activated_at,
+          urt.status
+        FROM user_auction_response_timers urt
+        JOIN auctions a ON urt.auction_id = a.id
+        WHERE a.auction_league_id = ? AND a.status = 'active'
+      `,
+      args: [leagueId],
+    });
+    const allResponseTimers = allResponseTimersResult.rows as unknown as Array<{
       auction_id: number;
       user_id: string;
       response_deadline: number | null;
