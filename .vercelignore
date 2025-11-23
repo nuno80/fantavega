@@ -1,13 +1,33 @@
+# Development directories (keep in git, exclude from Vercel)
+.gemini/
+guide/
+Docker/
+.idx/
+.mcp/
+
+# Documentation files
+*.md
+!README.md
+
 # Test files
 test-*.ts
+test-*.js
+test_*.js
 *_test.ts
 *.test.ts
 *.spec.ts
+*.test.js
+*.spec.js
 
 # Development scripts
 check_*.ts
 update_*.ts
 debug_*.ts
+debug_*.js
+ultra-*.js
+
+# Shell scripts
+*.sh
 
 # Database files
 database/*.db
