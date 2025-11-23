@@ -93,7 +93,9 @@ export const getUserLastLogin = async (userId: string): Promise<number | null> =
       args: [userId],
     });
 
-    const session = result.rows[0] as { session_start: number } | undefined;
+    const session = result.rows[0]
+      ? { session_start: result.rows[0].session_start as number }
+      : undefined;
     return session?.session_start || null;
   } catch (error) {
     console.error("[SESSION] Error getting last login:", error);
