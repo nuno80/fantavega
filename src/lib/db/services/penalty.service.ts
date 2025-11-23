@@ -349,9 +349,8 @@ export const processUserComplianceAndPenalties = async (
           sql: "SELECT * FROM user_league_compliance_status WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
           args: [leagueId, userId, phaseIdentifier],
         });
-        complianceRecord = newRecordResult.rows[0] as UserLeagueComplianceStatus;
+        complianceRecord = newRecordResult.rows[0] as unknown as UserLeagueComplianceStatus;
       }
-
       const requiredSlots = calculateRequiredSlotsMinusOne(league);
       const coveredSlots = await countCoveredSlots(leagueId, userId);
 
