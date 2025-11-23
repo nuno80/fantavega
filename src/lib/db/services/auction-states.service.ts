@@ -29,9 +29,12 @@ export const getUserAuctionState = async (
     `,
       args: [auctionId],
     });
-    const auction = auctionResult.rows[0] as
-      | { user_auction_states: string; current_highest_bidder_id: string }
-      | undefined;
+    const auction = auctionResult.rows[0]
+      ? {
+        user_auction_states: auctionResult.rows[0].user_auction_states as string,
+        current_highest_bidder_id: auctionResult.rows[0].current_highest_bidder_id as string
+      }
+      : undefined;
 
     if (!auction) {
       return "miglior_offerta"; // Default se asta non trovata
@@ -75,13 +78,13 @@ export const setUserAuctionState = async (
     `,
       args: [auctionId],
     });
-    const auction = auctionResult.rows[0] as
-      | {
-        user_auction_states: string;
-        current_highest_bidder_id: string;
-        player_id: number;
+    const auction = auctionResult.rows[0]
+      ? {
+        user_auction_states: auctionResult.rows[0].user_auction_states as string,
+        current_highest_bidder_id: auctionResult.rows[0].current_highest_bidder_id as string,
+        player_id: auctionResult.rows[0].player_id as number
       }
-      | undefined;
+      : undefined;
 
     if (!auction) {
       throw new Error(`Auction ${auctionId} not found`);
@@ -190,32 +193,39 @@ export const handleAuctionAbandon = async (
     // Trova l'offerta dell'utente per sbloccare i crediti
     const userBidResult = await db.execute({
       sql: `
-      SELECT amount FROM bids
-      WHERE auction_id = ? AND user_id = ?
-      ORDER BY bid_time DESC LIMIT 1
-    `,
+        SELECT amount FROM bids
+        WHERE auction_id = ? AND user_id = ?
+        ORDER BY bid_time DESC LIMIT 1
+      `,
       args: [auctionId, userId],
     });
-    const userBid = userBidResult.rows[0] as { amount: number } | undefined;
+    const userBid = userBidResult.rows[0]
+      ? {
+        amount: userBidResult.rows[0].amount as number
+      }
+      : undefined;
 
     // Trova la lega e il giocatore per aggiornare i crediti e il cooldown
     const auctionResult = await db.execute({
       sql: `
-      SELECT auction_league_id, player_id FROM auctions WHERE id = ?
-    `,
+        SELECT auction_league_id, player_id FROM auctions WHERE id = ?
+      `,
       args: [auctionId],
     });
-    const auction = auctionResult.rows[0] as
-      | { auction_league_id: number; player_id: number }
-      | undefined;
+    const auction = auctionResult.rows[0]
+      ? {
+        auction_league_id: auctionResult.rows[0].auction_league_id as number,
+        player_id: auctionResult.rows[0].player_id as number
+      }
+      : undefined;
 
     // Rimuovi timer di risposta se esistente
     await db.execute({
       sql: `
-      UPDATE user_auction_response_timers
-      SET status = 'action_taken'
-      WHERE auction_id = ? AND user_id = ? AND status = 'pending'
-    `,
+        UPDATE user_auction_response_timers
+        SET status = 'action_taken'
+        WHERE auction_id = ? AND user_id = ? AND status = 'pending'
+      `,
       args: [auctionId, userId],
     });
 
@@ -223,10 +233,10 @@ export const handleAuctionAbandon = async (
     if (userBid && auction) {
       await db.execute({
         sql: `
-        UPDATE league_participants
-        SET locked_credits = locked_credits - ?
-        WHERE league_id = ? AND user_id = ?
-      `,
+          UPDATE league_participants
+          SET locked_credits = locked_credits - ?
+          WHERE league_id = ? AND user_id = ?
+        `,
         args: [userBid.amount, auction.auction_league_id, userId],
       });
     }
@@ -240,10 +250,10 @@ export const handleAuctionAbandon = async (
       // Standardizzato su user_player_preferences con preference_type = 'cooldown'
       await db.execute({
         sql: `
-        INSERT OR REPLACE INTO user_player_preferences
-        (user_id, player_id, league_id, preference_type, expires_at, created_at, updated_at)
-        VALUES (?, ?, ?, 'cooldown', ?, ?, ?)
-      `,
+          INSERT OR REPLACE INTO user_player_preferences
+          (user_id, player_id, league_id, preference_type, expires_at, created_at, updated_at)
+          VALUES (?, ?, ?, 'cooldown', ?, ?, ?)
+        `,
         args: [
           userId,
           auction.player_id,
@@ -269,15 +279,13 @@ export const handleAuctionAbandon = async (
  */
 export const getUsersWithPendingResponse = async (
   leagueId: number
-): Promise<
-  Array<{
-    user_id: string;
-    auction_id: number;
-    player_id: number;
-    player_name: string;
-    response_deadline: number;
-  }>
-> => {
+): Promise<Array<{
+  user_id: string;
+  auction_id: number;
+  player_id: number;
+  player_name: string;
+  response_deadline: number;
+}>> => {
   const result = await db.execute({
     sql: `
     SELECT DISTINCT
@@ -296,13 +304,14 @@ export const getUsersWithPendingResponse = async (
   `,
     args: [leagueId],
   });
-  return result.rows as unknown as Array<{
-    user_id: string;
-    auction_id: number;
-    player_id: number;
-    player_name: string;
-    response_deadline: number;
-  }>;
+
+  return result.rows.map(row => ({
+    user_id: row.user_id as string,
+    auction_id: row.auction_id as number,
+    player_id: row.player_id as number,
+    player_name: row.player_name as string,
+    response_deadline: row.response_deadline as number,
+  }));
 };
 
 /**
@@ -330,12 +339,12 @@ export const processExpiredResponseStates = async (): Promise<{
     `,
       args: [now],
     });
-    const expiredTimers = expiredTimersResult.rows as unknown as Array<{
-      auction_id: number;
-      user_id: string;
-      player_id: number;
-      player_name: string;
-    }>;
+    const expiredTimers = expiredTimersResult.rows.map(row => ({
+      auction_id: row.auction_id as number,
+      user_id: row.user_id as string,
+      player_id: row.player_id as number,
+      player_name: row.player_name as string,
+    }));
 
     for (const timer of expiredTimers) {
       try {
