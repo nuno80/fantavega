@@ -35,7 +35,8 @@ export async function POST(
       sql: "SELECT id, name FROM auction_leagues WHERE id = ?",
       args: [leagueId],
     });
-    const league = leagueResult.rows[0] as League | undefined;
+    const league = leagueResult.rows[0] as unknown as League | undefined;
+
 
     if (!league) {
       return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
