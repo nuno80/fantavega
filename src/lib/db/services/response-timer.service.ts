@@ -37,15 +37,17 @@ export const createResponseTimer = async (
       `[TIMER] Creating pending timer for user ${userId}, auction ${auctionId}`
     );
 
-    // Verifica se esiste già un timer pending per questa combinazione
+    /// Verifica se esiste già un timer pending per questa combinazione
     const existingTimerResult = await db.execute({
       sql: `
-      SELECT id FROM user_auction_response_timers
-      WHERE auction_id = ? AND user_id = ? AND status = 'pending'
-    `,
+    SELECT id FROM user_auction_response_timers
+    WHERE auction_id = ? AND user_id = ? AND status = 'pending'
+  `,
       args: [auctionId, userId],
     });
-    const existingTimer = existingTimerResult.rows[0] as { id: number } | undefined;
+    const existingTimer = existingTimerResult.rows[0]
+      ? { id: existingTimerResult.rows[0].id as number }
+      : undefined;
 
     if (existingTimer) {
       console.log(
@@ -445,7 +447,6 @@ export const processExpiredResponseTimers = async (): Promise<{
     throw error;
   }
 };
-
 /**
  * Abbandona volontariamente un'asta
  */
@@ -467,9 +468,12 @@ export const abandonAuction = async (
     `,
       args: [playerId, leagueId],
     });
-    const auction = auctionResult.rows[0] as
-      | { id: number; current_highest_bid_amount: number }
-      | undefined;
+    const auction = auctionResult.rows[0]
+      ? {
+        id: auctionResult.rows[0].id as number,
+        current_highest_bid_amount: auctionResult.rows[0].current_highest_bid_amount as number
+      }
+      : undefined;
 
     if (!auction) {
       throw new Error("Nessuna asta attiva trovata per questo giocatore");
@@ -483,7 +487,9 @@ export const abandonAuction = async (
     `,
       args: [userId, auction.id],
     });
-    const timer = timerResult.rows[0] as { id: number } | undefined;
+    const timer = timerResult.rows[0]
+      ? { id: timerResult.rows[0].id as number }
+      : undefined;
 
     if (!timer) {
       throw new Error("Nessun timer di risposta attivo per questo utente");
@@ -633,7 +639,9 @@ export const getUserCooldownInfo = async (
     const args = leagueId ? [userId, playerId, now, leagueId] : [userId, playerId, now];
 
     const cooldownResult = await db.execute({ sql, args });
-    const cooldown = cooldownResult.rows[0] as { expires_at: number } | undefined;
+    const cooldown = cooldownResult.rows[0]
+      ? { expires_at: cooldownResult.rows[0].expires_at as number }
+      : undefined;
 
     if (!cooldown) {
       return { canBid: true };
