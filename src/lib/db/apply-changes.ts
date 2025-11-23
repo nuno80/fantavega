@@ -55,13 +55,11 @@ async function applyAdHocChanges() {
       console.log(
         "[Apply Changes Script] adhoc_changes.sql is empty or contains only placeholder comments. No changes applied."
       );
-      // Chiudi la connessione se è stata aperta solo per questo script
-      if (db && db.open) closeDbConnection();
+      closeDbConnection();
       return; // Esce se non ci sono query da eseguire
     }
   } catch (readError) {
     console.error(
-      // prettier-ignore
       "[Apply Changes Script] Error reading adhoc_changes.sql:",
       readError
     );
@@ -71,33 +69,46 @@ async function applyAdHocChanges() {
   // 3. Applica le modifiche SQL
   console.log("[Apply Changes Script] Executing SQL from adhoc_changes.sql...");
   try {
-    // Esegui le query in una transazione per assicurare atomicità
-    db.transaction(() => {
-      db.exec(sqlToExecute);
-    })(); // Chiamata immediata della funzione transazionale
-    console.log(
-      "[Apply Changes Script] Ad-hoc changes from adhoc_changes.sql applied successfully."
-    );
-    console.warn(
-      "[Apply Changes Script] IMPORTANT: If you made structural changes (like ALTER TABLE), please ensure your main `database/schema.sql` is updated to reflect the new desired state for future initializations."
-    );
-    console.warn(
-      "[Apply Changes Script] Consider clearing or commenting out an_changes.sql after successful execution."
-    );
+    // Split SQL statements by semicolon and execute each one
+    const statements = sqlToExecute
+      .split(";")
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith("--"));
+
+    // Execute in a transaction
+    const transaction = await db.transaction("write");
+
+    try {
+      for (const statement of statements) {
+        await transaction.execute(statement);
+      }
+      await transaction.commit();
+
+      console.log(
+        "[Apply Changes Script] Ad-hoc changes from adhoc_changes.sql applied successfully."
+      );
+      console.warn(
+        "[Apply Changes Script] IMPORTANT: If you made structural changes (like ALTER TABLE), please ensure your main `database/schema.sql` is updated to reflect the new desired state for future initializations."
+      );
+      console.warn(
+        "[Apply Changes Script] Consider clearing or commenting out adhoc_changes.sql after successful execution."
+      );
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   } catch (error) {
     console.error(
       "[Apply Changes Script] Error applying SQL from adhoc_changes.sql:",
       error
     );
     console.error(
-      "[Apply Changes Script] Changes were rolled back if a transaction was active."
+      "[Apply Changes Script] Changes were rolled back."
     );
     process.exit(1);
   } finally {
-    if (db && db.open) {
-      console.log("[Apply Changes Script] Closing database connection.");
-      closeDbConnection();
-    }
+    console.log("[Apply Changes Script] Closing database connection.");
+    closeDbConnection();
   }
 }
 
