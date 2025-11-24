@@ -231,6 +231,7 @@ export function CallPlayerInterface({
     );
 
     // Handle auction closed events only (AuctionPageContent handles creation and updates)
+    // Handle auction closed events
     const handleAuctionClosed = (data: {
       playerId: number;
       playerName: string;
@@ -242,23 +243,53 @@ export function CallPlayerInterface({
         prevPlayers.map((player) =>
           player.id === data.playerId
             ? {
-                ...player,
-                auctionStatus: "assigned" as const,
-                currentBid: data.finalPrice,
-                currentHighestBidderName: data.winnerId,
-                timeRemaining: 0,
-              }
+              ...player,
+              auctionStatus: "assigned" as const,
+              currentBid: data.finalPrice,
+              currentHighestBidderName: data.winnerId,
+              timeRemaining: 0,
+            }
             : player
         )
       );
     };
 
-    // Register only auction-closed events
+    // Handle auction created events to update player status immediately
+    const handleAuctionCreated = (data: {
+      playerId: number;
+      auctionId: number;
+      newPrice: number;
+      highestBidderId: string;
+      scheduledEndTime: number;
+    }) => {
+      console.log("[CallPlayerInterface] Auction created:", data);
+      setPlayers((prevPlayers) =>
+        prevPlayers.map((player) =>
+          player.id === data.playerId
+            ? {
+              ...player,
+              auctionStatus: "active_auction" as const,
+              auctionId: data.auctionId,
+              currentBid: data.newPrice,
+              currentHighestBidderName: data.highestBidderId,
+              timeRemaining: Math.max(
+                0,
+                data.scheduledEndTime - Math.floor(Date.now() / 1000)
+              ),
+            }
+            : player
+        )
+      );
+    };
+
+    // Register events
     socket.on("auction-closed-notification", handleAuctionClosed);
+    socket.on("auction-created", handleAuctionCreated);
 
     // Cleanup on unmount
     return () => {
       socket.off("auction-closed-notification", handleAuctionClosed);
+      socket.off("auction-created", handleAuctionCreated);
     };
   }, [socket, isConnected, leagueId]);
 
@@ -516,33 +547,30 @@ export function CallPlayerInterface({
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab("chiama")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === "chiama"
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "chiama"
               ? "border-primary bg-muted text-primary"
               : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
+            }`}
         >
           <Gavel className="h-4 w-4" />
           CHIAMA
         </button>
         <button
           onClick={() => setActiveTab("stats")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === "stats"
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "stats"
               ? "border-primary bg-muted text-primary"
               : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
+            }`}
         >
           <TrendingUp className="h-4 w-4" />
           STATS
         </button>
         <button
           onClick={() => setActiveTab("filtri")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === "filtri"
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "filtri"
               ? "border-primary bg-muted text-primary"
               : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
+            }`}
         >
           <Search className="h-4 w-4" />
           FILTRI
@@ -747,15 +775,13 @@ export function CallPlayerInterface({
                   </span>
                   <Badge
                     variant="secondary"
-                    className={`text-xs ${
-                      selectedPlayerDetails.role === "P"
+                    className={`text-xs ${selectedPlayerDetails.role === "P"
                         ? "bg-yellow-500 text-gray-900"
                         : ""
-                    }${selectedPlayerDetails.role === "D" ? "bg-green-500 text-gray-900" : ""}${
-                      selectedPlayerDetails.role === "C"
+                      }${selectedPlayerDetails.role === "D" ? "bg-green-500 text-gray-900" : ""}${selectedPlayerDetails.role === "C"
                         ? "bg-blue-500 text-gray-900"
                         : ""
-                    }${selectedPlayerDetails.role === "A" ? "bg-red-500 text-gray-900" : ""}`}
+                      }${selectedPlayerDetails.role === "A" ? "bg-red-500 text-gray-900" : ""}`}
                   >
                     {selectedPlayerDetails.role}
                   </Badge>
@@ -832,11 +858,10 @@ export function CallPlayerInterface({
                   key={role.key}
                   size="sm"
                   variant={selectedRole === role.key ? "default" : "secondary"}
-                  className={`px-3 py-1 text-xs ${
-                    selectedRole === role.key
+                  className={`px-3 py-1 text-xs ${selectedRole === role.key
                       ? "bg-red-600 text-white hover:bg-red-700"
                       : "bg-gray-700 text-white hover:bg-gray-600"
-                  }`}
+                    }`}
                   onClick={() => setSelectedRole(role.key)}
                 >
                   {role.label}
@@ -850,11 +875,10 @@ export function CallPlayerInterface({
               <Button
                 size="sm"
                 variant="ghost"
-                className={`px-3 py-1 text-xs ${
-                  preferenceFilters.isStarter
+                className={`px-3 py-1 text-xs ${preferenceFilters.isStarter
                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground hover:bg-muted/90"
-                }`}
+                  }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
                     ...prev,
@@ -869,11 +893,10 @@ export function CallPlayerInterface({
               <Button
                 size="sm"
                 variant="ghost"
-                className={`px-3 py-1 text-xs ${
-                  preferenceFilters.isFavorite
+                className={`px-3 py-1 text-xs ${preferenceFilters.isFavorite
                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground hover:bg-muted/90"
-                }`}
+                  }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
                     ...prev,
@@ -888,11 +911,10 @@ export function CallPlayerInterface({
               <Button
                 size="sm"
                 variant="ghost"
-                className={`px-3 py-1 text-xs ${
-                  preferenceFilters.hasIntegrity
+                className={`px-3 py-1 text-xs ${preferenceFilters.hasIntegrity
                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground hover:bg-muted/90"
-                }`}
+                  }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
                     ...prev,
@@ -907,11 +929,10 @@ export function CallPlayerInterface({
               <Button
                 size="sm"
                 variant="ghost"
-                className={`px-3 py-1 text-xs ${
-                  preferenceFilters.hasFmv
+                className={`px-3 py-1 text-xs ${preferenceFilters.hasFmv
                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground hover:bg-muted/90"
-                }`}
+                  }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
                     ...prev,

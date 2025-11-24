@@ -8,9 +8,10 @@ declare global {
 }
 
 const projectRoot = process.cwd();
+// const dbPath = path.join(process.cwd(), "database", "starter_default.db");FileName = "starter_default.db";
 const dbDir = path.join(projectRoot, "database");
 const dbFileName = "starter_default.db";
-const dbPath = path.join(dbDir, dbFileName);
+const _dbPath = path.join(dbDir, dbFileName); // Prefixed with underscore as it's unused
 
 /**
  * Initializes the database client.

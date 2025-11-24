@@ -136,11 +136,11 @@ export const checkAndRecordCompliance = async (
     // Rimosso db.transaction() per evitare transazioni annidate
     const now = Math.floor(Date.now() / 1000);
 
-    const leagueResult = await db.execute({
+    const _result = await db.execute({
       sql: "SELECT id, status, active_auction_roles, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?",
       args: [leagueId],
     });
-    const league = leagueResult.rows[0] as unknown as
+    const league = _result.rows[0] as unknown as
       | Pick<
         AuctionLeague,
         | "id"

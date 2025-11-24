@@ -683,7 +683,7 @@ export const processUserResponse = async (
       // Verifica preliminare che l'utente possa effettivamente rilanciare (timer attivo)
       // Questo controllo è opzionale se ci fidiamo del caller, ma aggiunge sicurezza
       const activeTimers = await getUserActiveResponseTimers(userId);
-      const hasActiveTimer = activeTimers.some(t => t.auction_id); // Semplificazione, idealmente dovremmo controllare l'auction_id specifico
+      const _hasActiveTimer = activeTimers.some(t => t.auction_id); // Semplificazione, idealmente dovremmo controllare l'auction_id specifico
 
       // Ritorniamo success: true e action: "bid" per dire al controller di procedere con il bid
       return {

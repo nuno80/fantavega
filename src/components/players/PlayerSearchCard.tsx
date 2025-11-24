@@ -29,7 +29,7 @@ interface PlayerSearchCardProps {
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
 
   userRole: string;
-  userId: string;
+  _userId: string;
   onTogglePlayerIcon?: (
     playerId: number,
     iconType: "isStarter" | "isFavorite" | "integrityValue" | "hasFmv",
@@ -190,11 +190,10 @@ export function PlayerSearchCard({
 
   return (
     <Card
-      className={`relative flex h-full flex-col transition-shadow hover:shadow-lg ${
-        player.auctionStatus === "assigned"
+      className={`relative flex h-full flex-col transition-shadow hover:shadow-lg ${player.auctionStatus === "assigned"
           ? "border-red-500 bg-orange-100 dark:border-orange-800 dark:bg-orange-950/20"
           : ""
-      }`}
+        }`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
@@ -258,11 +257,10 @@ export function PlayerSearchCard({
         {/* Compact User Preferences (always visible but clickable) */}
         <div className="grid grid-cols-4 gap-2">
           <button
-            className={`rounded-lg p-2 transition-colors ${
-              player.isStarter
+            className={`rounded-lg p-2 transition-colors ${player.isStarter
                 ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
+              }`}
             onClick={() =>
               handleTogglePreference("isStarter", !player.isStarter)
             }
@@ -275,11 +273,10 @@ export function PlayerSearchCard({
           </button>
 
           <button
-            className={`rounded-lg p-2 transition-colors ${
-              player.isFavorite
+            className={`rounded-lg p-2 transition-colors ${player.isFavorite
                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
+              }`}
             onClick={() =>
               handleTogglePreference("isFavorite", !player.isFavorite)
             }
@@ -294,11 +291,10 @@ export function PlayerSearchCard({
           </button>
 
           <button
-            className={`rounded-lg p-2 transition-colors ${
-              player.integrityValue
+            className={`rounded-lg p-2 transition-colors ${player.integrityValue
                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
+              }`}
             onClick={() =>
               handleTogglePreference(
                 "integrityValue",
@@ -314,11 +310,10 @@ export function PlayerSearchCard({
           </button>
 
           <button
-            className={`rounded-lg p-2 transition-colors ${
-              player.hasFmv
+            className={`rounded-lg p-2 transition-colors ${player.hasFmv
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
+              }`}
             onClick={() => handleTogglePreference("hasFmv", !player.hasFmv)}
             title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
           >
