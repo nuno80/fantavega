@@ -9,6 +9,7 @@
     "dev:socket": "tsx watch socket-server.ts",
     "build": "next build",
     "start": "next start",
+    "start:socket": "node --loader tsx socket-server.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",

@@ -270,7 +270,7 @@ export const processUserComplianceAndPenalties = async (
 
   try {
     const tx = await db.transaction("write");
-    let result;
+    let _result;
 
     try {
       // --- INIZIO MODIFICA ---

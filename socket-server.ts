@@ -29,8 +29,25 @@ let startScheduler: (() => void) | null = null;
 })();
 
 // 2. Costanti di Configurazione
-const SOCKET_PORT = 3001;
-const NEXTJS_APP_URL = "http://localhost:3000";
+const SOCKET_PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+
+// Support multiple origins for CORS (development + production)
+const getAllowedOrigins = (): string[] => {
+  const origins = [
+    "http://localhost:3000", // Development
+  ];
+
+  // Add production origins from environment variable
+  if (process.env.ALLOWED_ORIGINS) {
+    const envOrigins = process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
+    origins.push(...envOrigins);
+  }
+
+  return origins;
+};
+
+const ALLOWED_ORIGINS = getAllowedOrigins();
+console.log("[SOCKET] Allowed CORS origins:", ALLOWED_ORIGINS);
 
 // 3. Enhanced deduplication mechanism to prevent duplicate emissions
 const recentEmissions = new Map<string, number>();
@@ -45,12 +62,12 @@ function generateEmissionKey(room: string, event: string, data: any): string {
     // For auction-created events, use playerId and auctionId as key components
     return `${room}:${event}:${data.playerId}:${data.auctionId}`;
   }
-  
+
   if (event === 'auction-update' && data && typeof data === 'object') {
     // For auction-update events, include bid amount to allow legitimate updates
     return `${room}:${event}:${data.playerId}:${data.newPrice}`;
   }
-  
+
   // For other events, use full data hash
   return `${room}:${event}:${JSON.stringify(data)}`;
 }
@@ -58,21 +75,21 @@ function generateEmissionKey(room: string, event: string, data: any): string {
 function shouldEmitEvent(room: string, event: string, data: any): boolean {
   const emissionKey = generateEmissionKey(room, event, data);
   const now = Date.now();
-  
+
   // CRITICAL: Special aggressive tracking for auction-created events
   if (event === 'auction-created' && data && typeof data === 'object') {
     const auctionKey = `${data.playerId}:${data.auctionId}`;
-    
+
     if (auctionCreatedTracker.has(auctionKey)) {
       console.error(`[SOCKET DEDUP] 🚨 CRITICAL: auction-created DUPLICATE detected for auction ${auctionKey}!`);
       console.error(`[SOCKET DEDUP] This auction-created event was already emitted. Blocking duplicate.`);
       return false;
     }
-    
+
     // Mark this auction as emitted (permanent tracking)
     auctionCreatedTracker.add(auctionKey);
     console.log(`[SOCKET DEDUP] ✅ auction-created tracking: Added ${auctionKey} to permanent tracker`);
-    
+
     // Clean up old auction tracking periodically to prevent memory growth
     if (auctionCreatedTracker.size > 1000) {
       // Remove oldest 200 entries (simple cleanup - in production use a more sophisticated LRU)
@@ -83,10 +100,10 @@ function shouldEmitEvent(room: string, event: string, data: any): boolean {
       console.log(`[SOCKET DEDUP] Cleaned auction tracker, now has ${auctionCreatedTracker.size} entries`);
     }
   }
-  
+
   // Regular time-based deduplication for all events
   const lastEmitted = recentEmissions.get(emissionKey);
-  
+
   if (lastEmitted && (now - lastEmitted) < EMISSION_DEDUP_WINDOW_MS) {
     console.warn(`[SOCKET DEDUP] Blocking duplicate emission within ${EMISSION_DEDUP_WINDOW_MS}ms window:`, {
       room,
@@ -97,10 +114,10 @@ function shouldEmitEvent(room: string, event: string, data: any): boolean {
     });
     return false;
   }
-  
+
   // Update emission tracking
   recentEmissions.set(emissionKey, now);
-  
+
   // Clean up old entries to prevent memory growth
   if (recentEmissions.size > 200) {
     const cutoff = now - EMISSION_DEDUP_WINDOW_MS * 2;
@@ -110,7 +127,7 @@ function shouldEmitEvent(room: string, event: string, data: any): boolean {
       }
     }
   }
-  
+
   return true;
 }
 
@@ -128,7 +145,7 @@ const httpServer = createServer((req, res) => {
           console.log(
             `[HTTP->Socket] Received emit request for room '${room}', event '${event}'`
           );
-          
+
           // Special logging for auction-created events
           if (event === 'auction-created' && data && typeof data === 'object') {
             console.log(
@@ -143,10 +160,10 @@ const httpServer = createServer((req, res) => {
               `[HTTP->Socket] ❌ DUPLICATE BLOCKED: Event '${event}' for room '${room}' blocked by deduplication`
             );
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ 
-              success: true, 
-              deduplicated: true, 
-              message: "Event blocked as duplicate" 
+            res.end(JSON.stringify({
+              success: true,
+              deduplicated: true,
+              message: "Event blocked as duplicate"
             }));
             return;
           }
@@ -169,7 +186,7 @@ const httpServer = createServer((req, res) => {
           console.log(
             `[HTTP->Socket] ✅ Successfully emitted event '${event}' to room '${room}' (${clientCount} clients)`
           );
-          
+
           // Special success logging for auction-created events
           if (event === 'auction-created') {
             console.log(
@@ -177,7 +194,7 @@ const httpServer = createServer((req, res) => {
             );
             console.log(`[HTTP->Socket] ✅ Emission complete for auction ${data?.auctionId}, ${clientCount} clients notified`);
           }
-          
+
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ success: true, clientCount, deduplicated: false }));
         } else {
@@ -203,8 +220,19 @@ const httpServer = createServer((req, res) => {
 // 4. Inizializzazione Server Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: NEXTJS_APP_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`[SOCKET] Blocked CORS request from origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
