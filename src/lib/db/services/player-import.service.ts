@@ -287,7 +287,6 @@ export const processPlayersExcel = async (
             now,
             now,
             now,
-            now,
             now, // Extra arg for updated_at in ON CONFLICT
           ],
         });
