@@ -28,9 +28,6 @@ function initializeDatabaseClient(): Client {
       authToken,
     });
   } else {
-    console.log(
-      `[DB Connection] Initializing Local SQLite connection at ${dbPath}...`
-    );
     // For local development with @libsql/client, we use the file: protocol
     // Note: @libsql/client 'file:' url requires the 'better-sqlite3' package to be installed as a peer dependency.
     // Since we removed better-sqlite3, we should only support remote Turso connection in production or if configured.

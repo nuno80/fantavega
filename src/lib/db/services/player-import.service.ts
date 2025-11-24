@@ -145,10 +145,22 @@ export const processPlayersExcel = async (
       `[SERVICE PLAYER_IMPORT] Successfully parsed ${jsonDataObjects.length} data rows into objects.`
     );
 
-    // Process all players in a single transaction
-    const tx = await db.transaction("write");
-    try {
-      for (const row of jsonDataObjects) {
+    // Process all players in batches
+    const BATCH_SIZE = 50;
+    const chunks = [];
+    for (let i = 0; i < jsonDataObjects.length; i += BATCH_SIZE) {
+      chunks.push(jsonDataObjects.slice(i, i + BATCH_SIZE));
+    }
+
+    console.log(
+      `[SERVICE PLAYER_IMPORT] Processing ${jsonDataObjects.length} players in ${chunks.length} batches of size ${BATCH_SIZE}.`
+    );
+
+    for (const [chunkIndex, chunk] of chunks.entries()) {
+      const batchStatements = [];
+      const currentBatchRows: { row: PlayerExcelData; excelRowNumber: number }[] = [];
+
+      for (const row of chunk) {
         result.processedRows++;
         const excelRowNumber = result.processedRows + 2;
 
@@ -229,71 +241,76 @@ export const processPlayersExcel = async (
           fvm_mantra: parseOptionalFloat(rowRecord["FVM M"]),
         };
 
-        try {
-          const now = Math.floor(Date.now() / 1000);
-          await tx.execute({
-            sql: `
-              INSERT INTO players (
-                id, role, role_mantra, name, team,
-                current_quotation, initial_quotation,
-                current_quotation_mantra, initial_quotation_mantra,
-                fvm, fvm_mantra,
-                last_updated_from_source, created_at, updated_at
-              ) VALUES (
-                ?, ?, ?, ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?, ?
-              )
-              ON CONFLICT(id) DO UPDATE SET
-                role = excluded.role,
-                role_mantra = excluded.role_mantra,
-                name = excluded.name,
-                team = excluded.team,
-                current_quotation = excluded.current_quotation,
-                initial_quotation = excluded.initial_quotation,
-                current_quotation_mantra = excluded.current_quotation_mantra,
-                initial_quotation_mantra = excluded.initial_quotation_mantra,
-                fvm = excluded.fvm,
-                fvm_mantra = excluded.fvm_mantra,
-                last_updated_from_source = excluded.last_updated_from_source,
-                updated_at = ?
-            `,
-            args: [
-              playerData.id,
-              playerData.role,
-              playerData.role_mantra,
-              playerData.name,
-              playerData.team,
-              playerData.current_quotation,
-              playerData.initial_quotation,
-              playerData.current_quotation_mantra,
-              playerData.initial_quotation_mantra,
-              playerData.fvm,
-              playerData.fvm_mantra,
-              now,
-              now,
-              now,
-              now,
-            ],
-          });
-          result.successfullyUpsertedRows++;
-        } catch (dbError: unknown) {
-          console.error(
-            `[SERVICE PLAYER_IMPORT] DB Error for player ID ${playerData.id}: ${dbError instanceof Error ? dbError.message : "Unknown error"}`
-          );
-          result.errors.push(
-            `DB Error for player ID ${playerData.id} (${playerData.name}): ${dbError instanceof Error ? dbError.message : "Unknown error"}`
-          );
-          result.failedDbOperationsRows++;
-        }
+        const now = Math.floor(Date.now() / 1000);
+
+        batchStatements.push({
+          sql: `
+            INSERT INTO players (
+              id, role, role_mantra, name, team,
+              current_quotation, initial_quotation,
+              current_quotation_mantra, initial_quotation_mantra,
+              fvm, fvm_mantra,
+              last_updated_from_source, created_at, updated_at
+            ) VALUES (
+              ?, ?, ?, ?, ?,
+              ?, ?,
+              ?, ?,
+              ?, ?,
+              ?, ?, ?
+            )
+            ON CONFLICT(id) DO UPDATE SET
+              role = excluded.role,
+              role_mantra = excluded.role_mantra,
+              name = excluded.name,
+              team = excluded.team,
+              current_quotation = excluded.current_quotation,
+              initial_quotation = excluded.initial_quotation,
+              current_quotation_mantra = excluded.current_quotation_mantra,
+              initial_quotation_mantra = excluded.initial_quotation_mantra,
+              fvm = excluded.fvm,
+              fvm_mantra = excluded.fvm_mantra,
+              last_updated_from_source = excluded.last_updated_from_source,
+              updated_at = ?
+          `,
+          args: [
+            playerData.id,
+            playerData.role,
+            playerData.role_mantra,
+            playerData.name,
+            playerData.team,
+            playerData.current_quotation,
+            playerData.initial_quotation,
+            playerData.current_quotation_mantra,
+            playerData.initial_quotation_mantra,
+            playerData.fvm,
+            playerData.fvm_mantra,
+            now,
+            now,
+            now,
+            now,
+            now, // Extra arg for updated_at in ON CONFLICT
+          ],
+        });
+
+        currentBatchRows.push({ row: playerData, excelRowNumber });
       }
 
-      await tx.commit();
-    } catch (error) {
-      await tx.rollback();
-      throw error;
+      if (batchStatements.length > 0) {
+        try {
+          await db.batch(batchStatements, "write");
+          result.successfullyUpsertedRows += batchStatements.length;
+          console.log(`[SERVICE PLAYER_IMPORT] Batch ${chunkIndex + 1}/${chunks.length} success. Upserted ${batchStatements.length} rows.`);
+        } catch (batchError) {
+          console.error(
+            `[SERVICE PLAYER_IMPORT] Batch ${chunkIndex + 1}/${chunks.length} failed:`,
+            batchError
+          );
+          result.failedDbOperationsRows += batchStatements.length;
+          result.errors.push(
+            `Batch ${chunkIndex + 1} failed: ${batchError instanceof Error ? batchError.message : "Unknown error"}`
+          );
+        }
+      }
     }
 
     if (
