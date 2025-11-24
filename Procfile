@@ -1,1 +1,1 @@
-web: node --loader tsx socket-server.ts
+web: node --import tsx socket-server.ts
