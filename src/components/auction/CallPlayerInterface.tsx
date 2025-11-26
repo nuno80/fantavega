@@ -548,8 +548,8 @@ export function CallPlayerInterface({
         <button
           onClick={() => setActiveTab("chiama")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "chiama"
-              ? "border-primary bg-muted text-primary"
-              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "border-primary bg-muted text-primary"
+            : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <Gavel className="h-4 w-4" />
@@ -558,8 +558,8 @@ export function CallPlayerInterface({
         <button
           onClick={() => setActiveTab("stats")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "stats"
-              ? "border-primary bg-muted text-primary"
-              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "border-primary bg-muted text-primary"
+            : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <TrendingUp className="h-4 w-4" />
@@ -568,8 +568,8 @@ export function CallPlayerInterface({
         <button
           onClick={() => setActiveTab("filtri")}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "filtri"
-              ? "border-primary bg-muted text-primary"
-              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "border-primary bg-muted text-primary"
+            : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <Search className="h-4 w-4" />
@@ -717,7 +717,7 @@ export function CallPlayerInterface({
                 <SelectValue placeholder="Seleziona Giocatore" />
               </SelectTrigger>
               <SelectContent className="max-h-60 border-border bg-card">
-                {filteredPlayers.map((player) => (
+                {filteredPlayers.slice(0, 50).map((player) => (
                   <SelectItem
                     key={player.id}
                     value={player.id.toString()}
@@ -740,6 +740,11 @@ export function CallPlayerInterface({
                     </div>
                   </SelectItem>
                 ))}
+                {filteredPlayers.length > 50 && (
+                  <div className="px-2 py-2 text-center text-xs text-muted-foreground">
+                    ... altri {filteredPlayers.length - 50} risultati. Affina la ricerca.
+                  </div>
+                )}
               </SelectContent>
             </Select>
 
@@ -776,8 +781,8 @@ export function CallPlayerInterface({
                   <Badge
                     variant="secondary"
                     className={`text-xs ${selectedPlayerDetails.role === "P"
-                        ? "bg-yellow-500 text-gray-900"
-                        : ""
+                      ? "bg-yellow-500 text-gray-900"
+                      : ""
                       }${selectedPlayerDetails.role === "D" ? "bg-green-500 text-gray-900" : ""}${selectedPlayerDetails.role === "C"
                         ? "bg-blue-500 text-gray-900"
                         : ""
@@ -859,8 +864,8 @@ export function CallPlayerInterface({
                   size="sm"
                   variant={selectedRole === role.key ? "default" : "secondary"}
                   className={`px-3 py-1 text-xs ${selectedRole === role.key
-                      ? "bg-red-600 text-white hover:bg-red-700"
-                      : "bg-gray-700 text-white hover:bg-gray-600"
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-gray-700 text-white hover:bg-gray-600"
                     }`}
                   onClick={() => setSelectedRole(role.key)}
                 >
@@ -876,8 +881,8 @@ export function CallPlayerInterface({
                 size="sm"
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${preferenceFilters.isStarter
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground hover:bg-muted/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground hover:bg-muted/90"
                   }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
@@ -894,8 +899,8 @@ export function CallPlayerInterface({
                 size="sm"
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${preferenceFilters.isFavorite
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground hover:bg-muted/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground hover:bg-muted/90"
                   }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
@@ -912,8 +917,8 @@ export function CallPlayerInterface({
                 size="sm"
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${preferenceFilters.hasIntegrity
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground hover:bg-muted/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground hover:bg-muted/90"
                   }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
@@ -930,8 +935,8 @@ export function CallPlayerInterface({
                 size="sm"
                 variant="ghost"
                 className={`px-3 py-1 text-xs ${preferenceFilters.hasFmv
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground hover:bg-muted/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground hover:bg-muted/90"
                   }`}
                 onClick={() =>
                   setPreferenceFilters((prev) => ({
