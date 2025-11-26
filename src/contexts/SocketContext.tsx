@@ -100,7 +100,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
       newSocket.off("disconnect", onDisconnect);
       newSocket.disconnect();
     };
-  }, [socket, userId]); // L'effetto si riesegue se l'userId cambia (login/logout)
+  }, [userId]); // Rimosso 'socket' dalle dipendenze per evitare loop infiniti
 
   const value = { socket, isConnected };
 
