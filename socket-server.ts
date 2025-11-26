@@ -220,17 +220,7 @@ const httpServer = createServer((req, res) => {
 // 4. Inizializzazione Server Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      if (ALLOWED_ORIGINS.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`[SOCKET] Blocked CORS request from origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: true, // Allow all origins temporarily for debugging
     methods: ["GET", "POST"],
     credentials: true,
   },
