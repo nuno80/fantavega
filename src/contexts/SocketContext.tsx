@@ -66,8 +66,9 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     }
 
     // Inizializziamo la connessione al nostro server socket
-    // NOTA: In produzione, questo URL dovrebbe essere una variabile d'ambiente
-    const newSocket = io("http://localhost:3001");
+    // Usa la variabile d'ambiente in produzione, fallback a localhost in dev
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+    const newSocket = io(socketUrl);
 
     // Salviamo l'istanza del socket nello stato
     setSocket(newSocket);
