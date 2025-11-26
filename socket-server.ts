@@ -29,7 +29,7 @@ let startScheduler: (() => void) | null = null;
 })();
 
 // 2. Costanti di Configurazione
-const SOCKET_PORT = process.env.SOCKET_PORT ? parseInt(process.env.SOCKET_PORT) : 3001;
+const SOCKET_PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
 // Support multiple origins for CORS (development + production)
 const getAllowedOrigins = (): string[] => {
