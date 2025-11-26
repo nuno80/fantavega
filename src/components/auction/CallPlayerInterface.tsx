@@ -280,6 +280,9 @@ export function CallPlayerInterface({
             : player
         )
       );
+
+      // Force refresh from API to ensure consistency
+      refreshPlayersData();
     };
 
     // Register events
