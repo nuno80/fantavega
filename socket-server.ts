@@ -261,6 +261,9 @@ io.on("connection", (socket: Socket) => {
       const clientIds = Array.from(roomClients);
       console.log(`[Socket] Room '${roomName}' clients:`, clientIds);
     }
+
+    // Confirm join to client
+    socket.emit("room-joined", { room: roomName });
   });
 
   // Evento per lasciare una stanza di lega

@@ -319,11 +319,17 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       }
     };
 
+    const handleRoomJoined = (data: { room: string }) => {
+      console.log(`✅ Joined room: ${data.room}`);
+      // Optional: toast.success(`Connesso alla stanza: ${data.room}`);
+    };
+
     socket.on("auction-created", handleAuctionCreated);
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("compliance-status-changed", handleComplianceStatusChange);
+    socket.on("room-joined", handleRoomJoined);
 
     return () => {
       socket.off("auction-created", handleAuctionCreated);
@@ -331,6 +337,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("compliance-status-changed", handleComplianceStatusChange);
+      socket.off("room-joined", handleRoomJoined);
       socket.emit("leave-league-room", selectedLeagueId.toString());
     };
   }, [
