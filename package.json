@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "start:socket": "node --import tsx socket-server.ts",
+    "start:all": "concurrently \"pnpm start\" \"node --import tsx socket-server.ts\"",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",

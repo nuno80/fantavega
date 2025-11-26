@@ -1,1 +1,1 @@
-web: node --import tsx socket-server.ts
+web: pnpm start & node --import tsx socket-server.ts
