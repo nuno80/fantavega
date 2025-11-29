@@ -196,6 +196,20 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     }
   }, []);
 
+  const fetchUserAuctionStates = useCallback(async (leagueId: number) => {
+    try {
+      const res = await fetch(
+        `/api/user/auction-states?leagueId=${leagueId}&_t=${Date.now()}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setUserAuctionStates(data.states || []);
+      }
+    } catch (e) {
+      console.error("Error fetching user auction states:", e);
+    }
+  }, []);
+
   // Effect for initial data load and re-fetching when league changes
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -217,6 +231,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
           fetchManagersData(selectedLeagueId),
           fetchCurrentAuction(selectedLeagueId),
           fetchComplianceData(selectedLeagueId),
+          fetchUserAuctionStates(selectedLeagueId),
         ]);
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -231,6 +246,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     fetchManagersData,
     fetchCurrentAuction,
     fetchComplianceData,
+    fetchUserAuctionStates,
   ]);
 
   // Add state to track the last compliance status notification
@@ -247,27 +263,31 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     socket.emit("join-league-room", selectedLeagueId.toString());
 
     const handleAuctionCreated = (data: { playerName: string }) => {
-      console.log("Socket event: auction-created", data);
+      console.log("[SOCKET DEBUG] Received auction-created:", data);
       toast.info(`Nuova asta: ${data.playerName}`);
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
+      fetchUserAuctionStates(selectedLeagueId);
     };
 
     const handleAuctionUpdate = (data: unknown) => {
-      console.log("Socket event: auction-update", data);
+      console.log("[SOCKET DEBUG] Received auction-update:", data);
       // This is the robust fix: re-fetch all relevant data
       fetchManagersData(selectedLeagueId);
       fetchCurrentAuction(selectedLeagueId);
       fetchComplianceData(selectedLeagueId);
+      fetchUserAuctionStates(selectedLeagueId);
     };
 
     const handleBidSurpassed = (data: {
       playerName: string;
       newBidAmount: number;
     }) => {
+      console.log("[SOCKET DEBUG] Received bid-surpassed-notification:", data);
       toast.warning(`La tua offerta per ${data.playerName} è stata superata!`, {
         description: `Nuova offerta: ${data.newBidAmount} crediti.`,
       });
+      fetchUserAuctionStates(selectedLeagueId);
     };
 
     // Handler for penalty applied notification
@@ -348,6 +368,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     fetchCurrentAuction,
     fetchComplianceData,
     refreshComplianceData,
+    fetchUserAuctionStates,
     userId,
     lastComplianceNotification
   ]);

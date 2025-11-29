@@ -1,6 +1,8 @@
 // src/lib/socket-emitter.ts
 
-const SOCKET_SERVER_URL = "http://localhost:3001/api/emit";
+const SOCKET_BASE_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+const SOCKET_SERVER_URL = `${SOCKET_BASE_URL}/api/emit`;
 
 // Throttling mechanism to prevent duplicate events
 const recentEvents = new Map<string, number>();
