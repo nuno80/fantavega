@@ -39,12 +39,16 @@ export async function POST(
 
     const body = await request.json();
     const { action } = body;
+    console.log(`[API RESPONSE-ACTION] Received action: '${action}'`);
 
     if (action !== "bid" && action !== "fold") {
+      console.error(`[API RESPONSE-ACTION] Invalid action received: '${action}'`);
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
+    console.log(`[API RESPONSE-ACTION] Action validated successfully`);
 
     // 1. Verifica che l'utente partecipi alla lega
+    console.log(`[API RESPONSE-ACTION] Checking league participation for user ${user.id} in league ${leagueId}`);
     const participantResult = await db.execute({
       sql: `SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?`,
       args: [leagueId, user.id],
@@ -52,15 +56,21 @@ export async function POST(
     const participant = participantResult.rows[0];
 
     if (!participant) {
+      console.error(`[API RESPONSE-ACTION] User ${user.id} not found in league ${leagueId}`);
       return NextResponse.json(
         { error: "Non sei autorizzato ad accedere a questa lega" },
         { status: 403 }
       );
     }
+    console.log(`[API RESPONSE-ACTION] League participation confirmed`);
 
     // 2. Verifica cooldown
+    console.log(`[API RESPONSE-ACTION] Checking cooldown for user ${user.id}, player ${playerId}`);
     const cooldownInfo = await getUserCooldownInfo(user.id, playerId, leagueId);
+    console.log(`[API RESPONSE-ACTION] Cooldown check result:`, cooldownInfo);
+
     if (!cooldownInfo.canBid) {
+      console.error(`[API RESPONSE-ACTION] User ${user.id} is in cooldown for player ${playerId}`);
       return NextResponse.json(
         {
           error: "Cooldown attivo",
@@ -70,8 +80,10 @@ export async function POST(
         { status: 429 }
       );
     }
+    console.log(`[API RESPONSE-ACTION] Cooldown check passed`);
 
     // 3. Recupera l'asta attiva
+    console.log(`[API RESPONSE-ACTION] Fetching active auction for player ${playerId} in league ${leagueId}`);
     const auctionResult = await db.execute({
       sql: `
         SELECT
@@ -100,12 +112,16 @@ export async function POST(
       }
       | undefined;
 
+    console.log(`[API RESPONSE-ACTION] Auction query result:`, auction ? `Found auction ${auction.id}` : 'No auction found');
+
     if (!auction) {
+      console.error(`[API RESPONSE-ACTION] No active auction found for player ${playerId} in league ${leagueId}`);
       return NextResponse.json(
         { error: "Asta non attiva o non trovata" },
         { status: 404 }
       );
     }
+    console.log(`[API RESPONSE-ACTION] Active auction found: ${auction.id}`);
 
     // 4. Processa l'azione usando il servizio (solo per fold o validazione bid)
     console.log(`[API RESPONSE-ACTION] Processing action '${action}' for user ${user.id}, player ${playerId}, league ${leagueId}`);
