@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { toast } from "sonner";
 
@@ -249,8 +249,8 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     fetchUserAuctionStates,
   ]);
 
-  // Add state to track the last compliance status notification
-  const [lastComplianceNotification, setLastComplianceNotification] = useState<{
+  // Use ref to track the last compliance status notification to avoid dependency cycles
+  const lastComplianceNotificationRef = useRef<{
     userId: string;
     isCompliant: boolean;
     timestamp: number;
@@ -314,17 +314,18 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
       console.log("Socket event: compliance-status-changed", data);
 
       // Check if this is a duplicate notification (within a 5-second window)
-      const isDuplicate = lastComplianceNotification &&
-        lastComplianceNotification.userId === data.userId &&
-        lastComplianceNotification.isCompliant === data.isCompliant &&
-        Date.now() - lastComplianceNotification.timestamp < 5000; // 5-second window
+      const lastNotification = lastComplianceNotificationRef.current;
+      const isDuplicate = lastNotification &&
+        lastNotification.userId === data.userId &&
+        lastNotification.isCompliant === data.isCompliant &&
+        Date.now() - lastNotification.timestamp < 5000; // 5-second window
 
       // Update the last notification state
-      setLastComplianceNotification({
+      lastComplianceNotificationRef.current = {
         userId: data.userId,
         isCompliant: data.isCompliant,
         timestamp: Date.now() // Use current time instead of event timestamp
-      });
+      };
 
       // Refresh compliance data for all users when compliance status changes
       fetchComplianceData(selectedLeagueId);
@@ -369,8 +370,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
     fetchComplianceData,
     refreshComplianceData,
     fetchUserAuctionStates,
-    userId,
-    lastComplianceNotification
+    userId
   ]);
 
   // The rest of the component logic for handlePlaceBid, etc. remains largely the same
