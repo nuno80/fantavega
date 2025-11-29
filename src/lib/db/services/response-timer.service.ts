@@ -533,11 +533,12 @@ export const abandonAuction = async (
     await transaction.execute({
       sql: `
       INSERT INTO budget_transactions
-      (user_id, league_id, amount, transaction_type, description, created_at)
-      VALUES (?, ?, 0, 'auction_abandoned', ?, ?)
+      (user_id, auction_league_id, league_id, amount, transaction_type, description, created_at, balance_after_in_league)
+      VALUES (?, ?, ?, 0, 'auction_abandoned', ?, ?, 0)
     `,
       args: [
         userId,
+        leagueId,
         leagueId,
         `Abbandonata asta per giocatore ${playerId} - Cooldown 48h applicato`,
         now,
