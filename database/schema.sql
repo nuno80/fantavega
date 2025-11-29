@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     role TEXT NOT NULL DEFAULT 'manager' CHECK(role IN ('admin', 'manager')),
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('pending_approval', 'active', 'suspended')),
-    created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
@@ -52,10 +52,10 @@ CREATE TABLE IF NOT EXISTS auction_leagues (
     -- CORREZIONE: Aggiornato il CHECK constraint con la lista di stati semplificata
     status TEXT NOT NULL DEFAULT 'participants_joining' CHECK(status IN ('participants_joining', 'draft_active', 'repair_active', 'market_closed', 'completed')),
     active_auction_roles TEXT,
-    draft_window_start INTEGER, 
-    draft_window_end INTEGER,   
-    repair_1_window_start INTEGER, 
-    repair_1_window_end INTEGER,   
+    draft_window_start INTEGER,
+    draft_window_end INTEGER,
+    repair_1_window_start INTEGER,
+    repair_1_window_end INTEGER,
     admin_creator_id TEXT NOT NULL,
     slots_P INTEGER NOT NULL DEFAULT 3,
     slots_D INTEGER NOT NULL DEFAULT 8,
@@ -77,14 +77,14 @@ CREATE TABLE IF NOT EXISTS league_participants (
     user_id TEXT NOT NULL,
     current_budget INTEGER NOT NULL,
     locked_credits INTEGER NOT NULL DEFAULT 0,
-    manager_team_name TEXT, 
+    manager_team_name TEXT,
     players_P_acquired INTEGER NOT NULL DEFAULT 0,
     players_D_acquired INTEGER NOT NULL DEFAULT 0,
     players_C_acquired INTEGER NOT NULL DEFAULT 0,
     players_A_acquired INTEGER NOT NULL DEFAULT 0,
     total_players_acquired INTEGER GENERATED ALWAYS AS (players_P_acquired + players_D_acquired + players_C_acquired + players_A_acquired) STORED,
     joined_at INTEGER DEFAULT (strftime('%s', 'now')),
-    updated_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     PRIMARY KEY (league_id, user_id),
     FOREIGN KEY (league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -95,8 +95,8 @@ CREATE TABLE IF NOT EXISTS auctions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_league_id INTEGER NOT NULL,
     player_id INTEGER NOT NULL,
-    start_time INTEGER NOT NULL, 
-    scheduled_end_time INTEGER NOT NULL, 
+    start_time INTEGER NOT NULL,
+    scheduled_end_time INTEGER NOT NULL,
     current_highest_bid_amount INTEGER DEFAULT 0,
     current_highest_bidder_id TEXT,
     user_auction_states TEXT, -- JSON string to store user-specific states
@@ -107,8 +107,8 @@ CREATE TABLE IF NOT EXISTS auctions (
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
     FOREIGN KEY (current_highest_bidder_id) REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status); 
-CREATE INDEX IF NOT EXISTS idx_auctions_league_player ON auctions(auction_league_id, player_id); 
+CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status);
+CREATE INDEX IF NOT EXISTS idx_auctions_league_player ON auctions(auction_league_id, player_id);
 CREATE INDEX IF NOT EXISTS idx_auctions_status_scheduled_end ON auctions(status, scheduled_end_time);
 
 -- Tabella Offerte (per un'asta)
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS bids (
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     amount INTEGER NOT NULL,
-    bid_time INTEGER DEFAULT (strftime('%s', 'now')), 
+    bid_time INTEGER DEFAULT (strftime('%s', 'now')),
     bid_type TEXT DEFAULT 'manual' CHECK(bid_type IN ('manual', 'auto', 'quick')),
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS player_assignments (
     player_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     purchase_price INTEGER NOT NULL,
-    assigned_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    assigned_at INTEGER DEFAULT (strftime('%s', 'now')),
     PRIMARY KEY (auction_league_id, player_id),
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
@@ -160,12 +160,12 @@ CREATE TABLE IF NOT EXISTS player_discard_requests (
     user_id TEXT NOT NULL,
     player_id INTEGER NOT NULL,
     reason TEXT,
-    requested_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    requested_at INTEGER DEFAULT (strftime('%s', 'now')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
     admin_resolver_id TEXT,
-    resolved_at INTEGER, 
+    resolved_at INTEGER,
     credit_refund_amount INTEGER,
-    updated_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
@@ -186,15 +186,16 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
         'admin_budget_increase', -- Futuro
         'admin_budget_decrease', -- Futuro
         'penalty_response_timeout', -- Futuro
-        'timer_expired' -- Aggiunto per timer scaduti
+        'timer_expired', -- Aggiunto per timer scaduti
+        'auction_abandoned' -- Aggiunto per abbandono volontario
     )),
-    amount INTEGER NOT NULL, 
+    amount INTEGER NOT NULL,
     related_auction_id INTEGER,
     related_player_id INTEGER,
     related_discard_request_id INTEGER,
     description TEXT,
-    balance_after_in_league INTEGER NOT NULL, 
-    transaction_time INTEGER DEFAULT (strftime('%s', 'now')), 
+    balance_after_in_league INTEGER NOT NULL,
+    transaction_time INTEGER DEFAULT (strftime('%s', 'now')),
     created_at INTEGER DEFAULT (strftime('%s', 'now')), -- Aggiunto per compatibilità
     FOREIGN KEY (auction_league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
     FOREIGN KEY (league_id) REFERENCES auction_leagues(id) ON DELETE CASCADE,
@@ -210,8 +211,8 @@ CREATE TABLE IF NOT EXISTS user_auction_cooldowns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
-    abandoned_at INTEGER DEFAULT (strftime('%s', 'now')), 
-    cooldown_ends_at INTEGER NOT NULL, 
+    abandoned_at INTEGER DEFAULT (strftime('%s', 'now')),
+    cooldown_ends_at INTEGER NOT NULL,
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(auction_id, user_id)
@@ -222,7 +223,7 @@ CREATE TABLE IF NOT EXISTS user_auction_response_timers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
-    created_at INTEGER DEFAULT (strftime('%s', 'now')), 
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
     response_deadline INTEGER, -- NULL = timer pendente, valore = timer attivo
     activated_at INTEGER, -- quando il timer è stato attivato (login utente)
     processed_at INTEGER, -- quando il timer è stato processato
@@ -245,7 +246,7 @@ CREATE TABLE IF NOT EXISTS user_player_preferences (
     expires_at INTEGER, -- timestamp di scadenza per cooldown (NULL = permanente)
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-    
+
     PRIMARY KEY (user_id, player_id, league_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
@@ -253,20 +254,20 @@ CREATE TABLE IF NOT EXISTS user_player_preferences (
 );
 
 -- Indici per performance delle preferenze utente
-CREATE INDEX IF NOT EXISTS idx_user_player_preferences_user_league 
+CREATE INDEX IF NOT EXISTS idx_user_player_preferences_user_league
 ON user_player_preferences(user_id, league_id);
 
-CREATE INDEX IF NOT EXISTS idx_user_player_preferences_player_league 
+CREATE INDEX IF NOT EXISTS idx_user_player_preferences_player_league
 ON user_player_preferences(player_id, league_id);
 
 -- NUOVA TABELLA: Per Tracciare lo Stato di Conformità dell'Utente ai Requisiti di Rosa per Lega/Fase
 CREATE TABLE IF NOT EXISTS user_league_compliance_status (
     league_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
-    phase_identifier TEXT NOT NULL, 
-    compliance_timer_start_at INTEGER, 
-    last_penalty_applied_for_hour_ending_at INTEGER, 
-    penalties_applied_this_cycle INTEGER NOT NULL DEFAULT 0, 
+    phase_identifier TEXT NOT NULL,
+    compliance_timer_start_at INTEGER,
+    last_penalty_applied_for_hour_ending_at INTEGER,
+    penalties_applied_this_cycle INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     PRIMARY KEY (league_id, user_id, phase_identifier),
@@ -345,7 +346,7 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, session_end);
 
 -- Constraint: solo una sessione attiva per utente
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_unique_active 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_unique_active
 ON user_sessions(user_id) WHERE session_end IS NULL;
 
 -- NUOVO TRIGGER: per user_league_compliance_status
@@ -354,7 +355,7 @@ AFTER UPDATE ON user_league_compliance_status
 FOR EACH ROW
 WHEN OLD.updated_at = NEW.updated_at OR NEW.updated_at IS NULL
 BEGIN
-    UPDATE user_league_compliance_status SET updated_at = strftime('%s', 'now') 
+    UPDATE user_league_compliance_status SET updated_at = strftime('%s', 'now')
     WHERE league_id = OLD.league_id AND user_id = OLD.user_id AND phase_identifier = OLD.phase_identifier;
 END;
 
