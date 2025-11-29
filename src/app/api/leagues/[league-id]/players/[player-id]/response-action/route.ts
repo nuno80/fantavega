@@ -108,6 +108,8 @@ export async function POST(
     }
 
     // 4. Processa l'azione usando il servizio (solo per fold o validazione bid)
+    console.log(`[API RESPONSE-ACTION] Processing action '${action}' for user ${user.id}, player ${playerId}, league ${leagueId}`);
+
     const result = await processUserResponse(
       user.id,
       leagueId,
@@ -115,7 +117,10 @@ export async function POST(
       action
     );
 
+    console.log(`[API RESPONSE-ACTION] processUserResponse result:`, result);
+
     if (!result.success) {
+      console.error(`[API RESPONSE-ACTION] Action failed:`, result.message);
       return NextResponse.json(
         { error: result.message || "Failed to process action" },
         { status: 400 }

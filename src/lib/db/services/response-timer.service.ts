@@ -492,8 +492,11 @@ export const abandonAuction = async (
       : undefined;
 
     if (!timer) {
+      console.error(`[TIMER] abandonAuction failed: No active timer found for user ${userId}, auction ${auction.id}`);
       throw new Error("Nessun timer di risposta attivo per questo utente");
     }
+
+    console.log(`[TIMER] Found timer ${timer.id} for user ${userId}, proceeding with abandon`);
 
     // Marca timer come abbandonato
     await transaction.execute({
