@@ -464,7 +464,7 @@ export const abandonAuction = async (
       sql: `
       SELECT id, current_highest_bid_amount
       FROM auctions
-      WHERE player_id = ? AND league_id = ? AND status = 'active'
+      WHERE player_id = ? AND auction_league_id = ? AND status = 'active'
     `,
       args: [playerId, leagueId],
     });

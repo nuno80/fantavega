@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
-import { SocketDebugger } from "@/components/debug/SocketDebugger";
+// import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
 import { useLeague } from "@/hooks/useLeague";
@@ -479,7 +479,7 @@ export function AuctionPageContent({ userId }: AuctionPageContentProps) {
         )}
       </div>
 
-      {selectedLeagueId && <SocketDebugger leagueId={selectedLeagueId} />}
+      {/* {selectedLeagueId && <SocketDebugger leagueId={selectedLeagueId} />} */}
     </div>
   );
 }

@@ -2,7 +2,138 @@
 
 A comprehensive fantasy sports auction application built with Next.js 15, featuring real-time bidding, league management, player roster compliance, and advanced auction mechanics.
 
-## 🚀 Quickstart Guide
+## 🌐 Production Deployment Guide
+
+This application requires **two separate services** to run in production:
+1. **Next.js Application** (Vercel) - Frontend and API routes
+2. **Socket.IO Server** (Railway) - Real-time WebSocket connections
+
+### Prerequisites
+
+- GitHub repository with your code
+- [Vercel](https://vercel.com) account
+- [Railway](https://railway.app) account
+- [Clerk](https://clerk.com) account for authentication
+
+### Step 1: Deploy Socket.IO Server to Railway
+
+1. **Create New Project on Railway:**
+   - Go to [Railway Dashboard](https://railway.app/dashboard)
+   - Click "New Project" → "Deploy from GitHub repo"
+   - Select your `fantavega` repository
+
+2. **Configure Build Settings:**
+   - Railway should auto-detect Node.js
+   - Set **Start Command**: `node socket-server.ts`
+   - Set **Build Command**: (leave empty, no build needed)
+
+3. **Set Environment Variables:**
+   ```
+   ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-app-git-main.vercel.app
+   TURSO_DATABASE_URL=your_turso_url
+   TURSO_AUTH_TOKEN=your_turso_token
+   ```
+   > ⚠️ **Important**: Add ALL Vercel deployment URLs (production + preview branches) to `ALLOWED_ORIGINS`
+
+4. **Get Railway Public URL:**
+   - After deployment, Railway will provide a public URL (e.g., `https://fantavega-production.up.railway.app`)
+   - **Copy this URL** - you'll need it for Vercel configuration
+
+5. **Keep Service Active:**
+   - Railway may pause services after inactivity (Hobby plan)
+   - Check Railway dashboard if real-time features stop working
+   - Upgrade to paid plan to prevent auto-pause
+
+### Step 2: Deploy Next.js App to Vercel
+
+1. **Import Project:**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "Add New" → "Project"
+   - Import your GitHub repository
+
+2. **Configure Environment Variables:**
+
+   Go to **Settings** → **Environment Variables** and add:
+
+   ```
+   # Clerk Authentication
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_YOUR_KEY
+   CLERK_SECRET_KEY=sk_live_YOUR_KEY
+
+   # Socket.IO Server (Railway URL from Step 1)
+   NEXT_PUBLIC_SOCKET_URL=https://fantavega-production.up.railway.app
+
+   # Database (Turso)
+   TURSO_DATABASE_URL=libsql://your-db.turso.io
+   TURSO_AUTH_TOKEN=your_token
+   ```
+
+   > ⚠️ **Critical**: `NEXT_PUBLIC_SOCKET_URL` must point to your Railway URL
+
+3. **Deploy:**
+   - Click "Deploy"
+   - Vercel will automatically deploy on every push to `main` branch
+
+### Step 3: Verify Real-Time Features
+
+After both services are deployed:
+
+1. **Open Browser Console** (F12)
+2. **Navigate to Auction Page**
+3. **Check for these logs:**
+   ```
+   ✅ Socket.IO: Connesso al server.
+   ✅ Joined room: league-X
+   ```
+4. **Start an auction** and verify you see:
+   ```
+   [SOCKET DEBUG] Received auction-created: {...}
+   ```
+
+### Troubleshooting
+
+#### ❌ Socket Connection Fails (CORS Error)
+
+**Problem**: Browser shows `Access-Control-Allow-Origin` error
+
+**Solution**:
+1. Check Railway environment variable `ALLOWED_ORIGINS`
+2. Ensure it includes ALL Vercel URLs (production + preview)
+3. Restart Railway service after changing env vars
+
+#### ❌ No Real-Time Updates
+
+**Problem**: UI doesn't update after bids, requires manual refresh
+
+**Solutions**:
+1. **Railway service paused**: Go to Railway dashboard and restart service
+2. **Wrong Socket URL**: Verify `NEXT_PUBLIC_SOCKET_URL` on Vercel matches Railway public URL
+3. **Check Railway logs**: Look for `[HTTP->Socket] Received emit request` messages
+4. **Redeploy Vercel**: Sometimes a fresh deployment is needed after env var changes
+
+#### ❌ 502 Bad Gateway
+
+**Problem**: Socket.IO returns 502 error
+
+**Solution**:
+- Railway service is likely down or restarting
+- Check Railway logs for errors
+- Restart the service manually
+
+### Environment Variables Reference
+
+| Variable | Service | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_SOCKET_URL` | Vercel | Railway public URL for Socket.IO |
+| `ALLOWED_ORIGINS` | Railway | Comma-separated list of Vercel URLs |
+| `TURSO_DATABASE_URL` | Both | Turso database connection URL |
+| `TURSO_AUTH_TOKEN` | Both | Turso authentication token |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Vercel | Clerk public key |
+| `CLERK_SECRET_KEY` | Vercel | Clerk secret key |
+
+---
+
+## 🚀 Local Development Quickstart
 
 Get your fantasy sports auction platform up and running quickly:
 
