@@ -1,0 +1,27 @@
+{
+  "last_update": "2025-11-29T15:45:00Z",
+  "tasks": [
+    {
+      "id": "FN-12",
+      "name": "Fix Auction Abandonment & Real-time Updates",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-12.1",
+          "name": "Fix Real-time Updates (CORS & Socket URL)",
+          "status": "completed"
+        },
+        {
+          "id": "FN-12.2",
+          "name": "Fix Auction Abandonment (Database Constraints)",
+          "status": "completed"
+        },
+        {
+          "id": "FN-12.3",
+          "name": "Fix Infinite Compliance Loop",
+          "status": "completed"
+        }
+      ]
+    }
+  ]
+}

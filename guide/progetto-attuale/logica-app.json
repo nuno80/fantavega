@@ -1,6 +1,5 @@
 {
   "last_update": "2025-08-30T18:03:12Z",
-
   "task_completed": "FN-11 - Implementazione Selettore Lega",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
@@ -86,4 +85,39 @@
       }
     ]
   }
+},
+"auction_abandonment_logic": {
+  "feature_name": "Abbandono Asta e Timer di Risposta",
+  "summary": "Permette agli utenti di abbandonare volontariamente un'asta quando vengono superati, invece di attendere la scadenza del timer. Questo libera immediatamente i crediti bloccati e applica un cooldown di 48 ore per quel giocatore.",
+  "architectural_pattern": "Gestito tramite l'endpoint `/api/leagues/[id]/players/[id]/response-action` e il servizio `response-timer.service.ts`. L'azione 'fold' triggera la funzione `abandonAuction`.",
+  "user_flow": [
+    "1. L'utente riceve una notifica di superamento offerta.",
+    "2. Apre il modale di risposta e clicca su 'Abbandona'.",
+    "3. Il frontend invia una richiesta POST con action='fold'.",
+    "4. Il backend verifica che l'utente abbia un timer attivo e non sia già in cooldown.",
+    "5. Se valido, l'asta viene abbandonata per l'utente, i crediti sbloccati, e viene registrata una transazione 'auction_abandoned'.",
+    "6. Viene applicato un cooldown di 48 ore per quel giocatore."
+  ],
+  "database_interactions": [
+    {
+      "table": "budget_transactions",
+      "operation": "INSERT",
+      "description": "Registra l'abbandono con tipo 'auction_abandoned'. Richiede `auction_league_id`."
+    },
+    {
+      "table": "user_auction_cooldowns",
+      "operation": "INSERT",
+      "description": "Crea un record di cooldown per l'utente e il giocatore."
+    }
+  ]
+},
+"infinite_loop_fix": {
+  "feature_name": "Ottimizzazione Loop Notifiche Compliance",
+  "summary": "Risoluzione di un bug critico che causava un loop infinito di notifiche e riconnessioni socket. Il fix coinvolge sia il backend (emissione condizionale) che il frontend (gestione dipendenze useEffect).",
+  "architectural_pattern": "Backend: Conditional Event Emission. Frontend: Ref Ref-based State Tracking.",
+  "technical_details": [
+    "Backend (penalty.service.ts): Modificato per emettere l'evento `compliance-status-changed` SOLO se è stata applicata una penalità o se lo stato di compliance è effettivamente cambiato.",
+    "Frontend (AuctionPageContent.tsx): Sostituito `useState` con `useRef` per tracciare l'ultima notifica ricevuta, rimuovendo la dipendenza che causava il re-rendering e la riconnessione al socket ad ogni evento."
+  ]
+}
 }
