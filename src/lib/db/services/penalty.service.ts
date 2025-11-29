@@ -485,16 +485,20 @@ export const processUserComplianceAndPenalties = async (
     }
 
     // Notify all users in the league about the compliance status change
-    await notifySocketServer({
-      room: `league-${leagueId}`,
-      event: "compliance-status-changed",
-      data: {
-        userId,
-        isCompliant: isNowCompliant,
-        appliedPenaltyAmount,
-        timestamp: Math.floor(Date.now() / 1000),
-      },
-    });
+    // ONLY if a penalty was applied OR the user became compliant.
+    // This prevents infinite loops when the scheduler checks non-compliant users who are just waiting for the next penalty.
+    if (appliedPenaltyAmount > 0 || isNowCompliant) {
+      await notifySocketServer({
+        room: `league-${leagueId}`,
+        event: "compliance-status-changed",
+        data: {
+          userId,
+          isCompliant: isNowCompliant,
+          appliedPenaltyAmount,
+          timestamp: Math.floor(Date.now() / 1000),
+        },
+      });
+    }
 
     // Calculate timing information for non-compliant users
     let gracePeriodEndTime: number | undefined;
