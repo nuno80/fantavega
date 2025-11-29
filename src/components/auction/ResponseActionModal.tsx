@@ -51,7 +51,7 @@ export function ResponseActionModal({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "abandon" }),
+          body: JSON.stringify({ action: "fold" }),
         }
       );
 
@@ -82,7 +82,7 @@ export function ResponseActionModal({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "counter_bid" }),
+          body: JSON.stringify({ action: "bid" }),
         }
       );
 
