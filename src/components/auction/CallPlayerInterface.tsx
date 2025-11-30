@@ -78,6 +78,7 @@ interface ApiPlayer {
   fvm?: number;
   fvm_mantra?: number;
   auction_status?: "no_auction" | "active_auction" | "assigned";
+  current_bid?: number;
 }
 
 export function CallPlayerInterface({
@@ -155,6 +156,8 @@ export function CallPlayerInterface({
             fvmM: player.fvm_mantra || 0,
             // Auction status is now fetched from the API
             auctionStatus: player.auction_status || ("no_auction" as const),
+            // Map current_bid from API to currentBid in our interface
+            currentBid: player.current_bid,
             // Default preferences - these would come from user preferences API
             isStarter: false,
             isFavorite: false,

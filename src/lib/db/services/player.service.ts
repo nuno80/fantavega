@@ -21,6 +21,7 @@ export interface Player {
   created_at?: number;
   updated_at?: number;
   auction_status?: "no_auction" | "active_auction" | "assigned";
+  current_bid?: number;
 }
 
 export interface GetPlayersOptions {
@@ -109,11 +110,12 @@ export const getPlayers = async (
           WHEN (SELECT 1 FROM player_assignments pa WHERE pa.player_id = p.id AND pa.auction_league_id = ?) THEN 'assigned'
           WHEN (SELECT 1 FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') THEN 'active_auction'
           ELSE 'no_auction'
-        END as auction_status
+        END as auction_status,
+        (SELECT current_price FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid
     `;
-    selectParams.push(leagueId, leagueId);
+    selectParams.push(leagueId, leagueId, leagueId);
   } else {
-    selectClause = "SELECT p.*, 'no_auction' as auction_status";
+    selectClause = "SELECT p.*, 'no_auction' as auction_status, NULL as current_bid";
   }
 
   const fromClause = "FROM players p";
