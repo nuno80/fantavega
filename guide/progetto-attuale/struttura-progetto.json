@@ -24,6 +24,18 @@
     {
       "path": "src/lib/scheduler.ts",
       "description": "Modificato per includere il processamento delle aste scadute e per ridurre l'intervallo di esecuzione."
+    },
+    {
+      "path": "src/lib/db/services/player.service.ts",
+      "description": "Aggiornato per includere il campo `current_bid` nella query `getPlayers` per le aste attive."
+    },
+    {
+      "path": "src/components/auction/CallPlayerInterface.tsx",
+      "description": "Aggiornato per mappare `current_bid` dall'API allo stato del componente."
+    },
+    {
+      "path": "src/components/players/QuickBidModal.tsx",
+      "description": "Aggiornato per utilizzare `currentBid + 1` come valore di default per le offerte."
     }
   ]
 }

@@ -20,6 +20,11 @@
           "id": "FN-12.3",
           "name": "Fix Infinite Compliance Loop",
           "status": "completed"
+        },
+        {
+          "id": "FN-12.4",
+          "name": "Fix Default Bid Amount (Active Auctions)",
+          "status": "completed"
         }
       ]
     }
