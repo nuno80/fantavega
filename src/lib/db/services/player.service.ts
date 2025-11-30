@@ -111,7 +111,7 @@ export const getPlayers = async (
           WHEN (SELECT 1 FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') THEN 'active_auction'
           ELSE 'no_auction'
         END as auction_status,
-        (SELECT current_price FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid
+        (SELECT current_highest_bid_amount FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid
     `;
     selectParams.push(leagueId, leagueId, leagueId);
   } else {

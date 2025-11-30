@@ -116,8 +116,16 @@
   "summary": "Risoluzione di un bug critico che causava un loop infinito di notifiche e riconnessioni socket. Il fix coinvolge sia il backend (emissione condizionale) che il frontend (gestione dipendenze useEffect).",
   "architectural_pattern": "Backend: Conditional Event Emission. Frontend: Ref Ref-based State Tracking.",
   "technical_details": [
-    "Backend (penalty.service.ts): Modificato per emettere l'evento `compliance-status-changed` SOLO se è stata applicata una penalità o se lo stato di compliance è effettivamente cambiato.",
     "Frontend (AuctionPageContent.tsx): Sostituito `useState` con `useRef` per tracciare l'ultima notifica ricevuta, rimuovendo la dipendenza che causava il re-rendering e la riconnessione al socket ad ogni evento."
+  ]
+},
+"default_bid_logic_fix": {
+  "feature_name": "Correzione Default Bid Amount",
+  "summary": "Risolto un problema per cui il modale di offerta rapida (`QuickBidModal`) non mostrava il valore corretto (offerta attuale + 1) quando si tentava di rilanciare su un'asta attiva avviata da un altro utente.",
+  "technical_details": [
+    "Backend (player.service.ts): Aggiornata la query `getPlayers` per includere il campo `current_highest_bid_amount` dalla tabella `auctions` come `current_bid` per i giocatori in stato 'active_auction'.",
+    "Frontend (CallPlayerInterface.tsx): Aggiornata l'interfaccia `ApiPlayer` e la funzione di mapping `refreshPlayersData` per leggere `current_bid` dall'API e passarlo allo stato del componente.",
+    "Frontend (QuickBidModal.tsx): Aggiornata la logica di inizializzazione per usare `currentBid + 1` come valore di default quando disponibile."
   ]
 }
 }
