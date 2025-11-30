@@ -267,31 +267,41 @@ export function AuctionPageContent({
       highestBidderId: string;
       scheduledEndTime: number;
     }) => {
-      console.log("[AUCTION UPDATE] Received auction update:", {
-        playerId: data.playerId,
-        newPrice: data.newPrice,
-        highestBidderId: data.highestBidderId,
-      });
+      console.log("[AUCTION UPDATE] ========== START ==========");
+      console.log("[AUCTION UPDATE] Received data:", JSON.stringify(data, null, 2));
+      console.log("[AUCTION UPDATE] Current auction before update:", currentAuction);
+      console.log("[AUCTION UPDATE] Active auctions before update:", activeAuctions);
 
       // Update currentAuction state locally (no refetch)
       setCurrentAuction((prev) => {
+        console.log("[AUCTION UPDATE] Updating currentAuction. Prev:", prev);
         if (prev && data.playerId === prev.player_id) {
-          return {
+          const updated = {
             ...prev,
             current_highest_bid_amount: data.newPrice,
             current_highest_bidder_id: data.highestBidderId,
             scheduled_end_time: data.scheduledEndTime,
           };
+          console.log("[AUCTION UPDATE] Updated currentAuction:", updated);
+          return updated;
         }
+        console.log("[AUCTION UPDATE] No match, keeping prev currentAuction");
         return prev;
       });
 
       // Update activeAuctions state locally (no refetch)
-      setActiveAuctions((prevAuctions) =>
-        prevAuctions.map((auction) => {
+      setActiveAuctions((prevAuctions) => {
+        console.log("[AUCTION UPDATE] Updating activeAuctions. Count:", prevAuctions.length);
+        const updated = prevAuctions.map((auction) => {
           if (auction.player_id === data.playerId) {
             console.log(
-              `[AUCTION UPDATE] Updating active auction list for player ${data.playerId}`
+              `[AUCTION UPDATE] ✅ Updating active auction for player ${data.playerId}`,
+              {
+                oldPrice: auction.current_highest_bid_amount,
+                newPrice: data.newPrice,
+                oldBidder: auction.current_highest_bidder_id,
+                newBidder: data.highestBidderId,
+              }
             );
             return {
               ...auction,
@@ -301,11 +311,15 @@ export function AuctionPageContent({
             };
           }
           return auction;
-        })
-      );
+        });
+        console.log("[AUCTION UPDATE] Updated activeAuctions:", updated);
+        return updated;
+      });
 
       // Refresh user auction states to show response_needed slots
+      console.log("[AUCTION UPDATE] Fetching user auction states for league:", selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
+      console.log("[AUCTION UPDATE] ========== END ==========");
     };
 
     const handleAuctionCreated = (data: { playerName: string }) => {
