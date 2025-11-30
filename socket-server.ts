@@ -232,6 +232,37 @@ console.log("🚀 Avvio del server Socket.IO...");
 io.on("connection", (socket: Socket) => {
   console.log(`✅ Utente connesso: ${socket.id}`);
 
+  // **GENERIC**: Evento generico per unirsi a qualsiasi stanza
+  socket.on("join-room", (roomName: string) => {
+    if (!roomName) return;
+    socket.join(roomName);
+
+    // Log room info after joining
+    const roomClients = io.sockets.adapter.rooms.get(roomName);
+    const clientCount = roomClients ? roomClients.size : 0;
+
+    console.log(
+      `[Socket] Client ${socket.id} joined room: ${roomName} (now ${clientCount} clients total)`
+    );
+
+    // Confirm join to client
+    socket.emit("room-joined", { room: roomName });
+  });
+
+  // **GENERIC**: Evento generico per lasciare qualsiasi stanza
+  socket.on("leave-room", (roomName: string) => {
+    if (!roomName) return;
+    socket.leave(roomName);
+
+    // Log room info after leaving
+    const roomClients = io.sockets.adapter.rooms.get(roomName);
+    const clientCount = roomClients ? roomClients.size : 0;
+
+    console.log(
+      `[Socket] Client ${socket.id} left room: ${roomName} (now ${clientCount} clients remaining)`
+    );
+  });
+
   // Evento per unirsi a una stanza di lega (es. 'league-123')
   socket.on("join-league-room", (leagueId: string) => {
     if (!leagueId) return;
