@@ -12,6 +12,7 @@ import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
 import { useLeague } from "@/hooks/useLeague";
 
+import { placeBidAction } from "@/lib/actions/auction.actions";
 import {
   ActiveAuction,
   AutoBidCount,
@@ -459,22 +460,16 @@ export function AuctionPageContent({
     }
 
     try {
-      const response = await fetch(
-        `/api/leagues/${selectedLeagueId}/players/${playerId}/bids`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount,
-            bid_type: bidType,
-            max_amount: maxAmount,
-          }),
-        }
+      const result = await placeBidAction(
+        selectedLeagueId,
+        playerId,
+        amount,
+        bidType,
+        maxAmount
       );
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Errore nel piazzare l'offerta");
+      if (!result.success) {
+        throw new Error(result.error || "Errore nel piazzare l'offerta");
       }
 
       toast.success("Offerta piazzata con successo!");

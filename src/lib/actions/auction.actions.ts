@@ -5,7 +5,7 @@ import {
   placeBidOnExistingAuction,
   placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
-import { abandonAuction } from "@/lib/db/services/response-timer.service";
+import { abandonAuction, markTimerCompleted } from "@/lib/db/services/response-timer.service";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
@@ -50,6 +50,9 @@ export async function placeBidAction(
         bidType,
         autoBidMaxAmount: maxAmount,
       });
+
+      // Mark timer as completed if it exists
+      await markTimerCompleted(existingAuction.id, userId);
     } else {
       // Create new auction
       console.log(`[ACTION] Creating new auction for player ${playerId}`);

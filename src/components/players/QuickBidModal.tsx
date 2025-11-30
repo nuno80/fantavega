@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { placeBidAction } from "@/lib/actions/auction.actions";
 
 interface QuickBidModalProps {
   isOpen: boolean;
@@ -153,7 +154,7 @@ export function QuickBidModal({
 
     setIsSubmitting(true);
 
-    // Costruisce il corpo della richiesta in un unico oggetto
+    // Costruisce il corpo della richiesta in un unico oggetto per debug
     const requestBody: {
       amount: number;
       bid_type: "manual" | "auto";
@@ -167,30 +168,24 @@ export function QuickBidModal({
       requestBody.max_amount = maxAmount;
     }
 
-    console.log("[DEBUG QUICK BID] About to submit bid with:");
-    console.log("[DEBUG QUICK BID] bidAmount:", bidAmount);
-    console.log("[DEBUG QUICK BID] useAutoBid:", useAutoBid);
-    console.log("[DEBUG QUICK BID] maxAmount:", maxAmount);
-    console.log("[DEBUG QUICK BID] requestBody:", requestBody);
+    console.log("[DEBUG QUICK BID] About to submit bid with:", requestBody);
 
     try {
       // Esegue una singola chiamata API per l'offerta e l'auto-bid
-      const response = await fetch(
-        `/api/leagues/${leagueId}/players/${player.id}/bids`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        }
+      const result = await placeBidAction(
+        leagueId,
+        player.id,
+        bidAmount,
+        useAutoBid ? "quick" : "manual",
+        useAutoBid ? maxAmount : undefined
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nel piazzare l'offerta");
+      if (!result.success) {
+        throw new Error(result.error || "Errore nel piazzare l'offerta");
       }
 
       // Gestisce il successo della chiamata unificata
-      if (useAutoBid && requestBody.max_amount) {
+      if (useAutoBid && maxAmount) {
         toast.success(
           `Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`
         );
@@ -202,8 +197,6 @@ export function QuickBidModal({
 
       // La chiamata onBidSuccess() viene rimossa per prevenire race conditions.
       // L'aggiornamento dei dati ora è gestito esclusivamente dal listener Socket.IO
-      // nel componente PlayerSearchInterface, che garantisce che la UI rifletta
-      // lo stato reale del database dopo la notifica dell'avvenuta offerta.
     } catch (error) {
       // Parse the error message to provide specific user feedback
       let userFriendlyMessage = "Errore nel piazzare l'offerta";

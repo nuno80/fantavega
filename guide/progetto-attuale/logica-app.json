@@ -137,5 +137,30 @@
       "Frontend (CallPlayerInterface.tsx): Aggiornata l'interfaccia `ApiPlayer` e la funzione di mapping `refreshPlayersData` per leggere `current_bid` dall'API e passarlo allo stato del componente.",
       "Frontend (QuickBidModal.tsx): Aggiornata la logica di inizializzazione per usare `currentBid + 1` come valore di default quando disponibile."
     ]
+  },
+  "socket_room_fix": {
+    "feature_name": "Fix Connessione Stanze Socket.IO",
+    "summary": "Risolto un problema critico per cui il client non riceveva eventi real-time perché il server Socket.IO ascoltava eventi con nomi diversi ('join-league-room') da quelli emessi dal client ('join-room').",
+    "technical_details": [
+      "Backend (socket-server.ts): Aggiunti handler generici `join-room` e `leave-room` per supportare le chiamate del client.",
+      "Frontend (AuctionPageContent.tsx): Corretta la gestione della risposta di `fetchUserAuctionStates` per prevenire crash client-side."
+    ]
+  },
+  "ui_optimization": {
+    "feature_name": "Ottimizzazione Modale Avvio Asta",
+    "summary": "Migliorata la reattività dell'interfaccia rimuovendo un refresh dati bloccante prima dell'apertura del modale di avvio asta.",
+    "technical_details": [
+      "Frontend (CallPlayerInterface.tsx): Rimossa la chiamata `refreshPlayersData()` prima di `setIsStartAuctionModalOpen(true)`. Il modale ora si apre istantaneamente usando i dati locali."
+    ]
+  },
+  "server_actions_implementation": {
+    "feature_name": "Server Actions per Interazioni Asta",
+    "summary": "Migrazione delle interazioni critiche dell'asta (offerte, creazione asta, abbandono) dalle API Routes alle Server Actions di Next.js. Questo migliora la type safety, riduce il codice client-side e centralizza la logica di validazione e gestione errori.",
+    "architectural_pattern": "Le Server Actions (`placeBidAction`, `abandonAuctionAction`) sono definite in `src/lib/actions/auction.actions.ts`. I componenti client (`AuctionPageContent`, `CallPlayerInterface`, `QuickBidModal`) importano e invocano direttamente queste funzioni asincrone, gestendo il risultato tipizzato (`ActionResponse`).",
+    "technical_details": [
+      "Server Action (placeBidAction): Gestisce sia la creazione di nuove aste che le offerte su aste esistenti, incapsulando la logica di business di `bid.service.ts`.",
+      "Server Action (abandonAuctionAction): Gestisce l'abbandono di un'asta attiva.",
+      "Client Integration: I componenti UI invocano le actions e gestiscono i feedback (successo/errore) tramite toast notifications, eliminando la necessità di `fetch` manuali."
+    ]
   }
 }

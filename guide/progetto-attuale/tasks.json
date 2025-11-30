@@ -49,6 +49,45 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-14",
+      "name": "Fix Real-time Updates & UI Optimization",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-14.1",
+          "name": "Fix Socket Room Joining (Server-side)",
+          "status": "completed"
+        },
+        {
+          "id": "FN-14.2",
+          "name": "Fix Client-side Crash (Data Parsing)",
+          "status": "completed"
+        },
+        {
+          "id": "FN-14.3",
+          "name": "Optimize Start Auction Modal (Remove Blocking Refresh)",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "FN-15",
+      "name": "Implement Server Actions for Auctions",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-15.1",
+          "name": "Create Auction Server Actions",
+          "status": "completed"
+        },
+        {
+          "id": "FN-15.2",
+          "name": "Refactor Client Components to use Server Actions",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }
