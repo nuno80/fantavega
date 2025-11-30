@@ -60,10 +60,7 @@ export function ResponseActionModal({
       if (response.ok) {
         toast.success(data.message);
         onClose();
-        // Refresh page to update UI after abandoning auction
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // UI will update automatically via socket events
       } else {
         toast.error(data.error || "Errore durante l'abbandono");
       }
