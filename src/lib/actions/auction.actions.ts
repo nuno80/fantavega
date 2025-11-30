@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 export type ActionResponse = {
   success: boolean;
   message?: string;
-  data?: any;
+  data?: unknown;
   error?: string;
 };
 
@@ -64,9 +64,10 @@ export async function placeBidAction(
 
     revalidatePath(`/auctions`);
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[ACTION] placeBid Error:", error);
-    return { success: false, error: error.message || "Failed to place bid" };
+    const errorMessage = error instanceof Error ? error.message : "Failed to place bid";
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -90,8 +91,9 @@ export async function abandonAuctionAction(
 
     revalidatePath(`/auctions`);
     return { success: true, message: "Auction abandoned successfully" };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[ACTION] abandonAuction Error:", error);
-    return { success: false, error: error.message || "Failed to abandon auction" };
+    const errorMessage = error instanceof Error ? error.message : "Failed to abandon auction";
+    return { success: false, error: errorMessage };
   }
 }
