@@ -382,27 +382,16 @@ export function CallPlayerInterface({
     if (!selectedPlayerForStartAuction) return;
 
     try {
-      const requestBody = {
-        amount: amount,
-        bid_type: bidType,
-        max_amount: maxAmount, // Corretto: usa 'max_amount' come si aspetta l'API
-      };
-
-      const response = await fetch(
-        `/api/leagues/${leagueId}/players/${selectedPlayerForStartAuction.id}/bids`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        }
+      const result = await placeBidAction(
+        leagueId,
+        selectedPlayerForStartAuction.id,
+        amount,
+        bidType,
+        maxAmount
       );
 
-      if (!response.ok) {
-        const error = await response.json();
-
-        // Parse the error message to provide specific user feedback
-        const errorMessage =
-          error.message || error.error || "Errore nel creare l'asta";
+      if (!result.success) {
+        const errorMessage = result.error || "Errore nel creare l'asta";
 
         // Check for specific error conditions and provide appropriate messages
         if (errorMessage.includes("superiore all'offerta attuale")) {
