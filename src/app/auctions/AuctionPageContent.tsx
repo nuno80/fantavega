@@ -256,8 +256,23 @@ export function AuctionPageContent({
 
   // Socket event handlers
   useEffect(() => {
-    if (!isConnected || !socket || !selectedLeagueId) return;
+    console.log("[SOCKET ROOMS] useEffect triggered", {
+      isConnected,
+      hasSocket: !!socket,
+      selectedLeagueId,
+      userId,
+    });
 
+    if (!isConnected || !socket || !selectedLeagueId) {
+      console.log("[SOCKET ROOMS] ❌ Not joining rooms - conditions not met:", {
+        isConnected,
+        hasSocket: !!socket,
+        selectedLeagueId,
+      });
+      return;
+    }
+
+    console.log("[SOCKET ROOMS] ✅ Joining rooms for league:", selectedLeagueId);
     socket.emit("join-room", `league-${selectedLeagueId}`);
     socket.emit("join-room", `user-${userId}`);
 
