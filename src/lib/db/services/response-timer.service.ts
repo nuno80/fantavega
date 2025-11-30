@@ -547,15 +547,15 @@ export const abandonAuction = async (
 
     await transaction.commit();
 
-    // Notifica real-time
+    // Notifica real-time usando auction-update per aggiornare la UI
     await notifySocketServer({
-      event: "auction-abandoned",
+      event: "auction-update",
       room: `league-${leagueId}`,
       data: {
         userId,
         playerId,
         auctionId: auction.id,
-        cooldownExpiry,
+        action: "abandoned",
       },
     });
 
