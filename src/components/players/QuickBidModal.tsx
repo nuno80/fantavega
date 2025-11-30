@@ -75,30 +75,17 @@ export function QuickBidModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    console.log("[QuickBidModal] Player data:", {
-      name: player?.name,
-      currentBid: player?.currentBid,
-      qtA: player?.qtA,
-      auctionStatus: player?.auctionStatus,
-    });
-
     if (player?.currentBid !== undefined && player?.currentBid > 0) {
       // Asta attiva: offerta attuale + 1
       const newBidAmount = player.currentBid + 1;
-      console.log(
-        "[QuickBidModal] Using currentBid + 1:",
-        newBidAmount
-      );
       setBidAmount(newBidAmount);
       setMaxAmount(newBidAmount + 9);
     } else if (player?.qtA) {
       // Nessuna asta attiva: usa QtA come valore di default
-      console.log("[QuickBidModal] Using qtA:", player.qtA);
       setBidAmount(player.qtA);
       setMaxAmount(player.qtA + 10);
     } else {
       // Fallback: 1 credito
-      console.log("[QuickBidModal] Using fallback: 1");
       setBidAmount(1);
       setMaxAmount(10);
     }
@@ -153,22 +140,6 @@ export function QuickBidModal({
     if (!canSubmitBid) return;
 
     setIsSubmitting(true);
-
-    // Costruisce il corpo della richiesta in un unico oggetto per debug
-    const requestBody: {
-      amount: number;
-      bid_type: "manual" | "auto";
-      max_amount?: number;
-    } = {
-      amount: bidAmount,
-      bid_type: useAutoBid ? "auto" : "manual",
-    };
-
-    if (useAutoBid && maxAmount > bidAmount) {
-      requestBody.max_amount = maxAmount;
-    }
-
-    console.log("[DEBUG QUICK BID] About to submit bid with:", requestBody);
 
     try {
       // Esegue una singola chiamata API per l'offerta e l'auto-bid

@@ -126,16 +126,6 @@ export function StandardBidModal({
       const initialBid = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
       setBidAmount(initialBid);
 
-      // DEBUG: Log the values being used
-      console.log("[StandardBidModal] Debug info:", {
-        isNewAuction,
-        playerQtA,
-        currentBid,
-        initialBid,
-        playerName,
-        enforcedMinimum: isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1,
-      });
-
       // Use existing auto-bid data if available
       const currentAutoBid = existingAutoBid || fetchedAutoBid;
       if (currentAutoBid && currentAutoBid.is_active) {
@@ -179,18 +169,6 @@ export function StandardBidModal({
     setIsSubmitting(true);
     try {
       // Il modale passa i dati al genitore, che gestisce la logica API.
-      console.log("[DEBUG MODAL] About to call onBidSuccess with:");
-      console.log("[DEBUG MODAL] bidAmount:", bidAmount);
-      console.log("[DEBUG MODAL] playerQtA:", playerQtA);
-      console.log("[DEBUG MODAL] isNewAuction:", isNewAuction);
-      console.log("[DEBUG MODAL] minValidBid:", minValidBid);
-      console.log("[DEBUG MODAL] bidType:", useAutoBid ? "quick" : "manual");
-      console.log(
-        "[DEBUG MODAL] maxAmount:",
-        useAutoBid ? maxAmount : undefined
-      );
-      console.log("[DEBUG MODAL] useAutoBid:", useAutoBid);
-
       if (onBidSuccess) {
         await onBidSuccess(
           bidAmount,
@@ -341,7 +319,7 @@ export function StandardBidModal({
                 disabled={
                   isSubmitting ||
                   (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) >
-                    availableBudget
+                  availableBudget
                 }
               >
                 MIN
@@ -353,7 +331,7 @@ export function StandardBidModal({
                 disabled={
                   isSubmitting ||
                   (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 1 >
-                    availableBudget
+                  availableBudget
                 }
               >
                 +1
@@ -365,7 +343,7 @@ export function StandardBidModal({
                 disabled={
                   isSubmitting ||
                   (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 4 >
-                    availableBudget
+                  availableBudget
                 }
               >
                 +5
@@ -377,7 +355,7 @@ export function StandardBidModal({
                 disabled={
                   isSubmitting ||
                   (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 9 >
-                    availableBudget
+                  availableBudget
                 }
               >
                 +10
@@ -389,8 +367,8 @@ export function StandardBidModal({
                 disabled={
                   isSubmitting ||
                   (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) +
-                    19 >
-                    availableBudget
+                  19 >
+                  availableBudget
                 }
               >
                 +20

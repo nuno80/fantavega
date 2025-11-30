@@ -88,6 +88,23 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-16",
+      "name": "Code Optimization & Cleanup",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-16.1",
+          "name": "Remove Debug Logging",
+          "status": "completed"
+        },
+        {
+          "id": "FN-16.2",
+          "name": "Migrate ResponseActionModal to Server Actions",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

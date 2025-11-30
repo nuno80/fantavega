@@ -65,7 +65,7 @@ export async function placeBidAction(
       );
     }
 
-    revalidatePath(`/auctions`);
+    revalidatePath("/auctions");
     return { success: true, data: result };
   } catch (error: unknown) {
     console.error("[ACTION] placeBid Error:", error);
@@ -92,8 +92,8 @@ export async function abandonAuctionAction(
     // Call the service to abandon the auction
     await abandonAuction(userId, leagueId, playerId);
 
-    revalidatePath(`/auctions`);
-    return { success: true, message: "Auction abandoned successfully" };
+    revalidatePath("/auctions");
+    return { success: true, message: "Asta abbandonata con successo" };
   } catch (error: unknown) {
     console.error("[ACTION] abandonAuction Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to abandon auction";

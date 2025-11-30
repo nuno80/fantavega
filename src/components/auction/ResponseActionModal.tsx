@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { abandonAuctionAction } from "@/lib/actions/auction.actions";
 
 interface ResponseActionModalProps {
   isOpen: boolean;
@@ -46,59 +47,28 @@ export function ResponseActionModal({
   const handleAbandon = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `/api/leagues/${leagueId}/players/${playerId}/response-action`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "fold" }),
-        }
-      );
+      const result = await abandonAuctionAction(leagueId, playerId);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(data.message);
+      if (result.success) {
+        toast.success(result.message || "Asta abbandonata con successo");
         onClose();
         // UI will update automatically via socket events
       } else {
-        toast.error(data.error || "Errore durante l'abbandono");
+        toast.error(result.error || "Errore durante l'abbandono");
       }
-    } catch (_error) {
-      toast.error("Errore di connessione");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Errore di connessione";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCounterBid = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/leagues/${leagueId}/players/${playerId}/response-action`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "bid" }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(data.message);
-        onClose();
-        onCounterBid(); // Apre il modal di offerta
-      } else {
-        toast.error(
-          data.error || "Errore durante la preparazione dell'offerta"
-        );
-      }
-    } catch (_error) {
-      toast.error("Errore di connessione");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleCounterBid = () => {
+    // Simply close this modal and open the bid modal
+    // The actual bid will be handled by the StandardBidModal with Server Actions
+    onClose();
+    onCounterBid();
   };
 
   return (
@@ -156,7 +126,6 @@ export function ResponseActionModal({
             </Button>
             <Button
               onClick={handleCounterBid}
-              disabled={isLoading}
               className="flex-1"
             >
               <DollarSign className="mr-2 h-4 w-4" />
