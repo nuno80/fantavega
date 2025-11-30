@@ -261,11 +261,50 @@ export function AuctionPageContent({
     socket.emit("join-room", `league-${selectedLeagueId}`);
     socket.emit("join-room", `user-${userId}`);
 
-    const handleAuctionUpdate = (data: unknown) => {
-      console.log("[SOCKET DEBUG] Received auction-update:", data);
-      fetchManagersData(selectedLeagueId);
-      fetchCurrentAuction(selectedLeagueId);
-      fetchComplianceData(selectedLeagueId);
+    const handleAuctionUpdate = (data: {
+      playerId: number;
+      newPrice: number;
+      highestBidderId: string;
+      scheduledEndTime: number;
+    }) => {
+      console.log("[AUCTION UPDATE] Received auction update:", {
+        playerId: data.playerId,
+        newPrice: data.newPrice,
+        highestBidderId: data.highestBidderId,
+      });
+
+      // Update currentAuction state locally (no refetch)
+      setCurrentAuction((prev) => {
+        if (prev && data.playerId === prev.player_id) {
+          return {
+            ...prev,
+            current_highest_bid_amount: data.newPrice,
+            current_highest_bidder_id: data.highestBidderId,
+            scheduled_end_time: data.scheduledEndTime,
+          };
+        }
+        return prev;
+      });
+
+      // Update activeAuctions state locally (no refetch)
+      setActiveAuctions((prevAuctions) =>
+        prevAuctions.map((auction) => {
+          if (auction.player_id === data.playerId) {
+            console.log(
+              `[AUCTION UPDATE] Updating active auction list for player ${data.playerId}`
+            );
+            return {
+              ...auction,
+              current_highest_bid_amount: data.newPrice,
+              current_highest_bidder_id: data.highestBidderId,
+              scheduled_end_time: data.scheduledEndTime,
+            };
+          }
+          return auction;
+        })
+      );
+
+      // Refresh user auction states to show response_needed slots
       fetchUserAuctionStates(selectedLeagueId);
     };
 
@@ -347,10 +386,50 @@ export function AuctionPageContent({
       console.log(`✅ Joined room: ${data.room}`);
     };
 
+    const handleAuctionClosed = (data: {
+      playerName: string;
+      finalPrice: number;
+      winnerId: string;
+    }) => {
+      console.log("[SOCKET DEBUG] Received auction-closed-notification:", data);
+      toast.info(`Asta conclusa: ${data.playerName}`, {
+        description: `Prezzo finale: ${data.finalPrice} crediti`,
+      });
+      fetchCurrentAuction(selectedLeagueId);
+      fetchManagersData(selectedLeagueId);
+      fetchUserAuctionStates(selectedLeagueId);
+    };
+
+    const handleUserAbandoned = (data: {
+      playerName: string;
+      userId: string;
+    }) => {
+      console.log("[SOCKET DEBUG] Received user-abandoned-auction:", data);
+      if (data.userId === userId) {
+        toast.info(`Hai abbandonato l'asta per ${data.playerName}`);
+      }
+      fetchUserAuctionStates(selectedLeagueId);
+    };
+
+    const handleAutoBidActivated = (data: {
+      playerName: string;
+      newBidAmount: number;
+    }) => {
+      console.log("[SOCKET DEBUG] Received auto-bid-activated-notification:", data);
+      toast.success(`Auto-bid attivato per ${data.playerName}`, {
+        description: `Nuova offerta: ${data.newBidAmount} crediti`,
+      });
+      fetchCurrentAuction(selectedLeagueId);
+      fetchUserAuctionStates(selectedLeagueId);
+    };
+
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("auction-created", handleAuctionCreated);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-state-changed", handleAuctionStateChanged);
+    socket.on("auction-closed-notification", handleAuctionClosed);
+    socket.on("user-abandoned-auction", handleUserAbandoned);
+    socket.on("auto-bid-activated-notification", handleAutoBidActivated);
     socket.on("compliance-status-changed", handleComplianceStatusChange);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("room-joined", handleRoomJoined);
@@ -360,6 +439,9 @@ export function AuctionPageContent({
       socket.off("auction-created", handleAuctionCreated);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-state-changed", handleAuctionStateChanged);
+      socket.off("auction-closed-notification", handleAuctionClosed);
+      socket.off("user-abandoned-auction", handleUserAbandoned);
+      socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       socket.off("compliance-status-changed", handleComplianceStatusChange);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("room-joined", handleRoomJoined);
