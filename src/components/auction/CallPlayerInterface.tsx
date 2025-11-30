@@ -349,28 +349,14 @@ export function CallPlayerInterface({
   const handleStartAuction = () => {
     if (!selectedPlayerDetails) return;
 
-    // DEBUG: Log current player status before starting auction
-    console.log("[DEBUG START AUCTION] Player details:", {
-      id: selectedPlayerDetails.id,
-      name: selectedPlayerDetails.name,
-      auctionStatus: selectedPlayerDetails.auctionStatus,
-      currentBid: selectedPlayerDetails.currentBid,
-      currentHighestBidderName: selectedPlayerDetails.currentHighestBidderName,
-      qtA: selectedPlayerDetails.qtA,
-    });
-
     // Check if player already has an active auction
     if (selectedPlayerDetails.auctionStatus === "active_auction") {
-      console.warn(
-        "[DEBUG START AUCTION] Player already has an active auction!"
-      );
       toast.error("Un'asta per questo giocatore è già in corso");
       return;
     }
 
     // Check if player is already assigned
     if (selectedPlayerDetails.auctionStatus === "assigned") {
-      console.warn("[DEBUG START AUCTION] Player is already assigned!");
       toast.error("Questo giocatore è già stato assegnato");
       return;
     }
@@ -401,20 +387,6 @@ export function CallPlayerInterface({
         bid_type: bidType,
         max_amount: maxAmount, // Corretto: usa 'max_amount' come si aspetta l'API
       };
-
-      // DEBUG: Log detailed information about the auction attempt
-      console.log("[DEBUG AUCTION START] Attempting to start auction:", {
-        playerId: selectedPlayerForStartAuction.id,
-        playerName: selectedPlayerForStartAuction.name,
-        amount: amount,
-        bidType: bidType,
-        maxAmount: maxAmount,
-        requestBody: requestBody,
-      });
-
-      console.log("[DEBUG FRONT-END] Sending request body:", requestBody);
-      console.log("[DEBUG FRONT-END] maxAmount value:", maxAmount);
-      console.log("[DEBUG FRONT-END] maxAmount type:", typeof maxAmount);
 
       const response = await fetch(
         `/api/leagues/${leagueId}/players/${selectedPlayerForStartAuction.id}/bids`,

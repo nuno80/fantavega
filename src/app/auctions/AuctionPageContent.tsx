@@ -299,7 +299,6 @@ export function AuctionPageContent({
     };
 
     const handleAuctionCreated = (data: { playerName: string }) => {
-      console.log("[SOCKET DEBUG] Received auction-created:", data);
       toast.info(`Nuova asta: ${data.playerName}`);
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
@@ -310,7 +309,6 @@ export function AuctionPageContent({
       playerName: string;
       newBidAmount: number;
     }) => {
-      console.log("[SOCKET DEBUG] Received bid-surpassed-notification:", data);
       toast.warning(`La tua offerta per ${data.playerName} è stata superata!`, {
         description: `Nuova offerta: ${data.newBidAmount} crediti.`,
       });
@@ -319,7 +317,6 @@ export function AuctionPageContent({
     };
 
     const handleAuctionStateChanged = (data: unknown) => {
-      console.log("[SOCKET DEBUG] Received auction-state-changed:", data);
       fetchUserAuctionStates(selectedLeagueId);
     };
 
@@ -329,8 +326,6 @@ export function AuctionPageContent({
       appliedPenaltyAmount?: number;
       timestamp: number;
     }) => {
-      console.log("[SOCKET DEBUG] Received compliance-status-changed:", data);
-
       const lastNotification = lastComplianceNotificationRef.current;
       const isDuplicate = lastNotification &&
         lastNotification.userId === data.userId &&
