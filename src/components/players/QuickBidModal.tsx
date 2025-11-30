@@ -70,8 +70,10 @@ export function QuickBidModal({
     }
   }, [isOpen, leagueId]);
 
-  // Set initial bid amount when player changes
+  // Set initial bid amount when player changes or modal opens
   useEffect(() => {
+    if (!isOpen) return;
+
     console.log("[QuickBidModal] Player data:", {
       name: player?.name,
       currentBid: player?.currentBid,
@@ -79,14 +81,15 @@ export function QuickBidModal({
       auctionStatus: player?.auctionStatus,
     });
 
-    if (player?.currentBid) {
+    if (player?.currentBid !== undefined && player?.currentBid > 0) {
       // Asta attiva: offerta attuale + 1
+      const newBidAmount = player.currentBid + 1;
       console.log(
         "[QuickBidModal] Using currentBid + 1:",
-        player.currentBid + 1
+        newBidAmount
       );
-      setBidAmount(player.currentBid + 1);
-      setMaxAmount(player.currentBid + 10);
+      setBidAmount(newBidAmount);
+      setMaxAmount(newBidAmount + 9);
     } else if (player?.qtA) {
       // Nessuna asta attiva: usa QtA come valore di default
       console.log("[QuickBidModal] Using qtA:", player.qtA);
@@ -98,7 +101,7 @@ export function QuickBidModal({
       setBidAmount(1);
       setMaxAmount(10);
     }
-  }, [player]);
+  }, [player, isOpen]);
 
   const formatTimeRemaining = (seconds?: number) => {
     if (!seconds) return "Scaduta";
@@ -343,7 +346,7 @@ export function QuickBidModal({
                   (player.currentBid
                     ? player.currentBid + 1
                     : player.qtA || 0) +
-                    1 >
+                  1 >
                   availableBudget
                 }
               >
@@ -357,7 +360,7 @@ export function QuickBidModal({
                   (player.currentBid
                     ? player.currentBid + 1
                     : player.qtA || 0) +
-                    4 >
+                  4 >
                   availableBudget
                 }
               >
@@ -371,7 +374,7 @@ export function QuickBidModal({
                   (player.currentBid
                     ? player.currentBid + 1
                     : player.qtA || 0) +
-                    9 >
+                  9 >
                   availableBudget
                 }
               >
