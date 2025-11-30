@@ -375,64 +375,16 @@ export function CallPlayerInterface({
       return;
     }
 
-    // CRITICAL: Refresh player data before starting auction to ensure we have latest state
-    // This prevents stale data issues as mentioned in real-time auction system specs
-    console.log(
-      "[DEBUG START AUCTION] Refreshing player data before auction start..."
-    );
-    refreshPlayersData()
-      .then(() => {
-        console.log(
-          "[DEBUG START AUCTION] Player data refreshed, checking latest state..."
-        );
-
-        // Re-check the player status after refresh
-        const latestPlayer = players.find(
-          (p) => p.id === selectedPlayerDetails.id
-        );
-        if (latestPlayer) {
-          console.log("[DEBUG START AUCTION] Latest player state:", {
-            id: latestPlayer.id,
-            name: latestPlayer.name,
-            auctionStatus: latestPlayer.auctionStatus,
-            currentBid: latestPlayer.currentBid,
-            currentHighestBidderName: latestPlayer.currentHighestBidderName,
-          });
-
-          if (latestPlayer.auctionStatus === "active_auction") {
-            console.warn(
-              "[DEBUG START AUCTION] Player has active auction after refresh!"
-            );
-            toast.error("Un'asta per questo giocatore è già in corso");
-            return;
-          }
-
-          if (latestPlayer.auctionStatus === "assigned") {
-            console.warn(
-              "[DEBUG START AUCTION] Player is assigned after refresh!"
-            );
-            toast.error("Questo giocatore è già stato assegnato");
-            return;
-          }
-        }
-
-        // Proceed with auction start if status is still valid
-        setSelectedPlayerForStartAuction({
-          id: selectedPlayerDetails.id,
-          name: selectedPlayerDetails.name,
-          role: selectedPlayerDetails.role,
-          team: selectedPlayerDetails.team,
-          qtA: selectedPlayerDetails.qtA,
-        });
-        setIsStartAuctionModalOpen(true);
-      })
-      .catch((error) => {
-        console.error(
-          "[DEBUG START AUCTION] Failed to refresh player data:",
-          error
-        );
-        toast.error("Errore nel caricare i dati aggiornati del giocatore");
-      });
+    // Proceed with auction start immediately without blocking refresh
+    // Backend will handle validation if auction already exists
+    setSelectedPlayerForStartAuction({
+      id: selectedPlayerDetails.id,
+      name: selectedPlayerDetails.name,
+      team: selectedPlayerDetails.team,
+      role: selectedPlayerDetails.role,
+      qtA: selectedPlayerDetails.qtA,
+    });
+    setIsStartAuctionModalOpen(true);
   };
 
   // Handle successful auction start
