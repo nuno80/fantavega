@@ -78,6 +78,7 @@ export function AuctionPageContent({
   const [error, setError] = useState<string | null>(null);
   const [currentUserBudget, setCurrentUserBudget] = useState<UserBudgetInfo | null>(null);
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
+  const [leagueStatus, setLeagueStatus] = useState<string | undefined>(undefined);
 
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
@@ -445,145 +446,62 @@ export function AuctionPageContent({
   }
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      {/* Left Column - Managers List (Hidden on mobile unless toggled) */}
-      <div
-        className={`${isMobile && !isTeamSelectorOpen ? "hidden" : "block"
-          } w-full border-r bg-muted/10 md:w-80 md:overflow-y-auto`}
-      >
-        <div className="p-4">
-          <div className="mb-4 flex items-center justify-between md:hidden">
-            <h2 className="font-semibold">Squadre</h2>
-            <button
-              onClick={() => setIsTeamSelectorOpen(false)}
-              className="text-muted-foreground"
-            >
-              Chiudi
-            </button>
-          </div>
-          <div className="space-y-4">
-            {managers.map((manager) => {
-              const compliance = complianceData.find(
-                (c) => String(c.user_id) === String(manager.user_id)
-              );
-              // Calculate timer end time if active
-              let timerEndTime = null;
-              if (compliance?.compliance_timer_start_at) {
-                timerEndTime =
-                  compliance.compliance_timer_start_at + 1 * 3600; // 1 hour grace period
-              }
+    <div className="flex h-full flex-col bg-gray-900 text-white">
+      {/* Top Panel - Call Player Interface */}
+      <div className="flex-shrink-0 border-b border-gray-700 bg-gray-800 p-4">
+        {selectedLeagueId && (
+          <CallPlayerInterface leagueId={selectedLeagueId} userId={userId} />
+        )}
+      </div>
 
-              return (
+      {/* Bottom Panel - Manager Columns (Horizontal Grid) */}
+      <div className="scrollbar-hide flex flex-1 space-x-2 overflow-x-auto p-2">
+        {managers.length > 0 ? (
+          managers.map((manager, index) => {
+            const compliance = complianceData.find(
+              (c) => String(c.user_id) === String(manager.user_id)
+            );
+
+            return (
+              <div key={`${manager.user_id}-${index}`} className="min-w-0 flex-1">
                 <ManagerColumn
-                  key={manager.user_id}
                   manager={manager}
                   isCurrentUser={manager.user_id === userId}
-                  leagueSlots={leagueSlots || undefined}
+                  isHighestBidder={
+                    currentAuction?.current_highest_bidder_id === manager.user_id
+                  }
+                  position={index + 1}
+                  leagueSlots={leagueSlots ?? undefined}
                   activeAuctions={activeAuctions}
                   autoBids={autoBids}
+                  currentAuctionPlayerId={currentAuction?.player_id}
+                  userAuctionStates={
+                    manager.user_id === userId ? userAuctionStates : []
+                  }
+                  leagueId={selectedLeagueId ?? undefined}
+                  leagueStatus={leagueStatus}
+                  handlePlaceBid={handlePlaceBid}
                   complianceTimerStartAt={
                     compliance?.compliance_timer_start_at || null
                   }
-                  userAuctionStates={userAuctionStates}
+                  onPenaltyApplied={() => selectedLeagueId && fetchComplianceData(selectedLeagueId)}
+                  onPlayerDiscarded={() => selectedLeagueId && fetchManagersData(selectedLeagueId)}
                 />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Center/Right Column - Main Auction Area */}
-      <div className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
-        <div className="mx-auto max-w-4xl space-y-6">
-          {/* Mobile Team Selector Toggle */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsTeamSelectorOpen(true)}
-              className="flex w-full items-center justify-between rounded-lg border p-3 shadow-sm"
-            >
-              <span className="font-medium">Visualizza Squadre</span>
-              <span className="text-sm text-muted-foreground">
-                {managers.length} Manager
-              </span>
-            </button>
-          </div>
-
-          {/* User Budget Card (Mobile/Desktop) */}
-          {currentUserBudget && (
-            <div className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Il tuo Budget
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl font-bold">
-                      {currentUserBudget.current_budget}
-                    </h3>
-                    <span className="text-sm text-muted-foreground">
-                      / {currentUserBudget.total_budget}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Bloccati
-                  </p>
-                  <p className="text-xl font-semibold text-orange-500">
-                    {currentUserBudget.locked_credits}
-                  </p>
-                </div>
               </div>
-            </div>
-          )}
-
-          {/* Call Player Interface */}
-          {selectedLeagueId && currentUserBudget && (
-            <CallPlayerInterface
-              leagueId={selectedLeagueId}
-              userId={userId}
-            />
-          )}
-
-          {/* Active Auction Display */}
-          {currentAuction ? (
-            <div className="rounded-lg border bg-card shadow-sm">
-              {/*
-                  I am assuming AuctionRealtimeDisplay is NOT imported or used here based on previous file content.
-                  If it was, I would need to add it.
-                  However, I see `CallPlayerInterface` and `ManagerColumn`.
-                  The original file had logic to display auction details.
-                  I will add a placeholder or simple display if I can't find the component.
-                  Wait, `CallPlayerInterface` handles starting auctions.
-                  Where is the auction running?
-                  Ah, I see `activeAuctions` passed to `ManagerColumn`.
-                  Maybe the main auction display is missing from my rewrite because I didn't see it in the truncated view.
-                  I will assume for now that `CallPlayerInterface` or `ManagerColumn` handles it, or I'll add a simple JSON dump for debugging if needed.
-                  BUT, looking at Step 94, `AuctionPageContent` was imported.
-                  Looking at Step 100, `AuctionPageContent.tsx` imports `CallPlayerInterface` and `ManagerColumn`.
-                  It does NOT import `AuctionRealtimeDisplay`.
-                  So maybe the auction is displayed via `activeAuctions` in `ManagerColumn`?
-                  OR maybe I missed a component.
-                  Let's check `src/components/auction` content.
-               */}
-              <div className="p-4">
-                <h3 className="text-lg font-bold">Asta in corso: {currentAuction.player_name}</h3>
-                <p>Offerta attuale: {currentAuction.current_highest_bid_amount}</p>
-                <p>Miglior offerente: {currentAuction.current_highest_bidder_id === userId ? "Tu" : "Altro"}</p>
-                {/* Add more details or a proper component if found later */}
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 text-center">
-              <p className="text-lg font-medium text-muted-foreground">
-                Nessuna asta attiva al momento
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Chiama un giocatore per iniziare un&apos;asta
+            );
+          })
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center text-gray-400">
+              <h3 className="mb-2 text-lg font-semibold">
+                Nessun Manager Trovato
+              </h3>
+              <p className="text-sm">
+                Non sono stati trovati partecipanti per questa lega.
               </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
