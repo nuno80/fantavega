@@ -1187,11 +1187,11 @@ export const getLeagueManagersWithRosters = async (
   // 3. Get auto bids counts
   const autoBidsResult = await db.execute({
     sql: `
-        SELECT player_id, COUNT(*) as auto_bid_count
-        FROM auto_bids
-        WHERE auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ? AND status = 'active')
-        AND is_active = 1
-        GROUP BY player_id
+        SELECT a.player_id, COUNT(*) as auto_bid_count
+        FROM auto_bids ab
+        JOIN auctions a ON ab.auction_id = a.id
+        WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1
+        GROUP BY a.player_id
       `,
     args: [leagueId],
   });
