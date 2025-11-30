@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSocket } from "@/contexts/SocketContext";
+import { placeBidAction } from "@/lib/actions/auction.actions";
 
 import { StandardBidModal } from "./StandardBidModal";
 
