@@ -119,6 +119,53 @@ export interface RosterPlayer {
   assigned_at: number; // Timestamp Unix
 }
 
+export interface ManagerWithRoster {
+  user_id: string;
+  manager_team_name: string;
+  current_budget: number;
+  locked_credits: number;
+  total_budget: number;
+  total_penalties: number;
+  firstName?: string;
+  lastName?: string;
+  players: {
+    id: number;
+    name: string;
+    role: string;
+    team: string;
+    assignment_price: number;
+  }[];
+}
+
+export interface LeagueSlots {
+  slots_P: number;
+  slots_D: number;
+  slots_C: number;
+  slots_A: number;
+}
+
+export interface ActiveAuction {
+  player_id: number;
+  player_name: string;
+  player_role: string;
+  player_team: string;
+  current_highest_bidder_id: string | null;
+  current_highest_bid_amount: number;
+  scheduled_end_time: number;
+}
+
+export interface AutoBidCount {
+  player_id: number;
+  auto_bid_count: number;
+}
+
+export interface LeagueManagersData {
+  managers: ManagerWithRoster[];
+  leagueSlots: LeagueSlots;
+  activeAuctions: ActiveAuction[];
+  autoBids: AutoBidCount[];
+}
+
 // --- Funzioni del Servizio ---
 
 /**
@@ -828,8 +875,6 @@ export const getPlayerAssignmentStatus = async (
       return {
         is_assigned: true,
         player_id: playerId,
-        league_id: leagueId,
-        ...assignment,
       };
     } else {
       console.log(
@@ -1109,3 +1154,92 @@ export async function updateParticipantTeamName(
     return { success: false, message: errorMessage };
   }
 }
+
+export const getLeagueManagersWithRosters = async (
+  leagueId: number
+): Promise<LeagueManagersData> => {
+  // 1. Get league slots
+  const leagueResult = await db.execute({
+    sql: "SELECT slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?",
+    args: [leagueId],
+  });
+  const leagueSlots = leagueResult.rows[0] as unknown as LeagueSlots;
+
+  // 2. Get active auctions
+  const activeAuctionsResult = await db.execute({
+    sql: `
+        SELECT
+          a.player_id,
+          p.name as player_name,
+          p.role as player_role,
+          p.team as player_team,
+          a.current_highest_bidder_id,
+          a.current_highest_bid_amount,
+          a.scheduled_end_time
+        FROM auctions a
+        JOIN players p ON a.player_id = p.id
+        WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')
+      `,
+    args: [leagueId],
+  });
+  const activeAuctions = activeAuctionsResult.rows as unknown as ActiveAuction[];
+
+  // 3. Get auto bids counts
+  const autoBidsResult = await db.execute({
+    sql: `
+        SELECT player_id, COUNT(*) as auto_bid_count
+        FROM auto_bids
+        WHERE auction_id IN (SELECT id FROM auctions WHERE auction_league_id = ? AND status = 'active')
+        AND is_active = 1
+        GROUP BY player_id
+      `,
+    args: [leagueId],
+  });
+  const autoBids = autoBidsResult.rows as unknown as AutoBidCount[];
+
+  // 4. Get managers and their rosters
+  const participants = await getLeagueParticipants(leagueId);
+  const managers: ManagerWithRoster[] = [];
+
+  // Get league initial budget
+  const leagueSettingsResult = await db.execute({
+    sql: "SELECT initial_budget_per_manager FROM auction_leagues WHERE id = ?",
+    args: [leagueId]
+  });
+  const initialBudget = leagueSettingsResult.rows[0]?.initial_budget_per_manager as number || 500;
+
+  for (const p of participants) {
+    const roster = await getManagerRoster(leagueId, p.user_id);
+    // Get total penalties
+    const penaltiesResult = await db.execute({
+      sql: "SELECT COALESCE(SUM(amount), 0) as total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty'",
+      args: [leagueId, p.user_id],
+    });
+    const totalPenalties = penaltiesResult.rows[0]?.total as number || 0;
+
+    managers.push({
+      user_id: p.user_id,
+      manager_team_name: p.manager_team_name || p.user_username || "Team",
+      current_budget: p.current_budget,
+      locked_credits: p.locked_credits,
+      total_budget: initialBudget,
+      total_penalties: totalPenalties,
+      firstName: p.user_full_name?.split(" ")[0],
+      lastName: p.user_full_name?.split(" ").slice(1).join(" "),
+      players: roster.map(rp => ({
+        id: rp.player_id,
+        name: rp.name,
+        role: rp.role,
+        team: rp.team,
+        assignment_price: rp.purchase_price
+      })),
+    });
+  }
+
+  return {
+    managers,
+    leagueSlots,
+    activeAuctions,
+    autoBids,
+  };
+};

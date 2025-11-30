@@ -219,6 +219,70 @@ export interface AuctionCreationResult {
   new_bid_id: number;
 }
 
+export interface AuctionStatus {
+  id: number;
+  player_id: number;
+  current_highest_bid_amount: number;
+  scheduled_end_time: number;
+  status: string;
+  min_bid?: number;
+  time_remaining?: number;
+  player_value?: number;
+}
+
+/**
+ * Retrieves the current active auction for a league.
+ */
+export const getCurrentActiveAuction = async (
+  leagueId: number
+): Promise<AuctionStatusDetails | null> => {
+  try {
+    // Get current active auction
+    const activeAuctionResult = await db.execute({
+      sql: `SELECT
+          a.id,
+          a.player_id,
+          a.current_highest_bid_amount,
+          a.current_highest_bidder_id,
+          a.scheduled_end_time,
+          a.status,
+          p.name as player_name,
+          p.role as player_role
+         FROM auctions a
+         JOIN players p ON a.player_id = p.id
+         WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')
+         ORDER BY a.created_at DESC
+         LIMIT 1`,
+      args: [leagueId],
+    });
+    const activeAuction = activeAuctionResult.rows[0] as unknown as
+      | {
+        id: number;
+        player_id: number;
+        current_highest_bid_amount: number;
+        current_highest_bidder_id: string | null;
+        scheduled_end_time: number;
+        status: string;
+        player_name: string;
+        player_role: string;
+      }
+      | undefined;
+
+    if (!activeAuction) {
+      return null;
+    }
+
+    // Get detailed auction status using existing service
+    return await getAuctionStatusForPlayer(
+      leagueId,
+      activeAuction.player_id
+    );
+  } catch (error) {
+    console.error("Error fetching current auction:", error);
+    throw new Error("Errore nel recupero dell'asta corrente");
+  }
+};
+
 interface PlaceBidParams {
   leagueId: number;
   playerId: number;

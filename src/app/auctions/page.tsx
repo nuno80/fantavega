@@ -1,7 +1,12 @@
+import { Navbar } from "@/components/navbar";
+import { db } from "@/lib/db";
+import { getLeagueManagersWithRosters } from "@/lib/db/services/auction-league.service";
+import { getUserAuctionStates } from "@/lib/db/services/auction-states.service";
+import { getCurrentActiveAuction } from "@/lib/db/services/bid.service";
+import { getAllComplianceStatus } from "@/lib/db/services/penalty.service";
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { currentUser } from "@clerk/nextjs/server";
-import { Navbar } from "@/components/navbar";
 import { AuctionPageContent } from "./AuctionPageContent";
 
 export default async function AuctionsPage() {
@@ -12,29 +17,66 @@ export default async function AuctionsPage() {
   }
 
   let hasLeagues = false;
+  let leagueId: number | null = null;
+
   try {
-    const { db } = await import("@/lib/db");
+    // Check if user has leagues and get the first one (default behavior)
     const userLeaguesResult = await db.execute({
-      sql: `SELECT 1 FROM league_participants WHERE user_id = ? LIMIT 1`,
-      args: [user.id]
+      sql: `SELECT league_id FROM league_participants WHERE user_id = ? LIMIT 1`,
+      args: [user.id],
     });
-    hasLeagues = userLeaguesResult.rows.length > 0;
+
+    if (userLeaguesResult.rows.length > 0) {
+      hasLeagues = true;
+      leagueId = userLeaguesResult.rows[0].league_id as number;
+    }
   } catch (error) {
     console.error("Errore nel verificare la partecipazione alle leghe:", error);
     hasLeagues = false;
   }
 
+  if (!hasLeagues || !leagueId) {
+    return (
+      <div className="flex h-screen flex-col bg-background">
+        <Navbar />
+        <div className="flex-1 overflow-y-auto">
+          <NoLeagueMessage />
+        </div>
+      </div>
+    );
+  }
+
+  // Fetch initial data for the league
+  // We use Promise.all to fetch data in parallel
+  const [
+    managersData,
+    currentAuction,
+    complianceData,
+    userAuctionStates
+  ] = await Promise.all([
+    getLeagueManagersWithRosters(leagueId),
+    getCurrentActiveAuction(leagueId),
+    getAllComplianceStatus(leagueId),
+    getUserAuctionStates(user.id, leagueId)
+  ]);
+
   return (
     <div className="flex h-screen flex-col bg-background">
       <Navbar />
       <div className="flex-1 overflow-y-auto">
-        {hasLeagues ? (
-          <Suspense fallback={<AuctionPageSkeleton />}>
-            <AuctionPageContent userId={user.id} />
-          </Suspense>
-        ) : (
-          <NoLeagueMessage />
-        )}
+        <Suspense fallback={<AuctionPageSkeleton />}>
+          <AuctionPageContent
+            userId={user.id}
+            initialLeagueId={leagueId}
+            initialManagers={managersData.managers}
+            initialLeagueSlots={managersData.leagueSlots}
+            initialActiveAuctions={managersData.activeAuctions}
+            initialAutoBids={managersData.autoBids}
+            initialCurrentAuction={currentAuction}
+            initialComplianceData={complianceData}
+            initialUserAuctionStates={userAuctionStates}
+          />
+        </Suspense>
       </div>
     </div>
   );

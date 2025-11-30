@@ -1,6 +1,8 @@
 // src/lib/db/services/auction-states.service.ts
 // Servizio per gestire gli stati dei giocatori nelle aste
 import { db } from "@/lib/db";
+import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
+import { recordUserLogin } from "@/lib/db/services/session.service";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 // Stati possibili per un utente in un'asta
@@ -12,6 +14,125 @@ export type UserAuctionState =
 interface UserAuctionStates {
   [userId: string]: UserAuctionState;
 }
+
+export interface AuctionStateRow {
+  auction_id: number;
+  player_id: number;
+  player_name: string;
+  current_highest_bidder_id: string;
+  current_highest_bid_amount: number;
+  response_deadline: number | null;
+  activated_at: number | null;
+  cooldown_ends_at: number | null;
+}
+
+export interface UserAuctionStateDetail {
+  auction_id: number;
+  player_id: number;
+  player_name: string;
+  current_bid: number;
+  user_state: UserAuctionState;
+  response_deadline: number | null;
+  time_remaining: number | null;
+  is_highest_bidder: boolean;
+}
+
+/**
+ * Retrieves the auction states for a specific user in a league.
+ * Also handles side effects like recording login and activating timers.
+ */
+export const getUserAuctionStates = async (
+  userId: string,
+  leagueId: number
+): Promise<UserAuctionStateDetail[]> => {
+  console.log(
+    `[SERVICE] getUserAuctionStates called for user: ${userId}, league: ${leagueId}`
+  );
+
+  // **FASE 0: Registra login utente**
+  try {
+    await recordUserLogin(userId);
+  } catch (error) {
+    console.error("[SERVICE] Error recording login:", error);
+    // Non bloccare la richiesta per errori di sessione
+  }
+
+  // **FASE 1: Attiva i timer pendenti per l'utente**
+  await activateTimersForUser(userId);
+
+  // **FASE 2: Recupera lo stato di tutte le aste attive in cui l'utente è coinvolto**
+  const now = Math.floor(Date.now() / 1000);
+
+  const involvedAuctionsResult = await db.execute({
+    sql: `
+        SELECT
+          a.id as auction_id,
+          a.player_id,
+          p.name as player_name,
+          a.current_highest_bidder_id,
+          a.current_highest_bid_amount,
+          urt.response_deadline,
+          urt.activated_at,
+          upp.expires_at as cooldown_ends_at
+        FROM auctions a
+        JOIN players p ON a.player_id = p.id
+        -- Join per trovare le aste in cui l'utente ha fatto un'offerta
+        JOIN bids b ON a.id = b.auction_id AND b.user_id = ?
+        -- Join per ottenere il timer di risposta, se esiste
+        LEFT JOIN user_auction_response_timers urt ON a.id = urt.auction_id AND urt.user_id = ? AND urt.status = 'pending'
+        -- Join per verificare il cooldown
+        LEFT JOIN user_player_preferences upp ON a.player_id = upp.player_id AND upp.user_id = ? AND upp.league_id = a.auction_league_id AND upp.preference_type = 'cooldown' AND upp.expires_at > ?
+        WHERE a.auction_league_id = ? AND a.status = 'active'
+        GROUP BY a.id
+      `,
+    args: [userId, userId, userId, now, leagueId],
+  });
+
+  // Conversione sicura da Row[] a AuctionStateRow[]
+  const involvedAuctions: AuctionStateRow[] = involvedAuctionsResult.rows.map(
+    (row) => ({
+      auction_id: row.auction_id as number,
+      player_id: row.player_id as number,
+      player_name: row.player_name as string,
+      current_highest_bidder_id: row.current_highest_bidder_id as string,
+      current_highest_bid_amount: row.current_highest_bid_amount as number,
+      response_deadline: row.response_deadline as number | null,
+      activated_at: row.activated_at as number | null,
+      cooldown_ends_at: row.cooldown_ends_at as number | null,
+    })
+  );
+
+  const statesWithDetails = involvedAuctions.map((auction) => {
+    let user_state: UserAuctionState;
+    const isHighestBidder = auction.current_highest_bidder_id === userId;
+    const isInCooldown =
+      auction.cooldown_ends_at && auction.cooldown_ends_at > now;
+
+    if (isInCooldown) {
+      user_state = "asta_abbandonata";
+    } else if (isHighestBidder) {
+      user_state = "miglior_offerta";
+    } else {
+      // Se non è il migliore offerente e non è in cooldown, deve rispondere
+      user_state = "rilancio_possibile";
+    }
+
+    return {
+      auction_id: auction.auction_id,
+      player_id: auction.player_id,
+      player_name: auction.player_name,
+      current_bid: auction.current_highest_bid_amount,
+      user_state: user_state,
+      response_deadline: auction.response_deadline,
+      time_remaining: auction.response_deadline
+        ? Math.max(0, auction.response_deadline - now)
+        : null,
+      is_highest_bidder: isHighestBidder,
+    };
+  });
+
+  return statesWithDetails;
+};
 
 /**
  * Ottiene lo stato di un utente per un'asta specifica

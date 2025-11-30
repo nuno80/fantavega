@@ -16,6 +16,12 @@ interface UserLeagueComplianceStatus {
   last_penalty_applied_for_hour_ending_at: number | null;
   penalties_applied_this_cycle: number;
 }
+
+export interface ComplianceRecord {
+  user_id: string; // Changed from number to string to match user_id type
+  compliance_timer_start_at: number | null; // Changed from string to number | null to match DB type
+}
+
 interface SlotRequirements {
   P: number;
   D: number;
@@ -202,7 +208,7 @@ export const checkAndRecordCompliance = async (
       });
       statusChanged = true;
       console.log(
-        `[COMPLIANCE_SERVICE] User ${userId} is now compliant. Timer stopped.`
+        `[PENALTY_SERVICE] User ${userId} is now compliant. Timer stopped.`
       );
     } else if (!isCompliant && !wasTimerActive) {
       // CASE B: User became non-compliant, start the timer.
@@ -212,7 +218,7 @@ export const checkAndRecordCompliance = async (
       });
       statusChanged = true;
       console.log(
-        `[COMPLIANCE_SERVICE] User ${userId} is now non-compliant. Timer started.`
+        `[PENALTY_SERVICE] User ${userId} is now non-compliant. Timer started.`
       );
     }
 
@@ -240,12 +246,59 @@ export const checkAndRecordCompliance = async (
 
     return { statusChanged, isCompliant };
   } catch (error) {
-    console.error(
-      `[COMPLIANCE_SERVICE] Error checking compliance for user ${userId} in league ${leagueId}:`,
-      error
+    console.error(`[PENALTY_SERVICE] Error checking compliance for user ${userId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Retrieves compliance status for all users in a league for the current phase.
+ */
+export const getAllComplianceStatus = async (
+  leagueId: number
+): Promise<ComplianceRecord[]> => {
+  try {
+    // Get the current phase identifier for the league
+    const leagueInfoResult = await db.execute({
+      sql: "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const leagueInfo = leagueInfoResult.rows[0] as unknown as { status: string; active_auction_roles: string | null } | undefined;
+
+    if (!leagueInfo) {
+      throw new Error("League not found");
+    }
+
+    // Construct the phase identifier
+    const phaseIdentifier = getCurrentPhaseIdentifier(
+      leagueInfo.status,
+      leagueInfo.active_auction_roles
     );
-    // In case of error, assume no change to avoid incorrect state propagation.
-    return { statusChanged: false, isCompliant: true };
+
+    console.log(`[PENALTY_SERVICE] getAllComplianceStatus - Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
+
+    // Get compliance data for all users in the league with the specific phase identifier
+    // Use a subquery to get only the most recent record for each user based on updated_at timestamp
+    const complianceDataResult = await db.execute({
+      sql: `SELECT t1.user_id, t1.compliance_timer_start_at
+         FROM user_league_compliance_status t1
+         INNER JOIN (
+           SELECT user_id, MAX(updated_at) as max_updated_at
+           FROM user_league_compliance_status
+           WHERE league_id = ? AND phase_identifier = ?
+           GROUP BY user_id
+         ) t2 ON t1.user_id = t2.user_id AND t1.updated_at = t2.max_updated_at
+         WHERE t1.league_id = ? AND t1.phase_identifier = ?`,
+      args: [leagueId, phaseIdentifier, leagueId, phaseIdentifier],
+    });
+    const complianceData = complianceDataResult.rows as unknown as ComplianceRecord[];
+
+    console.log(`[PENALTY_SERVICE] Found ${complianceData.length} compliance records for league ${leagueId}`);
+
+    return complianceData;
+  } catch (error) {
+    console.error("[PENALTY_SERVICE] Error in getAllComplianceStatus:", error);
+    throw error;
   }
 };
 

@@ -1,10 +1,23 @@
 // .eslintrc.json
 {
-  "extends": ["next/core-web-vitals", "next/typescript", "prettier"],
-  "plugins": ["check-file"],
+  "extends": [
+    "next/core-web-vitals",
+    "next/typescript",
+    "prettier"
+  ],
+  "plugins": [
+    "check-file"
+  ],
+  "ignorePatterns": [
+    "guide/**/*"
+  ],
   "rules": {
-    "prefer-arrow-callback": ["error"],
-    "prefer-template": ["error"],
+    "prefer-arrow-callback": [
+      "error"
+    ],
+    "prefer-template": [
+      "error"
+    ],
     "check-file/filename-naming-convention": "off", // DISABILITATO - Non più necessario
     "check-file/folder-naming-convention": "off", // DISABILITATO - Non più necessario
     // Regola per variabili non usate: impostala a "warn" o aggiungi opzioni per ignorare quelle con underscore

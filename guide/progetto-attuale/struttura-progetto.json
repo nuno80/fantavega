@@ -36,6 +36,30 @@
     {
       "path": "src/components/players/QuickBidModal.tsx",
       "description": "Aggiornato per utilizzare `currentBid + 1` come valore di default per le offerte."
+    },
+    {
+      "path": "src/app/auctions/page.tsx",
+      "description": "Aggiornato per implementare SSR: recupera dati iniziali e li passa al client component."
+    },
+    {
+      "path": "src/app/auctions/AuctionPageContent.tsx",
+      "description": "Refactoring per supportare SSR: accetta props iniziali e gestisce idratazione stato."
+    },
+    {
+      "path": "src/lib/db/services/auction-league.service.ts",
+      "description": "Aggiunta funzione getLeagueManagersWithRosters per aggregazione dati SSR."
+    },
+    {
+      "path": "src/lib/db/services/auction-states.service.ts",
+      "description": "Aggiunta funzione getUserAuctionStates e fix tipi per SSR."
+    },
+    {
+      "path": "src/components/auction/ManagerColumn.tsx",
+      "description": "Fix tipi e gestione props opzionali per compatibilità SSR."
+    },
+    {
+      "path": "src/contexts/SocketContext.tsx",
+      "description": "Fix dipendenze useEffect per evitare loop infiniti."
     }
   ]
 }

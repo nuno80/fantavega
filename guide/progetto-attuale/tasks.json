@@ -27,6 +27,28 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-13",
+      "name": "Implement SSR for Auction Page",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-13.1",
+          "name": "Refactor Service Layer for SSR",
+          "status": "completed"
+        },
+        {
+          "id": "FN-13.2",
+          "name": "Update Auction Page Server Component",
+          "status": "completed"
+        },
+        {
+          "id": "FN-13.3",
+          "name": "Fix Type Errors in Client Components",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

@@ -41,6 +41,7 @@
     "types/**/*.d.ts" // Questa riga è corretta se hai una cartella 'types' alla root
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "guide"
   ]
 }

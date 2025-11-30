@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 
 import {
-    AlertTriangle,
-    CheckCircle,
-    DollarSign,
-    Lock,
-    Star,
-    Trash2,
-    User,
-    X,
+  AlertTriangle,
+  CheckCircle,
+  DollarSign,
+  Lock,
+  Star,
+  Trash2,
+  User,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,6 +40,9 @@ interface Manager {
   players: PlayerInRoster[];
 }
 
+// Alias for compatibility with shared types
+type ManagerWithRoster = Manager;
+
 interface LeagueSlots {
   slots_P: number;
   slots_D: number;
@@ -68,6 +71,9 @@ interface UserAuctionState {
   is_highest_bidder: boolean;
 }
 
+// Alias for compatibility with shared types
+type UserAuctionStateDetail = UserAuctionState;
+
 interface AutoBid {
   player_id: number;
   max_amount: number;
@@ -82,34 +88,35 @@ type Slot =
   | { type: "response_needed"; state: UserAuctionState }
   | { type: "empty" };
 
+interface AutoBidCount {
+  player_id: number;
+  auto_bid_count: number;
+}
+
 interface ManagerColumnProps {
-  manager: Manager;
+  manager: ManagerWithRoster;
   isCurrentUser: boolean;
-  isHighestBidder: boolean;
-  position: number;
+  isHighestBidder?: boolean;
+  position?: number;
   leagueSlots?: LeagueSlots;
   activeAuctions?: ActiveAuction[];
-  autoBids?: AutoBid[]; // Changed from AutoBidIndicator[] to AutoBid[]
+  autoBids?: AutoBidCount[];
   userAutoBid?: {
     max_amount: number;
     is_active: boolean;
   } | null;
   currentAuctionPlayerId?: number;
-  userAuctionStates?: UserAuctionState[];
+  userAuctionStates?: UserAuctionStateDetail[];
   leagueId?: number;
-  leagueStatus?: string; // Added for repair mode detection
-  onComplianceChange?: (status: {
-    isCompliant: boolean;
-    isInGracePeriod: boolean;
-  }) => void;
-  handlePlaceBid: (
+  leagueStatus?: string;
+  handlePlaceBid?: (
     amount: number,
-    bidType?: "manual" | "quick",
+    bidType: "manual" | "quick",
     targetPlayerId?: number,
     bypassComplianceCheck?: boolean,
     maxAmount?: number
   ) => Promise<void>;
-  complianceTimerStartAt: number | null;
+  complianceTimerStartAt?: number | null;
   onPenaltyApplied?: () => void; // Callback for when penalty is applied
   onPlayerDiscarded?: () => void; // Callback for when player is discarded
 }
@@ -501,7 +508,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   manager,
   isCurrentUser,
   isHighestBidder: _isHighestBidder,
-  position,
+  position = 0,
   leagueSlots,
   activeAuctions = [],
   userAutoBid,
@@ -641,15 +648,15 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${
-        isCurrentUser
-          ? complianceTimerStartAt !== null &&
-            !isNaN(complianceTimerStartAt) &&
-            complianceTimerStartAt >= 0
-            ? "border-red-500"
-            : "border-green-500"
-          : "border-border"
-      }`}
+      className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${isCurrentUser
+        ? complianceTimerStartAt !== undefined &&
+          complianceTimerStartAt !== null &&
+          !isNaN(complianceTimerStartAt) &&
+          complianceTimerStartAt >= 0
+          ? "border-red-500"
+          : "border-green-500"
+        : "border-border"
+        }`}
     >
       {/* Header */}
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -687,9 +694,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
             {/* Compliance timer - visible only to current user */}
             {isCurrentUser && (
               <>
-                {complianceTimerStartAt !== null &&
-                !isNaN(complianceTimerStartAt) &&
-                complianceTimerStartAt >= 0 ? (
+                {complianceTimerStartAt !== undefined &&
+                  complianceTimerStartAt !== null &&
+                  !isNaN(complianceTimerStartAt) &&
+                  complianceTimerStartAt >= 0 ? (
                   <span title="Team non conforme" className="flex items-center">
                     <AlertTriangle className="ml-1 h-4 w-4 text-orange-400" />
                     <ComplianceTimer
@@ -882,13 +890,15 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
               return;
             }
             try {
-              await handlePlaceBid(
-                amount,
-                bidType || "manual",
-                selectedPlayerForBid.id,
-                true, // Bypass compliance check for counter-bids
-                maxAmount
-              );
+              if (handlePlaceBid) {
+                await handlePlaceBid(
+                  amount,
+                  bidType || "manual",
+                  selectedPlayerForBid.id,
+                  true, // Bypass compliance check for counter-bids
+                  maxAmount
+                );
+              }
               setShowStandardBidModal(false);
               setSelectedPlayerForBid(null);
             } catch (error) {

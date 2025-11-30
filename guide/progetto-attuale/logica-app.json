@@ -84,48 +84,58 @@
         "description": "Lo scheduler interroga la tabella per trovare aste con `status = 'active'` e `scheduled_end_time <= now`, e poi aggiorna il loro stato a 'sold'."
       }
     ]
+  },
+  "ssr_implementation": {
+    "feature_name": "Server-Side Rendering per Pagina Aste",
+    "summary": "Implementazione del rendering lato server (SSR) per la pagina principale delle aste per migliorare le performance di caricamento iniziale e la SEO. I dati iniziali (manager, aste attive, budget, stati utente) vengono recuperati sul server e passati come props al componente client.",
+    "architectural_pattern": "Server Component (`page.tsx`) che esegue il data fetching parallelo tramite servizi DB dedicati e passa i dati serializzati al Client Component (`AuctionPageContent.tsx`). Il Client Component inizializza il suo stato con questi dati e poi si sottoscrive agli aggiornamenti real-time via Socket.IO.",
+    "technical_details": [
+      "Backend (auction-league.service.ts): Aggiunta funzione `getLeagueManagersWithRosters` per aggregare dati manager, rose e aste attive.",
+      "Backend (auction-states.service.ts): Aggiunta funzione `getUserAuctionStates` per recuperare gli stati d'asta specifici dell'utente.",
+      "Frontend (page.tsx): Recupero dati server-side con gestione errori e redirect se necessario.",
+      "Frontend (AuctionPageContent.tsx): Aggiornato per accettare `initial*` props e inizializzare `useState` con essi. Risolti conflitti di tipo tra interfacce server e client."
+    ]
+  },
+  "auction_abandonment_logic": {
+    "feature_name": "Abbandono Asta e Timer di Risposta",
+    "summary": "Permette agli utenti di abbandonare volontariamente un'asta quando vengono superati, invece di attendere la scadenza del timer. Questo libera immediatamente i crediti bloccati e applica un cooldown di 48 ore per quel giocatore.",
+    "architectural_pattern": "Gestito tramite l'endpoint `/api/leagues/[id]/players/[id]/response-action` e il servizio `response-timer.service.ts`. L'azione 'fold' triggera la funzione `abandonAuction`.",
+    "user_flow": [
+      "1. L'utente riceve una notifica di superamento offerta.",
+      "2. Apre il modale di risposta e clicca su 'Abbandona'.",
+      "3. Il frontend invia una richiesta POST con action='fold'.",
+      "4. Il backend verifica che l'utente abbia un timer attivo e non sia già in cooldown.",
+      "5. Se valido, l'asta viene abbandonata per l'utente, i crediti sbloccati, e viene registrata una transazione 'auction_abandoned'.",
+      "6. Viene applicato un cooldown di 48 ore per quel giocatore."
+    ],
+    "database_interactions": [
+      {
+        "table": "budget_transactions",
+        "operation": "INSERT",
+        "description": "Registra l'abbandono con tipo 'auction_abandoned'. Richiede `auction_league_id`."
+      },
+      {
+        "table": "user_auction_cooldowns",
+        "operation": "INSERT",
+        "description": "Crea un record di cooldown per l'utente e il giocatore."
+      }
+    ]
+  },
+  "infinite_loop_fix": {
+    "feature_name": "Ottimizzazione Loop Notifiche Compliance",
+    "summary": "Risoluzione di un bug critico che causava un loop infinito di notifiche e riconnessioni socket. Il fix coinvolge sia il backend (emissione condizionale) che il frontend (gestione dipendenze useEffect).",
+    "architectural_pattern": "Backend: Conditional Event Emission. Frontend: Ref Ref-based State Tracking.",
+    "technical_details": [
+      "Frontend (AuctionPageContent.tsx): Sostituito `useState` con `useRef` per tracciare l'ultima notifica ricevuta, rimuovendo la dipendenza che causava il re-rendering e la riconnessione al socket ad ogni evento."
+    ]
+  },
+  "default_bid_logic_fix": {
+    "feature_name": "Correzione Default Bid Amount",
+    "summary": "Risolto un problema per cui il modale di offerta rapida (`QuickBidModal`) non mostrava il valore corretto (offerta attuale + 1) quando si tentava di rilanciare su un'asta attiva avviata da un altro utente.",
+    "technical_details": [
+      "Backend (player.service.ts): Aggiornata la query `getPlayers` per includere il campo `current_highest_bid_amount` dalla tabella `auctions` come `current_bid` per i giocatori in stato 'active_auction'.",
+      "Frontend (CallPlayerInterface.tsx): Aggiornata l'interfaccia `ApiPlayer` e la funzione di mapping `refreshPlayersData` per leggere `current_bid` dall'API e passarlo allo stato del componente.",
+      "Frontend (QuickBidModal.tsx): Aggiornata la logica di inizializzazione per usare `currentBid + 1` come valore di default quando disponibile."
+    ]
   }
-},
-"auction_abandonment_logic": {
-  "feature_name": "Abbandono Asta e Timer di Risposta",
-  "summary": "Permette agli utenti di abbandonare volontariamente un'asta quando vengono superati, invece di attendere la scadenza del timer. Questo libera immediatamente i crediti bloccati e applica un cooldown di 48 ore per quel giocatore.",
-  "architectural_pattern": "Gestito tramite l'endpoint `/api/leagues/[id]/players/[id]/response-action` e il servizio `response-timer.service.ts`. L'azione 'fold' triggera la funzione `abandonAuction`.",
-  "user_flow": [
-    "1. L'utente riceve una notifica di superamento offerta.",
-    "2. Apre il modale di risposta e clicca su 'Abbandona'.",
-    "3. Il frontend invia una richiesta POST con action='fold'.",
-    "4. Il backend verifica che l'utente abbia un timer attivo e non sia già in cooldown.",
-    "5. Se valido, l'asta viene abbandonata per l'utente, i crediti sbloccati, e viene registrata una transazione 'auction_abandoned'.",
-    "6. Viene applicato un cooldown di 48 ore per quel giocatore."
-  ],
-  "database_interactions": [
-    {
-      "table": "budget_transactions",
-      "operation": "INSERT",
-      "description": "Registra l'abbandono con tipo 'auction_abandoned'. Richiede `auction_league_id`."
-    },
-    {
-      "table": "user_auction_cooldowns",
-      "operation": "INSERT",
-      "description": "Crea un record di cooldown per l'utente e il giocatore."
-    }
-  ]
-},
-"infinite_loop_fix": {
-  "feature_name": "Ottimizzazione Loop Notifiche Compliance",
-  "summary": "Risoluzione di un bug critico che causava un loop infinito di notifiche e riconnessioni socket. Il fix coinvolge sia il backend (emissione condizionale) che il frontend (gestione dipendenze useEffect).",
-  "architectural_pattern": "Backend: Conditional Event Emission. Frontend: Ref Ref-based State Tracking.",
-  "technical_details": [
-    "Frontend (AuctionPageContent.tsx): Sostituito `useState` con `useRef` per tracciare l'ultima notifica ricevuta, rimuovendo la dipendenza che causava il re-rendering e la riconnessione al socket ad ogni evento."
-  ]
-},
-"default_bid_logic_fix": {
-  "feature_name": "Correzione Default Bid Amount",
-  "summary": "Risolto un problema per cui il modale di offerta rapida (`QuickBidModal`) non mostrava il valore corretto (offerta attuale + 1) quando si tentava di rilanciare su un'asta attiva avviata da un altro utente.",
-  "technical_details": [
-    "Backend (player.service.ts): Aggiornata la query `getPlayers` per includere il campo `current_highest_bid_amount` dalla tabella `auctions` come `current_bid` per i giocatori in stato 'active_auction'.",
-    "Frontend (CallPlayerInterface.tsx): Aggiornata l'interfaccia `ApiPlayer` e la funzione di mapping `refreshPlayersData` per leggere `current_bid` dall'API e passarlo allo stato del componente.",
-    "Frontend (QuickBidModal.tsx): Aggiornata la logica di inizializzazione per usare `currentBid + 1` come valore di default quando disponibile."
-  ]
-}
 }
