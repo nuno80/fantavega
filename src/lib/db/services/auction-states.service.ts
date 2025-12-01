@@ -350,17 +350,10 @@ export const handleAuctionAbandon = async (
       args: [auctionId, userId],
     });
 
-    // Sblocca i crediti dell'utente se aveva fatto un'offerta
-    if (userBid && auction) {
-      await db.execute({
-        sql: `
-          UPDATE league_participants
-          SET locked_credits = locked_credits - ?
-          WHERE league_id = ? AND user_id = ?
-        `,
-        args: [userBid.amount, auction.auction_league_id, userId],
-      });
-    }
+    // FIX: Rimosso sblocco crediti qui.
+    // 1. Le offerte manuali NON bloccano crediti, quindi non c'è nulla da sbloccare.
+    // 2. Gli auto-bid vengono sbloccati automaticamente da bid.service.ts quando vengono superati.
+    // Sbloccare qui causava locked_credits negativi per offerte manuali e doppio sblocco per auto-bid.
 
     // Crea cooldown 48 ore
     if (auction) {

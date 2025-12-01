@@ -10,21 +10,11 @@ export async function GET(request: Request) {
   try {
     const user = await currentUser();
 
-    // TEMPORARY: Admin check disabled for testing
-    // TODO: Re-enable after testing
-    /*
+    // Check if user is admin
     if (!user || user.publicMetadata?.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized - Admin only" },
         { status: 403 }
-      );
-    }
-    */
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized - Please login" },
-        { status: 401 }
       );
     }
 
