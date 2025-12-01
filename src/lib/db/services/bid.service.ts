@@ -1462,8 +1462,9 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
         });
 
         // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
+        // FIX: Controlla is_active per evitare doppio sblocco di auto-bid già superati
         const allAutoBidsResult = await tx.execute({
-          sql: "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ?",
+          sql: "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ? AND is_active = TRUE",
           args: [auction.id, auction.current_highest_bidder_id],
         });
         const allAutoBidsForAuction = allAutoBidsResult.rows as unknown as {
@@ -1473,7 +1474,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
 
         for (const otherAutoBid of allAutoBidsForAuction) {
           await tx.execute({
-            sql: "UPDATE league_participants SET locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?",
+            sql: "UPDATE league_participants SET locked_credits = MAX(0, locked_credits - ?) WHERE league_id = ? AND user_id = ?",
             args: [
               otherAutoBid.max_amount,
               auction.auction_league_id,
