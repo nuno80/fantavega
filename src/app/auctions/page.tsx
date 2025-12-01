@@ -60,6 +60,12 @@ export default async function AuctionsPage() {
     getUserAuctionStates(user.id, leagueId)
   ]);
 
+  // Sanitize managers data to prevent leaking locked_credits
+  const sanitizedManagers = managersData.managers.map((manager) => ({
+    ...manager,
+    locked_credits: manager.user_id === user.id ? manager.locked_credits : 0,
+  }));
+
   return (
     <div className="flex h-screen flex-col bg-background">
       <Navbar />
@@ -68,7 +74,7 @@ export default async function AuctionsPage() {
           <AuctionPageContent
             userId={user.id}
             initialLeagueId={leagueId}
-            initialManagers={managersData.managers}
+            initialManagers={sanitizedManagers}
             initialLeagueSlots={managersData.leagueSlots}
             initialActiveAuctions={managersData.activeAuctions}
             initialAutoBids={managersData.autoBids}

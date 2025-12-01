@@ -105,6 +105,55 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-17",
+      "name": "Budget Verification & Bug Fixes",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-17.1",
+          "name": "Create Budget Debug Tools (API & UI)",
+          "status": "completed"
+        },
+        {
+          "id": "FN-17.2",
+          "name": "Identify Negative Locked Credits Bug",
+          "status": "completed"
+        },
+        {
+          "id": "FN-17.3",
+          "name": "Fix Double-Unlock in Bid Service",
+          "status": "completed"
+        },
+        {
+          "id": "FN-17.4",
+          "name": "Fix Incorrect Unlock in Auction Abandon",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "FN-18",
+      "name": "Fix Privacy Leaks (Locked Credits)",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-18.1",
+          "name": "Hide Locked Credits in ManagerColumn UI",
+          "status": "completed"
+        },
+        {
+          "id": "FN-18.2",
+          "name": "Sanitize Managers API Response",
+          "status": "completed"
+        },
+        {
+          "id": "FN-18.3",
+          "name": "Sanitize SSR Initial Data",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

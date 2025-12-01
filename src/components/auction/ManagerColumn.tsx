@@ -728,9 +728,13 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
       {/* Nuovo Cruscotto Budget */}
       <div className="mb-2 space-y-2 rounded-md border border-gray-700 bg-gray-800/50 p-2 text-xs">
         <div className="flex items-baseline justify-between">
-          <span className="font-semibold text-gray-300">DISPONIBILI</span>
+          <span className="font-semibold text-gray-300">
+            {isCurrentUser ? "DISPONIBILI" : "RESIDUI"}
+          </span>
           <span className="text-lg font-bold text-green-400">
-            {availableBudget}
+            {isCurrentUser
+              ? availableBudget
+              : validTotalBudget - validTotalPenalties - spentCredits}
           </span>
         </div>
 
@@ -746,7 +750,7 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           <div>
             <span className="text-gray-400">Bloccati</span>
             <span className="block font-semibold text-orange-400">
-              {lockedCredits}
+              {isCurrentUser ? lockedCredits : "-"}
             </span>
           </div>
           <div>

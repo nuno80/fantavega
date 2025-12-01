@@ -217,6 +217,8 @@ export async function GET(
       ...manager,
       total_penalties: penaltiesByUser.get(manager.user_id) || 0,
       players: playersByManager.get(manager.user_id) || [],
+      // Sanitize locked_credits for other users to prevent data leaks
+      locked_credits: manager.user_id === user.id ? manager.locked_credits : 0,
     }));
 
     return NextResponse.json(

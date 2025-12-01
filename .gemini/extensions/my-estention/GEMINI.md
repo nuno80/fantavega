@@ -4,9 +4,6 @@ Questo file contiene le direttive e il contesto tecnico per lo sviluppo del prog
 
 ## 1. Regole Fondamentali e Workflow Obbligatorio
 
-### La Regola d'Oro
-
-L'esecuzione dei task deve seguire **esclusivamente** l'ordine sequenziale definito nel file `tasks.json`. Non passare al task successivo finché quello corrente non è stato completato in tutti i suoi sub-task.
 
 ### Ciclo di Lavoro Obbligatorio (Dopo ogni sub-task completato)
 
@@ -14,7 +11,6 @@ Al completamento di **ogni sub-task**, DEVI eseguire i seguenti passi:
 
 2. **Aggiorna i File di Stato**: Una volta superati i controlli, genera e fornisci INSIEME, in un unico messaggio, le versioni aggiornate dei seguenti tre file JSON.
 
-   - **`tasks.json`**: Aggiorna lo stato del sub-task/task completato da "pending" a "completed".
    - **`logica-app.json`**: Aggiorna o crea questo file per documentare la logica implementata.
 
    ```JSON

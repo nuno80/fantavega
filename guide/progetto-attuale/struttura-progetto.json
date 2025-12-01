@@ -80,6 +80,14 @@
     {
       "path": "src/components/players/QuickBidModal.tsx",
       "description": "Aggiornato per utilizzare `placeBidAction` per le offerte rapide."
+    },
+    {
+      "path": "src/app/api/debug/budget-verification/route.ts",
+      "description": "API Endpoint protetto per la verifica della coerenza del budget e il debug dei crediti bloccati."
+    },
+    {
+      "path": "src/app/debug/budget/page.tsx",
+      "description": "Pagina di debug UI per visualizzare i risultati della verifica del budget."
     }
   ]
 }

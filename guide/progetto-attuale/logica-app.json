@@ -162,5 +162,37 @@
       "Server Action (abandonAuctionAction): Gestisce l'abbandono di un'asta attiva.",
       "Client Integration: I componenti UI invocano le actions e gestiscono i feedback (successo/errore) tramite toast notifications, eliminando la necessità di `fetch` manuali."
     ]
+  },
+  "budget_verification_logic": {
+    "feature_name": "Verifica e Debug del Budget",
+    "summary": "Implementazione di strumenti di debug e correzione di bug critici nella gestione dei crediti bloccati (`locked_credits`). Il sistema garantisce che la somma di `disponibili + bloccati + spesi` sia sempre uguale al budget iniziale meno le penalità.",
+    "architectural_pattern": "API Endpoint protetto (`/api/debug/budget-verification`) accessibile solo agli admin, che esegue query SQL dirette per aggregare i dati da diverse tabelle. Pagina di debug (`/debug/budget`) per visualizzare i risultati.",
+    "technical_details": [
+      "Bug Fix (Double Unlock): Risolto un problema in `bid.service.ts` dove i crediti degli auto-bid venivano sbloccati due volte (una volta quando superati, e di nuovo alla chiusura dell'asta), causando valori negativi.",
+      "Bug Fix (Abandon Unlock): Risolto un problema in `auction-states.service.ts` dove l'abbandono di un'asta sbloccava erroneamente crediti per offerte manuali (che non bloccano crediti) o duplicava lo sblocco per auto-bid.",
+      "Verifica: La formula `Iniziale = Disponibili + Bloccati + Spesi (giocatori) + Penalità` è ora verificata e consistente."
+    ],
+    "database_interactions": [
+      {
+        "table": "league_participants",
+        "operation": "SELECT, UPDATE",
+        "description": "Lettura per verifica budget e aggiornamento `locked_credits` con controlli di sicurezza (`MAX(0, ...)`)."
+      },
+      {
+        "table": "auto_bids",
+        "operation": "SELECT",
+        "description": "Verifica dello stato `is_active` per prevenire doppi sblocchi."
+      }
+    ]
+  },
+  "privacy_logic": {
+    "feature_name": "Privacy dei Dati Sensibili (Locked Credits)",
+    "summary": "Implementazione di regole di visibilità per impedire agli utenti di vedere i crediti bloccati (e quindi dedurre le auto-bid attive) degli avversari.",
+    "architectural_pattern": "Sanitizzazione dei dati a livello API e SSR, e logica condizionale nella UI.",
+    "technical_details": [
+      "API (/api/leagues/[id]/managers): I campi `locked_credits` vengono impostati a 0 per tutti gli utenti diversi dal richiedente.",
+      "SSR (page.tsx): I dati iniziali dei manager vengono sanitizzati prima di essere passati al Client Component.",
+      "UI (ManagerColumn.tsx): Se `!isCurrentUser`, il campo 'Bloccati' mostra '-' e il campo 'Disponibili' mostra il 'Residuo Teorico' (Totale - Spesi) invece del reale disponibile."
+    ]
   }
 }
