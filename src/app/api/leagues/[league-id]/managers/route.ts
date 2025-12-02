@@ -88,7 +88,14 @@ export async function GET(
       args: [leagueId],
     });
 
-    const leagueSlots = leagueSlotsResult.rows[0] as unknown as LeagueSlots;
+    const leagueRow = leagueSlotsResult.rows[0] as unknown as LeagueSlots & { status: string };
+    const leagueSlots: LeagueSlots = {
+      slots_P: leagueRow.slots_P,
+      slots_D: leagueRow.slots_D,
+      slots_C: leagueRow.slots_C,
+      slots_A: leagueRow.slots_A,
+    };
+    const leagueStatus = leagueRow.status;
 
     // Get all managers/participants in the league
     const managersResult = await db.execute({
@@ -228,7 +235,7 @@ export async function GET(
         leagueSlots,
         activeAuctions,
         autoBids,
-        leagueStatus: leagueSlotsResult.rows[0].status,
+        leagueStatus,
       },
       { status: 200 }
     );
