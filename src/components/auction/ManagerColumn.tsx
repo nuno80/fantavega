@@ -205,10 +205,12 @@ function AssignedSlot({
   // Show trash icon only if current user and league is in repair mode
   const showDiscardOption = isCurrentUser && leagueStatus === "repair_active";
 
+  console.log(`[AssignedSlot] Player: ${player.name}, isCurrentUser: ${isCurrentUser}, leagueStatus: ${leagueStatus}, showDiscardOption: ${showDiscardOption}`);
+
   return (
     <>
       <div
-        className={`flex items-center justify-between rounded-md p-1.5 border ${pastelClass} transition-colors hover:bg-opacity-20`}
+        className={`flex items-center justify-between rounded-md p-1.5 border ${pastelClass} transition-colors hover:bg-opacity-20 ${showDiscardOption ? "border-red-500" : ""}`}
       >
         <div className="flex min-w-0 items-center">
           <div
