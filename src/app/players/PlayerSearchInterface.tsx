@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
-import { PlayerAdvancedFilters } from "@/components/players/PlayerAdvancedFilters";
+import { PlayerFilterBar } from "@/components/players/PlayerFilterBar";
 import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
 import { PlayerSearchResults } from "@/components/players/PlayerSearchResults";
 import { QuickBidModal } from "@/components/players/QuickBidModal";
@@ -242,20 +242,20 @@ export function PlayerSearchInterface({
         prev.map((player) =>
           player.id === data.playerId
             ? {
-                ...player,
-                auctionStatus: "active_auction", // <-- CORREZIONE: Assicura che lo stato sia sempre attivo su un update
-                currentBid: data.newPrice,
-                currentHighestBidderName:
-                  data.highestBidderName || data.highestBidderId,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-                autoBids: data.autoBids || player.autoBids,
-                userAutoBid:
-                  data.autoBids?.find((ab) => ab.userId === userId) ||
-                  player.userAutoBid,
-              }
+              ...player,
+              auctionStatus: "active_auction", // <-- CORREZIONE: Assicura che lo stato sia sempre attivo su un update
+              currentBid: data.newPrice,
+              currentHighestBidderName:
+                data.highestBidderName || data.highestBidderId,
+              timeRemaining: Math.max(
+                0,
+                data.scheduledEndTime - Math.floor(Date.now() / 1000)
+              ),
+              autoBids: data.autoBids || player.autoBids,
+              userAutoBid:
+                data.autoBids?.find((ab) => ab.userId === userId) ||
+                player.userAutoBid,
+            }
             : player
         )
       );
@@ -270,12 +270,12 @@ export function PlayerSearchInterface({
         prev.map((player) =>
           player.id === data.playerId
             ? {
-                ...player,
-                auctionStatus: "assigned",
-                assignedToTeam: data.winnerId,
-                currentBid: data.finalPrice,
-                timeRemaining: 0,
-              }
+              ...player,
+              auctionStatus: "assigned",
+              assignedToTeam: data.winnerId,
+              currentBid: data.finalPrice,
+              timeRemaining: 0,
+            }
             : player
         )
       );
@@ -292,15 +292,15 @@ export function PlayerSearchInterface({
         prev.map((player) =>
           player.id === data.playerId
             ? {
-                ...player,
-                auctionStatus: "active_auction",
-                auctionId: data.auctionId,
-                currentBid: data.newPrice,
-                timeRemaining: Math.max(
-                  0,
-                  data.scheduledEndTime - Math.floor(Date.now() / 1000)
-                ),
-              }
+              ...player,
+              auctionStatus: "active_auction",
+              auctionId: data.auctionId,
+              currentBid: data.newPrice,
+              timeRemaining: Math.max(
+                0,
+                data.scheduledEndTime - Math.floor(Date.now() / 1000)
+              ),
+            }
             : player
         )
       );
@@ -448,9 +448,9 @@ export function PlayerSearchInterface({
         prev.map((player) =>
           player.id === playerId
             ? {
-                ...player,
-                [iconType]: value,
-              }
+              ...player,
+              [iconType]: value,
+            }
             : player
         )
       );
@@ -485,7 +485,7 @@ export function PlayerSearchInterface({
         }
       />
 
-      <PlayerAdvancedFilters
+      <PlayerFilterBar
         filters={filters}
         onFiltersChange={setFilters}
         availableTeams={Array.from(new Set(players.map((p) => p.team))).sort()}

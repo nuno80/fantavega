@@ -145,6 +145,7 @@ export interface LeagueSlots {
 }
 
 export interface ActiveAuction {
+  id: number;
   player_id: number;
   player_name: string;
   player_role: string;
@@ -1169,6 +1170,7 @@ export const getLeagueManagersWithRosters = async (
   const activeAuctionsResult = await db.execute({
     sql: `
         SELECT
+          a.id,
           a.player_id,
           p.name as player_name,
           p.role as player_role,

@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuctionPageContent } from "./AuctionPageContent";
 
-export default async function AuctionsPage() {
+export default async function AuctionsPage2() {
   const user = await currentUser();
 
   if (!user) {
@@ -66,6 +66,17 @@ export default async function AuctionsPage() {
     locked_credits: manager.user_id === user.id ? manager.locked_credits : 0,
   }));
 
+  // Serialize all data to plain objects to avoid React Server Component errors
+  const serializedData = JSON.parse(JSON.stringify({
+    managers: sanitizedManagers,
+    leagueSlots: managersData.leagueSlots,
+    activeAuctions: managersData.activeAuctions,
+    autoBids: managersData.autoBids,
+    currentAuction,
+    complianceData,
+    userAuctionStates
+  }));
+
   return (
     <div className="flex h-screen flex-col bg-background">
       <Navbar />
@@ -74,13 +85,13 @@ export default async function AuctionsPage() {
           <AuctionPageContent
             userId={user.id}
             initialLeagueId={leagueId}
-            initialManagers={sanitizedManagers}
-            initialLeagueSlots={managersData.leagueSlots}
-            initialActiveAuctions={managersData.activeAuctions}
-            initialAutoBids={managersData.autoBids}
-            initialCurrentAuction={currentAuction}
-            initialComplianceData={complianceData}
-            initialUserAuctionStates={userAuctionStates}
+            initialManagers={serializedData.managers}
+            initialLeagueSlots={serializedData.leagueSlots}
+            initialActiveAuctions={serializedData.activeAuctions}
+            initialAutoBids={serializedData.autoBids}
+            initialCurrentAuction={serializedData.currentAuction}
+            initialComplianceData={serializedData.complianceData}
+            initialUserAuctionStates={serializedData.userAuctionStates}
           />
         </Suspense>
       </div>

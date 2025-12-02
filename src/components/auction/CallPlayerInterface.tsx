@@ -523,11 +523,11 @@ export function CallPlayerInterface({
       </div>
 
       {/* Tab Content */}
-      <div className="p-4">
+      <div className="p-2">
         {activeTab === "chiama" && (
           <div className="flex flex-col items-center gap-3 md:flex-row">
             {/* Search Bar */}
-            <div className="relative flex-1">
+            <div className="relative w-full flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
               <Input
                 placeholder="Cerca giocatore o squadra..."
@@ -633,7 +633,7 @@ export function CallPlayerInterface({
 
             {/* Player Selection */}
             <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
-              <SelectTrigger className="h-10 w-64 border-input bg-background text-foreground">
+              <SelectTrigger className="h-10 w-full border-input bg-background text-foreground md:w-64">
                 <SelectValue placeholder="Seleziona Giocatore" />
               </SelectTrigger>
               <SelectContent className="max-h-60 border-border bg-card">
@@ -671,7 +671,7 @@ export function CallPlayerInterface({
             {/* Action Button */}
             <Button
               size="sm"
-              className="h-10 bg-blue-500 px-6 text-white hover:bg-blue-600"
+              className="h-10 w-full bg-blue-500 px-6 text-white hover:bg-blue-600 md:w-auto"
               onClick={handleMainAction}
               disabled={
                 !selectedPlayer ||

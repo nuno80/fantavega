@@ -112,18 +112,20 @@ export function PlayerSearchCard({
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
+
+  // Pastel color system matching Auction page
+  const getRolePastelColor = (role: string) => {
+    switch (role.toUpperCase()) {
       case "P":
-        return "bg-yellow-500 text-yellow-900";
+        return "bg-yellow-100 border-yellow-200 text-yellow-900 dark:bg-yellow-500/20 dark:border-yellow-500/50 dark:text-yellow-300";
       case "D":
-        return "bg-green-500 text-green-900";
+        return "bg-green-100 border-green-200 text-green-900 dark:bg-green-500/20 dark:border-green-500/50 dark:text-green-300";
       case "C":
-        return "bg-blue-500 text-blue-900";
+        return "bg-blue-100 border-blue-200 text-blue-900 dark:bg-blue-500/20 dark:border-blue-500/50 dark:text-blue-300";
       case "A":
-        return "bg-red-500 text-red-900";
+        return "bg-red-100 border-red-200 text-red-900 dark:bg-red-500/20 dark:border-red-500/50 dark:text-red-300";
       default:
-        return "bg-gray-500 text-gray-900";
+        return "bg-gray-100 border-gray-200 text-gray-900 dark:bg-gray-500/20 dark:border-gray-500/50 dark:text-gray-300";
     }
   };
 
@@ -199,7 +201,7 @@ export function PlayerSearchCard({
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge className={getRoleBadgeColor(player.role)}>
+              <Badge className={`border ${getRolePastelColor(player.role)}`}>
                 {player.role}
               </Badge>
               {player.roleDetail && (

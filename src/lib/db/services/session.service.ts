@@ -13,26 +13,35 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
 
   try {
-    // Chiudi eventuali sessioni precedenti rimaste aperte
-    await db.execute({
-      sql: `
-        UPDATE user_sessions
-        SET session_end = ?
-        WHERE user_id = ? AND session_end IS NULL
-      `,
-      args: [now, userId],
+    // Check if user already has an active session
+    const activeSessionResult = await db.execute({
+      sql: `SELECT id FROM user_sessions WHERE user_id = ? AND session_end IS NULL`,
+      args: [userId],
     });
 
-    // Crea nuova sessione
-    await db.execute({
-      sql: `
-        INSERT INTO user_sessions (user_id, session_start)
-        VALUES (?, ?)
-      `,
-      args: [userId, now],
-    });
+    // Only create a new session if one doesn't exist
+    if (activeSessionResult.rows.length === 0) {
+      // Chiudi eventuali sessioni precedenti rimaste aperte
+      await db.execute({
+        sql: `
+          UPDATE user_sessions
+          SET session_end = ?
+          WHERE user_id = ? AND session_end IS NULL
+        `,
+        args: [now, userId],
+      });
 
-    console.log(`[SESSION] User ${userId} logged in at ${now}`);
+      // Crea nuova sessione
+      await db.execute({
+        sql: `
+          INSERT INTO user_sessions (user_id, session_start)
+          VALUES (?, ?)
+        `,
+        args: [userId, now],
+      });
+
+      console.log(`[SESSION] User ${userId} logged in at ${now}`);
+    }
 
     // Prima processa timer scaduti globalmente (libera slot)
     try {
@@ -54,7 +63,7 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
     await activateTimersForUser(userId);
   } catch (error) {
     console.error("[SESSION] Error recording login:", error);
-    throw error;
+    // Don't throw, just log. This prevents blocking the UI if session tracking fails.
   }
 };
 

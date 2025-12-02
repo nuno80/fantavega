@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 
 import {
   AlertTriangle,
@@ -10,14 +10,12 @@ import {
   Star,
   Trash2,
   User,
-  X,
+  X
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { ComplianceTimer } from "./ComplianceTimer";
 import { DiscardPlayerModal } from "./DiscardPlayerModal";
 import { ResponseActionModal } from "./ResponseActionModal";
-import { StandardBidModal } from "./StandardBidModal";
 
 // Type definitions
 interface PlayerInRoster {
@@ -51,6 +49,7 @@ interface LeagueSlots {
 }
 
 interface ActiveAuction {
+  id: number;
   player_id: number;
   player_name: string;
   player_role: string;
@@ -91,6 +90,7 @@ type Slot =
 interface AutoBidCount {
   player_id: number;
   auto_bid_count: number;
+  max_amount?: number; // Added for compatibility
 }
 
 interface ManagerColumnProps {
@@ -137,15 +137,34 @@ const getRoleColor = (role: string) => {
   }
 };
 
+// New Pastel Colors for backgrounds
+const getRolePastelColor = (role: string) => {
+  switch (role.toUpperCase()) {
+    case "P":
+      return "bg-yellow-100 border-yellow-200 dark:bg-yellow-500/20 dark:border-yellow-500/50";
+    case "D":
+      return "bg-green-100 border-green-200 dark:bg-green-500/20 dark:border-green-500/50";
+    case "C":
+      return "bg-blue-100 border-blue-200 dark:bg-blue-500/20 dark:border-blue-500/50";
+    case "A":
+      return "bg-red-100 border-red-200 dark:bg-red-500/20 dark:border-red-500/50";
+    default:
+      return "bg-gray-100 border-gray-200 dark:bg-gray-500/20 dark:border-gray-500/50";
+  }
+};
+
 const formatTimeRemaining = (endTime: number) => {
   const now = Math.floor(Date.now() / 1000);
   const remaining = Math.max(0, endTime - now);
 
-  if (remaining === 0) return { text: "Scaduto", color: "text-red-500" };
+  if (remaining === 0) return { text: "Scaduto", color: "text-red-500", percent: 0, remaining: 0 };
 
   const hours = Math.floor(remaining / 3600);
   const minutes = Math.floor((remaining % 3600) / 60);
   const seconds = remaining % 60;
+
+  // Calculate percentage for progress bar (assuming 60s max for short timer visual)
+  const percent = Math.min(100, (remaining / 60) * 100);
 
   let color = "text-foreground";
   let text = "";
@@ -160,7 +179,7 @@ const formatTimeRemaining = (endTime: number) => {
     text = `${hours}h ${minutes}m`;
   }
 
-  return { text, color };
+  return { text, color, percent, remaining };
 };
 
 // Slot Components
@@ -181,58 +200,36 @@ function AssignedSlot({
 }) {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const roleColor = getRoleColor(role);
+  const pastelClass = getRolePastelColor(role);
 
   // Show trash icon only if current user and league is in repair mode
   const showDiscardOption = isCurrentUser && leagueStatus === "repair_active";
 
-  // Classi esplicite per ogni ruolo
-  let bgClass = "bg-gray-700";
-  let borderClass = "border-gray-700";
-
-  switch (role.toUpperCase()) {
-    case "P":
-      bgClass = "bg-yellow-600 bg-opacity-20";
-      borderClass = "border-yellow-500";
-      break;
-    case "D":
-      bgClass = "bg-green-600 bg-opacity-20";
-      borderClass = "border-green-500";
-      break;
-    case "C":
-      bgClass = "bg-blue-600 bg-opacity-20";
-      borderClass = "border-blue-500";
-      break;
-    case "A":
-      bgClass = "bg-red-600 bg-opacity-20";
-      borderClass = "border-red-500";
-      break;
-  }
-
   return (
     <>
       <div
-        className={`flex items-center justify-between rounded-md p-1.5 ${bgClass} border ${borderClass}`}
+        className={`flex items-center justify-between rounded-md p-1.5 border ${pastelClass} transition-colors hover:bg-opacity-20`}
       >
         <div className="flex min-w-0 items-center">
           <div
-            className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+            className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
           />
-          <span className="truncate text-xs">{player.name}</span>
+          <span className="truncate text-xs font-medium">{player.name}</span>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <span className="text-xs font-semibold text-foreground">
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
             {player.assignment_price}
           </span>
           {showDiscardOption ? (
             <button
               onClick={() => setShowDiscardModal(true)}
-              className="rounded p-1 transition-colors hover:bg-red-600"
+              className="rounded p-1 transition-colors hover:bg-red-600/20"
               title="Scarta giocatore"
             >
               <Trash2 className="h-3 w-3 text-red-400" />
             </button>
           ) : (
-            <Lock className="h-3 w-3 text-gray-400" />
+            <Lock className="h-3 w-3 text-gray-400/50" />
           )}
         </div>
       </div>
@@ -265,14 +262,14 @@ function ResponseNeededSlot({
   leagueId,
   isLast,
   onCounterBid,
-  isCurrentUser, // Add this prop
+  isCurrentUser,
 }: {
   state: UserAuctionState;
   role: string;
   leagueId: number;
   isLast: boolean;
   onCounterBid: (playerId: number) => void;
-  isCurrentUser: boolean; // Add this prop
+  isCurrentUser: boolean;
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
@@ -324,51 +321,61 @@ function ResponseNeededSlot({
     return "text-green-400"; // Over 30 minutes: green
   };
 
+  const progressPercent = Math.min(100, (currentTimeRemaining / 3600) * 100); // Scale to 1 hour
+
   return (
     <>
       <div
-        className={`flex items-center justify-between border border-red-500 bg-red-600 bg-opacity-30 p-1.5 ${isLast ? "rounded-b-md" : ""}`}
+        className={`relative flex flex-col overflow-hidden border border-red-200 bg-red-50 p-1.5 dark:border-red-500/50 dark:bg-red-900/10 ${isLast ? "rounded-b-md" : ""}`}
       >
-        <div className="flex min-w-0 flex-1 items-center">
-          <div
-            className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
-          />
-          <span className="mr-2 truncate text-xs text-red-900 dark:text-red-200">
-            {state.player_name}
-          </span>
-          {/* Response Timer */}
-          {currentTimeRemaining > 0 ? (
-            <span
-              className={`font-mono text-xs font-bold ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? "animate-pulse" : ""}`}
-            >
-              {formatResponseTimer(currentTimeRemaining)}
+        {/* Progress Bar Background */}
+        <div
+          className="absolute bottom-0 left-0 h-0.5 bg-red-500 transition-all duration-1000"
+          style={{ width: `${progressPercent}%` }}
+        />
+
+        <div className="flex items-center justify-between">
+          <div className="flex min-w-0 flex-1 items-center">
+            <div
+              className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+            />
+            <span className="mr-2 truncate text-xs font-medium text-red-600 dark:text-red-300">
+              {state.player_name}
             </span>
-          ) : (
-            <span className="text-xs font-bold text-red-500">Scaduto</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-foreground">{state.current_bid}</span>
-          <button
-            onClick={() => onCounterBid(state.player_id)}
-            className="rounded p-1 transition-colors hover:bg-green-600"
-            title="Rilancia"
-            disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
-          >
-            <DollarSign
-              className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
-            />
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="rounded p-1 transition-colors hover:bg-red-600"
-            title="Abbandona"
-            disabled={currentTimeRemaining <= 0 || !isCurrentUser} // Disable if not current user
-          >
-            <X
-              className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
-            />
-          </button>
+            {/* Response Timer */}
+            {currentTimeRemaining > 0 ? (
+              <span
+                className={`font-mono text-xs font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? "animate-pulse" : ""}`}
+              >
+                {formatResponseTimer(currentTimeRemaining)}
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-red-500">Scaduto</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-foreground tabular-nums">{state.current_bid}</span>
+            <button
+              onClick={() => onCounterBid(state.player_id)}
+              className="rounded p-1 transition-colors hover:bg-green-600/20"
+              title="Rilancia"
+              disabled={currentTimeRemaining <= 0 || !isCurrentUser}
+            >
+              <DollarSign
+                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
+              />
+            </button>
+            <button
+              onClick={() => setShowModal(true)}
+              className="rounded p-1 transition-colors hover:bg-red-600/20"
+              title="Abbandona"
+              disabled={currentTimeRemaining <= 0 || !isCurrentUser}
+            >
+              <X
+                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
+              />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -404,8 +411,22 @@ function InAuctionSlot({
     is_active: boolean;
   } | null>(null);
 
+  // Track previous bid to trigger flash animation
+  const [prevBid, setPrevBid] = useState(auction.current_highest_bid_amount);
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    if (auction.current_highest_bid_amount !== prevBid) {
+      setFlash(true);
+      const timer = setTimeout(() => setFlash(false), 1000);
+      setPrevBid(auction.current_highest_bid_amount);
+      return () => clearTimeout(timer);
+    }
+  }, [auction.current_highest_bid_amount, prevBid]);
+
   const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
   const roleColor = getRoleColor(role);
+  const pastelClass = getRolePastelColor(role);
 
   // Fetch auto-bid for this specific player if current user
   useEffect(() => {
@@ -429,60 +450,44 @@ function InAuctionSlot({
     isCurrentUser,
     leagueId,
     auction.player_id,
-    // REMOVED: auction.current_highest_bid_amount - this was causing unnecessary re-fetches
   ]);
 
   // Show user's auto-bid for this specific player (only their own)
   const showUserAutoBid =
     isCurrentUser && playerAutoBid && playerAutoBid.is_active;
 
-  // Classi esplicite per ogni ruolo
-  let bgClass = "bg-gray-700";
-  let borderClass = "border-gray-700";
-
-  switch (role.toUpperCase()) {
-    case "P":
-      bgClass = "bg-yellow-600 bg-opacity-20";
-      borderClass = "border-yellow-500";
-      break;
-    case "D":
-      bgClass = "bg-green-600 bg-opacity-20";
-      borderClass = "border-green-500";
-      break;
-    case "C":
-      bgClass = "bg-blue-600 bg-opacity-20";
-      borderClass = "border-blue-500";
-      break;
-    case "A":
-      bgClass = "bg-red-600 bg-opacity-20";
-      borderClass = "border-red-500";
-      break;
-  }
-
   return (
     <div
-      className={`flex items-center justify-between p-1.5 ${bgClass} border ${borderClass} ${isLast ? "rounded-b-md" : ""}`}
+      className={`relative flex items-center justify-between p-1.5 border ${pastelClass} ${isLast ? "rounded-b-md" : ""} transition-all duration-300 ${flash ? "bg-green-100 dark:bg-green-500/20" : ""}`}
     >
+      {/* Timer Progress Bar for short durations */}
+      {timeInfo.remaining < 60 && (
+        <div
+          className="absolute bottom-0 left-0 h-0.5 bg-red-500 transition-all duration-1000"
+          style={{ width: `${timeInfo.percent}%` }}
+        />
+      )}
+
       <div className="flex min-w-0 items-center">
         <div
-          className={`mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm ${roleColor}`}
+          className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
         />
-        <span className="truncate text-xs">{auction.player_name}</span>
+        <span className="truncate text-xs font-medium">{auction.player_name}</span>
       </div>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
-            <span className="font-semibold text-blue-600 dark:text-blue-400">
+            <span className="font-mono font-semibold text-blue-400 tabular-nums">
               {playerAutoBid.max_amount}
             </span>
           )}
-          {showUserAutoBid && <span className="text-gray-400">|</span>}
-          <span className={`font-semibold text-green-600 dark:text-green-400`}>
+          {showUserAutoBid && <span className="text-gray-600">|</span>}
+          <span className={`font-mono font-semibold tabular-nums ${flash ? "scale-110 text-green-300" : "text-green-400"} transition-all duration-300`}>
             {auction.current_highest_bid_amount || 0}
           </span>
         </div>
         <span
-          className={`ml-2 ${timeInfo.color} ${timeInfo.color === "text-red-500" && timeInfo.text.includes("s") ? "animate-pulse" : ""}`}
+          className={`ml-2 font-mono tabular-nums ${timeInfo.color} ${timeInfo.color === "text-red-500" && timeInfo.text.includes("s") ? "animate-pulse font-bold" : ""}`}
         >
           {timeInfo.text}
         </span>
@@ -493,24 +498,24 @@ function InAuctionSlot({
 
 function EmptySlot() {
   return (
-    <div className="flex items-center justify-between rounded-md border border-dashed border-gray-500 bg-gray-600 bg-opacity-20 p-1.5">
+    <div className="flex h-6 items-center justify-between rounded-md border border-dashed border-gray-400 bg-gray-50 px-2 opacity-60 transition-opacity hover:opacity-90 dark:border-gray-800 dark:bg-gray-900/20 dark:opacity-30 dark:hover:opacity-50">
       <div className="flex min-w-0 items-center">
-        <div className="mr-1.5 h-4 w-4 flex-shrink-0 rounded-sm bg-gray-500 opacity-50" />
-        <span className="truncate text-xs">Slot vuoto</span>
+        <div className="mr-2 h-1 w-1 flex-shrink-0 rounded-full bg-gray-600" />
+        <span className="truncate text-[10px] text-gray-500">Slot vuoto</span>
       </div>
-      <span className="text-xs font-semibold text-gray-500">-</span>
     </div>
   );
 }
 
 // Main Component
-const ManagerColumn: React.FC<ManagerColumnProps> = ({
+export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   manager,
   isCurrentUser,
   isHighestBidder: _isHighestBidder,
   position = 0,
   leagueSlots,
   activeAuctions = [],
+  autoBids = [], // Added autoBids prop
   userAutoBid,
   currentAuctionPlayerId,
   userAuctionStates = [],
@@ -521,33 +526,9 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   onPenaltyApplied,
   onPlayerDiscarded,
 }) => {
-  const [showStandardBidModal, setShowStandardBidModal] = useState(false);
-  const [selectedPlayerForBid, setSelectedPlayerForBid] = useState<{
-    id: number;
-    name: string;
-    role: string;
-    team: string;
-    currentBid: number;
-  } | null>(null);
 
-  const handleCounterBid = (playerId: number) => {
-    console.log(`[ManagerColumn] Counter bid clicked for player ${playerId}`);
 
-    const auction = activeAuctions.find((a) => a.player_id === playerId);
-    const state = userAuctionStates.find((s) => s.player_id === playerId);
 
-    if (auction || state) {
-      setSelectedPlayerForBid({
-        id: playerId,
-        name: auction?.player_name || state?.player_name || "Giocatore",
-        role: auction?.player_role || "?",
-        team: auction?.player_team || "?",
-        currentBid:
-          auction?.current_highest_bid_amount || state?.current_bid || 0,
-      });
-      setShowStandardBidModal(true);
-    }
-  };
 
   const getTeamColor = (position: number) => {
     const colors = [
@@ -646,28 +627,51 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const spentPercentage =
     validTotalBudget > 0 ? (spentCredits / validTotalBudget) * 100 : 0;
 
+  // Header Gradient based on status
+  const headerGradient = isCurrentUser
+    ? "bg-gradient-to-r from-green-100 to-transparent dark:from-green-600/30"
+    : "bg-gradient-to-r from-gray-100 to-transparent dark:from-gray-700/40";
+
+  const borderColor = isCurrentUser
+    ? complianceTimerStartAt !== undefined &&
+      complianceTimerStartAt !== null &&
+      !isNaN(complianceTimerStartAt) &&
+      complianceTimerStartAt >= 0
+      ? "border-red-400 dark:border-red-500/50"
+      : "border-green-400 dark:border-green-500/50"
+    : "border-gray-200 dark:border-gray-800";
+
+
+  // Calculate stats
+  const roleCounts = {
+    P: manager.players.filter((p) => p.role === "P").length,
+    D: manager.players.filter((p) => p.role === "D").length,
+    C: manager.players.filter((p) => p.role === "C").length,
+    A: manager.players.filter((p) => p.role === "A").length,
+  };
+
+  // Calculate missing players per role
+  const missingRoles = {
+    P: Math.max(0, (leagueSlots?.slots_P || 0) - roleCounts.P),
+    D: Math.max(0, (leagueSlots?.slots_D || 0) - roleCounts.D),
+    C: Math.max(0, (leagueSlots?.slots_C || 0) - roleCounts.C),
+    A: Math.max(0, (leagueSlots?.slots_A || 0) - roleCounts.A),
+  };
+
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border-2 bg-card p-2 ${isCurrentUser
-        ? complianceTimerStartAt !== undefined &&
-          complianceTimerStartAt !== null &&
-          !isNaN(complianceTimerStartAt) &&
-          complianceTimerStartAt >= 0
-          ? "border-red-500"
-          : "border-green-500"
-        : "border-border"
-        }`}
+      className={`flex h-full flex-col rounded-lg border bg-white/80 p-2 backdrop-blur-sm transition-all dark:bg-card/50 ${borderColor}`}
     >
       {/* Header */}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1">
+      <div className={`-mx-2 -mt-2 mb-2 flex items-center justify-between gap-2 rounded-t-lg p-2 ${headerGradient}`}>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {isCurrentUser ? (
-            <Star className="h-4 w-4 flex-shrink-0 text-yellow-400" />
+            <Star className="h-4 w-4 flex-shrink-0 text-yellow-400 fill-yellow-400" />
           ) : (
-            <User className="h-4 w-4 flex-shrink-0 text-gray-400" />
+            <User className="h-4 w-4 flex-shrink-0 text-gray-500 dark:text-gray-400" />
           )}
           <span
-            className={`truncate text-xs font-semibold ${getTeamColor(
+            className={`truncate text-sm font-bold tracking-tight ${getTeamColor(
               position
             )}`}
           >
@@ -682,10 +686,10 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 title={`Penalità totali: ${manager.total_penalties} crediti`}
                 className="flex items-center"
               >
-                <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
                   P
                 </div>
-                <span className="ml-1 text-xs text-red-400">
+                <span className="ml-1 text-xs font-mono text-red-400">
                   {manager.total_penalties}
                 </span>
               </span>
@@ -704,7 +708,6 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       timerStartTimestamp={complianceTimerStartAt}
                       leagueId={leagueId}
                       onPenaltyApplied={() => {
-                        // Call parent callback to refresh data after penalty
                         console.log(
                           "[MANAGER_COLUMN] Timer expired, penalty applied - refreshing compliance data"
                         );
@@ -725,49 +728,34 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
         </div>
       </div>
 
-      {/* Nuovo Cruscotto Budget */}
-      <div className="mb-2 space-y-2 rounded-md border border-gray-700 bg-gray-800/50 p-2 text-xs">
-        <div className="flex items-baseline justify-between">
-          <span className="font-semibold text-gray-300">
-            {isCurrentUser ? "DISPONIBILI" : "RESIDUI"}
+      {/* Compact Budget Dashboard */}
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-md bg-gray-100 p-1.5 text-[10px] dark:bg-gray-900/30">
+        <div className="flex flex-col items-center border-r border-gray-300 px-1 dark:border-gray-700/50">
+          <span className="text-gray-600 uppercase tracking-wider text-[9px] mb-0.5 dark:text-gray-500">
+            {isCurrentUser ? "Disp." : "Residui"}
           </span>
-          <span className="text-lg font-bold text-green-400">
+          <span className="font-mono text-sm font-bold text-green-600 tabular-nums dark:text-green-400">
             {isCurrentUser
               ? availableBudget
               : validTotalBudget - validTotalPenalties - spentCredits}
           </span>
         </div>
-
-        <div className="h-2 w-full rounded-full bg-gray-600">
-          <div
-            className="h-2 rounded-full bg-red-500"
-            style={{ width: `${spentPercentage}%` }}
-            title={`Speso: ${spentPercentage.toFixed(1)}%`}
-          ></div>
+        <div className="flex flex-col items-center border-r border-gray-300 px-1 dark:border-gray-700/50">
+          <span className="text-gray-600 uppercase tracking-wider text-[9px] mb-0.5 dark:text-gray-500">Spesi</span>
+          <span className="font-mono text-sm font-bold text-red-600 tabular-nums dark:text-red-400">
+            {spentCredits}
+          </span>
         </div>
-
-        <div className="flex justify-between pt-1 text-center">
-          <div>
-            <span className="text-gray-400">Bloccati</span>
-            <span className="block font-semibold text-orange-400">
-              {isCurrentUser ? lockedCredits : "-"}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Spesi</span>
-            <span className="block font-semibold text-red-400">
-              {spentCredits}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Iniziale</span>
-            <span className="block font-semibold">{validTotalBudget}</span>
-          </div>
+        <div className="flex flex-col items-center px-1">
+          <span className="text-gray-600 uppercase tracking-wider text-[9px] mb-0.5 dark:text-gray-500">Blocc.</span>
+          <span className="font-mono text-sm font-bold text-orange-600 tabular-nums dark:text-orange-400">
+            {isCurrentUser ? lockedCredits : "-"}
+          </span>
         </div>
       </div>
 
       {/* Role counters */}
-      <div className="mb-2 flex justify-around text-xs">
+      <div className="mb-2 flex justify-between px-1 text-[10px] font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">
         {["P", "D", "C", "A"].map((role) => {
           const currentCount = getRoleCount(role);
           const requiredSlots =
@@ -776,9 +764,9 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           return (
             <span
               key={role}
-              className={isCompliant ? "text-green-400" : "text-red-400"}
+              className={`${isCompliant ? "text-green-500 font-bold" : "text-red-500 font-bold"}`}
             >
-              {role}: {currentCount}
+              {role} <span className={isCompliant ? "text-green-400" : "text-red-400"}>{currentCount}</span>
             </span>
           );
         })}
@@ -791,138 +779,55 @@ const ManagerColumn: React.FC<ManagerColumnProps> = ({
           if (slots.length === 0) return null;
 
           return (
-            <div key={role} className="flex flex-col">
-              <div
-                className={`${getRoleColor(role)} px-2 py-1 text-gray-900 ${slots.some((s) => s.type === "in_auction") ? "rounded-t-md" : "mb-1 rounded-md"} flex items-center justify-between text-xs font-semibold`}
-              >
-                <span>{role}</span>
-                <span>
-                  {
-                    (manager.players || []).filter(
-                      (p) => p.role.toUpperCase() === role.toUpperCase()
-                    ).length
-                  }
-                  /{leagueSlots?.[`slots_${role}` as keyof LeagueSlots] || 0}
-                </span>
-              </div>
+            <div key={role} className="flex flex-col space-y-1">
+              {slots.map((slot, idx) => {
+                const isLast = idx === slots.length - 1;
 
-              <div className="space-y-0.5">
-                {slots.map((slot, index) => {
-                  switch (slot.type) {
-                    case "assigned":
-                      return (
-                        <AssignedSlot
-                          key={index}
-                          player={slot.player}
-                          role={role}
-                          isCurrentUser={isCurrentUser}
-                          leagueStatus={leagueStatus}
-                          leagueId={leagueId}
-                          onPlayerDiscarded={onPlayerDiscarded}
-                        />
-                      );
-                    case "in_auction":
-                      return (
-                        <InAuctionSlot
-                          key={index}
-                          auction={slot.auction}
-                          role={role}
-                          isLast={index === slots.length - 1}
-                          isCurrentUser={isCurrentUser}
-                          leagueId={leagueId}
-                        />
-                      );
-                    case "response_needed":
-                      return (
-                        <ResponseNeededSlot
-                          key={index}
-                          state={slot.state}
-                          role={role}
-                          leagueId={
-                            leagueId ||
-                            parseInt(window.location.pathname.split("/")[2])
-                          } // Extract from URL
-                          isLast={index === slots.length - 1}
-                          onCounterBid={handleCounterBid}
-                          isCurrentUser={isCurrentUser} // Pass isCurrentUser prop
-                        />
-                      );
-                    case "empty":
-                      return <EmptySlot key={index} />;
-                    default:
-                      return null;
-                  }
-                })}
-              </div>
+                if (slot.type === "assigned") {
+                  return (
+                    <AssignedSlot
+                      key={`assigned-${slot.player.id}`}
+                      player={slot.player}
+                      role={role}
+                      isCurrentUser={isCurrentUser}
+                      leagueStatus={leagueStatus}
+                      leagueId={leagueId}
+                      onPlayerDiscarded={onPlayerDiscarded}
+                    />
+                  );
+                } else if (slot.type === "response_needed") {
+                  return (
+                    <ResponseNeededSlot
+                      key={`response-${slot.state.player_id}`}
+                      state={slot.state}
+                      role={role}
+                      leagueId={leagueId || 0}
+                      isLast={isLast}
+                      onCounterBid={() => { }}
+                      isCurrentUser={isCurrentUser}
+                    />
+                  );
+                } else if (slot.type === "in_auction") {
+                  return (
+                    <InAuctionSlot
+                      key={`auction-${slot.auction.player_id}`}
+                      auction={slot.auction}
+                      role={role}
+                      isLast={isLast}
+                      isCurrentUser={isCurrentUser}
+                      leagueId={leagueId}
+                    />
+                  );
+                } else {
+                  return <EmptySlot key={`empty-${role}-${idx}`} />;
+                }
+              })}
             </div>
           );
         })}
-
-        {!leagueSlots && (
-          <div className="py-4 text-center text-xs text-gray-500">
-            Configurazione slot non disponibile
-          </div>
-        )}
       </div>
-
-      {/* Standard Bid Modal */}
-      {selectedPlayerForBid && leagueId && (
-        <StandardBidModal
-          isOpen={showStandardBidModal}
-          onClose={() => {
-            setShowStandardBidModal(false);
-            setSelectedPlayerForBid(null);
-          }}
-          playerName={selectedPlayerForBid.name}
-          playerRole={selectedPlayerForBid.role}
-          playerTeam={selectedPlayerForBid.team}
-          playerId={selectedPlayerForBid.id}
-          leagueId={leagueId}
-          currentBid={selectedPlayerForBid.currentBid}
-          isNewAuction={false}
-          title="Rilancia"
-          existingAutoBid={
-            isCurrentUser && currentAuctionPlayerId === selectedPlayerForBid.id
-              ? userAutoBid
-              : null
-          }
-          onBidSuccess={async (amount, bidType, maxAmount) => {
-            if (!isCurrentUser) {
-              toast.error("Non sei autorizzato a gestire questa squadra.");
-              setShowStandardBidModal(false);
-              setSelectedPlayerForBid(null);
-              return;
-            }
-            try {
-              if (handlePlaceBid) {
-                await handlePlaceBid(
-                  amount,
-                  bidType || "manual",
-                  selectedPlayerForBid.id,
-                  true, // Bypass compliance check for counter-bids
-                  maxAmount
-                );
-              }
-              setShowStandardBidModal(false);
-              setSelectedPlayerForBid(null);
-            } catch (error) {
-              const errorMessage =
-                error instanceof Error
-                  ? error.message
-                  : "Si è verificato un errore sconosciuto";
-              console.error("Failed to place bid:", error);
-              toast.error("Errore nel piazzare l'offerta", {
-                description: errorMessage,
-              });
-              // Still close the modal
-              setShowStandardBidModal(false);
-              setSelectedPlayerForBid(null);
-            }
-          }}
-        />
-      )}
     </div>
   );
 };
 
-export const MemoizedManagerColumn = React.memo(ManagerColumn);
+export const MemoizedManagerColumn = memo(ManagerColumn);

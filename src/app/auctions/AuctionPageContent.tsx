@@ -508,50 +508,65 @@ export function AuctionPageContent({
   }
 
   return (
-    <div className="flex h-full flex-col bg-gray-900 text-white">
+    <div className="flex h-full flex-col bg-gray-50 text-gray-900 transition-colors duration-300 dark:bg-gray-900 dark:text-white">
       {/* Top Panel - Call Player Interface */}
-      <div className="flex-shrink-0 border-b border-gray-700 bg-gray-800 p-4">
-        {selectedLeagueId && (
-          <CallPlayerInterface leagueId={selectedLeagueId} userId={userId} />
-        )}
+      <div className="flex-shrink-0 border-b border-gray-200 bg-white p-2 transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            {selectedLeagueId && (
+              <CallPlayerInterface leagueId={selectedLeagueId} userId={userId} />
+            )}
+          </div>
+          {/* <ThemeToggle /> */}
+        </div>
       </div>
 
-      {/* Bottom Panel - Manager Columns (Horizontal Grid) */}
-      <div className="scrollbar-hide flex flex-1 space-x-2 overflow-x-auto p-2">
+      {/* Bottom Panel - Manager Columns (Horizontal Grid on Desktop, Vertical on Mobile) */}
+      <div className="scrollbar-hide flex flex-1 flex-col space-y-2 overflow-y-auto px-2 py-1 md:flex-row md:space-x-2 md:space-y-0 md:overflow-x-auto">
         {managers.length > 0 ? (
-          managers.map((manager, index) => {
-            const compliance = complianceData.find(
-              (c) => String(c.user_id) === String(manager.user_id)
-            );
+          // Sort managers: Current user first, then others
+          [...managers]
+            .sort((a, b) => {
+              if (a.user_id === userId) return -1;
+              if (b.user_id === userId) return 1;
+              return 0;
+            })
+            .map((manager, index) => {
+              const compliance = complianceData.find(
+                (c) => String(c.user_id) === String(manager.user_id)
+              );
 
-            return (
-              <div key={`${manager.user_id}-${index}`} className="min-w-0 flex-1">
-                <ManagerColumn
-                  manager={manager}
-                  isCurrentUser={manager.user_id === userId}
-                  isHighestBidder={
-                    currentAuction?.current_highest_bidder_id === manager.user_id
-                  }
-                  position={index + 1}
-                  leagueSlots={leagueSlots ?? undefined}
-                  activeAuctions={activeAuctions}
-                  autoBids={autoBids}
-                  currentAuctionPlayerId={currentAuction?.player_id}
-                  userAuctionStates={
-                    manager.user_id === userId ? userAuctionStates : []
-                  }
-                  leagueId={selectedLeagueId ?? undefined}
-                  leagueStatus={leagueStatus}
-                  handlePlaceBid={handlePlaceBid}
-                  complianceTimerStartAt={
-                    compliance?.compliance_timer_start_at || null
-                  }
-                  onPenaltyApplied={() => selectedLeagueId && fetchComplianceData(selectedLeagueId)}
-                  onPlayerDiscarded={() => selectedLeagueId && fetchManagersData(selectedLeagueId)}
-                />
-              </div>
-            );
-          })
+              return (
+                <div
+                  key={`${manager.user_id}-${index}`}
+                  className="w-full flex-1 border-b-8 border-blue-400 pb-4 last:border-0 dark:border-blue-600 md:min-w-[45vw] md:border-0 md:pb-0 lg:min-w-[350px]"
+                >
+                  <ManagerColumn
+                    manager={manager}
+                    isCurrentUser={manager.user_id === userId}
+                    isHighestBidder={
+                      currentAuction?.current_highest_bidder_id === manager.user_id
+                    }
+                    position={index + 1}
+                    leagueSlots={leagueSlots ?? undefined}
+                    activeAuctions={activeAuctions}
+                    autoBids={autoBids}
+                    currentAuctionPlayerId={currentAuction?.player_id}
+                    userAuctionStates={
+                      manager.user_id === userId ? userAuctionStates : []
+                    }
+                    leagueId={selectedLeagueId ?? undefined}
+                    leagueStatus={leagueStatus}
+                    handlePlaceBid={handlePlaceBid}
+                    complianceTimerStartAt={
+                      compliance?.compliance_timer_start_at || null
+                    }
+                    onPenaltyApplied={() => selectedLeagueId && fetchComplianceData(selectedLeagueId)}
+                    onPlayerDiscarded={() => selectedLeagueId && fetchManagersData(selectedLeagueId)}
+                  />
+                </div>
+              );
+            })
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">
