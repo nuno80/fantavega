@@ -5,7 +5,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
-import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
 
 export async function GET(
   request: NextRequest,
@@ -135,36 +134,67 @@ export async function GET(
       return acc;
     }, {});
 
+    // 1. Fetch all active cooldowns for the user in this league in a single query
+    const userCooldownsResult = await db.execute({
+      sql: `
+        SELECT player_id, expires_at
+        FROM user_player_preferences
+        WHERE user_id = ? AND league_id = ?
+          AND preference_type = 'cooldown' AND expires_at > ?
+      `,
+      args: [user.id, leagueId, Math.floor(Date.now() / 1000)],
+    });
+
+    interface CooldownData {
+      expires_at: number;
+    }
+
+    const cooldownsByPlayer = (
+      userCooldownsResult.rows as unknown as Array<{
+        player_id: number;
+        expires_at: number;
+      }>
+    ).reduce((acc: { [key: number]: CooldownData }, row) => {
+      acc[row.player_id] = { expires_at: row.expires_at };
+      return acc;
+    }, {});
+
     // Calculate time remaining for active auctions and add user's auto-bid info and cooldown info
     const now = Math.floor(Date.now() / 1000);
-    const processedPlayers = await Promise.all(
-      (
-        playersWithStatus as unknown as Array<{
-          id: number;
-          scheduled_end_time?: number;
-          [key: string]: unknown;
-        }>
-      ).map(async (player, _index) => {
-        const cooldownInfo = await getUserCooldownInfo(
-          user.id,
-          player.id,
-          leagueId
-        );
-        return {
-          ...player,
-          timeRemaining: player.scheduled_end_time
-            ? Math.max(0, player.scheduled_end_time - now)
-            : undefined,
-          userAutoBid: userAutoBidsByPlayer[player.id] || null,
-          cooldownInfo: cooldownInfo.canBid
-            ? null
-            : {
-              timeRemaining: cooldownInfo.timeRemaining,
-              message: cooldownInfo.message,
-            },
-        };
-      })
-    );
+
+    // No longer async map since we have all data in memory
+    const processedPlayers = (
+      playersWithStatus as unknown as Array<{
+        id: number;
+        scheduled_end_time?: number;
+        [key: string]: unknown;
+      }>
+    ).map((player) => {
+      // Check cooldown from memory map instead of DB
+      const cooldown = cooldownsByPlayer[player.id];
+      let cooldownInfo: { timeRemaining: number; message: string } | null = null;
+
+      if (cooldown) {
+        const timeRemaining = cooldown.expires_at - now;
+        if (timeRemaining > 0) {
+          const hours = Math.floor(timeRemaining / 3600);
+          const minutes = Math.floor((timeRemaining % 3600) / 60);
+          cooldownInfo = {
+            timeRemaining,
+            message: `Hai abbandonato l'asta per questo giocatore! Riprova tra ${hours}h ${minutes}m`
+          };
+        }
+      }
+
+      return {
+        ...player,
+        timeRemaining: player.scheduled_end_time
+          ? Math.max(0, player.scheduled_end_time - now)
+          : undefined,
+        userAutoBid: userAutoBidsByPlayer[player.id] || null,
+        cooldownInfo
+      };
+    });
 
     return NextResponse.json(processedPlayers);
   } catch (error) {
