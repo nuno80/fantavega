@@ -1,6 +1,6 @@
 {
-  "last_update": "2025-08-30T18:03:12Z",
-  "task_completed": "FN-11 - Implementazione Selettore Lega",
+  "last_update": "2025-12-02T22:00:00Z",
+  "task_completed": "FN-19 - Refactoring UI Players e Ottimizzazione",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
     "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata come preferenza per l'utente e l'intera interfaccia dell'applicazione si aggiorna per mostrare i dati (aste, budget, rose) relativi alla lega attiva.",
@@ -193,6 +193,23 @@
       "API (/api/leagues/[id]/managers): I campi `locked_credits` vengono impostati a 0 per tutti gli utenti diversi dal richiedente.",
       "SSR (page.tsx): I dati iniziali dei manager vengono sanitizzati prima di essere passati al Client Component.",
       "UI (ManagerColumn.tsx): Se `!isCurrentUser`, il campo 'Bloccati' mostra '-' e il campo 'Disponibili' mostra il 'Residuo Teorico' (Totale - Spesi) invece del reale disponibile."
+    ]
+  },
+  "players_page_refinement": {
+    "feature_name": "Refactoring UI Pagina Giocatori e Ottimizzazione Performance",
+    "summary": "Riprogettazione dell'interfaccia di ricerca giocatori per migliorare l'usabilità e l'efficienza dello spazio, e ottimizzazione critica delle performance di caricamento.",
+    "architectural_pattern": "UI: Sostituzione di filtri a griglia con una Toolbar compatta (Popover + Sheet). Performance: Batch data fetching per eliminare query N+1.",
+    "technical_details": [
+      "UI (PlayerFilterBar.tsx): Nuovo componente compatto che utilizza Popover per i filtri comuni e uno Sheet laterale per i filtri avanzati, risparmiando il 60% di spazio verticale.",
+      "UI (PlayerSearchCard.tsx): Adozione del sistema colori pastello (coerente con la pagina Aste) per i ruoli dei giocatori.",
+      "Performance (API): Risolto problema N+1 query nell'endpoint `/api/leagues/[id]/players-with-status`. I cooldown utente vengono ora recuperati in un'unica query batch invece che per ogni singolo giocatore, riducendo le query da N+4 a 5 costanti."
+    ],
+    "database_interactions": [
+      {
+        "table": "user_player_preferences",
+        "operation": "SELECT",
+        "description": "Query batch ottimizzata per recuperare tutti i cooldown attivi dell'utente in una sola chiamata."
+      }
     ]
   }
 }

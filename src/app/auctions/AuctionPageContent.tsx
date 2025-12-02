@@ -119,6 +119,9 @@ export function AuctionPageContent({
         setLeagueSlots(data.leagueSlots || null);
         setActiveAuctions(data.activeAuctions || []);
         setAutoBids(data.autoBids || []);
+        if (data.leagueStatus) {
+          setLeagueStatus(data.leagueStatus);
+        }
 
         // Update user budget
         const currentUser = data.managers.find(

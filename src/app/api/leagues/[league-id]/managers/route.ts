@@ -74,20 +74,21 @@ export async function GET(
     }
 
     // Get league slots configuration and managers
-    const leagueInfoResult = await db.execute({
+    const leagueSlotsResult = await db.execute({
       sql: `
         SELECT
           slots_P,
           slots_D,
           slots_C,
-          slots_A
+          slots_A,
+          status
         FROM auction_leagues
         WHERE id = ?
       `,
       args: [leagueId],
     });
 
-    const leagueSlots = leagueInfoResult.rows[0] as unknown as LeagueSlots;
+    const leagueSlots = leagueSlotsResult.rows[0] as unknown as LeagueSlots;
 
     // Get all managers/participants in the league
     const managersResult = await db.execute({
@@ -227,6 +228,7 @@ export async function GET(
         leagueSlots,
         activeAuctions,
         autoBids,
+        leagueStatus: leagueSlotsResult.rows[0].status,
       },
       { status: 200 }
     );
