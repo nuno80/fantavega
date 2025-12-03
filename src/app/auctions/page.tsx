@@ -72,6 +72,7 @@ export default async function AuctionsPage2() {
     leagueSlots: managersData.leagueSlots,
     activeAuctions: managersData.activeAuctions,
     autoBids: managersData.autoBids,
+    leagueStatus: managersData.leagueStatus,
     currentAuction,
     complianceData,
     userAuctionStates
@@ -92,6 +93,7 @@ export default async function AuctionsPage2() {
             initialCurrentAuction={serializedData.currentAuction}
             initialComplianceData={serializedData.complianceData}
             initialUserAuctionStates={serializedData.userAuctionStates}
+            initialLeagueStatus={serializedData.leagueStatus}
           />
         </Suspense>
       </div>

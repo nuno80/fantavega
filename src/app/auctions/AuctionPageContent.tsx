@@ -34,6 +34,7 @@ interface AuctionPageContentProps {
   initialCurrentAuction?: AuctionStatusDetails | null;
   initialComplianceData?: ComplianceRecord[];
   initialUserAuctionStates?: UserAuctionStateDetail[];
+  initialLeagueStatus?: string;
 }
 
 interface UserBudgetInfo {
@@ -58,6 +59,7 @@ export function AuctionPageContent({
   initialCurrentAuction,
   initialComplianceData,
   initialUserAuctionStates,
+  initialLeagueStatus,
 }: AuctionPageContentProps) {
   const router = useRouter();
   const { socket, isConnected } = useSocket();
@@ -79,7 +81,7 @@ export function AuctionPageContent({
   const [error, setError] = useState<string | null>(null);
   const [currentUserBudget, setCurrentUserBudget] = useState<UserBudgetInfo | null>(null);
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
-  const [leagueStatus, setLeagueStatus] = useState<string | undefined>(undefined);
+  const [leagueStatus, setLeagueStatus] = useState<string | undefined>(initialLeagueStatus);
 
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);

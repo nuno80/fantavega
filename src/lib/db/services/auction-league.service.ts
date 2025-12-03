@@ -165,6 +165,7 @@ export interface LeagueManagersData {
   leagueSlots: LeagueSlots;
   activeAuctions: ActiveAuction[];
   autoBids: AutoBidCount[];
+  leagueStatus: string;
 }
 
 // --- Funzioni del Servizio ---
@@ -1159,12 +1160,19 @@ export async function updateParticipantTeamName(
 export const getLeagueManagersWithRosters = async (
   leagueId: number
 ): Promise<LeagueManagersData> => {
-  // 1. Get league slots
+  // 1. Get league slots and status
   const leagueResult = await db.execute({
-    sql: "SELECT slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?",
+    sql: "SELECT slots_P, slots_D, slots_C, slots_A, status FROM auction_leagues WHERE id = ?",
     args: [leagueId],
   });
-  const leagueSlots = leagueResult.rows[0] as unknown as LeagueSlots;
+  const leagueRow = leagueResult.rows[0] as unknown as LeagueSlots & { status: string };
+  const leagueSlots: LeagueSlots = {
+    slots_P: leagueRow.slots_P,
+    slots_D: leagueRow.slots_D,
+    slots_C: leagueRow.slots_C,
+    slots_A: leagueRow.slots_A,
+  };
+  const leagueStatus = leagueRow.status;
 
   // 2. Get active auctions
   const activeAuctionsResult = await db.execute({
@@ -1243,5 +1251,6 @@ export const getLeagueManagersWithRosters = async (
     leagueSlots,
     activeAuctions,
     autoBids,
+    leagueStatus,
   };
 };
