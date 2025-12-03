@@ -61,7 +61,7 @@ export function Navbar() {
 
             {/* Rimuovo Features, Pricing, About per ora, dato che non sono nel fantacalcio_UI_pages.md */}
             {/* Puoi aggiungerli di nuovo se servono */}
-            {/* 
+            {/*
             <Link
               href="/features"
               className="text-sm font-medium transition-colors hover:text-primary"
@@ -115,7 +115,7 @@ export function Navbar() {
               <SignUpButton mode="modal" />
             </SignedOut>
             <SignedIn>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             </SignedIn>
           </div>
         </div>
@@ -128,7 +128,7 @@ export function Navbar() {
           <SignedIn>
             {/* League Selector for mobile - compact version */}
             <LeagueSelector compact={true} />
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </SignedIn>
           {/* Mostra il toggle del menu solo se ci sono link da mostrare (cioè utente loggato) o se vuoi mostrare il menu anche da sloggato */}
           <SignedIn>
