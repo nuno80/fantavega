@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 
 import {
+  Activity,
   Ban,
   Clock,
-  Dumbbell,
   Gavel,
-  Shield,
-  TrendingUp,
+  Gem,
+  Heart,
+  Shirt,
   Trophy,
   User,
-  Users,
+  Users
 } from "lucide-react";
 
 import { type PlayerWithAuctionStatus } from "@/app/players/PlayerSearchInterface";
@@ -270,7 +271,7 @@ export function PlayerSearchCard({
               player.isStarter ? "Rimuovi come titolare" : "Segna come titolare"
             }
           >
-            <Shield className="mx-auto mb-1 h-4 w-4" />
+            <Shirt className="mx-auto mb-1 h-4 w-4" />
             <div className="text-xs">Titolare</div>
           </button>
 
@@ -288,7 +289,7 @@ export function PlayerSearchCard({
                 : "Aggiungi ai preferiti"
             }
           >
-            <div className="mx-auto mb-1 text-sm">⚽</div>
+            <Heart className={`mx-auto mb-1 h-4 w-4 ${player.isFavorite ? "fill-current" : ""}`} />
             <div className="text-xs">Preferito</div>
           </button>
 
@@ -307,7 +308,7 @@ export function PlayerSearchCard({
               player.integrityValue ? "Rimuovi integrità" : "Segna come integro"
             }
           >
-            <Dumbbell className="mx-auto mb-1 h-4 w-4" />
+            <Activity className="mx-auto mb-1 h-4 w-4" />
             <div className="text-xs">Integrità</div>
           </button>
 
@@ -319,7 +320,7 @@ export function PlayerSearchCard({
             onClick={() => handleTogglePreference("hasFmv", !player.hasFmv)}
             title={player.hasFmv ? "Rimuovi FMV" : "Segna con FMV"}
           >
-            <TrendingUp className="mx-auto mb-1 h-4 w-4" />
+            <Gem className="mx-auto mb-1 h-4 w-4" />
             <div className="text-xs">FMV</div>
           </button>
         </div>
