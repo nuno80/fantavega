@@ -130,6 +130,12 @@ export function AuctionPageContent({
           (m: ManagerWithRoster) => m.user_id === userId
         );
         if (currentUser) {
+          console.log('[BUDGET_UPDATE] Updating budget after data fetch:', {
+            current_budget: currentUser.current_budget,
+            locked_credits: currentUser.locked_credits,
+            total_budget: currentUser.total_budget,
+            available: currentUser.current_budget - currentUser.locked_credits
+          });
           setCurrentUserBudget({
             current_budget: currentUser.current_budget,
             locked_credits: currentUser.locked_credits,
