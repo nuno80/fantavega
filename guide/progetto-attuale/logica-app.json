@@ -211,5 +211,15 @@
         "description": "Query batch ottimizzata per recuperare tutti i cooldown attivi dell'utente in una sola chiamata."
       }
     ]
+  },
+  "dashboard_ui_improvements": {
+    "feature_name": "Miglioramento UI Dashboard Aste",
+    "summary": "Restyling completo della dashboard delle aste per migliorare l'estetica e l'esperienza utente. Introdotto un design 'glassmorphism', una nuova palette colori pastello per i ruoli, e animazioni per gli aggiornamenti in tempo reale.",
+    "architectural_pattern": "UI-only update: utilizzo di Tailwind CSS e `tailwindcss-animate` per transizioni e animazioni senza aggiungere nuove dipendenze.",
+    "technical_details": [
+      "ManagerColumn.tsx: Aggiornato con card in stile glassmorphism, nuovi colori per i ruoli (Amber, Emerald, Sky, Rose) e dashboard budget ridisegnata.",
+      "AuctionRealtimeDisplay.tsx: Aggiunte animazioni 'pop' al cambio offerta e migliorata la visualizzazione del timer e dello stato 'Sold'.",
+      "BiddingInterface.tsx: Migliorato il feedback visivo dei pulsanti di offerta rapida."
+    ]
   }
 }

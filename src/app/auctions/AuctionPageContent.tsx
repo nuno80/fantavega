@@ -519,9 +519,9 @@ export function AuctionPageContent({
   }
 
   return (
-    <div className="flex h-full flex-col bg-gray-50 text-gray-900 transition-colors duration-300 dark:bg-gray-900 dark:text-white">
+    <div className="flex h-full flex-col bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 transition-colors duration-300 dark:from-gray-900 dark:to-gray-950 dark:text-white">
       {/* Top Panel - Call Player Interface */}
-      <div className="flex-shrink-0 border-b border-gray-200 bg-white p-2 transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex-shrink-0 border-b border-gray-200 bg-white/80 p-2 backdrop-blur-md transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900/80">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">
             {selectedLeagueId && (

@@ -122,38 +122,72 @@ export function AuctionRealtimeDisplay({
 
   // 6. JSX per la visualizzazione
   return (
-    <div className="rounded-lg border p-6 shadow-md">
-      <h2 className="mb-4 text-2xl font-bold">
-        Asta per {auctionData.player_name}
-      </h2>
+    <div className="rounded-xl border bg-card p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-card/80 dark:backdrop-blur-sm">
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">
+          Asta per <span className="text-primary">{auctionData.player_name}</span>
+        </h2>
+        {auctionData.status === "active" && (
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+          </span>
+        )}
+      </div>
+
       {auctionData.status === "active" ? (
-        <div className="space-y-3">
+        <div className="space-y-6">
+          {/* Price Display */}
           <div
-            className={`rounded-md p-3 transition-colors duration-500 ${isHighlighted ? "bg-green-100 dark:bg-green-900" : ""}`}
+            key={auctionData.current_highest_bid_amount} // Trigger animation on change
+            className={`rounded-lg border p-4 text-center transition-all duration-300 ${isHighlighted
+                ? "scale-105 border-green-500 bg-green-50 dark:bg-green-900/20"
+                : "bg-muted/50"
+              }`}
           >
-            <p className="text-sm text-muted-foreground">Offerta Attuale</p>
-            <p className="text-3xl font-semibold">
-              {auctionData.current_highest_bid_amount} crediti
+            <p className="mb-1 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Offerta Attuale
+            </p>
+            <p className="text-4xl font-extrabold tracking-tight text-foreground animate-in zoom-in-50 duration-300">
+              {auctionData.current_highest_bid_amount} <span className="text-lg font-normal text-muted-foreground">crediti</span>
             </p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Miglior Offerente</p>
-            <p className="text-lg">{auctionData.current_highest_bidder_id}</p>
+
+          {/* Bidder Info */}
+          <div className="flex items-center justify-between rounded-md bg-muted/30 p-3">
+            <span className="text-sm font-medium text-muted-foreground">Miglior Offerente</span>
+            <span className="font-semibold text-primary">
+              {auctionData.current_highest_bidder_id || "Nessuna offerta"}
+            </span>
           </div>
+
+          {/* Timer */}
           <div>
-            <p className="text-sm text-muted-foreground">Scadenza</p>
-            <p className="text-lg">
-              {new Date(auctionData.scheduled_end_time * 1000).toLocaleString(
-                "it-IT"
-              )}
-            </p>
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Scadenza</span>
+              <span className="font-mono font-medium">
+                {new Date(auctionData.scheduled_end_time * 1000).toLocaleTimeString("it-IT")}
+              </span>
+            </div>
+            {/* Simple progress bar visual could go here if we had the start time,
+                but for now we just show the time clearly */}
           </div>
         </div>
       ) : (
-        <div className="rounded-md bg-gray-100 p-4 text-center dark:bg-gray-800">
-          <p className="text-xl font-semibold">Asta Conclusa</p>
-          <p>
-            Stato: <span className="font-bold">{auctionData.status}</span>
+        <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50/50 p-6 text-center dark:border-yellow-600 dark:bg-yellow-900/10">
+          <div className="mb-2 flex justify-center">
+            <div className="rounded-full bg-yellow-100 p-3 dark:bg-yellow-900/30">
+              <span className="text-2xl">🏆</span>
+            </div>
+          </div>
+          <h3 className="mb-1 text-xl font-bold text-yellow-700 dark:text-yellow-400">
+            Asta Conclusa
+          </h3>
+          <p className="text-muted-foreground">
+            Venduto a <span className="font-semibold text-foreground">{auctionData.current_highest_bidder_id}</span>
+          </p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            {auctionData.current_highest_bid_amount} <span className="text-sm font-normal text-muted-foreground">crediti</span>
           </p>
         </div>
       )}

@@ -100,6 +100,22 @@
     {
       "path": "src/components/ThemeToggle.tsx",
       "description": "Componente per il cambio tema chiaro/scuro."
+    },
+    {
+      "path": "src/components/auction/ManagerColumn.tsx",
+      "description": "Aggiornato styling con glassmorphism e nuova palette colori."
+    },
+    {
+      "path": "src/components/auction/AuctionRealtimeDisplay.tsx",
+      "description": "Aggiunte animazioni per aggiornamenti offerta e timer."
+    },
+    {
+      "path": "src/components/auction/BiddingInterface.tsx",
+      "description": "Migliorata interattività pulsanti offerta."
+    },
+    {
+      "path": "src/app/auctions/AuctionPageContent.tsx",
+      "description": "Aggiornato layout e sfondo pagina."
     }
   ]
 }

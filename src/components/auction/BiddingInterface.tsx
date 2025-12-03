@@ -181,6 +181,7 @@ export function BiddingInterface({
               size="sm"
               onClick={() => handleQuickBid(1)}
               disabled={isSubmitting || currentBid + 1 > availableBudget}
+              className="transition-all hover:scale-105 hover:bg-primary/10 hover:text-primary active:scale-95"
             >
               +1
             </Button>
@@ -189,6 +190,7 @@ export function BiddingInterface({
               size="sm"
               onClick={() => handleQuickBid(5)}
               disabled={isSubmitting || currentBid + 5 > availableBudget}
+              className="transition-all hover:scale-105 hover:bg-primary/10 hover:text-primary active:scale-95"
             >
               +5
             </Button>
@@ -197,6 +199,7 @@ export function BiddingInterface({
               size="sm"
               onClick={() => handleQuickBid(10)}
               disabled={isSubmitting || currentBid + 10 > availableBudget}
+              className="transition-all hover:scale-105 hover:bg-primary/10 hover:text-primary active:scale-95"
             >
               +10
             </Button>
@@ -272,7 +275,7 @@ export function BiddingInterface({
             bidAmount > availableBudget ||
             (useAutoBid && maxAmount <= bidAmount)
           }
-          className="w-full"
+          className="w-full text-lg font-bold shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
           size="lg"
         >
           {isSubmitting

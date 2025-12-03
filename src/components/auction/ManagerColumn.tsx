@@ -141,15 +141,15 @@ const getRoleColor = (role: string) => {
 const getRolePastelColor = (role: string) => {
   switch (role.toUpperCase()) {
     case "P":
-      return "bg-yellow-100 border-yellow-200 dark:bg-yellow-500/20 dark:border-yellow-500/50";
+      return "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700/50";
     case "D":
-      return "bg-green-100 border-green-200 dark:bg-green-500/20 dark:border-green-500/50";
+      return "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700/50";
     case "C":
-      return "bg-blue-100 border-blue-200 dark:bg-blue-500/20 dark:border-blue-500/50";
+      return "bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-700/50";
     case "A":
-      return "bg-red-100 border-red-200 dark:bg-red-500/20 dark:border-red-500/50";
+      return "bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-700/50";
     default:
-      return "bg-gray-100 border-gray-200 dark:bg-gray-500/20 dark:border-gray-500/50";
+      return "bg-muted/50 border-border";
   }
 };
 
@@ -498,11 +498,8 @@ function InAuctionSlot({
 
 function EmptySlot() {
   return (
-    <div className="flex h-6 items-center justify-between rounded-md border border-dashed border-gray-400 bg-gray-50 px-2 opacity-60 transition-opacity hover:opacity-90 dark:border-gray-800 dark:bg-gray-900/20 dark:opacity-30 dark:hover:opacity-50">
-      <div className="flex min-w-0 items-center">
-        <div className="mr-2 h-1 w-1 flex-shrink-0 rounded-full bg-gray-600" />
-        <span className="truncate text-[10px] text-gray-500">Slot vuoto</span>
-      </div>
+    <div className="group flex h-8 items-center justify-center rounded-md border border-dashed border-muted-foreground/20 bg-muted/5 transition-all hover:border-muted-foreground/40 hover:bg-muted/10">
+      <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30 transition-all group-hover:scale-125 group-hover:bg-muted-foreground/50" />
     </div>
   );
 }
@@ -660,10 +657,10 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border bg-white/80 p-2 backdrop-blur-sm transition-all dark:bg-card/50 ${borderColor}`}
+      className={`flex h-full flex-col rounded-xl border bg-card shadow-sm transition-all duration-300 hover:shadow-md dark:bg-card/50 ${borderColor}`}
     >
       {/* Header */}
-      <div className={`-mx-2 -mt-2 mb-2 flex items-center justify-between gap-2 rounded-t-lg p-2 ${headerGradient}`}>
+      <div className={`-mx-px -mt-px mb-3 flex items-center justify-between gap-2 rounded-t-xl p-3 ${headerGradient}`}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {isCurrentUser ? (
             <Star className="h-4 w-4 flex-shrink-0 text-yellow-400 fill-yellow-400" />
@@ -729,26 +726,26 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
       </div>
 
       {/* Compact Budget Dashboard */}
-      <div className="mb-3 grid grid-cols-3 gap-1 rounded-md bg-gray-100 p-1.5 text-[10px] dark:bg-gray-900/30">
-        <div className="flex flex-col items-center border-r border-gray-300 px-1 dark:border-gray-700/50">
-          <span className="text-gray-600 uppercase tracking-wider text-[9px] mb-0.5 dark:text-gray-500">
+      <div className="mb-4 grid grid-cols-3 gap-2 px-1">
+        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             {isCurrentUser ? "Disp." : "Residui"}
           </span>
-          <span className="font-mono text-sm font-bold text-green-600 tabular-nums dark:text-green-400">
+          <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
             {isCurrentUser
               ? availableBudget
               : validTotalBudget - validTotalPenalties - spentCredits}
           </span>
         </div>
-        <div className="flex flex-col items-center border-r border-gray-300 px-1 dark:border-gray-700/50">
-          <span className="text-gray-600 uppercase tracking-wider text-[9px] mb-0.5 dark:text-gray-500">Spesi</span>
-          <span className="font-mono text-sm font-bold text-red-600 tabular-nums dark:text-red-400">
+        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Spesi</span>
+          <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
             {spentCredits}
           </span>
         </div>
-        <div className="flex flex-col items-center px-1">
-          <span className="text-gray-600 uppercase tracking-wider text-[9px] mb-0.5 dark:text-gray-500">Blocc.</span>
-          <span className="font-mono text-sm font-bold text-orange-600 tabular-nums dark:text-orange-400">
+        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Blocc.</span>
+          <span className="font-mono text-sm font-bold text-amber-600 dark:text-amber-400">
             {isCurrentUser ? lockedCredits : "-"}
           </span>
         </div>
