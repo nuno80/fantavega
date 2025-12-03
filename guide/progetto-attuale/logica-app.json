@@ -221,5 +221,27 @@
       "AuctionRealtimeDisplay.tsx: Aggiunte animazioni 'pop' al cambio offerta e migliorata la visualizzazione del timer e dello stato 'Sold'.",
       "BiddingInterface.tsx: Migliorato il feedback visivo dei pulsanti di offerta rapida."
     ]
+  },
+  "players_page_pagination": {
+    "feature_name": "Ottimizzazione Pagina Giocatori (Paginazione Server-Side)",
+    "summary": "Implementazione della paginazione e del filtraggio lato server per la pagina di ricerca giocatori, riducendo drasticamente il carico iniziale e migliorando le performance.",
+    "architectural_pattern": "API Paginata + Frontend State Management. L'API accetta parametri `page`, `limit` e filtri, restituendo solo il sottoinsieme di dati richiesto.",
+    "technical_details": [
+      "API (/api/leagues/[id]/players-with-status): Aggiornata per supportare paginazione (LIMIT/OFFSET) e filtri dinamici (WHERE clause).",
+      "Frontend (PlayerSearchInterface.tsx): Implementata gestione stato paginazione, debouncing della ricerca e aggiornamento dati al cambio pagina/filtri.",
+      "Linting: Risolti errori di linting (prefer-const, prefer-template, no-explicit-any) nell'API route."
+    ],
+    "database_interactions": [
+      {
+        "table": "players",
+        "operation": "SELECT",
+        "description": "Query principale con LIMIT/OFFSET e filtri dinamici."
+      },
+      {
+        "table": "players",
+        "operation": "COUNT",
+        "description": "Query separata per ottenere il numero totale di risultati per la paginazione."
+      }
+    ]
   }
 }
