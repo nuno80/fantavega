@@ -219,7 +219,14 @@ export async function GET(
         playersByManager.set(player.user_id, []);
       }
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      playersByManager.get(player.user_id)!.push(player);
+      playersByManager.get(player.user_id)!.push({
+        id: player.id,
+        name: player.name,
+        role: player.role,
+        team: player.team,
+        assignment_price: player.assignment_price,
+        photo_url: player.photo_url,
+      });
     }
 
     // Build the complete managers data with their correct rosters
