@@ -224,7 +224,7 @@ export function PlayerSearchCard({
 
           {/* Player Avatar */}
           <div className="ml-2 flex flex-col items-center gap-1">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-muted">
+            <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted shadow-sm">
               {player.photo_url ? (
                 <img
                   src={player.photo_url}
@@ -232,7 +232,7 @@ export function PlayerSearchCard({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <User className="h-8 w-8 text-muted-foreground" />
+                <User className="h-12 w-12 text-muted-foreground" />
               )}
             </div>
           </div>
