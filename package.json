@@ -22,7 +22,8 @@
     "db:backup": "pnpm exec tsx src/lib/db/backup.ts",
     "db:migrate": "pnpm exec tsx src/lib/db/migrate.ts",
     "db:reset": "pnpm exec tsx src/lib/db/reset.ts",
-    "db:apply-changes": "pnpm exec tsx src/lib/db/apply-changes.ts"
+    "db:apply-changes": "pnpm exec tsx src/lib/db/apply-changes.ts",
+    "link:images": "tsx scripts/link-images.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.23.1",
