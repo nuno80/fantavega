@@ -1,5 +1,6 @@
 // src/app/api/leagues/[league-id]/managers/route.ts
 // API endpoint to get all managers in a league with their rosters
+// Updated: 2024-12-04 - Added photo_url support
 import { NextRequest, NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
