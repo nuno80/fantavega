@@ -124,9 +124,24 @@ export function AuctionRealtimeDisplay({
   return (
     <div className="rounded-xl border bg-card p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-card/80 dark:backdrop-blur-sm">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">
-          Asta per <span className="text-primary">{auctionData.player_name}</span>
-        </h2>
+        <div className="flex items-center gap-4">
+          {auctionData.player?.photo_url ? (
+            <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-primary/20">
+              <img
+                src={auctionData.player.photo_url}
+                alt={auctionData.player_name || "Player"}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <span className="text-2xl">⚽</span>
+            </div>
+          )}
+          <h2 className="text-2xl font-bold tracking-tight">
+            Asta per <span className="text-primary">{auctionData.player_name}</span>
+          </h2>
+        </div>
         {auctionData.status === "active" && (
           <span className="relative flex h-3 w-3">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
@@ -141,8 +156,8 @@ export function AuctionRealtimeDisplay({
           <div
             key={auctionData.current_highest_bid_amount} // Trigger animation on change
             className={`rounded-lg border p-4 text-center transition-all duration-300 ${isHighlighted
-                ? "scale-105 border-green-500 bg-green-50 dark:bg-green-900/20"
-                : "bg-muted/50"
+              ? "scale-105 border-green-500 bg-green-50 dark:bg-green-900/20"
+              : "bg-muted/50"
               }`}
           >
             <p className="mb-1 text-sm font-medium text-muted-foreground uppercase tracking-wider">

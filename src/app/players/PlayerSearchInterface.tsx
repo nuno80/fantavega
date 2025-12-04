@@ -31,6 +31,7 @@ export interface Player {
   isFavorite?: boolean; // Preferito (icona sports_soccer)
   integrityValue?: number; // Integrità (icona trending_up)
   hasFmv?: boolean; // FMV (icona timer)
+  photo_url?: string | null;
 }
 
 export interface PlayerWithAuctionStatus extends Player {

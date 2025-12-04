@@ -224,8 +224,16 @@ export function PlayerSearchCard({
 
           {/* Player Avatar */}
           <div className="ml-2 flex flex-col items-center gap-1">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <User className="h-6 w-6 text-muted-foreground" />
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-muted">
+              {player.photo_url ? (
+                <img
+                  src={player.photo_url}
+                  alt={player.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <User className="h-6 w-6 text-muted-foreground" />
+              )}
             </div>
           </div>
         </div>

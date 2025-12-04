@@ -168,6 +168,7 @@ export interface PlayerForBidding {
   role: string;
   name?: string;
   team?: string;
+  photo_url?: string | null;
 }
 
 export interface ParticipantForBidding {
@@ -247,7 +248,8 @@ export const getCurrentActiveAuction = async (
           a.scheduled_end_time,
           a.status,
           p.name as player_name,
-          p.role as player_role
+          p.role as player_role,
+          p.photo_url as player_image
          FROM auctions a
          JOIN players p ON a.player_id = p.id
          WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')
@@ -265,6 +267,7 @@ export const getCurrentActiveAuction = async (
         status: string;
         player_name: string;
         player_role: string;
+        player_image: string | null;
       }
       | undefined;
 
@@ -1348,7 +1351,7 @@ export const getAuctionStatusForPlayer = async (
         a.id, a.auction_league_id AS league_id, a.player_id, a.start_time,
         a.scheduled_end_time, a.current_highest_bid_amount, a.current_highest_bidder_id,
         a.status, a.created_at, a.updated_at,
-        p.id as p_id, p.name AS player_name, p.role as player_role, p.team as player_team,
+        p.id as p_id, p.name AS player_name, p.role as player_role, p.team as player_team, p.photo_url as player_image,
         u.username AS current_highest_bidder_username
        FROM auctions a
        JOIN players p ON a.player_id = p.id
@@ -1371,6 +1374,7 @@ export const getAuctionStatusForPlayer = async (
       p_id: number;
       player_role: string;
       player_team: string;
+      player_image: string | null;
     })
     | undefined;
 
@@ -1406,6 +1410,7 @@ export const getAuctionStatusForPlayer = async (
         role: player_role,
         name: activeAuctionData.player_name,
         team: player_team,
+        photo_url: activeAuctionData.player_image,
       },
       bid_history: bidHistory.reverse(),
       time_remaining_seconds: timeRemainingSeconds,
