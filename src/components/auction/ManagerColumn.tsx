@@ -203,6 +203,9 @@ function AssignedSlot({
   const roleColor = getRoleColor(role);
   const pastelClass = getRolePastelColor(role);
 
+  // DEBUG: Log photo_url to verify it's being received
+  console.log('[AssignedSlot] Player:', player.name, 'photo_url:', player.photo_url);
+
   // Show trash icon only if current user and league is in repair mode
   const showDiscardOption = isCurrentUser && leagueStatus === "repair_active";
 
