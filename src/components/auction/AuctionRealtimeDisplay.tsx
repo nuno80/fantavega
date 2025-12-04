@@ -124,9 +124,9 @@ export function AuctionRealtimeDisplay({
   return (
     <div className="rounded-xl border bg-card p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-card/80 dark:backdrop-blur-sm">
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           {auctionData.player?.photo_url ? (
-            <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-primary/20">
+            <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-primary/20 shadow-md">
               <img
                 src={auctionData.player.photo_url}
                 alt={auctionData.player_name || "Player"}
@@ -134,11 +134,11 @@ export function AuctionRealtimeDisplay({
               />
             </div>
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <span className="text-2xl">⚽</span>
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted border-4 border-muted-foreground/10">
+              <span className="text-4xl">⚽</span>
             </div>
           )}
-          <h2 className="text-2xl font-bold tracking-tight">
+          <h2 className="text-3xl font-bold tracking-tight">
             Asta per <span className="text-primary">{auctionData.player_name}</span>
           </h2>
         </div>
