@@ -24,6 +24,7 @@ interface PlayerInRoster {
   role: string;
   team: string;
   assignment_price: number;
+  photo_url?: string | null;
 }
 
 interface Manager {
@@ -210,7 +211,22 @@ function AssignedSlot({
       <div
         className={`flex items-center justify-between rounded-md p-1.5 border ${pastelClass} transition-colors hover:bg-opacity-20`}
       >
-        <div className="flex min-w-0 items-center">
+        <div className="flex min-w-0 items-center gap-2">
+          {/* Player Photo */}
+          <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
+            {player.photo_url ? (
+              <img
+                src={player.photo_url}
+                alt={player.name}
+                className="h-full w-full object-cover object-top"
+                style={{ objectPosition: '50% 20%' }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <User className="h-3 w-3 text-muted-foreground" />
+              </div>
+            )}
+          </div>
           <div
             className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
           />

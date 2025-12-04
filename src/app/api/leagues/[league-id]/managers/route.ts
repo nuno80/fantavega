@@ -12,6 +12,7 @@ interface PlayerInRoster {
   role: string;
   team: string;
   assignment_price: number;
+  photo_url?: string | null;
 }
 
 interface Manager {
@@ -199,6 +200,7 @@ export async function GET(
           p.name,
           p.role,
           p.team,
+          p.photo_url,
           pa.purchase_price as assignment_price
         FROM player_assignments pa
         JOIN players p ON pa.player_id = p.id
