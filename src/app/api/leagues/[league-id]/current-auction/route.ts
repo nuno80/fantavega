@@ -52,7 +52,9 @@ export async function GET(
           a.scheduled_end_time,
           a.status,
           p.name as player_name,
-          p.role as player_role
+          p.name as player_name,
+          p.role as player_role,
+          p.photo_url as player_image
          FROM auctions a
          JOIN players p ON a.player_id = p.id
          WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')
@@ -70,6 +72,7 @@ export async function GET(
         status: string;
         player_name: string;
         player_role: string;
+        player_image: string | null;
       }
       | undefined;
 

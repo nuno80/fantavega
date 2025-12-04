@@ -35,6 +35,7 @@ interface PlayerDBResult {
   assignedToTeam: string | null;
   finalPrice: number | null;
   isAssignedToUser: number;
+  photo_url: string | null;
 }
 
 interface AutoBidDBResult {
@@ -199,7 +200,9 @@ export async function GET(
           p.role,
           p.role_mantra as roleDetail,
           p.name,
+          p.name,
           p.team,
+          p.photo_url,
           p.current_quotation as qtA,
           p.initial_quotation as qtI,
           (p.current_quotation - p.initial_quotation) as diff,
