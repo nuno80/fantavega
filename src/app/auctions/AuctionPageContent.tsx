@@ -253,9 +253,7 @@ export function AuctionPageContent({
     fetchCurrentAuction,
     fetchComplianceData,
     fetchUserAuctionStates,
-    initialLeagueId,
-    managers.length,
-    isLoading
+    initialLeagueId
   ]);
 
   // Use ref to track the last compliance status notification to avoid dependency cycles
