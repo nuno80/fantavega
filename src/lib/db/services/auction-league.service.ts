@@ -113,6 +113,7 @@ export interface RosterPlayer {
   // Se vuoi la quotazione attuale del giocatore (che può cambiare), aggiungi:
   // current_quotation: number;
   fvm: number | null;
+  photo_url?: string | null;
 
   // Campi da player_assignments
   purchase_price: number;
@@ -134,6 +135,7 @@ export interface ManagerWithRoster {
     role: string;
     team: string;
     assignment_price: number;
+    photo_url?: string | null;
   }[];
 }
 
@@ -805,6 +807,7 @@ export const getManagerRoster = async (
         p.role,
         p.team,
         p.fvm,
+        p.photo_url,
         pa.purchase_price,
         pa.assigned_at
       FROM player_assignments pa
@@ -1241,7 +1244,8 @@ export const getLeagueManagersWithRosters = async (
         name: rp.name,
         role: rp.role,
         team: rp.team,
-        assignment_price: rp.purchase_price
+        assignment_price: rp.purchase_price,
+        photo_url: rp.photo_url
       })),
     });
   }
