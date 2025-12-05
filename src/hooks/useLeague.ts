@@ -15,7 +15,14 @@ interface League {
 
 export function useLeague() {
   const [leagues, setLeagues] = useState<League[]>([]);
-  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const param = searchParams.get("league");
+      return param ? parseInt(param, 10) : null;
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
