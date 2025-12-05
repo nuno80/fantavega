@@ -34,7 +34,7 @@ export default function Home() {
               Dove la sofferenza diventa <span className="text-blue-600 dark:text-blue-400">Arte</span>. 🎨😭
             </p>
             <p className="mx-auto mb-10 max-w-2xl text-lg text-slate-500 dark:text-slate-400 md:text-xl">
-              L'unica piattaforma che trasforma le aste sbagliate e i crediti sprecati in un'esperienza utente indimenticabile.
+              L&apos;unica piattaforma che trasforma le aste sbagliate e i crediti sprecati in un&apos;esperienza utente indimenticabile.
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -45,7 +45,7 @@ export default function Home() {
                 >
                   <span className="relative z-10 flex items-center justify-center">
                     <Gavel className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
-                    Inizia l'Asta
+                    Inizia l&apos;Asta
                   </span>
                   <div className="absolute inset-0 -z-10 translate-y-full bg-gradient-to-r from-indigo-600 to-blue-600 transition-transform duration-300 group-hover:translate-y-0" />
                 </Button>
@@ -73,7 +73,7 @@ export default function Home() {
               Perché scegliere il <span className="text-purple-600 dark:text-purple-400">Dolore</span>?
             </h2>
             <p className="text-lg text-slate-500 dark:text-slate-400">
-              Funzionalità pensate per massimizzare l'ansia e il divertimento.
+              Funzionalità pensate per massimizzare l&apos;ansia e il divertimento.
             </p>
           </div>
 
@@ -181,7 +181,7 @@ export default function Home() {
                   </div>
                   <div>
                     <p className="mb-4 text-lg italic text-slate-700 dark:text-slate-300">
-                      "{t.quote}"
+                      &quot;{t.quote}&quot;
                     </p>
                     <div>
                       <span className="block font-bold">{t.author}</span>
