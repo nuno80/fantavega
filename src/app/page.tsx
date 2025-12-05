@@ -31,7 +31,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="mb-8 text-2xl font-medium text-slate-600 dark:text-slate-300 md:text-3xl">
-              Dove la sofferenza diventa <span className="text-blue-600 dark:text-blue-400">Arte</span>. 🎨😭
+              Dove il pianto diventa <span className="text-blue-600 dark:text-blue-400">Arte</span>. 🎨😭
             </p>
             <p className="mx-auto mb-10 max-w-2xl text-lg text-slate-500 dark:text-slate-400 md:text-xl">
               L&apos;unica piattaforma che trasforma le aste sbagliate e i crediti sprecati in un&apos;esperienza utente indimenticabile.
