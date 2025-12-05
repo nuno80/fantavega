@@ -135,6 +135,7 @@ export interface ManagerWithRoster {
     role: string;
     team: string;
     assignment_price: number;
+    assigned_at: number;
     photo_url?: string | null;
   }[];
 }
@@ -1247,6 +1248,7 @@ export const getLeagueManagersWithRosters = async (
         role: rp.role,
         team: rp.team,
         assignment_price: rp.purchase_price,
+        assigned_at: rp.assigned_at,
         photo_url: rp.photo_url
       })),
     });

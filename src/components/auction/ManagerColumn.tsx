@@ -24,8 +24,13 @@ interface PlayerInRoster {
   role: string;
   team: string;
   assignment_price: number;
+  assigned_at?: number; // Added optional for backward compatibility
   photo_url?: string | null;
 }
+
+// ... (Manager interface defs)
+
+
 
 interface Manager {
   user_id: string;
@@ -615,21 +620,34 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
       );
     });
 
-    const slots: Slot[] = [];
-    assignedPlayers.forEach((player) =>
-      slots.push({ type: "assigned", player })
-    );
-    statesForRole.forEach((state) => {
-      slots.push({ type: "response_needed", state });
+    // Create slot items with a timestamp for sorting
+    const allItems: { slot: Slot; timestamp: number }[] = [];
+
+    assignedPlayers.forEach((player) => {
+      // Use assigned_at if available, otherwise fallback to 0 (old items first)
+      const ts = player.assigned_at || 0;
+      allItems.push({ slot: { type: "assigned", player }, timestamp: ts });
     });
+
+    statesForRole.forEach((state) => {
+      allItems.push({ slot: { type: "response_needed", state }, timestamp: Date.now() });
+    });
+
     activeAuctionsForRole.forEach((auction) => {
       const hasResponseState =
         isCurrentUser &&
         statesForRole.some((s) => s.player_id === auction.player_id);
+
       if (!hasResponseState) {
-        slots.push({ type: "in_auction", auction });
+        // active auctions effectively have "now" + epsilon
+        allItems.push({ slot: { type: "in_auction", auction }, timestamp: Date.now() + 1000 });
       }
     });
+
+    // Sort by timestamp ascending
+    allItems.sort((a, b) => a.timestamp - b.timestamp);
+
+    const slots: Slot[] = allItems.map((i) => i.slot);
 
     while (slots.length < totalSlots) {
       slots.push({ type: "empty" });
