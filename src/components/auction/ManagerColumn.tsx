@@ -55,6 +55,7 @@ interface ActiveAuction {
   player_name: string;
   player_role: string;
   player_team: string;
+  player_photo_url: string | null;
   current_highest_bidder_id: string | null;
   current_highest_bid_amount: number;
   scheduled_end_time: number;
@@ -490,6 +491,13 @@ function InAuctionSlot({
       )}
 
       <div className="flex min-w-0 items-center">
+        {auction.player_photo_url && (
+          <img
+            src={auction.player_photo_url}
+            alt={auction.player_name}
+            className="mr-2 h-6 w-6 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-800"
+          />
+        )}
         <div
           className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
         />

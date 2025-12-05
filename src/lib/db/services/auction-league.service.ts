@@ -152,6 +152,7 @@ export interface ActiveAuction {
   player_name: string;
   player_role: string;
   player_team: string;
+  player_photo_url: string | null;
   current_highest_bidder_id: string | null;
   current_highest_bid_amount: number;
   scheduled_end_time: number;
@@ -1186,6 +1187,7 @@ export const getLeagueManagersWithRosters = async (
           p.name as player_name,
           p.role as player_role,
           p.team as player_team,
+          p.photo_url as player_photo_url,
           a.current_highest_bidder_id,
           a.current_highest_bid_amount,
           a.scheduled_end_time
