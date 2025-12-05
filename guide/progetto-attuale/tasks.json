@@ -237,6 +237,18 @@
           "status": "reverted"
         }
       ]
+    },
+    {
+      "id": "FN-23",
+      "name": "Bulk Link Player Photos",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-23.1",
+          "name": "Link Pisa Photos to DB Records",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }
