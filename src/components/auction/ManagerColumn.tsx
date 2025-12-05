@@ -204,7 +204,7 @@ function AssignedSlot({
   const pastelClass = getRolePastelColor(role);
 
   // DEBUG: Log photo_url to verify it's being received
-  console.log('[AssignedSlot] Player:', player.name, 'photo_url:', player.photo_url);
+  // console.log('[AssignedSlot] Player:', player.name, 'photo_url:', player.photo_url);
 
   // Show trash icon only if current user and league is in repair mode
   const showDiscardOption = isCurrentUser && leagueStatus === "repair_active";
@@ -222,7 +222,10 @@ function AssignedSlot({
                 src={player.photo_url}
                 alt={player.name}
                 className="h-full w-full object-cover object-top"
-                style={{ objectPosition: '50% 20%' }}
+                style={{
+                  objectPosition: '50% 20%',
+                  transform: 'scale(1.5)' // Zoom in on face
+                }}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
