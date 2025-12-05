@@ -490,14 +490,23 @@ function InAuctionSlot({
         />
       )}
 
-      <div className="flex min-w-0 items-center">
-        {auction.player_photo_url && (
-          <img
-            src={auction.player_photo_url}
-            alt={auction.player_name}
-            className="mr-2 h-6 w-6 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-800"
-          />
-        )}
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
+          {auction.player_photo_url ? (
+            <img
+              src={auction.player_photo_url}
+              alt={auction.player_name}
+              className="h-full w-full object-cover object-top"
+              style={{
+                objectPosition: '50% 15%'
+              }}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <User className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+        </div>
         <div
           className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
         />
