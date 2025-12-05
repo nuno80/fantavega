@@ -213,6 +213,11 @@ export async function GET(
 
     const allPlayersInLeague = allPlayersResult.rows as unknown as (PlayerInRoster & { user_id: string })[];
 
+    // DEBUG: Log first player to check if photo_url is present in DB result
+    if (allPlayersInLeague.length > 0) {
+      console.log("[API] First player from DB:", JSON.stringify(allPlayersInLeague[0], null, 2));
+    }
+
     // Group players by manager
     const playersByManager = new Map<string, PlayerInRoster[]>();
     for (const player of allPlayersInLeague) {
