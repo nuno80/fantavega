@@ -216,20 +216,19 @@ function AssignedSlot({
       >
         <div className="flex min-w-0 items-center gap-2">
           {/* Player Photo */}
-          <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
+          <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
             {player.photo_url ? (
               <img
                 src={player.photo_url}
                 alt={player.name}
                 className="h-full w-full object-cover object-top"
                 style={{
-                  objectPosition: '50% 20%',
-                  transform: 'scale(1.5)' // Zoom in on face
+                  objectPosition: '50% 15%' // Slightly adjusted top alignment
                 }}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <User className="h-3 w-3 text-muted-foreground" />
+                <User className="h-5 w-5 text-muted-foreground" />
               </div>
             )}
           </div>
