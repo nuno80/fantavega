@@ -1,4 +1,3 @@
 {
-  "buildCommand": "pnpm run build",
-  "cacheDirectories": []
+  "buildCommand": "pnpm run build"
 }
