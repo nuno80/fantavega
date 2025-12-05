@@ -41,6 +41,12 @@ export function LeagueSelector({
   const [isLoading, setIsLoading] = useState(true);
   const [currentLeague, setCurrentLeague] = useState<League | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const urlLeagueId = searchParams.get("league")
+    ? parseInt(searchParams.get("league")!, 10)
+    : null;
+  const effectiveLeagueId = currentLeagueId || urlLeagueId;
 
   useEffect(() => {
     const fetchUserLeagues = async () => {
@@ -51,9 +57,9 @@ export function LeagueSelector({
           setLeagues(leagueData);
 
           // Set current league if provided or use first league
-          if (currentLeagueId) {
+          if (effectiveLeagueId) {
             const league = leagueData.find(
-              (l: League) => l.id === currentLeagueId
+              (l: League) => l.id === effectiveLeagueId
             );
             setCurrentLeague(league || null);
           } else if (leagueData.length > 0) {
@@ -69,7 +75,7 @@ export function LeagueSelector({
     };
 
     fetchUserLeagues();
-  }, [currentLeagueId]);
+  }, [effectiveLeagueId]);
 
   const handleLeagueSelect = (league: League) => {
     setCurrentLeague(league);

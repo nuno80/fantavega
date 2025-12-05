@@ -9,26 +9,45 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuctionPageContent } from "./AuctionPageContent";
 
-export default async function AuctionsPage2() {
+export default async function AuctionsPage2(props: {
+  searchParams: Promise<{ league?: string }>;
+}) {
   const user = await currentUser();
 
   if (!user) {
     redirect("/devi-autenticarti");
   }
 
+  const searchParams = await props.searchParams;
   let hasLeagues = false;
   let leagueId: number | null = null;
+  const queriedLeagueId = searchParams.league ? parseInt(searchParams.league) : null;
 
   try {
-    // Check if user has leagues and get the first one (default behavior)
-    const userLeaguesResult = await db.execute({
-      sql: `SELECT league_id FROM league_participants WHERE user_id = ? LIMIT 1`,
-      args: [user.id],
-    });
+    // If league ID is in URL, verify user participates in it
+    if (queriedLeagueId) {
+      const participationCheck = await db.execute({
+        sql: `SELECT league_id FROM league_participants WHERE user_id = ? AND league_id = ?`,
+        args: [user.id, queriedLeagueId],
+      });
 
-    if (userLeaguesResult.rows.length > 0) {
-      hasLeagues = true;
-      leagueId = userLeaguesResult.rows[0].league_id as number;
+      if (participationCheck.rows.length > 0) {
+        hasLeagues = true;
+        leagueId = queriedLeagueId;
+      }
+    }
+
+    // Fallback: Check if user has leagues and get the first one if no valid URL param
+    if (!leagueId) {
+      const userLeaguesResult = await db.execute({
+        sql: `SELECT league_id FROM league_participants WHERE user_id = ? LIMIT 1`,
+        args: [user.id],
+      });
+
+      if (userLeaguesResult.rows.length > 0) {
+        hasLeagues = true;
+        leagueId = userLeaguesResult.rows[0].league_id as number;
+      }
     }
   } catch (error) {
     console.error("Errore nel verificare la partecipazione alle leghe:", error);
