@@ -253,5 +253,12 @@
       "Dependencies: Aggiunto `babel-plugin-react-compiler` come devDependency.",
       "Verification: Build di produzione verificata con successo."
     ]
+  },
+  "empty_db_logic": {
+    "feature_name": "Gestione Database Giocatori Vuoto",
+    "summary": "Implementa un controllo nel frontend per rilevare se il database dei giocatori è vuoto e mostra un messaggio di errore chiaro all'utente, prevenendo confusione o loop di caricamento.",
+    "technical_details": [
+      "Frontend (CallPlayerInterface.tsx): Aggiunto stato `hasNoPlayers` e logica condizionale per mostrare un alert se l'API restituisce una lista vuota."
+    ]
   }
 }

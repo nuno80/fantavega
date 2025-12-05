@@ -261,6 +261,18 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-25",
+      "name": "Handle Empty Database Scenario",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-25.1",
+          "name": "Add Error Message for Empty Player DB",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

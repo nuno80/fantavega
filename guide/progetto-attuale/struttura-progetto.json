@@ -120,6 +120,10 @@
     {
       "path": "next.config.mjs",
       "description": "Abilitato experimental.reactCompiler."
+    },
+    {
+      "path": "src/components/auction/CallPlayerInterface.tsx",
+      "description": "Aggiornato per gestire il caso di database vuoto e mostrare un messaggio di errore."
     }
   ]
 }

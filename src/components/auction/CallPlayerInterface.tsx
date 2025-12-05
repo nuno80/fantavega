@@ -110,6 +110,7 @@ export function CallPlayerInterface({
       qtA: number;
     } | null>(null);
   const [isStartAuctionModalOpen, setIsStartAuctionModalOpen] = useState(false);
+  const [hasNoPlayers, setHasNoPlayers] = useState(false);
 
   // Preference filters state
   const [preferenceFilters, setPreferenceFilters] = useState({
@@ -136,6 +137,16 @@ export function CallPlayerInterface({
       );
       if (response.ok) {
         const data = await response.json();
+
+        // Check for empty database
+        if (!data.players || data.players.length === 0) {
+          setHasNoPlayers(true);
+          setPlayers([]);
+          return;
+        } else {
+          setHasNoPlayers(false);
+        }
+
         // Transform API data to match our interface
         const playersWithStatus = (data.players || []).map(
           (player: ApiPlayer) => ({
@@ -521,6 +532,15 @@ export function CallPlayerInterface({
           </div>
         </div>
       </div>
+
+      {hasNoPlayers && (
+        <div className="m-4 border-l-4 border-red-500 bg-red-100 p-4 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+          <p className="font-bold">Attenzione</p>
+          <p>
+            Database vuoto, è necessario contattare un admin per caricare la lista dei giocatori.
+          </p>
+        </div>
+      )}
 
       {/* Tab Content */}
       <div className="p-2">
