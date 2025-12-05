@@ -212,23 +212,13 @@ export function AuctionPageContent({
       if (!selectedLeagueId) return;
 
       // Skip fetch if we have initial data for this league and it's the first load
-      console.log("[DEBUG LOOP] Check guard:", {
-        initialLeagueId,
-        selectedLeagueId,
-        managersLen: managers.length,
-        isLoading,
-        shouldReturn: initialLeagueId === selectedLeagueId && managers.length > 0 && !isLoading
-      });
-
       if (
         initialLeagueId === selectedLeagueId &&
         managers.length > 0 &&
         !isLoading
       ) {
-        console.log("[DEBUG LOOP] Guard passed, skipping fetch");
         return;
       }
-      console.log("[DEBUG LOOP] Guard failed, proceeding to fetch");
 
       setIsLoading(true);
       try {

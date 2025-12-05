@@ -255,10 +255,11 @@
     ]
   },
   "empty_db_logic": {
-    "feature_name": "Gestione Database Giocatori Vuoto",
-    "summary": "Implementa un controllo nel frontend per rilevare se il database dei giocatori è vuoto e mostra un messaggio di errore chiaro all'utente, prevenendo confusione o loop di caricamento.",
+    "feature_name": "Gestione Database Vuoto",
+    "summary": "Implementata gestione errori per database giocatori vuoto e patch per loop infinito legato all'inizializzazione della lega.",
     "technical_details": [
-      "Frontend (CallPlayerInterface.tsx): Aggiunto stato `hasNoPlayers` e logica condizionale per mostrare un alert se l'API restituisce una lista vuota."
+      "Frontend (CallPlayerInterface.tsx): Aggiunto stato `hasNoPlayers`.",
+      "Frontend (useLeague.ts): Inizializzazione sincrona per prevenire race condition."
     ]
   },
   "infinite_loop_fix_v2": {
