@@ -260,5 +260,12 @@
     "technical_details": [
       "Frontend (CallPlayerInterface.tsx): Aggiunto stato `hasNoPlayers` e logica condizionale per mostrare un alert se l'API restituisce una lista vuota."
     ]
+  },
+  "infinite_loop_fix_v2": {
+    "feature_name": "Risoluzione Loop Rendering Asta",
+    "summary": "Corretto un problema di dipendenze nel `useEffect` di `AuctionPageContent.tsx` che causava un refresh infinito dei dati della lega quando la lunghezza dell'array dei manager cambiava (es. durante il caricamento iniziale).",
+    "technical_details": [
+      "Frontend (AuctionPageContent.tsx): Rimosse `managers.length` e `isLoading` dalle dipendenze del `useEffect` di inizializzazione, stabilizzando il ciclo di caricamento dati."
+    ]
   }
 }

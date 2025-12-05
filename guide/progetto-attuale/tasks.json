@@ -273,6 +273,18 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-26",
+      "name": "Fix Infinite Loop in Auction Page",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-26.1",
+          "name": "Correct useEffect Dependencies in AuctionPageContent",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }
