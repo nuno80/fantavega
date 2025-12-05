@@ -1,6 +1,6 @@
 {
-  "last_update": "2025-12-02T22:00:00Z",
-  "task_completed": "FN-19 - Refactoring UI Players e Ottimizzazione",
+  "last_update": "2025-12-05T20:00:00Z",
+  "task_completed": "FN-22 - Enhance Penalty Visibility",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
     "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata come preferenza per l'utente e l'intera interfaccia dell'applicazione si aggiorna per mostrare i dati (aste, budget, rose) relativi alla lega attiva.",

@@ -747,33 +747,27 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
       </div>
 
       {/* Compact Budget Dashboard */}
-      <div className="mb-4 grid grid-cols-4 gap-1 px-1">
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-1.5 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="mb-4 grid grid-cols-3 gap-2 px-1">
+        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             {isCurrentUser ? "Disp." : "Residui"}
           </span>
-          <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 sm:text-sm">
+          <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
             {isCurrentUser
               ? availableBudget
               : validTotalBudget - validTotalPenalties - spentCredits}
           </span>
         </div>
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-1.5 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Spesi</span>
-          <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400 sm:text-sm">
+        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Spesi</span>
+          <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
             {spentCredits}
           </span>
         </div>
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-1.5 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Blocc.</span>
-          <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 sm:text-sm">
+        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Blocc.</span>
+          <span className="font-mono text-sm font-bold text-amber-600 dark:text-amber-400">
             {isCurrentUser ? lockedCredits : "-"}
-          </span>
-        </div>
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-1.5 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Penal.</span>
-          <span className="font-mono text-xs font-bold text-red-600 dark:text-red-400 sm:text-sm">
-            {validTotalPenalties > 0 ? `-${validTotalPenalties}` : "0"}
           </span>
         </div>
       </div>

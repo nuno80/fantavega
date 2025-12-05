@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-12-02T22:00:00Z",
+  "last_update": "2025-12-05T20:00:00Z",
   "tasks": [
     {
       "id": "FN-12",
@@ -223,6 +223,18 @@
           "id": "FN-21.3",
           "name": "Fix Lint Errors",
           "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "FN-22",
+      "name": "Enhance Penalty Visibility",
+      "status": "cancelled",
+      "subtasks": [
+        {
+          "id": "FN-22.1",
+          "name": "Add Explicit Penalty Box to Budget Grid in ManagerColumn",
+          "status": "reverted"
         }
       ]
     }
