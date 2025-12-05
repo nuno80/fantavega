@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   experimental: {
     typedRoutes: true,
+    reactCompiler: true,
   },
   allowedDevOrigins: [
     'local-origin.dev',

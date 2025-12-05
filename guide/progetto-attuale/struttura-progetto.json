@@ -116,6 +116,10 @@
     {
       "path": "src/app/auctions/AuctionPageContent.tsx",
       "description": "Aggiornato layout e sfondo pagina."
+    },
+    {
+      "path": "next.config.mjs",
+      "description": "Abilitato experimental.reactCompiler."
     }
   ]
 }

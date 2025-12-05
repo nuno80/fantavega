@@ -249,6 +249,18 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-24",
+      "name": "App Optimization & Next.js 16 Prep",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-24.1",
+          "name": "Enable React Compiler (Experimental)",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

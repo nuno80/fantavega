@@ -243,5 +243,15 @@
         "description": "Query separata per ottenere il numero totale di risultati per la paginazione."
       }
     ]
+  },
+  "optimization_logic": {
+    "feature_name": "Next.js 16 Readiness & React Compiler",
+    "summary": "Attivazione sperimentale del React Compiler (disponibile in Next.js 15) per ottimizzare automaticamente il rendering dei componenti e preparare il codice per Next.js 16.",
+    "architectural_pattern": "Configurazione build-time in `next.config.mjs`.",
+    "technical_details": [
+      "Configuration: Abilitato `experimental.reactCompiler` in `next.config.mjs`.",
+      "Dependencies: Aggiunto `babel-plugin-react-compiler` come devDependency.",
+      "Verification: Build di produzione verificata con successo."
+    ]
   }
 }
