@@ -25,7 +25,6 @@ export function useLeague() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const fetchUserLeagues = useCallback(async () => {
     try {
