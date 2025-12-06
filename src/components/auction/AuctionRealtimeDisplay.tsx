@@ -5,10 +5,10 @@
 
 import { useEffect, useState } from "react";
 
-import { toast } from "sonner";
-
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
+import { getPlayerImageUrl } from "@/lib/utils";
+import { toast } from "sonner";
 
 // src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
 // Componente client che visualizza e aggiorna in tempo reale i dati di un'asta.
@@ -128,7 +128,7 @@ export function AuctionRealtimeDisplay({
           {auctionData.player?.photo_url ? (
             <div className="h-40 w-40 overflow-hidden rounded-full border-4 border-primary/20 shadow-lg">
               <img
-                src={auctionData.player.photo_url}
+                src={getPlayerImageUrl(auctionData.player?.id, auctionData.player?.photo_url)}
                 alt={auctionData.player_name || "Player"}
                 className="h-full w-full object-cover"
               />

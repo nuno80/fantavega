@@ -2,12 +2,14 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { getPlayerImageUrl } from "@/lib/utils";
 
 interface AuctionPlayerCardProps {
   playerName: string;
   playerRole: string;
   playerTeam?: string;
   playerImage?: string;
+  playerId?: number;
   currentBid: number;
   timeRemaining?: number;
   status: string;
@@ -22,6 +24,7 @@ export function AuctionPlayerCard({
   playerRole,
   playerTeam,
   playerImage,
+  playerId,
   currentBid,
   timeRemaining,
   status,
@@ -61,9 +64,9 @@ export function AuctionPlayerCard({
           {/* Player Image */}
           <div className="relative">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-              {playerImage ? (
+              {playerImage || playerId ? (
                 <img
-                  src={playerImage}
+                  src={playerImage || getPlayerImageUrl(playerId)}
                   alt={playerName}
                   className="h-full w-full object-cover"
                 />

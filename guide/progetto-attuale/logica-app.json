@@ -293,5 +293,16 @@
       "Backend (player.service.ts): Utilizzo di `COALESCE` per dare priorità alle preferenze utente rispetto ai valori di default.",
       "API (/api/players): Aggiornata per estrarre il `userId` dalla sessione corrente e passarlo al servizio."
     ]
+  },
+  "auction_bug_fixes": {
+    "feature_name": "Fix Bug Asta e Foto Giocatori",
+    "summary": "Risolti diversi bug critici nella pagina delle aste: il pulsante 'Rilancia' non funzionante, le foto dei giocatori mancanti e un errore 404 nell'API di auto-bid.",
+    "technical_details": [
+      "Frontend (ManagerColumn.tsx): Implementata la gestione dell'evento `onOpenBidModal` per il pulsante 'Rilancia' e corretta la formattazione dell'URL nella chiamata fetch per l'auto-bid.",
+      "Frontend (AuctionPageContent.tsx): Centralizzata la logica di apertura del modale di offerta (`StandardBidModal`) e passato l'handler ai componenti figli.",
+      "Frontend Utils (utils.ts): Creata la funzione `getPlayerImageUrl` con logica di fallback su URL standard Fantacalcio.",
+      "Frontend (AuctionRealtimeDisplay.tsx, ManagerColumn.tsx, AuctionPlayerCard.tsx): Integrato `getPlayerImageUrl` per garantire la visualizzazione delle foto.",
+      "Backend (player-import.service.ts): Aggiornata la logica di importazione per salvare l'URL della foto nel database se mancante nel file sorgente."
+    ]
   }
 }

@@ -17,6 +17,7 @@ interface PlayerExcelData {
   initial_quotation_mantra: number | null;
   fvm: number | null;
   fvm_mantra: number | null;
+  photo_url?: string;
 }
 
 // Funzione helper per sanificare i nomi dei giocatori
@@ -239,6 +240,8 @@ export const processPlayersExcel = async (
           initial_quotation_mantra: parseOptionalFloat(rowRecord["Qt.I M"]),
           fvm: parseOptionalFloat(rowRecord["FVM"]),
           fvm_mantra: parseOptionalFloat(rowRecord["FVM M"]),
+          // Auto-generate photo URL for Fantacalcio standards
+          photo_url: `https://content.fantacalcio.it/web/cfa/calciatori/large/${id}.png`
         };
 
         const now = Math.floor(Date.now() / 1000);
@@ -249,13 +252,13 @@ export const processPlayersExcel = async (
               id, role, role_mantra, name, team,
               current_quotation, initial_quotation,
               current_quotation_mantra, initial_quotation_mantra,
-              fvm, fvm_mantra,
+              fvm, fvm_mantra, photo_url,
               last_updated_from_source, created_at, updated_at
             ) VALUES (
               ?, ?, ?, ?, ?,
               ?, ?,
               ?, ?,
-              ?, ?,
+              ?, ?, ?,
               ?, ?, ?
             )
             ON CONFLICT(id) DO UPDATE SET
@@ -269,6 +272,7 @@ export const processPlayersExcel = async (
               initial_quotation_mantra = excluded.initial_quotation_mantra,
               fvm = excluded.fvm,
               fvm_mantra = excluded.fvm_mantra,
+              photo_url = excluded.photo_url,
               last_updated_from_source = excluded.last_updated_from_source,
               updated_at = ?
           `,
@@ -284,6 +288,7 @@ export const processPlayersExcel = async (
             playerData.initial_quotation_mantra,
             playerData.fvm,
             playerData.fvm_mantra,
+            playerData.photo_url || null,
             now,
             now,
             now,

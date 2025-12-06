@@ -1,5 +1,6 @@
 "use client";
 
+import { getPlayerImageUrl } from "@/lib/utils";
 import React, { memo, useEffect, useState } from "react";
 
 import {
@@ -126,6 +127,7 @@ interface ManagerColumnProps {
   complianceTimerStartAt?: number | null;
   onPenaltyApplied?: () => void; // Callback for when penalty is applied
   onPlayerDiscarded?: () => void; // Callback for when player is discarded
+  onOpenBidModal?: (playerId: number) => void; // Callback to open bid modal
 }
 
 // Helper functions
@@ -178,12 +180,12 @@ const formatTimeRemaining = (endTime: number) => {
 
   if (remaining < 300) {
     color = "text-red-500";
-    text = remaining < 60 ? `${seconds}s` : `${minutes}m`;
+    text = remaining < 60 ? `${seconds} s` : `${minutes} m`;
   } else if (remaining < 3600) {
     color = "text-orange-400";
-    text = `${minutes}m`;
+    text = `${minutes} m`;
   } else {
-    text = `${hours}h ${minutes}m`;
+    text = `${hours}h ${minutes} m`;
   }
 
   return { text, color, percent, remaining };
@@ -218,14 +220,14 @@ function AssignedSlot({
   return (
     <>
       <div
-        className={`flex items-center justify-between rounded-md p-1.5 border ${pastelClass} transition-colors hover:bg-opacity-20`}
+        className={`flex items - center justify - between rounded - md p - 1.5 border ${pastelClass} transition - colors hover: bg - opacity - 20`}
       >
         <div className="flex min-w-0 items-center gap-2">
           {/* Player Photo */}
           <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
-            {player.photo_url ? (
+            {player.photo_url || player.id ? (
               <img
-                src={player.photo_url}
+                src={getPlayerImageUrl(player.id, player.photo_url)}
                 alt={player.name}
                 className="h-full w-full object-cover object-top"
                 style={{
@@ -239,7 +241,7 @@ function AssignedSlot({
             )}
           </div>
           <div
-            className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+            className={`mr - 2 h - 1.5 w - 1.5 flex - shrink - 0 rounded - full ${roleColor} `}
           />
           <span className="truncate text-xs font-medium">{player.name}</span>
         </div>
@@ -335,9 +337,9 @@ function ResponseNeededSlot({
     const minutes = Math.floor((seconds % 3600) / 60);
 
     if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return `${hours}h ${minutes} m`;
     }
-    return `${minutes}m`;
+    return `${minutes} m`;
   };
 
   // Get timer color based on remaining time
@@ -353,18 +355,18 @@ function ResponseNeededSlot({
   return (
     <>
       <div
-        className={`relative flex flex-col overflow-hidden border border-red-200 bg-red-50 p-1.5 dark:border-red-500/50 dark:bg-red-900/10 ${isLast ? "rounded-b-md" : ""}`}
+        className={`relative flex flex - col overflow - hidden border border - red - 200 bg - red - 50 p - 1.5 dark: border - red - 500 / 50 dark: bg - red - 900 / 10 ${isLast ? "rounded-b-md" : ""} `}
       >
         {/* Progress Bar Background */}
         <div
           className="absolute bottom-0 left-0 h-0.5 bg-red-500 transition-all duration-1000"
-          style={{ width: `${progressPercent}%` }}
+          style={{ width: `${progressPercent}% ` }}
         />
 
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 flex-1 items-center">
             <div
-              className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+              className={`mr - 2 h - 1.5 w - 1.5 flex - shrink - 0 rounded - full ${roleColor} `}
             />
             <span className="mr-2 truncate text-xs font-medium text-red-600 dark:text-red-300">
               {state.player_name}
@@ -372,7 +374,7 @@ function ResponseNeededSlot({
             {/* Response Timer */}
             {currentTimeRemaining > 0 ? (
               <span
-                className={`font-mono text-xs font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? "animate-pulse" : ""}`}
+                className={`font - mono text - xs font - bold tabular - nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? "animate-pulse" : ""} `}
               >
                 {formatResponseTimer(currentTimeRemaining)}
               </span>
@@ -389,7 +391,7 @@ function ResponseNeededSlot({
               disabled={currentTimeRemaining <= 0 || !isCurrentUser}
             >
               <DollarSign
-                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
+                className={`h - 3 w - 3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"} `}
               />
             </button>
             <button
@@ -399,7 +401,7 @@ function ResponseNeededSlot({
               disabled={currentTimeRemaining <= 0 || !isCurrentUser}
             >
               <X
-                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
+                className={`h - 3 w - 3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"} `}
               />
             </button>
           </div>
@@ -497,9 +499,9 @@ function InAuctionSlot({
 
       <div className="flex min-w-0 items-center gap-2">
         <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
-          {auction.player_photo_url ? (
+          {auction.player_photo_url || auction.player_id ? (
             <img
-              src={auction.player_photo_url}
+              src={getPlayerImageUrl(auction.player_id, auction.player_photo_url)}
               alt={auction.player_name}
               className="h-full w-full object-cover object-top"
               style={{
@@ -565,6 +567,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   complianceTimerStartAt,
   onPenaltyApplied,
   onPlayerDiscarded,
+  onOpenBidModal,
 }) => {
 
 
@@ -856,7 +859,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       role={role}
                       leagueId={leagueId || 0}
                       isLast={isLast}
-                      onCounterBid={() => { }}
+                      onCounterBid={onOpenBidModal ? () => onOpenBidModal(slot.state.player_id) : () => { }}
                       isCurrentUser={isCurrentUser}
                     />
                   );

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
+import { StandardBidModal } from "@/components/auction/StandardBidModal";
 // import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
@@ -89,6 +90,17 @@ export function AuctionPageContent({
     isCompliant: true,
     isInGracePeriod: true,
   });
+
+  // Bid Modal State
+  const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+  const [bidModalProps, setBidModalProps] = useState<{
+    playerId: number;
+    playerName: string;
+    playerRole: string;
+    playerTeam: string;
+    currentBid: number;
+    leagueId: number;
+  } | null>(null);
 
   // Set selected league ID from props if not already set
   useEffect(() => {
@@ -490,6 +502,40 @@ export function AuctionPageContent({
     }
   };
 
+  const handleOpenBidModal = (playerId: number) => {
+    if (!selectedLeagueId) return;
+
+    // Look for the auction in active auctions
+    const auction = activeAuctions.find((a) => a.player_id === playerId);
+
+    // Also check current auction if it matches
+    const isCurrentAuction = currentAuction?.player_id === playerId;
+
+    if (auction) {
+      setBidModalProps({
+        playerId,
+        playerName: auction.player_name,
+        playerRole: auction.player_role,
+        playerTeam: auction.player_team,
+        currentBid: auction.current_highest_bid_amount,
+        leagueId: selectedLeagueId,
+      });
+      setIsBidModalOpen(true);
+    } else if (isCurrentAuction && currentAuction) {
+      setBidModalProps({
+        playerId,
+        playerName: currentAuction.player_name || "Giocatore",
+        playerRole: currentAuction.player?.role || "",
+        playerTeam: currentAuction.player?.team || "",
+        currentBid: currentAuction.current_highest_bid_amount,
+        leagueId: selectedLeagueId,
+      });
+      setIsBidModalOpen(true);
+    } else {
+      toast.error("Impossibile trovare i dettagli dell'asta per questo giocatore.");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -573,6 +619,7 @@ export function AuctionPageContent({
                     }
                     onPenaltyApplied={() => selectedLeagueId && fetchComplianceData(selectedLeagueId)}
                     onPlayerDiscarded={() => selectedLeagueId && fetchManagersData(selectedLeagueId)}
+                    onOpenBidModal={handleOpenBidModal}
                   />
                 </div>
               );
@@ -590,6 +637,27 @@ export function AuctionPageContent({
           </div>
         )}
       </div>
+      {/* Global Bid Modal */}
+      {isBidModalOpen && bidModalProps && (
+        <StandardBidModal
+          isOpen={isBidModalOpen}
+          onClose={() => setIsBidModalOpen(false)}
+          playerName={bidModalProps.playerName}
+          playerRole={bidModalProps.playerRole}
+          playerTeam={bidModalProps.playerTeam}
+          playerId={bidModalProps.playerId}
+          leagueId={bidModalProps.leagueId}
+          currentBid={bidModalProps.currentBid}
+          isNewAuction={false}
+          title="Rilancia Offerta"
+          onBidSuccess={async (amount, bidType, maxAmount) => {
+            if (bidModalProps) {
+              await handlePlaceBid(amount, bidType, bidModalProps.playerId, false, maxAmount);
+              setIsBidModalOpen(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
