@@ -100,8 +100,6 @@ export async function GET(request: NextRequest) {
       userId,
     };
 
-    console.log(`[API PLAYERS GET] UserID: ${userId}, LeagueID: ${leagueId}`);
-
     // Rimuovi le chiavi con valore undefined per non passarle al servizio se non specificate
     Object.keys(options).forEach((key) => {
       const K = key as keyof GetPlayersOptions;

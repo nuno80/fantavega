@@ -176,16 +176,6 @@ export function CallPlayerInterface({
           setHasNoPlayers(false);
         }
 
-        // DEBUG LOGGING
-        const debugPlayer = data.players.find((p: ApiPlayer) => p.name.includes("Bastoni"));
-        if (debugPlayer) {
-          console.log("[CallPlayerInterface] Debug Bastoni Data:", {
-            name: debugPlayer.name,
-            computed_starter: debugPlayer.computed_is_starter,
-            computed_favorite: debugPlayer.computed_is_favorite
-          });
-        }
-
         // Transform API data to match our interface
         const playersWithStatus = (data.players || []).map(
           (player: ApiPlayer) => ({

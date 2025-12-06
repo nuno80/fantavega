@@ -98,29 +98,6 @@ export const getPlayers = async (
     userId,
   } = options;
 
-  console.log(`[SERVICE PLAYER INTERNAL] leagueId: ${leagueId}, userId: ${userId}`);
-
-  if (userId && leagueId) {
-    try {
-      const prefCheck = await db.execute({
-        sql: "SELECT COUNT(*) as count FROM user_player_preferences WHERE user_id = ? AND league_id = ?",
-        args: [userId, leagueId]
-      });
-      console.log(`[SERVICE PLAYER DEBUG] Found ${prefCheck.rows[0].count} preferences for user ${userId} in league ${leagueId}`);
-
-      if (Number(prefCheck.rows[0].count) > 0) {
-        // Check one sample
-        const sample = await db.execute({
-          sql: "SELECT * FROM user_player_preferences WHERE user_id = ? AND league_id = ? LIMIT 1",
-          args: [userId, leagueId]
-        });
-        console.log(`[SERVICE PLAYER DEBUG] Sample preference:`, sample.rows[0]);
-      }
-    } catch (e) {
-      console.error("[SERVICE PLAYER DEBUG] Error checking preferences:", e);
-    }
-  }
-
   const validatedPage = Math.max(1, Number(page) || DEFAULT_PAGE);
   const validatedLimit = Math.min(
     MAX_LIMIT,
@@ -166,14 +143,6 @@ export const getPlayers = async (
   const whereClauses: string[] = [];
   const filterParams: (string | number)[] = [];
 
-  // DEBUG FOR BASTONI (ID 2120)
-  if (userId && leagueId) {
-    const bastoniCheck = await db.execute({
-      sql: "SELECT * FROM user_player_preferences WHERE user_id = ? AND league_id = ? AND player_id = 2120",
-      args: [userId, leagueId]
-    });
-    console.log(`[SERVICE PLAYER DEBUG] Bastoni (2120) preference check:`, bastoniCheck.rows.length > 0 ? bastoniCheck.rows[0] : "NO ENTRY FOUND");
-  }
 
   if (name) {
     whereClauses.push("p.name LIKE ?");

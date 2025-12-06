@@ -6,10 +6,11 @@ Fantavega is a fantasy football (soccer) auction system built with Next.js 15, T
 
 ## Database Management
 
-- Use `pnpm run db:reset` to reset database
-- Use `pnpm run db:migrate` to apply schema changes
+- **Database**: Turso (Remote Cloud Database)
+- Use `pnpm run db:reset` to reset database (Connects to Turso via .env)
+- Use `pnpm run db:migrate` to apply schema changes (Connects to Turso via .env)
 - Use `pnpm run db:seed` to populate with test data
-- Database location: `database/starter_default.db`
+- **Note**: Ensure `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are set in `.env` for all operations. Local SQLite file is no longer used.
 
 ## Key Architecture Patterns
 
