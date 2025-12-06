@@ -198,6 +198,7 @@ export function AuctionPageContent({
       if (res.ok) {
         const data = await res.json();
         console.log('[FRONTEND] fetchUserAuctionStates data:', data);
+        console.log('[FRONTEND] States array:', JSON.stringify(data.states, null, 2));
         // The API returns { states: [...], count: ... }
         setUserAuctionStates(data.states || []);
       }
