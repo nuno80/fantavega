@@ -18,6 +18,9 @@ export default async function AuctionsPage2(props: {
     redirect("/devi-autenticarti");
   }
 
+
+
+
   const searchParams = await props.searchParams;
   let hasLeagues = false;
   let leagueId: number | null = null;
