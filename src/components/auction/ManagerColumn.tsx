@@ -878,6 +878,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                     />
                   );
                 } else if (slot.type === "response_needed") {
+                  console.log('[ManagerColumn] Rendering ResponseNeededSlot for:', slot.state.player_name);
                   return (
                     <ResponseNeededSlot
                       key={`response-${slot.state.player_id}`}
