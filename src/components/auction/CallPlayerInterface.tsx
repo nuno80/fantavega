@@ -165,9 +165,16 @@ export function CallPlayerInterface({
         }
 
         // DEBUG LOGGING
-        const debugPlayer = data.players.find((p: ApiPlayer) => p.name.includes("Bastoni") || p.name.includes("Dimarco"));
+        const debugPlayer = data.players.find((p: ApiPlayer) => p.name.includes("Bastoni"));
         if (debugPlayer) {
-          console.log("[CallPlayerInterface] Debug Player Raw API Data:", debugPlayer);
+          console.log("[CallPlayerInterface] Debug Bastoni Data:", {
+            name: debugPlayer.name,
+            is_starter_raw: debugPlayer.is_starter,
+            is_favorite_raw: debugPlayer.is_favorite,
+            integrity_value: debugPlayer.integrity_value,
+            has_fmv: debugPlayer.has_fmv,
+            current_bid: debugPlayer.current_bid
+          });
         }
 
         // Transform API data to match our interface

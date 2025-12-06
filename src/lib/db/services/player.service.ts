@@ -98,6 +98,8 @@ export const getPlayers = async (
     userId,
   } = options;
 
+  console.log(`[SERVICE PLAYER INTERNAL] leagueId: ${leagueId}, userId: ${userId}`);
+
   const validatedPage = Math.max(1, Number(page) || DEFAULT_PAGE);
   const validatedLimit = Math.min(
     MAX_LIMIT,
