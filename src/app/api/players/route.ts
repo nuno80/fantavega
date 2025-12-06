@@ -82,6 +82,12 @@ export async function GET(request: NextRequest) {
     const user = await currentUser();
     const userId = user?.id;
 
+    if (!user) {
+      console.warn("[API PLAYERS GET] No user authenticated! returning public/default data.");
+    } else {
+      console.log(`[API PLAYERS GET] User authenticated: ${userId}`);
+    }
+
     const options: GetPlayersOptions = {
       name,
       role,

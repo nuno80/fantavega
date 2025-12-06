@@ -150,7 +150,14 @@ export function CallPlayerInterface({
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/players?limit=1000&leagueId=${leagueId}`
+        `/api/players?limit=1000&leagueId=${leagueId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // Ensure cookies are sent for Clerk authentication
+          credentials: "include",
+        }
       );
       if (response.ok) {
         const data = await response.json();
