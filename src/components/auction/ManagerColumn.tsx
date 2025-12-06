@@ -626,10 +626,19 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
     );
     const statesForRole = userAuctionStates.filter((s) => {
       const auction = activeAuctions.find((a) => a.player_id === s.player_id);
-      return (
-        auction?.player_role.toUpperCase() === role.toUpperCase() &&
-        s.user_state === "rilancio_possibile"
-      );
+      const matches = auction?.player_role.toUpperCase() === role.toUpperCase() &&
+        s.user_state === "rilancio_possibile";
+
+      if (isCurrentUser && s.user_state === "rilancio_possibile") {
+        console.log(`[ManagerColumn] Checking state for ${s.player_name} (role check):`, {
+          playerRole: auction?.player_role,
+          slotRole: role,
+          matches,
+          auctionFound: !!auction
+        });
+      }
+
+      return matches;
     });
 
     // Create slot items with a timestamp for sorting
