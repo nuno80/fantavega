@@ -670,6 +670,14 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
 
     const slots: Slot[] = allItems.map((i) => i.slot);
 
+    if (isCurrentUser && statesForRole.length > 0) {
+      console.log(`[ManagerColumn] Final slots for role ${role}:`, {
+        totalItems: allItems.length,
+        responseNeededCount: statesForRole.length,
+        finalSlots: slots.map(s => s.type)
+      });
+    }
+
     while (slots.length < totalSlots) {
       slots.push({ type: "empty" });
     }
