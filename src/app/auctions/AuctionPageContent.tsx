@@ -502,39 +502,57 @@ export function AuctionPageContent({
     }
   };
 
-  const handleOpenBidModal = (playerId: number) => {
-    if (!selectedLeagueId) return;
+  // Refs for stable callbacks
+  const activeAuctionsRef = useRef(activeAuctions);
+  const currentAuctionRef = useRef(currentAuction);
 
-    // Look for the auction in active auctions
-    const auction = activeAuctions.find((a) => a.player_id === playerId);
+  useEffect(() => {
+    activeAuctionsRef.current = activeAuctions;
+  }, [activeAuctions]);
 
-    // Also check current auction if it matches
-    const isCurrentAuction = currentAuction?.player_id === playerId;
+  useEffect(() => {
+    currentAuctionRef.current = currentAuction;
+  }, [currentAuction]);
 
-    if (auction) {
-      setBidModalProps({
-        playerId,
-        playerName: auction.player_name,
-        playerRole: auction.player_role,
-        playerTeam: auction.player_team,
-        currentBid: auction.current_highest_bid_amount,
-        leagueId: selectedLeagueId,
-      });
-      setIsBidModalOpen(true);
-    } else if (isCurrentAuction && currentAuction) {
-      setBidModalProps({
-        playerId,
-        playerName: currentAuction.player_name || "Giocatore",
-        playerRole: currentAuction.player?.role || "",
-        playerTeam: currentAuction.player?.team || "",
-        currentBid: currentAuction.current_highest_bid_amount,
-        leagueId: selectedLeagueId,
-      });
-      setIsBidModalOpen(true);
-    } else {
-      toast.error("Impossibile trovare i dettagli dell'asta per questo giocatore.");
-    }
-  };
+  const handleOpenBidModal = useCallback(
+    (playerId: number) => {
+      if (!selectedLeagueId) return;
+
+      const currentActiveAuctions = activeAuctionsRef.current;
+      const currentAuctionData = currentAuctionRef.current;
+
+      // Look for the auction in active auctions
+      const auction = currentActiveAuctions.find((a) => a.player_id === playerId);
+
+      // Also check current auction if it matches
+      const isCurrentAuction = currentAuctionData?.player_id === playerId;
+
+      if (auction) {
+        setBidModalProps({
+          playerId,
+          playerName: auction.player_name,
+          playerRole: auction.player_role,
+          playerTeam: auction.player_team,
+          currentBid: auction.current_highest_bid_amount,
+          leagueId: selectedLeagueId,
+        });
+        setIsBidModalOpen(true);
+      } else if (isCurrentAuction && currentAuctionData) {
+        setBidModalProps({
+          playerId,
+          playerName: currentAuctionData.player_name || "Giocatore",
+          playerRole: currentAuctionData.player?.role || "",
+          playerTeam: currentAuctionData.player?.team || "",
+          currentBid: currentAuctionData.current_highest_bid_amount,
+          leagueId: selectedLeagueId,
+        });
+        setIsBidModalOpen(true);
+      } else {
+        toast.error("Impossibile trovare i dettagli dell'asta per questo giocatore.");
+      }
+    },
+    [selectedLeagueId]
+  );
 
   if (isLoading) {
     return (
