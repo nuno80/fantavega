@@ -100,6 +100,27 @@ export const getPlayers = async (
 
   console.log(`[SERVICE PLAYER INTERNAL] leagueId: ${leagueId}, userId: ${userId}`);
 
+  if (userId && leagueId) {
+    try {
+      const prefCheck = await db.execute({
+        sql: "SELECT COUNT(*) as count FROM user_player_preferences WHERE user_id = ? AND league_id = ?",
+        args: [userId, leagueId]
+      });
+      console.log(`[SERVICE PLAYER DEBUG] Found ${prefCheck.rows[0].count} preferences for user ${userId} in league ${leagueId}`);
+
+      if (Number(prefCheck.rows[0].count) > 0) {
+        // Check one sample
+        const sample = await db.execute({
+          sql: "SELECT * FROM user_player_preferences WHERE user_id = ? AND league_id = ? LIMIT 1",
+          args: [userId, leagueId]
+        });
+        console.log(`[SERVICE PLAYER DEBUG] Sample preference:`, sample.rows[0]);
+      }
+    } catch (e) {
+      console.error("[SERVICE PLAYER DEBUG] Error checking preferences:", e);
+    }
+  }
+
   const validatedPage = Math.max(1, Number(page) || DEFAULT_PAGE);
   const validatedLimit = Math.min(
     MAX_LIMIT,
@@ -131,19 +152,28 @@ export const getPlayers = async (
           ELSE 'no_auction'
         END as auction_status,
         (SELECT current_highest_bid_amount FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid,
-        COALESCE(upp.is_starter, p.is_starter) as is_starter,
-        COALESCE(upp.is_favorite, p.is_favorite) as is_favorite,
-        COALESCE(upp.integrity_value, p.integrity_value) as integrity_value,
-        COALESCE(upp.has_fmv, p.has_fmv) as has_fmv
+        COALESCE(upp.is_starter, p.is_starter) as computed_is_starter,
+        COALESCE(upp.is_favorite, p.is_favorite) as computed_is_favorite,
+        COALESCE(upp.integrity_value, p.integrity_value) as computed_integrity_value,
+        COALESCE(upp.has_fmv, p.has_fmv) as computed_has_fmv
     `;
     selectParams.push(leagueId, leagueId, leagueId);
   } else {
-    selectClause = "SELECT p.*, 'no_auction' as auction_status, NULL as current_bid";
+    selectClause = "SELECT p.*, 'no_auction' as auction_status, NULL as current_bid, p.is_starter as computed_is_starter, p.is_favorite as computed_is_favorite, p.integrity_value as computed_integrity_value, p.has_fmv as computed_has_fmv";
   }
 
   const fromClause = "FROM players p";
   const whereClauses: string[] = [];
   const filterParams: (string | number)[] = [];
+
+  // DEBUG FOR BASTONI (ID 2120)
+  if (userId && leagueId) {
+    const bastoniCheck = await db.execute({
+      sql: "SELECT * FROM user_player_preferences WHERE user_id = ? AND league_id = ? AND player_id = 2120",
+      args: [userId, leagueId]
+    });
+    console.log(`[SERVICE PLAYER DEBUG] Bastoni (2120) preference check:`, bastoniCheck.rows.length > 0 ? bastoniCheck.rows[0] : "NO ENTRY FOUND");
+  }
 
   if (name) {
     whereClauses.push("p.name LIKE ?");

@@ -80,7 +80,12 @@ interface ApiPlayer {
   fvm_mantra?: number;
   auction_status?: "no_auction" | "active_auction" | "assigned";
   current_bid?: number;
-  // New fields from DB
+  // New fields from DB (computed aliases)
+  computed_is_starter?: boolean | number;
+  computed_is_favorite?: boolean | number;
+  computed_integrity_value?: number;
+  computed_has_fmv?: boolean | number;
+  // Fallbacks
   is_starter?: boolean | number;
   is_favorite?: boolean | number;
   integrity_value?: number;
@@ -176,11 +181,8 @@ export function CallPlayerInterface({
         if (debugPlayer) {
           console.log("[CallPlayerInterface] Debug Bastoni Data:", {
             name: debugPlayer.name,
-            is_starter_raw: debugPlayer.is_starter,
-            is_favorite_raw: debugPlayer.is_favorite,
-            integrity_value: debugPlayer.integrity_value,
-            has_fmv: debugPlayer.has_fmv,
-            current_bid: debugPlayer.current_bid
+            computed_starter: debugPlayer.computed_is_starter,
+            computed_favorite: debugPlayer.computed_is_favorite
           });
         }
 
@@ -206,12 +208,12 @@ export function CallPlayerInterface({
             // Auction status is now fetched from the API
             auctionStatus: player.auction_status || ("no_auction" as const),
             // Map current_bid from API to currentBid in our interface
-            currentBid: player.current_bid,
+            currentBid: player.current_bid || 0,
             // Map preferences from DB columns
-            isStarter: !!player.is_starter,
-            isFavorite: !!player.is_favorite,
-            integrityValue: player.integrity_value || 0,
-            hasFmv: !!player.has_fmv || !!(player.fvm && player.fvm > 0),
+            isStarter: !!(player.computed_is_starter ?? player.is_starter),
+            isFavorite: !!(player.computed_is_favorite ?? player.is_favorite),
+            integrityValue: player.computed_integrity_value ?? player.integrity_value ?? 0,
+            hasFmv: !!(player.computed_has_fmv ?? player.has_fmv ?? (player.fvm && player.fvm > 0)),
           })
         );
         setPlayers(playersWithStatus);
