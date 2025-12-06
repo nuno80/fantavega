@@ -79,6 +79,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const user = await currentUser();
+    const userId = user?.id;
+
     const options: GetPlayersOptions = {
       name,
       role,
@@ -88,6 +91,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       leagueId,
+      userId,
     };
 
     // Rimuovi le chiavi con valore undefined per non passarle al servizio se non specificate
@@ -104,7 +108,7 @@ export async function GET(request: NextRequest) {
     const result: GetPlayersResult = await getPlayers(options);
 
     // 2.3. Aggiungere informazioni sui cooldown per l'utente corrente
-    const user = await currentUser();
+    // user variable is already fetched above
     if (user?.id) {
       const playersWithCooldown = await Promise.all(
         result.players.map(async (player) => {

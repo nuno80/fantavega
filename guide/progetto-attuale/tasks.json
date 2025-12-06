@@ -309,6 +309,18 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-29",
+      "name": "Fix User Preferences in Player Filters",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-29.1",
+          "name": "Join User Preferences in Player Service",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

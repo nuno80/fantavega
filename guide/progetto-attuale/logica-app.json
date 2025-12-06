@@ -284,5 +284,14 @@
       "Frontend (CallPlayerInterface.tsx): Aggiunto stato `visibleCount` e `IntersectionObserver` su un elemento 'loader' in fondo alla lista.",
       "Frontend (CallPlayerInterface.tsx): La lista viene renderizzata dinamicamente a blocchi di 50 elementi man mano che l'utente scorre verso il basso."
     ]
+  },
+  "user_preferences_fix": {
+    "feature_name": "Integrazione Preferenze Utente nei Filtri",
+    "summary": "Risolto un problema per cui i filtri 'Preferiti' e 'Titolari' nella pagina Asta non funzionavano perché il servizio non recuperava le preferenze specifiche dell'utente, ma solo i default globali.",
+    "technical_details": [
+      "Backend (player.service.ts): Aggiornata la query `getPlayers` per eseguire una `LEFT JOIN` con la tabella `user_player_preferences` quando viene fornito un `userId`.",
+      "Backend (player.service.ts): Utilizzo di `COALESCE` per dare priorità alle preferenze utente rispetto ai valori di default.",
+      "API (/api/players): Aggiornata per estrarre il `userId` dalla sessione corrente e passarlo al servizio."
+    ]
   }
 }

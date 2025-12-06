@@ -33,6 +33,7 @@ export interface GetPlayersOptions {
   page?: number;
   limit?: number;
   leagueId?: number;
+  userId?: string;
 }
 
 export interface GetPlayersResult {
@@ -42,6 +43,10 @@ export interface GetPlayersResult {
   limit: number;
   totalPages: number;
 }
+
+// ... (Create/Update interfaces omitted, assumed unchanged)
+
+// ... (GetPlayersOptions and GetPlayersResult interfaces)
 
 export interface CreatePlayerData {
   id: number;
@@ -90,6 +95,7 @@ export const getPlayers = async (
     page = DEFAULT_PAGE,
     limit = DEFAULT_LIMIT,
     leagueId,
+    userId,
   } = options;
 
   const validatedPage = Math.max(1, Number(page) || DEFAULT_PAGE);
@@ -101,8 +107,19 @@ export const getPlayers = async (
 
   let selectClause = "";
   const selectParams: (string | number)[] = [];
+  let joinClause = "";
+  const joinParams: (string | number)[] = [];
 
   if (leagueId) {
+    if (userId) {
+      // If we have both leagueId and userId, join preferences
+      joinClause = `
+        LEFT JOIN user_player_preferences upp
+        ON p.id = upp.player_id AND upp.user_id = ? AND upp.league_id = ?
+      `;
+      joinParams.push(userId, leagueId);
+    }
+
     selectClause = `
       SELECT
         p.*,
@@ -111,7 +128,11 @@ export const getPlayers = async (
           WHEN (SELECT 1 FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') THEN 'active_auction'
           ELSE 'no_auction'
         END as auction_status,
-        (SELECT current_highest_bid_amount FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid
+        (SELECT current_highest_bid_amount FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid,
+        COALESCE(upp.is_starter, p.is_starter) as is_starter,
+        COALESCE(upp.is_favorite, p.is_favorite) as is_favorite,
+        COALESCE(upp.integrity_value, p.integrity_value) as integrity_value,
+        COALESCE(upp.has_fmv, p.has_fmv) as has_fmv
     `;
     selectParams.push(leagueId, leagueId, leagueId);
   } else {
@@ -153,10 +174,11 @@ export const getPlayers = async (
 
   const limitOffsetClause = ` LIMIT ? OFFSET ?`;
 
-  const baseQuery = `${selectClause} ${fromClause}${whereString}${orderByClause}${limitOffsetClause}`;
+  const baseQuery = `${selectClause} ${fromClause} ${joinClause} ${whereString}${orderByClause}${limitOffsetClause}`;
 
   const finalBaseParams = [
     ...selectParams,
+    ...joinParams,
     ...filterParams,
     validatedLimit,
     offset,
@@ -177,6 +199,7 @@ export const getPlayers = async (
     const players = playersResult.rows as unknown as Player[];
 
     const totalPages = Math.ceil(totalPlayers / validatedLimit);
+
 
     return {
       players,
