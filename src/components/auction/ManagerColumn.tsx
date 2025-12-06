@@ -302,14 +302,20 @@ function ResponseNeededSlot({
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
-    state.time_remaining || 0
+    state.time_remaining === null ? Infinity : state.time_remaining
   );
 
   const roleColor = getRoleColor(role);
 
   // Response timer countdown effect
   useEffect(() => {
-    if (!state.time_remaining || state.time_remaining <= 0) {
+    // If null or undefined, treat as active/infinity
+    if (state.time_remaining === null || state.time_remaining === undefined) {
+      setCurrentTimeRemaining(Infinity);
+      return;
+    }
+
+    if (state.time_remaining <= 0) {
       setCurrentTimeRemaining(0);
       return;
     }
@@ -318,6 +324,7 @@ function ResponseNeededSlot({
 
     const interval = setInterval(() => {
       setCurrentTimeRemaining((prev) => {
+        if (prev === Infinity) return Infinity;
         if (prev <= 0) {
           clearInterval(interval);
           return 0;
@@ -331,6 +338,7 @@ function ResponseNeededSlot({
 
   // Format response timer (hours and minutes only)
   const formatResponseTimer = (seconds: number) => {
+    if (seconds === Infinity) return "Attivo";
     if (seconds <= 0) return "Scaduto";
 
     const hours = Math.floor(seconds / 3600);
@@ -344,13 +352,14 @@ function ResponseNeededSlot({
 
   // Get timer color based on remaining time
   const getTimerColor = (seconds: number) => {
+    if (seconds === Infinity) return "text-green-500";
     if (seconds <= 0) return "text-red-500";
     if (seconds <= 300) return "text-red-400"; // Under 5 minutes: red
     if (seconds <= 1800) return "text-yellow-400"; // Under 30 minutes: yellow
     return "text-green-400"; // Over 30 minutes: green
   };
 
-  const progressPercent = Math.min(100, (currentTimeRemaining / 3600) * 100); // Scale to 1 hour
+  const progressPercent = Math.min(100, (currentTimeRemaining === Infinity ? 3600 : currentTimeRemaining / 3600) * 100); // Scale to 1 hour
 
   return (
     <>
@@ -372,9 +381,9 @@ function ResponseNeededSlot({
               {state.player_name}
             </span>
             {/* Response Timer */}
-            {currentTimeRemaining > 0 ? (
+            {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
               <span
-                className={`font - mono text - xs font - bold tabular - nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 ? "animate-pulse" : ""} `}
+                className={`font - mono text - xs font - bold tabular - nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""} `}
               >
                 {formatResponseTimer(currentTimeRemaining)}
               </span>
@@ -388,10 +397,10 @@ function ResponseNeededSlot({
               onClick={() => onCounterBid(state.player_id)}
               className="rounded p-1 transition-colors hover:bg-green-600/20"
               title="Rilancia"
-              disabled={currentTimeRemaining <= 0 || !isCurrentUser}
+              disabled={(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser}
             >
               <DollarSign
-                className={`h - 3 w - 3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-green-400"} `}
+                className={`h - 3 w - 3 ${(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser ? "text-gray-500" : "text-green-400"} `}
               />
             </button>
             <button

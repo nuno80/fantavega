@@ -343,6 +343,18 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-31",
+      "name": "Fix Counter-Bid Button Disabled State",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-31.1",
+          "name": "Allow Bidding without Response Timer (Null Check)",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }
