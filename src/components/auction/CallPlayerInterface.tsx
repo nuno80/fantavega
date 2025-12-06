@@ -164,6 +164,12 @@ export function CallPlayerInterface({
           setHasNoPlayers(false);
         }
 
+        // DEBUG LOGGING
+        const debugPlayer = data.players.find((p: ApiPlayer) => p.name.includes("Bastoni") || p.name.includes("Dimarco"));
+        if (debugPlayer) {
+          console.log("[CallPlayerInterface] Debug Player Raw API Data:", debugPlayer);
+        }
+
         // Transform API data to match our interface
         const playersWithStatus = (data.players || []).map(
           (player: ApiPlayer) => ({
