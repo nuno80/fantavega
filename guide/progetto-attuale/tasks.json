@@ -285,6 +285,30 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "FN-27",
+      "name": "Fix Player Filtering Logic in Call Interface",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-27.1",
+          "name": "Map DB Fields to Frontend Interface",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "FN-28",
+      "name": "Improve Player Dropdown Usability",
+      "status": "completed",
+      "subtasks": [
+        {
+          "id": "FN-28.1",
+          "name": "Implement Infinite Scroll in Select Component",
+          "status": "completed"
+        }
+      ]
     }
   ]
 }

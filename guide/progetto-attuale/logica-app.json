@@ -268,5 +268,21 @@
     "technical_details": [
       "Frontend (AuctionPageContent.tsx): Rimosse `managers.length` e `isLoading` dalle dipendenze del `useEffect` di inizializzazione, stabilizzando il ciclo di caricamento dati."
     ]
+  },
+  "player_filter_fix": {
+    "feature_name": "Correzione Filtri Giocatori",
+    "summary": "Risolto un problema per cui i filtri (Titolari, Integrità, ecc.) nella schermata di chiamata giocatore non producevano risultati perché i campi corrispondenti dal database venivano ignorati dal frontend.",
+    "technical_details": [
+      "Frontend (CallPlayerInterface.tsx): Aggiornata l'interfaccia `ApiPlayer` per includere `is_starter`, `is_favorite`, `integrity_value`, `has_fmv`.",
+      "Frontend (CallPlayerInterface.tsx): Aggiornata la logica di mapping dei dati per utilizzare i valori effettivi restituiti dall'API invece di valori di default hardcoded."
+    ]
+  },
+  "infinite_scroll_dropdown": {
+    "feature_name": "Infinite Scroll Dropdown Giocatori",
+    "summary": "Implementata la funzionalità di caricamento infinito (infinite scroll) nel menu a tendina di selezione dei giocatori per rimuovere il limite rigido di 50 risultati.",
+    "technical_details": [
+      "Frontend (CallPlayerInterface.tsx): Aggiunto stato `visibleCount` e `IntersectionObserver` su un elemento 'loader' in fondo alla lista.",
+      "Frontend (CallPlayerInterface.tsx): La lista viene renderizzata dinamicamente a blocchi di 50 elementi man mano che l'utente scorre verso il basso."
+    ]
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   Dumbbell,
@@ -80,6 +80,11 @@ interface ApiPlayer {
   fvm_mantra?: number;
   auction_status?: "no_auction" | "active_auction" | "assigned";
   current_bid?: number;
+  // New fields from DB
+  is_starter?: boolean | number;
+  is_favorite?: boolean | number;
+  integrity_value?: number;
+  has_fmv?: boolean | number;
 }
 
 export function CallPlayerInterface({
@@ -111,6 +116,18 @@ export function CallPlayerInterface({
     } | null>(null);
   const [isStartAuctionModalOpen, setIsStartAuctionModalOpen] = useState(false);
   const [hasNoPlayers, setHasNoPlayers] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(50);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount((prev) => prev + 50);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, []);
 
   // Preference filters state
   const [preferenceFilters, setPreferenceFilters] = useState({
@@ -170,11 +187,11 @@ export function CallPlayerInterface({
             auctionStatus: player.auction_status || ("no_auction" as const),
             // Map current_bid from API to currentBid in our interface
             currentBid: player.current_bid,
-            // Default preferences - these would come from user preferences API
-            isStarter: false,
-            isFavorite: false,
-            integrityValue: 0,
-            hasFmv: !!(player.fvm && player.fvm > 0),
+            // Map preferences from DB columns
+            isStarter: !!player.is_starter,
+            isFavorite: !!player.is_favorite,
+            integrityValue: player.integrity_value || 0,
+            hasFmv: !!player.has_fmv || !!(player.fvm && player.fvm > 0),
           })
         );
         setPlayers(playersWithStatus);
@@ -231,6 +248,7 @@ export function CallPlayerInterface({
     }
 
     setFilteredPlayers(filtered);
+    setVisibleCount(50);
   }, [players, searchTerm, selectedRole, preferenceFilters]);
 
   // Socket.IO real-time updates - CENTRALIZED IN AuctionPageContent
@@ -657,7 +675,7 @@ export function CallPlayerInterface({
                 <SelectValue placeholder="Seleziona Giocatore" />
               </SelectTrigger>
               <SelectContent className="max-h-60 border-border bg-card">
-                {filteredPlayers.slice(0, 50).map((player) => (
+                {filteredPlayers.slice(0, visibleCount).map((player) => (
                   <SelectItem
                     key={player.id}
                     value={player.id.toString()}
@@ -680,9 +698,12 @@ export function CallPlayerInterface({
                     </div>
                   </SelectItem>
                 ))}
-                {filteredPlayers.length > 50 && (
-                  <div className="px-2 py-2 text-center text-xs text-muted-foreground">
-                    ... altri {filteredPlayers.length - 50} risultati. Affina la ricerca.
+                {filteredPlayers.length > visibleCount && (
+                  <div
+                    ref={lastElementRef}
+                    className="px-2 py-2 text-center text-xs text-muted-foreground"
+                  >
+                    Caricamento altri risultati...
                   </div>
                 )}
               </SelectContent>
