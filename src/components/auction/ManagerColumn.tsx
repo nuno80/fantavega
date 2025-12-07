@@ -7,12 +7,20 @@ import {
   AlertTriangle,
   CheckCircle,
   DollarSign,
+  Info,
   Lock,
   Star,
   Trash2,
   User,
   X
 } from "lucide-react";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 
 import { UserAuctionStateDetail } from "@/lib/db/services/auction-states.service";
 import { ComplianceTimer } from "./ComplianceTimer";
@@ -727,8 +735,9 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   // 4. DISP. AUTO-BID = Totale - Spesi - Auto-bid
   const dispAutoBid = Math.max(0, validTotalBudget - spesi - autoBid);
 
-  // Per altri utenti: RESIDUO = Totale - Spesi
-  const residuo = Math.max(0, validTotalBudget - spesi);
+  // Per altri utenti: RESIDUO = Totale - Spesi - Offerte vincenti correnti
+  // (stessa formula di DISPONIBILI, per mostrare il budget realmente disponibile)
+  const residuo = Math.max(0, validTotalBudget - spesi - currentWinningBidsAmount);
 
   // Legacy: manteniamo per compatibilità
   const spentCredits = spesi;
@@ -842,52 +851,107 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
         /* Dashboard per utente corrente: 4 colonne */
         <div className="mb-4 grid grid-cols-4 gap-1.5 px-1">
           {/* DISPONIBILI */}
-          <div
-            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
-            title="Crediti disponibili se non ci sono rilanci sulle tue offerte"
-          >
-            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-              Disp.
-            </span>
+          <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+                Disp.
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Info className="h-3 w-3 cursor-pointer text-muted-foreground/70 hover:text-foreground" />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-xs" side="bottom">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">💰 Crediti Disponibili</h4>
+                    <p>Crediti che puoi spendere subito se nessuno rilancia sulle tue offerte attuali.</p>
+                    <div className="rounded bg-muted p-2 dark:bg-muted/50">
+                      <span className="font-mono text-[10px] font-semibold">Formula:</span>
+                      <p className="font-mono text-[10px]">Budget Totale - Spesi - Offerte Vincenti Correnti</p>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
               {disponibili}
             </span>
           </div>
 
           {/* SPESI */}
-          <div
-            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
-            title="Crediti spesi per giocatori assegnati e penalità"
-          >
-            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-              Spesi
-            </span>
+          <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+                Spesi
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Info className="h-3 w-3 cursor-pointer text-muted-foreground/70 hover:text-foreground" />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-xs" side="bottom">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">💸 Crediti Spesi</h4>
+                    <p>Crediti definitivamente utilizzati per giocatori già assegnati e penalità applicate.</p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
               {spesi}
             </span>
           </div>
 
           {/* DISP. AUTO-BID (privato) */}
-          <div
-            className="flex flex-col items-center rounded-lg bg-amber-50/50 p-2 transition-colors hover:bg-amber-100/50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20"
-            title="Crediti realmente disponibili considerando i tuoi auto-bid (visibile solo a te)"
-          >
-            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-500">
-              Disp.A-Bid
-            </span>
+          <div className="flex flex-col items-center rounded-lg bg-amber-50/50 p-2 transition-colors hover:bg-amber-100/50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-500">
+                Disp. A-Bid
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Info className="h-3 w-3 cursor-pointer text-amber-700/70 hover:text-amber-900 dark:text-amber-500/70 dark:hover:text-amber-300" />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-xs" side="bottom">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">🎯 Disponibili con Auto-Bid</h4>
+                    <p>
+                      Crediti realmente disponibili considerando il massimo impegnato nei tuoi auto-bid
+                      attivi.
+                    </p>
+                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <span className="text-[10px]">⚠️</span>
+                      <span className="text-[10px] font-medium">Visibile solo a te</span>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400">
               {dispAutoBid}
             </span>
           </div>
 
           {/* AUTO-BID (privato) */}
-          <div
-            className="flex flex-col items-center rounded-lg bg-blue-50/50 p-2 transition-colors hover:bg-blue-100/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20"
-            title="Crediti impegnati in auto-bid attivi (visibile solo a te)"
-          >
-            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-500">
-              Auto-Bid
-            </span>
+          <div className="flex flex-col items-center rounded-lg bg-blue-50/50 p-2 transition-colors hover:bg-blue-100/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-[9px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-500">
+                Auto-Bid
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Info className="h-3 w-3 cursor-pointer text-blue-700/70 hover:text-blue-900 dark:text-blue-500/70 dark:hover:text-blue-300" />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-xs" side="bottom">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">🤖 Auto-Bid Attivi</h4>
+                    <p>Totale dei crediti impegnati nei tuoi auto-bid attivi.</p>
+                    <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                      <span className="text-[10px]">⚠️</span>
+                      <span className="text-[10px] font-medium">Visibile solo a te</span>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <span className="font-mono text-sm font-bold text-blue-700 dark:text-blue-400">
               {autoBid}
             </span>
@@ -897,26 +961,50 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
         /* Dashboard per altri utenti: 2 colonne */
         <div className="mb-4 grid grid-cols-2 gap-2 px-1">
           {/* RESIDUO */}
-          <div
-            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
-            title="Budget teorico disponibile (non considera eventuali auto-bid)"
-          >
-            <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Residuo
-            </span>
+          <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Residuo
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Info className="h-3 w-3 cursor-pointer text-muted-foreground/70 hover:text-foreground" />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-xs" side="bottom">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">💰 Crediti Disponibili</h4>
+                    <p>Crediti che puoi spendere subito se nessuno rilancia sulle tue offerte attuali.</p>
+                    <div className="rounded bg-muted p-2 dark:bg-muted/50">
+                      <span className="font-mono text-[10px] font-semibold">Formula:</span>
+                      <p className="font-mono text-[10px]">Budget Totale - Spesi - Offerte Vincenti Correnti</p>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
               {residuo}
             </span>
           </div>
 
           {/* SPESI */}
-          <div
-            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
-            title="Crediti spesi per giocatori assegnati e penalità"
-          >
-            <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Spesi
-            </span>
+          <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Spesi
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Info className="h-3 w-3 cursor-pointer text-muted-foreground/70 hover:text-foreground" />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-xs" side="bottom">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">💸 Crediti Spesi</h4>
+                    <p>Crediti definitivamente utilizzati per giocatori già assegnati e penalità applicate.</p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
               {spesi}
             </span>
@@ -996,7 +1084,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
           );
         })}
       </div>
-    </div>
+    </div >
   );
 };
 
