@@ -79,9 +79,6 @@ interface UserAuctionState {
   is_highest_bidder: boolean;
 }
 
-// Alias for compatibility with shared types
-type UserAuctionStateDetail = UserAuctionState;
-
 interface AutoBid {
   player_id: number;
   max_amount: number;
@@ -93,7 +90,7 @@ interface AutoBid {
 type Slot =
   | { type: "assigned"; player: PlayerInRoster }
   | { type: "in_auction"; auction: ActiveAuction }
-  | { type: "response_needed"; state: UserAuctionState }
+  | { type: "response_needed"; state: UserAuctionStateDetail }
   | { type: "empty" };
 
 interface AutoBidCount {
