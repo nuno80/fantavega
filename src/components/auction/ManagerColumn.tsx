@@ -700,15 +700,41 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   const validCurrentBudget = isNaN(currentBudget) ? 0 : currentBudget;
   const validTotalPenalties = isNaN(totalPenalties) ? 0 : totalPenalties;
 
-  // FIX: Use comprehensive calculation to handle database inconsistencies
-  // Available = Initial - Penalties - Spent - Locked
-  const spentCredits = Math.max(0, validTotalBudget - validCurrentBudget);
-  const availableBudget = Math.max(
-    0,
-    validTotalBudget - validTotalPenalties - spentCredits - lockedCredits
+  // Calcolo crediti spesi per giocatori assegnati (esclude penalità)
+  const assignedPlayersCredits = manager.players.reduce(
+    (sum, player) => sum + (player.assignment_price || 0),
+    0
   );
+
+  // NUOVO: Calcolo offerte vincenti correnti (TUTTE le aste dove sei il miglior offerente)
+  const currentWinningBidsAmount = (activeAuctions || [])
+    .filter((auction) => auction.current_highest_bidder_id === manager.user_id)
+    .reduce((sum, auction) => sum + (auction.current_highest_bid_amount || 0), 0);
+
+  // NUOVE FORMULE BUDGET
+  // 1. SPESI = Giocatori assegnati + Penalità
+  const spesi = assignedPlayersCredits + validTotalPenalties;
+
+  // 2. AUTO-BID = Somma max_amount auto-bid attivi (locked_credits)
+  const autoBid = lockedCredits;
+
+  // 3. DISPONIBILI = Totale - Spesi - Offerte vincenti correnti
+  const disponibili = Math.max(
+    0,
+    validTotalBudget - spesi - currentWinningBidsAmount
+  );
+
+  // 4. DISP. AUTO-BID = Totale - Spesi - Auto-bid
+  const dispAutoBid = Math.max(0, validTotalBudget - spesi - autoBid);
+
+  // Per altri utenti: RESIDUO = Totale - Spesi
+  const residuo = Math.max(0, validTotalBudget - spesi);
+
+  // Legacy: manteniamo per compatibilità
+  const spentCredits = spesi;
+  const availableBudget = disponibili;
   const spentPercentage =
-    validTotalBudget > 0 ? (spentCredits / validTotalBudget) * 100 : 0;
+    validTotalBudget > 0 ? (spesi / validTotalBudget) * 100 : 0;
 
   // Header Gradient based on status
   const headerGradient = isCurrentUser
@@ -812,30 +838,93 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
       </div>
 
       {/* Compact Budget Dashboard */}
-      <div className="mb-4 grid grid-cols-3 gap-2 px-1">
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {isCurrentUser ? "Disp." : "Residui"}
-          </span>
-          <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
-            {isCurrentUser
-              ? availableBudget
-              : validTotalBudget - validTotalPenalties - spentCredits}
-          </span>
+      {isCurrentUser ? (
+        /* Dashboard per utente corrente: 4 colonne */
+        <div className="mb-4 grid grid-cols-4 gap-1.5 px-1">
+          {/* DISPONIBILI */}
+          <div
+            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
+            title="Crediti disponibili se non ci sono rilanci sulle tue offerte"
+          >
+            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              Disp.
+            </span>
+            <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              {disponibili}
+            </span>
+          </div>
+
+          {/* SPESI */}
+          <div
+            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
+            title="Crediti spesi per giocatori assegnati e penalità"
+          >
+            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              Spesi
+            </span>
+            <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
+              {spesi}
+            </span>
+          </div>
+
+          {/* DISP. AUTO-BID (privato) */}
+          <div
+            className="flex flex-col items-center rounded-lg bg-amber-50/50 p-2 transition-colors hover:bg-amber-100/50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20"
+            title="Crediti realmente disponibili considerando i tuoi auto-bid (visibile solo a te)"
+          >
+            <span className="mb-1 flex items-center gap-0.5 text-[9px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-500">
+              D.A-B
+              <span className="text-[8px]">🔒</span>
+            </span>
+            <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400">
+              {dispAutoBid}
+            </span>
+          </div>
+
+          {/* AUTO-BID (privato) */}
+          <div
+            className="flex flex-col items-center rounded-lg bg-blue-50/50 p-2 transition-colors hover:bg-blue-100/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20"
+            title="Crediti impegnati in auto-bid attivi (visibile solo a te)"
+          >
+            <span className="mb-1 flex items-center gap-0.5 text-[9px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-500">
+              A-Bid
+              <span className="text-[8px]">🔒</span>
+            </span>
+            <span className="font-mono text-sm font-bold text-blue-700 dark:text-blue-400">
+              {autoBid}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Spesi</span>
-          <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
-            {spentCredits}
-          </span>
+      ) : (
+        /* Dashboard per altri utenti: 2 colonne */
+        <div className="mb-4 grid grid-cols-2 gap-2 px-1">
+          {/* RESIDUO */}
+          <div
+            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
+            title="Budget teorico disponibile (non considera eventuali auto-bid)"
+          >
+            <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Residuo
+            </span>
+            <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              {residuo}
+            </span>
+          </div>
+
+          {/* SPESI */}
+          <div
+            className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted"
+            title="Crediti spesi per giocatori assegnati e penalità"
+          >
+            <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Spesi
+            </span>
+            <span className="font-mono text-sm font-bold text-rose-600 dark:text-rose-400">
+              {spesi}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col items-center rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted">
-          <span className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Blocc.</span>
-          <span className="font-mono text-sm font-bold text-amber-600 dark:text-amber-400">
-            {isCurrentUser ? lockedCredits : "-"}
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* Role counters */}
       <div className="mb-2 flex justify-between px-1 text-[10px] font-medium uppercase tracking-wider text-gray-700 dark:text-gray-500">

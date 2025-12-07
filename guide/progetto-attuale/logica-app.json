@@ -1,6 +1,6 @@
 {
-  "last_update": "2025-12-05T20:30:00Z",
-  "task_completed": "FN-23 - Bulk Link Player Photos",
+  "last_update": "2025-12-07T11:30:00Z",
+  "task_completed": "Budget Dashboard Redesign - Dual Availability Indicators",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
     "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata come preferenza per l'utente e l'intera interfaccia dell'applicazione si aggiorna per mostrare i dati (aste, budget, rose) relativi alla lega attiva.",
@@ -303,6 +303,44 @@
       "Frontend Utils (utils.ts): Creata la funzione `getPlayerImageUrl` con logica di fallback su URL standard Fantacalcio.",
       "Frontend (AuctionRealtimeDisplay.tsx, ManagerColumn.tsx, AuctionPlayerCard.tsx): Integrato `getPlayerImageUrl` per garantire la visualizzazione delle foto.",
       "Backend (player-import.service.ts): Aggiornata la logica di importazione per salvare l'URL della foto nel database se mancante nel file sorgente."
+    ]
+  },
+  "player_card_alignment_fix": {
+    "feature_name": "Correzione Allineamento Card Giocatori",
+    "summary": "Risolto un problema di allineamento nelle card dei giocatori nella rosa dei manager. Il puntino colorato indicatore del ruolo causava disallineamenti quando posizionato prima del nome del giocatore. Inoltre, il prezzo di acquisto e l'icona lucchetto per i giocatori assegnati non erano allineati correttamente a destra.",
+    "technical_details": [
+      "Frontend (ManagerColumn.tsx - AssignedSlot): Spostato il puntino colorato del ruolo da prima a dopo il nome del giocatore. Rimosso il margine `mr-2` non necessario. Assicurato che il prezzo e l'icona lucchetto siano allineati a destra usando `flex-shrink-0` e `gap-2`.",
+      "Frontend (ManagerColumn.tsx - ResponseNeededSlot): Spostato il puntino colorato del ruolo da prima a dopo il nome del giocatore per coerenza con gli altri slot.",
+      "Frontend (ManagerColumn.tsx - InAuctionSlot): Spostato il puntino colorato del ruolo da prima a dopo il nome del giocatore. Rimosso il margine `mr-2` non necessario.",
+      "Benefici: Layout più pulito e coerente tra tutti i tipi di slot (assegnati, in asta, risposta necessaria). Migliore allineamento visivo del prezzo e delle icone a destra."
+    ]
+  },
+  "budget_dashboard_redesign": {
+    "feature_name": "Ridisegno Dashboard Crediti con Doppio Indicatore Disponibilità",
+    "summary": "Implementata una nuova dashboard crediti che distingue chiaramente tra crediti disponibili senza rilanci (DISPONIBILI) e crediti realmente disponibili considerando gli auto-bid (DISP. AUTO-BID). Il sistema ora mostra 4 indicatori per l'utente corrente e 2 per gli altri utenti, garantendo privacy degli auto-bid.",
+    "architectural_pattern": "Dashboard condizionale con calcoli differenziati per utente corrente e altri utenti. Per l'utente corrente: 4 colonne (DISPONIBILI, SPESI, DISP. AUTO-BID, AUTO-BID). Per altri: 2 colonne (RESIDUO, SPESI).",
+    "user_flow": [
+      "1. L'utente corrente visualizza la propria dashboard con 4 indicatori di budget.",
+      "2. DISPONIBILI mostra i crediti disponibili se non ci sono rilanci sulle offerte correnti (include offerte manuali + auto-bid al prezzo corrente).",
+      "3. SPESI mostra i crediti definitivamente spesi (giocatori assegnati + penalità).",
+      "4. DISP. AUTO-BID (privato, icona 🔒) mostra i crediti realmente disponibili considerando il massimo degli auto-bid.",
+      "5. AUTO-BID (privato, icona 🔒) mostra il totale dei crediti impegnati in auto-bid attivi.",
+      "6. Gli altri utenti vedono solo RESIDUO (budget teorico) e SPESI, senza informazioni sugli auto-bid."
+    ],
+    "core_components_interaction": {
+      "src/components/auction/ManagerColumn.tsx": "Componente principale modificato per implementare i nuovi calcoli budget e la UI condizionale. Calcola `currentWinningBidsAmount` sommando tutte le offerte correnti dove l'utente è vincente (auto-bid + manuali). Implementa formule: SPESI = giocatori + penalità, DISPONIBILI = totale - spesi - offerte vincenti, DISP. AUTO-BID = totale - spesi - auto-bid, RESIDUO = totale - spesi."
+    },
+    "technical_details": [
+      "Calcolo Budget: Aggiunta variabile `assignedPlayersCredits` per sommare solo i giocatori assegnati (esclude penalità dal calcolo iniziale).",
+      "Calcolo Budget: Aggiunta variabile `currentWinningBidsAmount` che filtra `activeAuctions` per trovare tutte le aste dove `current_highest_bidder_id === manager.user_id` e somma i `current_highest_bid_amount`.",
+      "Formula SPESI: `assignedPlayersCredits + validTotalPenalties` - ora le penalità sono incluse negli spesi.",
+      "Formula DISPONIBILI: `validTotalBudget - spesi - currentWinningBidsAmount` - considera le offerte correnti visibili a tutti.",
+      "Formula DISP. AUTO-BID: `validTotalBudget - spesi - autoBid` - considera il massimo impegnato in auto-bid (privato).",
+      "Formula RESIDUO (altri utenti): `validTotalBudget - spesi` - budget teorico senza considerare auto-bid.",
+      "UI: Dashboard condizionale con `isCurrentUser ? (4 colonne) : (2 colonne)`.",
+      "UI: Campi privati (DISP. AUTO-BID, AUTO-BID) hanno sfondo colorato (ambra/blu) e icona 🔒.",
+      "UI: Tooltip esplicativi su ogni campo per chiarire il significato.",
+      "Privacy: Gli auto-bid rimangono completamente nascosti agli altri utenti."
     ]
   }
 }
