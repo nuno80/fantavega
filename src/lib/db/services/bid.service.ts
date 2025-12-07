@@ -1044,16 +1044,30 @@ export async function placeBidOnExistingAuction({
         args: [now, auction.id, ...userIDsToDeactivate],
       });
 
+      // FIX: Invece di sottrarre incrementalmente (che può causare valori negativi),
+      // ricalcoliamo i locked_credits dalla somma degli auto-bid attivi
       for (const bid of outbidAutoBids) {
+        // Ricalcola locked_credits come somma di tutti gli auto-bid attivi dell'utente
+        const userLockedCreditsResult = await tx.execute({
+          sql: `
+            SELECT COALESCE(SUM(ab.max_amount), 0) as total_locked
+            FROM auto_bids ab
+            JOIN auctions a ON ab.auction_id = a.id
+            WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+          `,
+          args: [leagueId, bid.user_id],
+        });
+        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+
         await tx.execute({
           sql: `UPDATE league_participants
-           SET locked_credits = locked_credits - ?
+           SET locked_credits = ?
            WHERE user_id = ? AND league_id = ?`,
-          args: [bid.max_amount, bid.user_id, leagueId],
+          args: [totalLocked, bid.user_id, leagueId],
         });
       }
       console.log(
-        `[BID_SERVICE] Sbloccati crediti per ${outbidAutoBids.length} utenti con auto-bid superato.`
+        `[BID_SERVICE] Ricalcolati locked_credits per ${outbidAutoBids.length} utenti con auto-bid superato.`
       );
     }
 
@@ -1477,22 +1491,37 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
           max_amount: number;
         }[];
 
+        // FIX: Ricalcola locked_credits per tutti gli utenti invece di sottrarre incrementalmente
+        const affectedUsers = new Set<string>();
         for (const otherAutoBid of allAutoBidsForAuction) {
+          affectedUsers.add(otherAutoBid.user_id);
+        }
+        affectedUsers.add(auction.current_highest_bidder_id);
+
+        for (const userId of affectedUsers) {
+          // Ricalcola locked_credits come somma di tutti gli auto-bid attivi dell'utente
+          const userLockedCreditsResult = await tx.execute({
+            sql: `
+              SELECT COALESCE(SUM(ab.max_amount), 0) as total_locked
+              FROM auto_bids ab
+              JOIN auctions a ON ab.auction_id = a.id
+              WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+            `,
+            args: [auction.auction_league_id, userId],
+          });
+          const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+
           await tx.execute({
-            sql: "UPDATE league_participants SET locked_credits = MAX(0, locked_credits - ?) WHERE league_id = ? AND user_id = ?",
-            args: [
-              otherAutoBid.max_amount,
-              auction.auction_league_id,
-              otherAutoBid.user_id,
-            ],
+            sql: "UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?",
+            args: [totalLocked, auction.auction_league_id, userId],
           });
         }
 
+        // Deduce il prezzo di acquisto dal budget del vincitore
         await tx.execute({
-          sql: "UPDATE league_participants SET current_budget = current_budget - ?, locked_credits = locked_credits - ? WHERE league_id = ? AND user_id = ?",
+          sql: "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?",
           args: [
             auction.current_highest_bid_amount,
-            amountToUnlock,
             auction.auction_league_id,
             auction.current_highest_bidder_id,
           ],
