@@ -191,14 +191,10 @@ export function AuctionPageContent({
   }, []);
 
   const fetchUserAuctionStates = useCallback(async (leagueId: number) => {
-    console.log('[FRONTEND] fetchUserAuctionStates called for league:', leagueId);
     try {
       const res = await fetch(`/api/user/auction-states?leagueId=${leagueId}`);
-      console.log('[FRONTEND] fetchUserAuctionStates response status:', res.status);
       if (res.ok) {
         const data = await res.json();
-        console.log('[FRONTEND] fetchUserAuctionStates data:', data);
-        console.log('[FRONTEND] States array:', JSON.stringify(data.states, null, 2));
         // The API returns { states: [...], count: ... }
         setUserAuctionStates(data.states || []);
       }

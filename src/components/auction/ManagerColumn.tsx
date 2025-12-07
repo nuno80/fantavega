@@ -629,14 +629,6 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
       const matches = auction?.player_role.toUpperCase() === role.toUpperCase() &&
         s.user_state === "rilancio_possibile";
 
-      if (isCurrentUser && s.user_state === "rilancio_possibile") {
-        console.log(`[ManagerColumn] Checking state for ${s.player_name} (role check):`, {
-          playerRole: auction?.player_role,
-          slotRole: role,
-          matches,
-          auctionFound: !!auction
-        });
-      }
 
       return matches;
     });
@@ -669,14 +661,6 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
     allItems.sort((a, b) => a.timestamp - b.timestamp);
 
     const slots: Slot[] = allItems.map((i) => i.slot);
-
-    if (isCurrentUser && statesForRole.length > 0) {
-      console.log(`[ManagerColumn] Final slots for role ${role}:`, {
-        totalItems: allItems.length,
-        responseNeededCount: statesForRole.length,
-        finalSlots: slots.map(s => s.type)
-      });
-    }
 
     while (slots.length < totalSlots) {
       slots.push({ type: "empty" });
@@ -878,7 +862,6 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                     />
                   );
                 } else if (slot.type === "response_needed") {
-                  console.log('[ManagerColumn] Rendering ResponseNeededSlot for:', slot.state.player_name);
                   return (
                     <ResponseNeededSlot
                       key={`response-${slot.state.player_id}`}
