@@ -24,6 +24,7 @@ export default async function AuctionsPage2(props: {
   const searchParams = await props.searchParams;
   let hasLeagues = false;
   let leagueId: number | null = null;
+  let shouldRedirect = false;
   const queriedLeagueId = searchParams.league ? parseInt(searchParams.league) : null;
 
   try {
@@ -50,16 +51,19 @@ export default async function AuctionsPage2(props: {
       if (userLeaguesResult.rows.length > 0) {
         hasLeagues = true;
         leagueId = userLeaguesResult.rows[0].league_id as number;
-
-        // REDIRECT: Se non c'è URL param ma abbiamo trovato una lega,
-        // facciamo redirect per avere sempre l'URL esplicito.
-        // Questo elimina il flicker tra SSR e client.
-        redirect(`/auctions?league=${leagueId}`);
+        shouldRedirect = true; // Segna per redirect dopo il try-catch
       }
     }
   } catch (error) {
     console.error("Errore nel verificare la partecipazione alle leghe:", error);
     hasLeagues = false;
+  }
+
+  // REDIRECT: Se non c'era URL param ma abbiamo trovato una lega,
+  // facciamo redirect per avere sempre l'URL esplicito.
+  // NOTA: redirect() lancia un'eccezione interna, quindi deve stare FUORI dal try-catch!
+  if (shouldRedirect && leagueId) {
+    redirect(`/auctions?league=${leagueId}`);
   }
 
   if (!hasLeagues || !leagueId) {
@@ -154,7 +158,7 @@ function NoLeagueMessage() {
           <div className="mb-6">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 919.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
               </svg>
             </div>
           </div>
