@@ -1024,7 +1024,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
               key={role}
               className={`${isCompliant ? "text-green-500 font-bold" : "text-red-500 font-bold"}`}
             >
-              {role} <span className={isCompliant ? "text-green-400" : "text-red-400"}>{currentCount}</span>
+              {role} <span className={isCompliant ? "text-green-400" : "text-red-400"}>{currentCount}/{requiredSlots}</span>
             </span>
           );
         })}
