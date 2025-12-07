@@ -238,10 +238,10 @@ function AssignedSlot({
               </div>
             )}
           </div>
-          <span className="truncate text-xs font-medium">{player.name}</span>
           <div
             className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
           />
+          <span className="truncate text-xs font-medium">{player.name}</span>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
@@ -387,12 +387,12 @@ function ResponseNeededSlot({
             {/* Player name and timer */}
             <div className="flex min-w-0 flex-1 flex-col">
               <div className="flex items-center gap-1">
-                <span className="truncate text-xs font-medium text-red-600 dark:text-red-300">
-                  {state.player_name}
-                </span>
                 <div
                   className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
                 />
+                <span className="truncate text-xs font-medium text-red-600 dark:text-red-300">
+                  {state.player_name}
+                </span>
               </div>
               {/* Response Timer */}
               {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
@@ -540,10 +540,10 @@ function InAuctionSlot({
             </div>
           )}
         </div>
-        <span className="truncate text-xs font-medium">{auction.player_name}</span>
         <div
           className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
         />
+        <span className="truncate text-xs font-medium">{auction.player_name}</span>
       </div>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
@@ -872,9 +872,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
             className="flex flex-col items-center rounded-lg bg-amber-50/50 p-2 transition-colors hover:bg-amber-100/50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20"
             title="Crediti realmente disponibili considerando i tuoi auto-bid (visibile solo a te)"
           >
-            <span className="mb-1 flex items-center gap-0.5 text-[9px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-500">
-              D.A-B
-              <span className="text-[8px]">🔒</span>
+            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-500">
+              Disp.A-Bid
             </span>
             <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400">
               {dispAutoBid}
@@ -886,9 +885,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
             className="flex flex-col items-center rounded-lg bg-blue-50/50 p-2 transition-colors hover:bg-blue-100/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20"
             title="Crediti impegnati in auto-bid attivi (visibile solo a te)"
           >
-            <span className="mb-1 flex items-center gap-0.5 text-[9px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-500">
-              A-Bid
-              <span className="text-[8px]">🔒</span>
+            <span className="mb-1 text-[9px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-500">
+              Auto-Bid
             </span>
             <span className="font-mono text-sm font-bold text-blue-700 dark:text-blue-400">
               {autoBid}
