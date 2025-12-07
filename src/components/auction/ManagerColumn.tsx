@@ -371,6 +371,7 @@ function ResponseNeededSlot({
         />
 
         <div className="flex items-center justify-between">
+          {/* Left side: Player info */}
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {/* Player Avatar */}
             {state.player_photo_url || state.player_id ? (
@@ -383,13 +384,16 @@ function ResponseNeededSlot({
               <div className="h-9 w-9 flex-shrink-0 rounded-full bg-gray-700" />
             )}
 
-            <div className="flex min-w-0 flex-1 items-center">
-              <div
-                className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
-              />
-              <span className="mr-2 truncate text-xs font-medium text-red-600 dark:text-red-300">
-                {state.player_name}
-              </span>
+            {/* Player name and timer */}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex items-center gap-1">
+                <div
+                  className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+                />
+                <span className="truncate text-xs font-medium text-red-600 dark:text-red-300">
+                  {state.player_name}
+                </span>
+              </div>
               {/* Response Timer */}
               {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
                 <span
@@ -402,8 +406,10 @@ function ResponseNeededSlot({
               )}
             </div>
           </div>
+
+          {/* Right side: Price and buttons */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-foreground tabular-nums">{state.current_bid}</span>
+            <span className="text-xs font-mono font-bold text-foreground tabular-nums">{state.current_bid}</span>
             <button
               onClick={() => onCounterBid(state.player_id)}
               className="rounded p-1 transition-colors hover:bg-green-600/20"
