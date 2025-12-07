@@ -364,7 +364,7 @@ function ResponseNeededSlot({
   return (
     <>
       <div
-        className={`relative flex flex - col overflow - hidden border border - red - 200 bg - red - 50 p - 1.5 dark: border - red - 500 / 50 dark: bg - red - 900 / 10 ${isLast ? "rounded-b-md" : ""} `}
+        className={`relative flex flex-col overflow-hidden border border-red-200 bg-red-50 p-1.5 dark:border-red-500/50 dark:bg-red-900/10 ${isLast ? "rounded-b-md" : ""}`}
       >
         {/* Progress Bar Background */}
         <div
@@ -375,7 +375,7 @@ function ResponseNeededSlot({
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 flex-1 items-center">
             <div
-              className={`mr - 2 h - 1.5 w - 1.5 flex - shrink - 0 rounded - full ${roleColor} `}
+              className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
             />
             <span className="mr-2 truncate text-xs font-medium text-red-600 dark:text-red-300">
               {state.player_name}
@@ -383,7 +383,7 @@ function ResponseNeededSlot({
             {/* Response Timer */}
             {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
               <span
-                className={`font - mono text - xs font - bold tabular - nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""} `}
+                className={`font-mono text-xs font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
               >
                 {formatResponseTimer(currentTimeRemaining)}
               </span>
@@ -400,7 +400,7 @@ function ResponseNeededSlot({
               disabled={(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser}
             >
               <DollarSign
-                className={`h - 3 w - 3 ${(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser ? "text-gray-500" : "text-green-400"} `}
+                className={`h-3 w-3 ${(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
               />
             </button>
             <button
@@ -410,7 +410,7 @@ function ResponseNeededSlot({
               disabled={currentTimeRemaining <= 0 || !isCurrentUser}
             >
               <X
-                className={`h - 3 w - 3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"} `}
+                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
               />
             </button>
           </div>
