@@ -15,18 +15,7 @@ interface League {
   locked_credits: number;
 }
 
-// Helper per leggere da localStorage in modo sicuro
-function getStoredLeagueId(): number | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem(LAST_LEAGUE_KEY);
-    return stored ? parseInt(stored, 10) : null;
-  } catch {
-    return null;
-  }
-}
-
-// Helper per salvare in localStorage
+// Helper per salvare in localStorage (solo per salvare, non per leggere)
 function saveLeagueId(leagueId: number): void {
   if (typeof window === "undefined") return;
   try {
@@ -43,13 +32,10 @@ export function useLeague() {
 
   // Flag per evitare redirect durante l'idratazione iniziale
   const isInitialMountRef = useRef(true);
-  // Flag per indicare che abbiamo già letto da localStorage
-  const hasReadFromStorageRef = useRef(false);
 
-  // Inizializzazione sincrona: SOLO URL param per evitare hydration mismatch
-  // localStorage viene letto dopo nel useEffect
+  // Inizializzazione: SOLO da URL param
+  // Il server determina la lega corretta tramite redirect, quindi non serve localStorage per la lettura
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(() => {
-    // Solo URL param - questo è sicuro perché searchParams è uguale su SSR e client
     const param = searchParams.get("league");
     if (param) {
       const urlLeagueId = parseInt(param, 10);
@@ -62,20 +48,6 @@ export function useLeague() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Leggi da localStorage DOPO il mount (evita hydration mismatch)
-  useEffect(() => {
-    if (hasReadFromStorageRef.current) return;
-    hasReadFromStorageRef.current = true;
-
-    // Se non abbiamo già un ID dall'URL, prova localStorage
-    if (!selectedLeagueId) {
-      const storedId = getStoredLeagueId();
-      if (storedId) {
-        setSelectedLeagueId(storedId);
-      }
-    }
-  }, [selectedLeagueId]);
-
   const fetchUserLeagues = useCallback(async () => {
     try {
       const response = await fetch("/api/user/leagues");
@@ -83,20 +55,20 @@ export function useLeague() {
         const leagueData = await response.json();
         setLeagues(leagueData);
 
-        // Se abbiamo già un selectedLeagueId (da URL o localStorage), verifichiamolo
+        // Se abbiamo già un selectedLeagueId (da URL), verifichiamolo
         if (selectedLeagueId) {
           const leagueExists = leagueData.some(
             (l: League) => l.id === selectedLeagueId
           );
           if (leagueExists) {
-            // La lega selezionata è valida, mantienila e salvala
+            // La lega selezionata è valida, salvala in localStorage per future vissite
             saveLeagueId(selectedLeagueId);
             setIsLoading(false);
             return selectedLeagueId;
           }
         }
 
-        // Controlla URL param
+        // Controlla URL param (di nuovo, per sicurezza)
         const leagueParam = searchParams.get("league");
         if (leagueParam) {
           const paramLeagueId = parseInt(leagueParam, 10);
