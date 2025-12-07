@@ -102,10 +102,11 @@ export function AuctionPageContent({
     leagueId: number;
   } | null>(null);
 
-  // Set selected league ID from props if not already set
+  // Sincronizza selectedLeagueId con initialLeagueId dal SSR (senza redirect)
   useEffect(() => {
     if (initialLeagueId && !selectedLeagueId) {
-      switchToLeague(initialLeagueId);
+      // Usa skipNavigation=true per evitare il redirect che causa il flicker
+      switchToLeague(initialLeagueId, true);
     }
   }, [initialLeagueId, selectedLeagueId, switchToLeague]);
 
