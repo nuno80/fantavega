@@ -218,7 +218,7 @@ function AssignedSlot({
   return (
     <>
       <div
-        className={`flex items - center justify - between rounded - md p - 1.5 border ${pastelClass} transition - colors hover: bg - opacity - 20`}
+        className={`flex items-center justify-between rounded-md p-1.5 border ${pastelClass} transition-colors hover:bg-opacity-20`}
       >
         <div className="flex min-w-0 items-center gap-2">
           {/* Player Photo */}
@@ -238,10 +238,10 @@ function AssignedSlot({
               </div>
             )}
           </div>
-          <div
-            className={`mr - 2 h - 1.5 w - 1.5 flex - shrink - 0 rounded - full ${roleColor} `}
-          />
           <span className="truncate text-xs font-medium">{player.name}</span>
+          <div
+            className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+          />
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
@@ -387,12 +387,12 @@ function ResponseNeededSlot({
             {/* Player name and timer */}
             <div className="flex min-w-0 flex-1 flex-col">
               <div className="flex items-center gap-1">
-                <div
-                  className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
-                />
                 <span className="truncate text-xs font-medium text-red-600 dark:text-red-300">
                   {state.player_name}
                 </span>
+                <div
+                  className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+                />
               </div>
               {/* Response Timer */}
               {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
@@ -540,10 +540,10 @@ function InAuctionSlot({
             </div>
           )}
         </div>
-        <div
-          className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
-        />
         <span className="truncate text-xs font-medium">{auction.player_name}</span>
+        <div
+          className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
+        />
       </div>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
