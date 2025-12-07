@@ -1,10 +1,10 @@
 {
-  "last_update": "2025-12-07T11:30:00Z",
-  "task_completed": "Budget Dashboard Redesign - Dual Availability Indicators",
+  "last_update": "2025-12-07T20:40:00Z",
+  "task_completed": "Fix League Flicker Bug - LocalStorage Persistence",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
-    "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata come preferenza per l'utente e l'intera interfaccia dell'applicazione si aggiorna per mostrare i dati (aste, budget, rose) relativi alla lega attiva.",
-    "architectural_pattern": "La funzionalità si basa su un custom hook di React (`useLeague`) che astrae la logica di stato. Questo hook gestisce la lega correntemente selezionata, la persiste (es. nel localStorage) e la fornisce al resto dell'applicazione. Un componente dedicato (`LeagueSelector`) viene inserito nella barra di navigazione per permettere all'utente di interagire con questo stato.",
+    "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata in localStorage per garantire persistenza tra sessioni ed evitare il 'flicker' durante l'idratazione SSR/Client.",
+    "architectural_pattern": "La funzionalità si basa su un custom hook di React (`useLeague`) che astrae la logica di stato. L'hook usa localStorage per persistere l'ultima lega selezionata. Un flag `isInitialMountRef` previene redirect non necessari durante l'idratazione iniziale, eliminando il flicker visivo. La priorità di selezione è: URL param > localStorage > prima lega disponibile.",
     "user_flow": [
       "1. L'utente, membro di più leghe, visualizza la barra di navigazione (`navbar`).",
       "2. Nella navbar è presente il nuovo componente `LeagueSelector`, che mostra la lega attualmente attiva.",

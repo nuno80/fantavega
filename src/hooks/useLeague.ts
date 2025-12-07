@@ -43,25 +43,38 @@ export function useLeague() {
 
   // Flag per evitare redirect durante l'idratazione iniziale
   const isInitialMountRef = useRef(true);
+  // Flag per indicare che abbiamo già letto da localStorage
+  const hasReadFromStorageRef = useRef(false);
 
-  // Inizializzazione sincrona: priorità URL > localStorage > null
+  // Inizializzazione sincrona: SOLO URL param per evitare hydration mismatch
+  // localStorage viene letto dopo nel useEffect
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(() => {
-    if (typeof window !== "undefined") {
-      // Prima controlla URL
-      const param = searchParams.get("league");
-      if (param) {
-        const urlLeagueId = parseInt(param, 10);
-        if (!isNaN(urlLeagueId)) {
-          return urlLeagueId;
-        }
+    // Solo URL param - questo è sicuro perché searchParams è uguale su SSR e client
+    const param = searchParams.get("league");
+    if (param) {
+      const urlLeagueId = parseInt(param, 10);
+      if (!isNaN(urlLeagueId)) {
+        return urlLeagueId;
       }
-      // Poi controlla localStorage
-      return getStoredLeagueId();
     }
     return null;
   });
 
   const [isLoading, setIsLoading] = useState(true);
+
+  // Leggi da localStorage DOPO il mount (evita hydration mismatch)
+  useEffect(() => {
+    if (hasReadFromStorageRef.current) return;
+    hasReadFromStorageRef.current = true;
+
+    // Se non abbiamo già un ID dall'URL, prova localStorage
+    if (!selectedLeagueId) {
+      const storedId = getStoredLeagueId();
+      if (storedId) {
+        setSelectedLeagueId(storedId);
+      }
+    }
+  }, [selectedLeagueId]);
 
   const fetchUserLeagues = useCallback(async () => {
     try {
@@ -76,7 +89,8 @@ export function useLeague() {
             (l: League) => l.id === selectedLeagueId
           );
           if (leagueExists) {
-            // La lega selezionata è valida, mantienila
+            // La lega selezionata è valida, mantienila e salvala
+            saveLeagueId(selectedLeagueId);
             setIsLoading(false);
             return selectedLeagueId;
           }

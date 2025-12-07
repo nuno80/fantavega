@@ -50,6 +50,11 @@ export default async function AuctionsPage2(props: {
       if (userLeaguesResult.rows.length > 0) {
         hasLeagues = true;
         leagueId = userLeaguesResult.rows[0].league_id as number;
+
+        // REDIRECT: Se non c'è URL param ma abbiamo trovato una lega,
+        // facciamo redirect per avere sempre l'URL esplicito.
+        // Questo elimina il flicker tra SSR e client.
+        redirect(`/auctions?league=${leagueId}`);
       }
     }
   } catch (error) {
