@@ -14,6 +14,7 @@ import {
   X
 } from "lucide-react";
 
+import { UserAuctionStateDetail } from "@/lib/db/services/auction-states.service";
 import { ComplianceTimer } from "./ComplianceTimer";
 import { DiscardPlayerModal } from "./DiscardPlayerModal";
 import { ResponseActionModal } from "./ResponseActionModal";
@@ -293,7 +294,7 @@ function ResponseNeededSlot({
   onCounterBid,
   isCurrentUser,
 }: {
-  state: UserAuctionState;
+  state: UserAuctionStateDetail;
   role: string;
   leagueId: number;
   isLast: boolean;
@@ -373,23 +374,36 @@ function ResponseNeededSlot({
         />
 
         <div className="flex items-center justify-between">
-          <div className="flex min-w-0 flex-1 items-center">
-            <div
-              className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
-            />
-            <span className="mr-2 truncate text-xs font-medium text-red-600 dark:text-red-300">
-              {state.player_name}
-            </span>
-            {/* Response Timer */}
-            {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
-              <span
-                className={`font-mono text-xs font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
-              >
-                {formatResponseTimer(currentTimeRemaining)}
-              </span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {/* Player Avatar */}
+            {state.player_photo_url || state.player_id ? (
+              <img
+                src={getPlayerImageUrl(state.player_id, state.player_photo_url)}
+                alt={state.player_name}
+                className="h-9 w-9 flex-shrink-0 rounded-full object-cover object-top"
+              />
             ) : (
-              <span className="text-xs font-bold text-red-500">Scaduto</span>
+              <div className="h-9 w-9 flex-shrink-0 rounded-full bg-gray-700" />
             )}
+
+            <div className="flex min-w-0 flex-1 items-center">
+              <div
+                className={`mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
+              />
+              <span className="mr-2 truncate text-xs font-medium text-red-600 dark:text-red-300">
+                {state.player_name}
+              </span>
+              {/* Response Timer */}
+              {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
+                <span
+                  className={`font-mono text-xs font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
+                >
+                  {formatResponseTimer(currentTimeRemaining)}
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-red-500">Scaduto</span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-foreground tabular-nums">{state.current_bid}</span>

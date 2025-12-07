@@ -19,6 +19,7 @@ export interface AuctionStateRow {
   auction_id: number;
   player_id: number;
   player_name: string;
+  player_photo_url: string | null;
   current_highest_bidder_id: string;
   current_highest_bid_amount: number;
   response_deadline: number | null;
@@ -30,6 +31,7 @@ export interface UserAuctionStateDetail {
   auction_id: number;
   player_id: number;
   player_name: string;
+  player_photo_url: string | null;
   current_bid: number;
   user_state: UserAuctionState;
   response_deadline: number | null;
@@ -69,6 +71,7 @@ export const getUserAuctionStates = async (
           a.id as auction_id,
           a.player_id,
           p.name as player_name,
+          p.photo_url as player_photo_url,
           a.current_highest_bidder_id,
           a.current_highest_bid_amount,
           urt.response_deadline,
@@ -94,6 +97,7 @@ export const getUserAuctionStates = async (
       auction_id: row.auction_id as number,
       player_id: row.player_id as number,
       player_name: row.player_name as string,
+      player_photo_url: row.player_photo_url as string | null,
       current_highest_bidder_id: row.current_highest_bidder_id as string,
       current_highest_bid_amount: row.current_highest_bid_amount as number,
       response_deadline: row.response_deadline as number | null,
@@ -121,6 +125,7 @@ export const getUserAuctionStates = async (
       auction_id: auction.auction_id,
       player_id: auction.player_id,
       player_name: auction.player_name,
+      player_photo_url: auction.player_photo_url,
       current_bid: auction.current_highest_bid_amount,
       user_state: user_state,
       response_deadline: auction.response_deadline,
