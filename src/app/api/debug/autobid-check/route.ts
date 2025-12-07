@@ -58,13 +58,13 @@ export async function GET(request: NextRequest) {
 
     // 3. Somma auto-bid attivi
     const totalAutoBid = autoBids.reduce(
-      (sum: number, bid: any) => sum + (Number(bid.max_amount) || 0),
+      (sum: number, bid: Record<string, unknown>) => sum + (Number(bid.max_amount) || 0),
       0
     );
 
     // 4. Auto-bid "fantasma" (attivi ma asta non attiva)
     const ghostAutoBids = autoBids.filter(
-      (bid: any) => bid.auction_status !== "active"
+      (bid: Record<string, unknown>) => bid.auction_status !== "active"
     );
 
     return NextResponse.json({
