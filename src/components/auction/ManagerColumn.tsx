@@ -930,11 +930,11 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
             </span>
           </div>
 
-          {/* AUTO-BID (privato) */}
+          {/* BLOCCATI (privato) */}
           <div className="flex flex-col items-center rounded-lg bg-blue-50/50 p-2 transition-colors hover:bg-blue-100/50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20">
             <div className="mb-1 flex items-center gap-1">
               <span className="text-[9px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-500">
-                Auto-Bid
+                Bloccati
               </span>
               <Popover>
                 <PopoverTrigger asChild>
@@ -942,8 +942,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-3 text-xs" side="bottom">
                   <div className="space-y-2">
-                    <h4 className="font-semibold">🤖 Auto-Bid Attivi</h4>
-                    <p>Totale dei crediti impegnati nei tuoi auto-bid attivi.</p>
+                    <h4 className="font-semibold">🔒 Crediti Bloccati</h4>
+                    <p>Crediti impegnati per le tue offerte attive e auto-bid.</p>
                     <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
                       <span className="text-[10px]">⚠️</span>
                       <span className="text-[10px] font-medium">Visibile solo a te</span>
