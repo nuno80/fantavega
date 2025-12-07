@@ -364,14 +364,26 @@ export const processExpiredResponseTimers = async (): Promise<{
           args: [now, timer.id],
         });
 
-        // Sblocca i crediti dell'utente
+        // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
+        // Questo previene valori negativi se il timer viene processato più volte
+        const userLockedCreditsResult = await transaction.execute({
+          sql: `
+            SELECT COALESCE(SUM(ab.max_amount), 0) as total_locked
+            FROM auto_bids ab
+            JOIN auctions a ON ab.auction_id = a.id
+            WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+          `,
+          args: [timer.league_id, timer.user_id],
+        });
+        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+
         await transaction.execute({
           sql: `
           UPDATE league_participants
-          SET locked_credits = locked_credits - ?
+          SET locked_credits = ?
           WHERE user_id = ? AND league_id = ?
         `,
-          args: [timer.current_highest_bid_amount, timer.user_id, timer.league_id],
+          args: [totalLocked, timer.user_id, timer.league_id],
         });
 
         // Applica cooldown 48h per questo giocatore
@@ -508,14 +520,25 @@ export const abandonAuction = async (
       args: [now, timer.id],
     });
 
-    // Sblocca crediti
+    // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
+    const userLockedCreditsResult = await transaction.execute({
+      sql: `
+        SELECT COALESCE(SUM(ab.max_amount), 0) as total_locked
+        FROM auto_bids ab
+        JOIN auctions a ON ab.auction_id = a.id
+        WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+      `,
+      args: [leagueId, userId],
+    });
+    const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+
     await transaction.execute({
       sql: `
       UPDATE league_participants
-      SET locked_credits = locked_credits - ?
+      SET locked_credits = ?
       WHERE user_id = ? AND league_id = ?
     `,
-      args: [auction.current_highest_bid_amount, userId, leagueId],
+      args: [totalLocked, userId, leagueId],
     });
 
     // Applica cooldown 48h
