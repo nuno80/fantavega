@@ -1,10 +1,10 @@
 {
-  "last_update": "2025-12-07T20:40:00Z",
-  "task_completed": "Fix League Flicker Bug - LocalStorage Persistence",
+  "last_update": "2025-12-07T21:05:00Z",
+  "task_completed": "Fix League Flicker Bug - Server-Side Redirect",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
-    "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega selezionata viene salvata in localStorage per garantire persistenza tra sessioni ed evitare il 'flicker' durante l'idratazione SSR/Client.",
-    "architectural_pattern": "La funzionalità si basa su un custom hook di React (`useLeague`) che astrae la logica di stato. L'hook usa localStorage per persistere l'ultima lega selezionata. Un flag `isInitialMountRef` previene redirect non necessari durante l'idratazione iniziale, eliminando il flicker visivo. La priorità di selezione è: URL param > localStorage > prima lega disponibile.",
+    "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega viene determinata tramite URL param (gestito da redirect server-side), eliminando il flicker durante l'idratazione SSR/Client.",
+    "architectural_pattern": "Redirect Server-Side + URL Param Only. Quando l'URL non ha `?league=X`, il server (`page.tsx`) determina la prima lega dell'utente e fa redirect. Il client (`useLeague`) legge SOLO da URL param, mai da localStorage. Il localStorage viene usato solo per salvare la lega corrente (per il LeagueSelector).",
     "user_flow": [
       "1. L'utente, membro di più leghe, visualizza la barra di navigazione (`navbar`).",
       "2. Nella navbar è presente il nuovo componente `LeagueSelector`, che mostra la lega attualmente attiva.",

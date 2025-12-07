@@ -1046,16 +1046,32 @@ export async function placeBidOnExistingAuction({
 
       // FIX: Invece di sottrarre incrementalmente (che può causare valori negativi),
       // ricalcoliamo i locked_credits dalla somma degli auto-bid attivi
+      // PLUS le offerte manuali vincenti dove l'utente è miglior offerente senza auto-bid
       for (const bid of outbidAutoBids) {
-        // Ricalcola locked_credits come somma di tutti gli auto-bid attivi dell'utente
+        // Ricalcola locked_credits come:
+        // 1. Somma auto-bid attivi per aste attive
+        // 2. PIÙ offerte manuali vincenti (senza auto-bid) per aste attive
         const userLockedCreditsResult = await tx.execute({
           sql: `
-            SELECT COALESCE(SUM(ab.max_amount), 0) as total_locked
-            FROM auto_bids ab
-            JOIN auctions a ON ab.auction_id = a.id
-            WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+            SELECT
+              COALESCE(
+                (SELECT SUM(ab.max_amount)
+                 FROM auto_bids ab
+                 JOIN auctions a ON ab.auction_id = a.id
+                 WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
+                0
+              ) +
+              COALESCE(
+                (SELECT SUM(a.current_highest_bid_amount)
+                 FROM auctions a
+                 LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
+                 WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
+                   AND ab.id IS NULL
+                   AND a.status IN ('active', 'closing')),
+                0
+              ) as total_locked
           `,
-          args: [leagueId, bid.user_id],
+          args: [leagueId, bid.user_id, bid.user_id, leagueId, bid.user_id],
         });
         const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
 
@@ -1499,15 +1515,30 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
         affectedUsers.add(auction.current_highest_bidder_id);
 
         for (const userId of affectedUsers) {
-          // Ricalcola locked_credits come somma di tutti gli auto-bid attivi dell'utente
+          // Ricalcola locked_credits come:
+          // 1. Somma auto-bid attivi per aste attive
+          // 2. PIÙ offerte manuali vincenti (senza auto-bid) per aste attive
           const userLockedCreditsResult = await tx.execute({
             sql: `
-              SELECT COALESCE(SUM(ab.max_amount), 0) as total_locked
-              FROM auto_bids ab
-              JOIN auctions a ON ab.auction_id = a.id
-              WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
+              SELECT
+                COALESCE(
+                  (SELECT SUM(ab.max_amount)
+                   FROM auto_bids ab
+                   JOIN auctions a ON ab.auction_id = a.id
+                   WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
+                  0
+                ) +
+                COALESCE(
+                  (SELECT SUM(a.current_highest_bid_amount)
+                   FROM auctions a
+                   LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
+                   WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
+                     AND ab.id IS NULL
+                     AND a.status IN ('active', 'closing')),
+                  0
+                ) as total_locked
             `,
-            args: [auction.auction_league_id, userId],
+            args: [auction.auction_league_id, userId, userId, auction.auction_league_id, userId],
           });
           const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
 
