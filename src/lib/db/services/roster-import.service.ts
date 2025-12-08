@@ -54,6 +54,9 @@ export interface ImportResult {
   summary: TeamImportSummary[];
 }
 
+// Tipo per la fonte del prezzo
+export type PriceSource = "csv" | "database";
+
 // ============ PARSING ============
 
 /**
@@ -265,16 +268,18 @@ export async function validateImportData(
  * Esegue l'import atomico delle rose nella lega.
  * Elimina le assegnazioni esistenti e inserisce quelle nuove.
  * Aggiorna budget e contatori per ogni partecipante.
+ * @param priceSource - 'csv' usa il prezzo dal file CSV, 'database' usa la quotazione attuale dal DB
  */
 export async function importRostersToLeague(
   leagueId: number,
-  entries: ParsedRosterEntry[]
+  entries: ParsedRosterEntry[],
+  priceSource: PriceSource = "csv"
 ): Promise<ImportResult> {
   const _warnings: string[] = [];
   const summary: TeamImportSummary[] = [];
 
   console.log(
-    `[ROSTER-IMPORT] Inizio import ${entries.length} entry per lega ${leagueId}`
+    `[ROSTER-IMPORT] Inizio import ${entries.length} entry per lega ${leagueId} (priceSource: ${priceSource})`
   );
 
   // Prima esegui la validazione
@@ -314,17 +319,19 @@ export async function importRostersToLeague(
     teamNameToUserId.set(p.manager_team_name.toLowerCase(), p.user_id);
   }
 
-  // Recupera ruoli dei giocatori
+  // Recupera ruoli e quotazioni dei giocatori
   const playerIds = [...new Set(validation.validEntries.map((e) => e.playerId))];
   const placeholders = playerIds.map(() => "?").join(",");
   const playersResult = await db.execute({
-    sql: `SELECT id, role FROM players WHERE id IN (${placeholders})`,
+    sql: `SELECT id, role, current_quotation FROM players WHERE id IN (${placeholders})`,
     args: playerIds,
   });
   const playerRoles = new Map<number, string>();
+  const playerQuotations = new Map<number, number>();
   for (const row of playersResult.rows) {
-    const player = row as unknown as { id: number; role: string };
+    const player = row as unknown as { id: number; role: string; current_quotation: number };
     playerRoles.set(player.id, player.role);
+    playerQuotations.set(player.id, player.current_quotation || 1); // Default a 1 se non presente
   }
 
   // Raggruppa entry per team
@@ -380,11 +387,16 @@ export async function importRostersToLeague(
         const role = playerRoles.get(entry.playerId);
         if (!role) continue;
 
+        // Determina il prezzo da usare: CSV o quotazione DB
+        const price = priceSource === "database"
+          ? (playerQuotations.get(entry.playerId) || 1)
+          : entry.purchasePrice;
+
         // Inserisci assegnazione
         batchStatements.push({
           sql: `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price)
                 VALUES (?, ?, ?, ?)`,
-          args: [leagueId, entry.playerId, userId, entry.purchasePrice],
+          args: [leagueId, entry.playerId, userId, price],
         });
 
         // Registra transazione budget
@@ -395,14 +407,14 @@ export async function importRostersToLeague(
           args: [
             leagueId,
             userId,
-            -entry.purchasePrice,
+            -price,
             entry.playerId,
-            `Import CSV: Giocatore ID ${entry.playerId}`,
-            initialBudget - totalSpent - entry.purchasePrice,
+            `Import CSV: Giocatore ID ${entry.playerId} (${priceSource === "database" ? "quotazione DB" : "prezzo CSV"})`,
+            initialBudget - totalSpent - price,
           ],
         });
 
-        totalSpent += entry.purchasePrice;
+        totalSpent += price;
         roleCounters[role as keyof typeof roleCounters]++;
         totalPlayersImported++;
       }

@@ -6,12 +6,14 @@ import {
   importRostersToLeague,
   parseCsvContent,
   validateImportData,
+  type PriceSource,
 } from "@/lib/db/services/roster-import.service";
 
 interface ImportRequestBody {
   leagueId: number;
   csvContent: string;
   dryRun?: boolean; // Se true, esegue solo validazione senza import
+  priceSource?: PriceSource; // 'csv' o 'database'
 }
 
 export async function POST(request: NextRequest) {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Parse body
     const body: ImportRequestBody = await request.json();
-    const { leagueId, csvContent, dryRun = false } = body;
+    const { leagueId, csvContent, dryRun = false, priceSource = "csv" } = body;
 
     // Validazione input
     if (!leagueId || typeof leagueId !== "number") {
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `[API TEAMS-IMPORT] ${dryRun ? "Validazione" : "Import"} richiesto per lega ${leagueId}`
+      `[API TEAMS-IMPORT] ${dryRun ? "Validazione" : "Import"} richiesto per lega ${leagueId} (priceSource: ${priceSource})`
     );
 
     // Step 1: Parse CSV
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Esegui import
-    const result = await importRostersToLeague(leagueId, entries);
+    const result = await importRostersToLeague(leagueId, entries, priceSource);
 
     if (!result.success) {
       return NextResponse.json(

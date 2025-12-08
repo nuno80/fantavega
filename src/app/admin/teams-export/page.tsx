@@ -79,6 +79,7 @@ export default function TeamsExportPage() {
   // Import state
   const [selectedImportLeagueId, setSelectedImportLeagueId] = useState<string>("");
   const [csvContent, setCsvContent] = useState<string>("");
+  const [priceSource, setPriceSource] = useState<"csv" | "database">("csv");
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [validationResult, setValidationResult] = useState<ImportValidation | null>(null);
@@ -189,6 +190,7 @@ export default function TeamsExportPage() {
           leagueId: parseInt(selectedImportLeagueId, 10),
           csvContent,
           dryRun: true,
+          priceSource,
         }),
       });
 
@@ -222,6 +224,7 @@ export default function TeamsExportPage() {
           leagueId: parseInt(selectedImportLeagueId, 10),
           csvContent,
           dryRun: false,
+          priceSource,
         }),
       });
 
@@ -446,6 +449,46 @@ export default function TeamsExportPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Oppure incolla il contenuto direttamente nella textarea sotto.
+                    </p>
+                  </div>
+
+                  {/* Fonte Prezzo */}
+                  <div className="space-y-2 rounded-lg border bg-muted/50 p-4">
+                    <label className="text-sm font-medium">
+                      Fonte Prezzo Acquisto
+                    </label>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="radio"
+                          name="priceSource"
+                          value="csv"
+                          checked={priceSource === "csv"}
+                          onChange={() => setPriceSource("csv")}
+                          className="h-4 w-4 accent-primary"
+                        />
+                        <span className="text-sm">
+                          <strong>File CSV</strong> - Usa i prezzi indicati nel file
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="radio"
+                          name="priceSource"
+                          value="database"
+                          checked={priceSource === "database"}
+                          onChange={() => setPriceSource("database")}
+                          className="h-4 w-4 accent-primary"
+                        />
+                        <span className="text-sm">
+                          <strong>Quotazione DB</strong> - Usa la quotazione attuale dal database
+                        </span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {priceSource === "csv"
+                        ? "I giocatori saranno importati con il prezzo indicato nel CSV."
+                        : "I giocatori saranno importati con la loro quotazione attuale dal database (Qt.A)."}
                     </p>
                   </div>
 
