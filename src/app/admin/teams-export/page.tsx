@@ -415,6 +415,40 @@ export default function TeamsExportPage() {
                     </p>
                   </div>
 
+                  {/* Upload File CSV */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Carica File CSV
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept=".csv,.txt"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const content = event.target?.result as string;
+                              setCsvContent(content);
+                              setValidationResult(null);
+                              setImportResult(null);
+                              toast.success(`File "${file.name}" caricato!`);
+                            };
+                            reader.onerror = () => {
+                              toast.error("Errore nella lettura del file");
+                            };
+                            reader.readAsText(file);
+                          }
+                        }}
+                        className="flex-1 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Oppure incolla il contenuto direttamente nella textarea sotto.
+                    </p>
+                  </div>
+
                   {/* Textarea CSV */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
@@ -427,15 +461,15 @@ export default function TeamsExportPage() {
                         setValidationResult(null);
                         setImportResult(null);
                       }}
-                      placeholder={`Incolla qui il contenuto CSV dall'app ufficiale...
+                      placeholder={`Il contenuto del file apparirà qui, oppure incolla manualmente...
 
 Esempio formato:
-$\t$\t$
-Fede\t761\t22
-Fede\t6966\t28
-$\t$\t$
-nuno\t7042\t3`}
-                      rows={10}
+$	$	$
+Fede	761	22
+Fede	6966	28
+$	$	$
+nuno	7042	3`}
+                      rows={8}
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -494,8 +528,8 @@ nuno\t7042\t3`}
                   {validationResult && (
                     <div
                       className={`rounded-lg border p-4 ${validationResult.success
-                          ? "border-green-500/50 bg-green-500/10"
-                          : "border-red-500/50 bg-red-500/10"
+                        ? "border-green-500/50 bg-green-500/10"
+                        : "border-red-500/50 bg-red-500/10"
                         }`}
                     >
                       <div className="flex items-center gap-2 font-medium">
