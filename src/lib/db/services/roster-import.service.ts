@@ -270,7 +270,6 @@ export async function importRostersToLeague(
   leagueId: number,
   entries: ParsedRosterEntry[]
 ): Promise<ImportResult> {
-  const errors: string[] = [];
   const warnings: string[] = [];
   const summary: TeamImportSummary[] = [];
 
@@ -339,25 +338,24 @@ export async function importRostersToLeague(
   }
 
   try {
-    // Inizio transazione
-    await db.execute({ sql: "BEGIN TRANSACTION", args: [] });
+    // Prepara tutte le query da eseguire in batch (transazione atomica)
+    const batchStatements: { sql: string; args: (string | number | null)[] }[] = [];
 
     // 1. Elimina assegnazioni esistenti per questa lega
-    await db.execute({
+    batchStatements.push({
       sql: "DELETE FROM player_assignments WHERE auction_league_id = ?",
       args: [leagueId],
     });
-    console.log(`[ROSTER-IMPORT] Assegnazioni esistenti eliminate per lega ${leagueId}`);
 
     // 2. Elimina transazioni budget esistenti (tranne initial_allocation)
-    await db.execute({
+    batchStatements.push({
       sql: `DELETE FROM budget_transactions
             WHERE auction_league_id = ? AND transaction_type != 'initial_allocation'`,
       args: [leagueId],
     });
 
     // 3. Reset tutti i partecipanti al budget iniziale e contatori a zero
-    await db.execute({
+    batchStatements.push({
       sql: `UPDATE league_participants
             SET current_budget = ?,
                 locked_credits = 0,
@@ -369,12 +367,12 @@ export async function importRostersToLeague(
       args: [initialBudget, leagueId],
     });
 
-    // 4. Per ogni team, inserisci giocatori e aggiorna budget/contatori
+    // 4. Per ogni team, prepara gli INSERT per giocatori
     let totalPlayersImported = 0;
 
     for (const [teamLower, teamEntries] of entriesByTeam) {
       const userId = teamNameToUserId.get(teamLower)!;
-      const teamName = teamEntries[0].teamName; // Nome originale con case
+      const teamName = teamEntries[0].teamName;
       let totalSpent = 0;
       const roleCounters = { P: 0, D: 0, C: 0, A: 0 };
 
@@ -383,14 +381,14 @@ export async function importRostersToLeague(
         if (!role) continue;
 
         // Inserisci assegnazione
-        await db.execute({
+        batchStatements.push({
           sql: `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price)
                 VALUES (?, ?, ?, ?)`,
           args: [leagueId, entry.playerId, userId, entry.purchasePrice],
         });
 
         // Registra transazione budget
-        await db.execute({
+        batchStatements.push({
           sql: `INSERT INTO budget_transactions
                 (auction_league_id, user_id, transaction_type, amount, related_player_id, description, balance_after_in_league)
                 VALUES (?, ?, 'win_auction_debit', ?, ?, ?, ?)`,
@@ -410,7 +408,7 @@ export async function importRostersToLeague(
       }
 
       // Aggiorna budget e contatori del partecipante
-      await db.execute({
+      batchStatements.push({
         sql: `UPDATE league_participants
               SET current_budget = ?,
                   players_P_acquired = ?,
@@ -436,8 +434,9 @@ export async function importRostersToLeague(
       });
     }
 
-    // Commit transazione
-    await db.execute({ sql: "COMMIT", args: [] });
+    // Esegui tutte le query in batch (transazione atomica su Turso)
+    console.log(`[ROSTER-IMPORT] Esecuzione batch di ${batchStatements.length} query...`);
+    await db.batch(batchStatements, "write");
 
     console.log(
       `[ROSTER-IMPORT] Import completato: ${entriesByTeam.size} team, ${totalPlayersImported} giocatori`
@@ -452,9 +451,6 @@ export async function importRostersToLeague(
       summary,
     };
   } catch (error) {
-    // Rollback in caso di errore
-    await db.execute({ sql: "ROLLBACK", args: [] });
-
     const errorMessage = error instanceof Error ? error.message : "Errore sconosciuto";
     console.error(`[ROSTER-IMPORT] Errore durante import: ${errorMessage}`, error);
 
