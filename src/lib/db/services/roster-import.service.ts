@@ -270,7 +270,7 @@ export async function importRostersToLeague(
   leagueId: number,
   entries: ParsedRosterEntry[]
 ): Promise<ImportResult> {
-  const warnings: string[] = [];
+  const _warnings: string[] = [];
   const summary: TeamImportSummary[] = [];
 
   console.log(
