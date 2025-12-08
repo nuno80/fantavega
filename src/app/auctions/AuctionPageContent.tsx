@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -7,11 +8,24 @@ import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
-import { StandardBidModal } from "@/components/auction/StandardBidModal";
 // import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
 import { useLeague } from "@/hooks/useLeague";
+
+// Dynamic import per lazy loading del modale - riduce il bundle iniziale
+const StandardBidModal = dynamic(
+  () =>
+    import("@/components/auction/StandardBidModal").then((mod) => mod.StandardBidModal),
+  {
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 import { placeBidAction } from "@/lib/actions/auction.actions";
 import {
