@@ -496,7 +496,7 @@ export function CallPlayerInterface({
         }
       }
 
-      toast.success("Asta avviata con successo!");
+      // Toast rimosso - l'asta appare già nella UI
 
       // Reset selection after starting auction
       setSelectedPlayer("");
@@ -845,7 +845,7 @@ export function CallPlayerInterface({
                     hasIntegrity: false,
                     hasFmv: false,
                   });
-                  toast.success("Tutti i filtri sono stati resettati");
+                  // Toast rimosso - i filtri si resettano visivamente
                 }}
                 title="Reset tutti i filtri"
               >

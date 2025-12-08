@@ -113,7 +113,7 @@ export function BiddingInterface({
     setIsSubmitting(true);
     try {
       await onPlaceBid(bidAmount, bidType, useAutoBid ? maxAmount : undefined);
-      toast.success("Offerta piazzata con successo!");
+      // Toast rimosso - la UI si aggiorna via socket
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Errore nel piazzare l'offerta"
@@ -134,7 +134,7 @@ export function BiddingInterface({
     setIsSubmitting(true);
     try {
       await onPlaceBid(quickBidAmount, "quick");
-      toast.success(`Offerta rapida di ${quickBidAmount} crediti piazzata!`);
+      // Toast rimosso - la UI si aggiorna via socket
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Errore nell'offerta rapida"

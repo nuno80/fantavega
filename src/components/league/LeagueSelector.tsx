@@ -87,7 +87,7 @@ export function LeagueSelector({
       router.push(`/auctions?league=${league.id}`);
     }
 
-    toast.success(`Passaggio alla lega: ${league.name}`);
+    // Toast rimosso - la pagina naviga già mostrando la nuova lega
   };
 
   const getStatusColor = (status: string) => {

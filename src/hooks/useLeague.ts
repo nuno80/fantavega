@@ -110,7 +110,7 @@ export function useLeague() {
         // Skip navigation durante l'idratazione iniziale per evitare flicker
         if (!skipNavigation && !isInitialMountRef.current) {
           router.push(`/auctions?league=${leagueId}`);
-          toast.success(`Passaggio alla lega: ${league.name}`);
+          // Toast rimosso - la pagina naviga già mostrando la nuova lega
         }
       } else if (leagueId && !isInitialMountRef.current) {
         // Se la lega non è ancora caricata ma abbiamo un ID,

@@ -458,7 +458,7 @@ export function PlayerSearchInterface({
         )
       );
 
-      toast.success("Preferenza salvata con successo!");
+      // Toast rimosso - l'icona cambia colore visivamente
     } catch (error) {
       toast.error(
         error instanceof Error

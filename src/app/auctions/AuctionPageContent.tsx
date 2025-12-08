@@ -337,7 +337,7 @@ export function AuctionPageContent({
     };
 
     const handleAuctionCreated = (data: { playerName: string }) => {
-      toast.info(`Nuova asta: ${data.playerName}`);
+      // Toast rimosso - la UI si aggiorna già mostrando la nuova asta
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
@@ -415,9 +415,7 @@ export function AuctionPageContent({
       winnerId: string;
     }) => {
       console.log("[SOCKET DEBUG] Received auction-closed-notification:", data);
-      toast.info(`Asta conclusa: ${data.playerName}`, {
-        description: `Prezzo finale: ${data.finalPrice} crediti`,
-      });
+      // Toast rimosso - la UI si aggiorna già mostrando il risultato
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
@@ -428,9 +426,7 @@ export function AuctionPageContent({
       userId: string;
     }) => {
       console.log("[SOCKET DEBUG] Received user-abandoned-auction:", data);
-      if (data.userId === userId) {
-        toast.info(`Hai abbandonato l'asta per ${data.playerName}`);
-      }
+      // Toast rimosso - il modale si chiude e la UI si aggiorna
       fetchUserAuctionStates(selectedLeagueId);
     };
 
@@ -439,9 +435,7 @@ export function AuctionPageContent({
       newBidAmount: number;
     }) => {
       console.log("[SOCKET DEBUG] Received auto-bid-activated-notification:", data);
-      toast.success(`Auto-bid attivato per ${data.playerName}`, {
-        description: `Nuova offerta: ${data.newBidAmount} crediti`,
-      });
+      // Toast rimosso - il prezzo si aggiorna già nella UI
       fetchCurrentAuction(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
     };
@@ -453,7 +447,7 @@ export function AuctionPageContent({
       console.log("[SOCKET DEBUG] Received league-status-changed:", data);
       if (data.leagueId === selectedLeagueId) {
         setLeagueStatus(data.newStatus);
-        toast.info(`Stato lega aggiornato: ${data.newStatus}`);
+        // Toast rimosso - le icone cambiano già nella UI
       }
     };
 
@@ -522,7 +516,7 @@ export function AuctionPageContent({
         throw new Error(result.error || "Errore nel piazzare l'offerta");
       }
 
-      toast.success("Offerta piazzata con successo!");
+      // Toast rimosso - la UI si aggiorna mostrando il nuovo prezzo
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Errore sconosciuto";

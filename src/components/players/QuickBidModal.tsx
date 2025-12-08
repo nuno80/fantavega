@@ -156,13 +156,7 @@ export function QuickBidModal({
       }
 
       // Gestisce il successo della chiamata unificata
-      if (useAutoBid && maxAmount) {
-        toast.success(
-          `Offerta di ${bidAmount} piazzata con auto-bid fino a ${maxAmount} crediti!`
-        );
-      } else {
-        toast.success("Offerta piazzata con successo!");
-      }
+      // Toast rimosso - il modale si chiude e la UI si aggiorna via socket
 
       onClose();
 
