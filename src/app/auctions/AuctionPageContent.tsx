@@ -446,6 +446,17 @@ export function AuctionPageContent({
       fetchUserAuctionStates(selectedLeagueId);
     };
 
+    const handleLeagueStatusChanged = (data: {
+      leagueId: number;
+      newStatus: string;
+    }) => {
+      console.log("[SOCKET DEBUG] Received league-status-changed:", data);
+      if (data.leagueId === selectedLeagueId) {
+        setLeagueStatus(data.newStatus);
+        toast.info(`Stato lega aggiornato: ${data.newStatus}`);
+      }
+    };
+
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("auction-created", handleAuctionCreated);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
@@ -456,6 +467,7 @@ export function AuctionPageContent({
     socket.on("compliance-status-changed", handleComplianceStatusChange);
     socket.on("penalty-applied-notification", handlePenaltyApplied);
     socket.on("room-joined", handleRoomJoined);
+    socket.on("league-status-changed", handleLeagueStatusChanged);
 
     return () => {
       socket.off("auction-update", handleAuctionUpdate);
@@ -468,6 +480,7 @@ export function AuctionPageContent({
       socket.off("compliance-status-changed", handleComplianceStatusChange);
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("room-joined", handleRoomJoined);
+      socket.off("league-status-changed", handleLeagueStatusChanged);
       socket.emit("leave-room", `league-${selectedLeagueId}`);
       socket.emit("leave-room", `user-${userId}`);
     };

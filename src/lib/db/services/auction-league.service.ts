@@ -1076,6 +1076,24 @@ export async function updateLeagueStatus(
       );
     }
 
+    // Notifica tutti i client nella lega del cambio di stato
+    try {
+      const { notifySocketServer } = await import("@/lib/socket-emitter");
+      await notifySocketServer({
+        event: "league-status-changed",
+        room: `league-${leagueId}`,
+        data: {
+          leagueId,
+          newStatus,
+          timestamp: Date.now(),
+        },
+      });
+      console.log(`[SOCKET] Notificato cambio stato lega ${leagueId} a '${newStatus}'`);
+    } catch (socketError) {
+      console.warn(`[SOCKET] Errore notifica cambio stato:`, socketError);
+      // Non blocchiamo l'operazione se la notifica socket fallisce
+    }
+
     return {
       success: true,
       message: `Stato della lega aggiornato a '${newStatus}'.`,
