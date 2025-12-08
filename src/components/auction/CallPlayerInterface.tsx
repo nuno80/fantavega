@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -13,7 +14,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { QuickBidModal } from "@/components/players/QuickBidModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,32 @@ import {
 import { useSocket } from "@/contexts/SocketContext";
 import { placeBidAction } from "@/lib/actions/auction.actions";
 
-import { StandardBidModal } from "./StandardBidModal";
+// Dynamic imports per lazy loading dei modali
+const QuickBidModal = dynamic(
+  () =>
+    import("@/components/players/QuickBidModal").then((mod) => mod.QuickBidModal),
+  {
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
+
+const StandardBidModal = dynamic(
+  () =>
+    import("./StandardBidModal").then((mod) => mod.StandardBidModal),
+  {
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 // Extend the Player interface to match PlayerWithAuctionStatus
 interface Player {

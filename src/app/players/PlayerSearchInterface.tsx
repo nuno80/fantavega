@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -8,9 +9,22 @@ import { toast } from "sonner";
 import { PlayerFilterBar } from "@/components/players/PlayerFilterBar";
 import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
 import { PlayerSearchResults } from "@/components/players/PlayerSearchResults";
-import { QuickBidModal } from "@/components/players/QuickBidModal";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/contexts/SocketContext";
+
+// Dynamic import per lazy loading del modale
+const QuickBidModal = dynamic(
+  () =>
+    import("@/components/players/QuickBidModal").then((mod) => mod.QuickBidModal),
+  {
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 // Player data structure based on your specification
 export interface Player {

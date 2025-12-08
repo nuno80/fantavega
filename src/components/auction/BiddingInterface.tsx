@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
@@ -9,7 +10,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { AutoBidModal } from "./AutoBidModal";
+// Dynamic import per lazy loading del modale
+const AutoBidModal = dynamic(
+  () =>
+    import("./AutoBidModal").then((mod) => mod.AutoBidModal),
+  {
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 interface BiddingInterfaceProps {
   currentBid: number;
