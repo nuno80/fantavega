@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
-import * as xlsx from "xlsx";
 
 import { db } from "@/lib/db";
 import { getLeagueRostersForCsvExport } from "@/lib/db/services/auction-league.service";
@@ -58,6 +57,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (format === "excel") {
+      // Dynamic import di xlsx - caricato solo quando serve export Excel
+      const xlsx = await import("xlsx");
+
       // Converte le righe CSV in un formato adatto per xlsx
       const dataForSheet = csvRows
         .filter((row) => row !== "$,$,$") // Escludi i separatori

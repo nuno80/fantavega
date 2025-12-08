@@ -1,6 +1,6 @@
 // src/lib/db/services/player-import.service.ts v.2.0 (Async Turso Migration)
 // Servizio per importare e processare dati dei giocatori da file Excel.
-import * as XLSX from "xlsx";
+// NOTA: xlsx viene importato dinamicamente per ridurre il bundle iniziale
 
 import { db } from "@/lib/db";
 
@@ -64,6 +64,9 @@ export const processPlayersExcel = async (
   };
 
   try {
+    // Dynamic import di xlsx - caricato solo quando serve
+    const XLSX = await import("xlsx");
+
     const workbook = XLSX.read(fileBuffer, { type: "buffer" });
     const sheetName = "Tutti";
     const worksheet = workbook.Sheets[sheetName];
