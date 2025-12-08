@@ -11,7 +11,7 @@ const quickActions = [
     icon: Database,
   },
   { title: "Gestione Leghe", href: "/admin/leagues", icon: LayoutGrid },
-  { title: "Esporta Squadre", href: "/admin/teams-export", icon: Download },
+  { title: "Esporta / Importa Squadre", href: "/admin/teams-export", icon: Download },
 ] as const;
 
 export function AdminQuickActions() {

@@ -411,7 +411,7 @@ export default function TeamsExportPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Solo leghe in stato &quot;participants_joining&quot; possono ricevere import.
+                      Solo leghe in stato "iscrizioni aperte / participants_joining" possono ricevere import.
                     </p>
                   </div>
 
