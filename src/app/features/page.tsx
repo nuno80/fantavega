@@ -15,7 +15,7 @@ export default function FeaturesPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="autobid" className="w-full max-w-5xl">
+        <Tabs defaultValue="autobid" className="mx-auto w-full max-w-5xl">
           <div className="flex justify-center mb-8">
             <TabsList className="grid w-full max-w-md grid-cols-3">
               <TabsTrigger value="autobid">Auto-Bid</TabsTrigger>
