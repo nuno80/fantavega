@@ -1,7 +1,7 @@
 // src/middleware.ts
 import { NextResponse } from "next/server";
 
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkClient, clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 type AppRole = "admin" | "manager";
 
@@ -59,6 +59,8 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   console.log(`[AUTH] User ${userId} is authenticated.`);
+  // DEBUG: Log completo dei sessionClaims per diagnostica
+  console.log(`[AUTH] SessionClaims:`, JSON.stringify(sessionClaims, null, 2));
 
   if (isAdminRoute(req)) {
     console.log(
@@ -68,6 +70,7 @@ export default clerkMiddleware(async (auth, req) => {
     let userIsAdmin = false;
     let roleSource = "none";
 
+    // Tentativo 1: Cerca nei sessionClaims (se il Session Token è configurato correttamente)
     if (sessionClaims) {
       if (sessionClaims.metadata?.role === "admin") {
         userIsAdmin = true;
@@ -83,6 +86,23 @@ export default clerkMiddleware(async (auth, req) => {
           userIsAdmin = true;
           roleSource = "sessionClaims['public_metadata'].role (snake_case)";
         }
+      }
+    }
+
+    // Tentativo 2: Fallback a clerkClient per ottenere i publicMetadata direttamente da Clerk API
+    // Questo è necessario quando il Session Token di Clerk non è configurato per includere i metadata
+    if (!userIsAdmin && userId) {
+      try {
+        const client = await clerkClient();
+        const user = await client.users.getUser(userId);
+        const clerkRole = user.publicMetadata?.role as AppRole | undefined;
+        if (clerkRole === "admin") {
+          userIsAdmin = true;
+          roleSource = "clerkClient.users.getUser (API fallback)";
+        }
+        console.log(`[AUTH] Clerk API publicMetadata:`, JSON.stringify(user.publicMetadata));
+      } catch (error) {
+        console.error("[AUTH] Error fetching user from Clerk API:", error);
       }
     }
 

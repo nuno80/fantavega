@@ -9,7 +9,7 @@ import {
   SignedIn,
   SignedOut,
   UserButton,
-  useAuth, // Importa useAuth
+  useUser, // Cambiato da useAuth a useUser per accedere ai publicMetadata
 } from "@clerk/nextjs";
 import { Menu, X } from "lucide-react";
 
@@ -21,10 +21,10 @@ import { useMobile } from "@/hooks/use-mobile";
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isMobile = useMobile();
-  const { sessionClaims } = useAuth(); // Ottieni i sessionClaims
+  const { user } = useUser(); // Usa useUser per ottenere l'oggetto user completo
 
-  // Determina se l'utente è admin
-  const isAdmin = sessionClaims?.metadata?.role === "admin";
+  // Determina se l'utente è admin usando publicMetadata
+  const isAdmin = user?.publicMetadata?.role === "admin";
 
   // Close menu when switching from mobile to desktop
   useEffect(() => {
