@@ -43,7 +43,7 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2 font-bold">
             {/* Potresti voler mettere un logo SVG o un'immagine qui invece di testo */}
-            <span className="text-xl">FantacalcioApp</span>{" "}
+            <span className="text-xl">FantaVega</span>{" "}
             {/* Nome aggiornato */}
           </Link>
         </div>

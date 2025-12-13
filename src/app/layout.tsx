@@ -27,7 +27,7 @@ const geistMono = Geist_Mono({
 
 // 3. I tuoi metadati (MANTENUTI)
 export const metadata: Metadata = {
-  title: "Fantavega App",
+  title: "FantaVega",
   description: "Fantacalcio Auction System",
 };
 
