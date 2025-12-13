@@ -43,7 +43,7 @@ export default function FeaturesPage() {
                   </p>
                   <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-2">
                     <li>
-                      <strong>Logica "eBay":</strong> Il sistema rilancia automaticamente di 1 credito quando la tua offerta viene superata, fino al raggiungimento del tuo massimale.
+                      <strong>Logica &quot;eBay&quot;:</strong> Il sistema rilancia automaticamente di 1 credito quando la tua offerta viene superata, fino al raggiungimento del tuo massimale.
                     </li>
                     <li>
                       <strong>Black Box:</strong> Nessuno (incluso te) vede i dettagli della battaglia automatica. Il sistema mostra solo il prezzo corrente risultante.
@@ -123,7 +123,7 @@ export default function FeaturesPage() {
                     <div className="space-y-2">
                       <h4 className="font-semibold text-sm">Periodo di Grazia</h4>
                       <p className="text-sm text-muted-foreground">
-                        Hai <strong>1 ora</strong> di tempo per rimediare (acquistando o vincendo un'asta) dal momento in cui diventi non conforme.
+                        Hai <strong>1 ora</strong> di tempo per rimediare (acquistando o vincendo un&apos;asta) dal momento in cui diventi non conforme.
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -162,9 +162,9 @@ export default function FeaturesPage() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <p><strong>Bloccati ("Locked"):</strong></p>
+                    <p><strong>Bloccati (&quot;Locked&quot;):</strong></p>
                     <p className="text-muted-foreground">
-                      La somma di tutti i massimali dei tuoi auto-bid attivi. Questi crediti sono "impegnati" e non possono essere usati altrove.
+                      La somma di tutti i massimali dei tuoi auto-bid attivi. Questi crediti sono &quot;impegnati&quot; e non possono essere usati altrove.
                     </p>
                   </div>
                 </CardContent>
@@ -179,7 +179,7 @@ export default function FeaturesPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <p>
-                    Rappresenta il tuo "potere di fuoco" residuo per gli auto-bid.
+                    Rappresenta il tuo &quot;potere di fuoco&quot; residuo per gli auto-bid.
                   </p>
                   <p className="text-muted-foreground">
                     Calcolato come: <br />
@@ -207,7 +207,7 @@ export default function FeaturesPage() {
                       Vedono il tuo <strong>Budget Residuo</strong> (al netto delle spese certe).
                     </li>
                     <li>
-                      <strong>NON vedono</strong> i tuoi crediti bloccati in auto-bid. Il tuo "Disponibile" reale è nascosto per non rivelare le tue strategie.
+                      <strong>NON vedono</strong> i tuoi crediti bloccati in auto-bid. Il tuo &quot;Disponibile&quot; reale è nascosto per non rivelare le tue strategie.
                     </li>
                     <li>
                       Vedono le tue penalità accumulate (trasparenza totale).
