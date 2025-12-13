@@ -528,7 +528,7 @@ export function CallPlayerInterface({
   ];
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div className="mx-1 rounded-lg border border-border bg-card md:mx-0">
       {/* Tab Navigation */}
       <div className="flex border-b border-border">
         <button
