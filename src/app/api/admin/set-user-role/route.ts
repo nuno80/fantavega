@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
+type AppRole = "admin" | "manager";
+
 export async function POST(request: Request) {
   const { userId: currentUserId, sessionClaims } = await auth();
 
@@ -14,11 +16,51 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Verifica se l'utente corrente ha il ruolo di admin
-  const isAdmin = sessionClaims?.metadata?.role === "admin";
+  // 2. Verifica ruolo admin con fallback multipli (allineato con middleware)
+  let isAdmin = false;
+  let roleSource = "none";
+
+  // Tentativo 1: sessionClaims.metadata.role
+  if (sessionClaims?.metadata?.role === "admin") {
+    isAdmin = true;
+    roleSource = "sessionClaims.metadata.role";
+  }
+  // Tentativo 2: sessionClaims.publicMetadata.role (camelCase)
+  else if (sessionClaims?.publicMetadata?.role === "admin") {
+    isAdmin = true;
+    roleSource = "sessionClaims.publicMetadata.role";
+  }
+  // Tentativo 3: sessionClaims['public_metadata'].role (snake_case)
+  else {
+    const snakeCasePublicMeta = sessionClaims?.["public_metadata"] as
+      | { role?: AppRole }
+      | undefined;
+    if (snakeCasePublicMeta?.role === "admin") {
+      isAdmin = true;
+      roleSource = "sessionClaims['public_metadata'].role";
+    }
+  }
+
+  // Tentativo 4: Fallback a clerkClient API
+  if (!isAdmin) {
+    try {
+      const client = await clerkClient();
+      const user = await client.users.getUser(currentUserId);
+      const clerkRole = user.publicMetadata?.role as AppRole | undefined;
+      if (clerkRole === "admin") {
+        isAdmin = true;
+        roleSource = "clerkClient API fallback";
+      }
+    } catch (error) {
+      console.error("[set-user-role] Error fetching user from Clerk API:", error);
+    }
+  }
+
+  console.log(`[set-user-role] Role verification for ${currentUserId}: isAdmin=${isAdmin}, source=${roleSource}`);
+
   if (!isAdmin) {
     console.warn(
-      `Accesso API negato per set-user-role per l'utente ${currentUserId}. Ruolo (da claims): ${sessionClaims?.metadata?.role}`
+      `Accesso API negato per set-user-role per l'utente ${currentUserId}. Role source: ${roleSource}`
     );
     return NextResponse.json(
       { error: "Accesso negato: Privilegi insufficienti." },
