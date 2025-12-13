@@ -7,7 +7,7 @@ export default function FeaturesPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container py-10">
+      <main className="container flex flex-col items-center py-10">
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold tracking-tight">Guida alle Funzionalità</h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
@@ -15,7 +15,7 @@ export default function FeaturesPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="autobid" className="w-full">
+        <Tabs defaultValue="autobid" className="w-full max-w-5xl">
           <div className="flex justify-center mb-8">
             <TabsList className="grid w-full max-w-md grid-cols-3">
               <TabsTrigger value="autobid">Auto-Bid</TabsTrigger>
