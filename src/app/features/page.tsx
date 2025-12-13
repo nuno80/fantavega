@@ -27,7 +27,7 @@ export default function FeaturesPage() {
           {/* AUTO-BID SECTION */}
           <TabsContent value="autobid" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-yellow-500" />
@@ -52,7 +52,7 @@ export default function FeaturesPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-blue-500" />
@@ -83,7 +83,7 @@ export default function FeaturesPage() {
           {/* PENALTIES SECTION */}
           <TabsContent value="penalties" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Gavel className="h-5 w-5 text-red-500" />
@@ -108,7 +108,7 @@ export default function FeaturesPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
@@ -147,7 +147,7 @@ export default function FeaturesPage() {
           {/* CREDITS SECTION */}
           <TabsContent value="credits" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-3">
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Banknote className="h-5 w-5 text-green-500" />
@@ -170,7 +170,7 @@ export default function FeaturesPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <HandCoins className="h-5 w-5 text-purple-500" />
@@ -191,7 +191,7 @@ export default function FeaturesPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-gray-500" />
