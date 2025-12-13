@@ -175,6 +175,13 @@ export function Navbar() {
             >
               Home
             </Link>
+            <Link
+              href="/features"
+              className="text-sm font-medium transition-colors hover:text-primary"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Guida
+            </Link>
             <SignedIn>
               {" "}
               {/* Mostra questi link solo se loggato */}

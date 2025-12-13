@@ -7,7 +7,7 @@ export default function FeaturesPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container flex flex-col items-center py-10">
+      <main className="mx-auto flex w-full max-w-7xl flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold tracking-tight">Guida alle Funzionalità</h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
