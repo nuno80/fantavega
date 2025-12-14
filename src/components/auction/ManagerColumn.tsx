@@ -1,6 +1,10 @@
 "use client";
 
-import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
+import {
+  getFantacalcioImageUrl,
+  getPlayerImageUrl,
+  getTeamLogoUrl,
+} from "@/lib/utils";
 import React, { memo, useEffect, useState } from "react";
 
 import {
@@ -241,8 +245,23 @@ function AssignedSlot({
                 }}
                 onError={(e) => {
                   const target = e.currentTarget;
+                  const cleanUrl = (url: string) => url?.split("?")[0]?.split("#")[0];
+
+                  const fantaUrl =
+                    player.id && getFantacalcioImageUrl(player.id);
                   const teamLogo = getTeamLogoUrl(player.team || "");
-                  if (teamLogo && target.src !== teamLogo) {
+
+                  const currentSrc = cleanUrl(target.src);
+                  const safeFantaUrl = fantaUrl ? cleanUrl(fantaUrl) : null;
+                  const safeTeamLogo = teamLogo ? cleanUrl(teamLogo) : null;
+
+                  if (fantaUrl && currentSrc !== safeFantaUrl && target.src !== fantaUrl) {
+                    target.src = fantaUrl;
+                  } else if (
+                    teamLogo &&
+                    currentSrc !== safeTeamLogo &&
+                    target.src !== teamLogo
+                  ) {
                     target.src = teamLogo;
                     target.style.objectPosition = "center";
                     target.className = "h-full w-full object-contain p-1";
@@ -414,10 +433,30 @@ function ResponseNeededSlot({
                   className="h-9 w-9 flex-shrink-0 rounded-full object-cover object-top"
                   onError={(e) => {
                     const target = e.currentTarget;
+                    const cleanUrl = (url: string) => url?.split("?")[0]?.split("#")[0];
+                    const fantaUrl =
+                      state.player_id &&
+                      getFantacalcioImageUrl(state.player_id);
                     const teamLogo = getTeamLogoUrl(state.player_team || "");
-                    if (teamLogo && target.src !== teamLogo) {
+
+                    const currentSrc = cleanUrl(target.src);
+                    const safeFantaUrl = fantaUrl ? cleanUrl(fantaUrl) : null;
+                    const safeTeamLogo = teamLogo ? cleanUrl(teamLogo) : null;
+
+                    if (
+                      fantaUrl &&
+                      currentSrc !== safeFantaUrl &&
+                      target.src !== fantaUrl
+                    ) {
+                      target.src = fantaUrl;
+                    } else if (
+                      teamLogo &&
+                      currentSrc !== safeTeamLogo &&
+                      target.src !== teamLogo
+                    ) {
                       target.src = teamLogo;
-                      target.className = "h-full w-full object-contain p-1";
+                      target.className =
+                        "h-full w-full object-contain p-1 rounded-full";
                       target.onerror = () => {
                         target.style.display = "none";
                         target.nextElementSibling?.classList.remove("hidden");
@@ -591,8 +630,18 @@ function InAuctionSlot({
               }}
               onError={(e) => {
                 const target = e.currentTarget;
+                const cleanUrl = (url: string) => url?.split("?")[0]?.split("#")[0];
+                const fantaUrl =
+                  auction.player_id && getFantacalcioImageUrl(auction.player_id);
                 const teamLogo = getTeamLogoUrl(auction.player_team || "");
-                if (teamLogo && target.src !== teamLogo) {
+
+                const currentSrc = cleanUrl(target.src);
+                const safeFantaUrl = fantaUrl ? cleanUrl(fantaUrl) : null;
+                const safeTeamLogo = teamLogo ? cleanUrl(teamLogo) : null;
+
+                if (fantaUrl && currentSrc !== safeFantaUrl && target.src !== fantaUrl) {
+                  target.src = fantaUrl;
+                } else if (teamLogo && currentSrc !== safeTeamLogo && target.src !== teamLogo) {
                   target.src = teamLogo;
                   target.style.objectPosition = "center";
                   target.className = "h-full w-full object-contain p-1";

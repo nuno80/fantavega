@@ -24,7 +24,11 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
+import {
+  getFantacalcioImageUrl,
+  getPlayerImageUrl,
+  getTeamLogoUrl,
+} from "@/lib/utils";
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
@@ -237,10 +241,24 @@ export function PlayerSearchCard({
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     const target = e.currentTarget;
+                    const fantaUrl =
+                      player.id && getFantacalcioImageUrl(player.id);
                     const teamLogo = getTeamLogoUrl(player.team || "");
-                    if (teamLogo && target.src !== teamLogo) {
+
+                    // Checks to avoid loops
+                    if (
+                      fantaUrl &&
+                      target.src !== fantaUrl &&
+                      !target.src.includes("fantacalcio.it")
+                    ) {
+                      target.src = fantaUrl;
+                    } else if (
+                      teamLogo &&
+                      target.src !== teamLogo &&
+                      !target.src.includes(teamLogo)
+                    ) {
                       target.src = teamLogo;
-                      target.className = "h-20 w-20 object-contain"; // Adjusted for logo size in this card
+                      target.className = "h-20 w-20 object-contain";
                       target.onerror = () => {
                         target.style.display = "none";
                         target.parentElement

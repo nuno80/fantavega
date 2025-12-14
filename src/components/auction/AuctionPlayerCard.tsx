@@ -2,7 +2,11 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
+import {
+  getFantacalcioImageUrl,
+  getPlayerImageUrl,
+  getTeamLogoUrl,
+} from "@/lib/utils";
 
 interface AuctionPlayerCardProps {
   playerName: string;
@@ -71,8 +75,28 @@ export function AuctionPlayerCard({
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     const target = e.currentTarget;
+                    // Helper to strip params/hashes for comparison
+                    const cleanUrl = (url: string) => url?.split("?")[0]?.split("#")[0];
+
+                    const fantaUrl =
+                      playerId && getFantacalcioImageUrl(playerId);
                     const teamLogo = getTeamLogoUrl(playerTeam || "");
-                    if (teamLogo && target.src !== teamLogo) {
+
+                    const currentSrc = cleanUrl(target.src);
+                    const safeFantaUrl = fantaUrl ? cleanUrl(fantaUrl) : null;
+                    const safeTeamLogo = teamLogo ? cleanUrl(teamLogo) : null;
+
+                    if (
+                      fantaUrl &&
+                      currentSrc !== safeFantaUrl &&
+                      target.src !== fantaUrl
+                    ) {
+                      target.src = fantaUrl;
+                    } else if (
+                      teamLogo &&
+                      currentSrc !== safeTeamLogo &&
+                      target.src !== teamLogo
+                    ) {
                       target.src = teamLogo;
                       target.className = "h-full w-full object-contain p-2";
                       target.onerror = () => {

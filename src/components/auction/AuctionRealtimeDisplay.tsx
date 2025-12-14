@@ -7,7 +7,11 @@ import { useEffect, useState } from "react";
 
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
-import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
+import {
+  getFantacalcioImageUrl,
+  getPlayerImageUrl,
+  getTeamLogoUrl,
+} from "@/lib/utils";
 import { toast } from "sonner";
 
 // src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
@@ -138,10 +142,30 @@ export function AuctionRealtimeDisplay({
                 className="h-full w-full object-cover"
                 onError={(e) => {
                   const target = e.currentTarget;
+                  const cleanUrl = (url: string) => url?.split("?")[0]?.split("#")[0];
+
+                  const fantaUrl =
+                    auctionData.player?.id &&
+                    getFantacalcioImageUrl(auctionData.player.id);
                   const teamLogo = getTeamLogoUrl(
                     auctionData.player?.team || ""
                   );
-                  if (teamLogo && target.src !== teamLogo) {
+
+                  const currentSrc = cleanUrl(target.src);
+                  const safeFantaUrl = fantaUrl ? cleanUrl(fantaUrl) : null;
+                  const safeTeamLogo = teamLogo ? cleanUrl(teamLogo) : null;
+
+                  if (
+                    fantaUrl &&
+                    currentSrc !== safeFantaUrl &&
+                    target.src !== fantaUrl
+                  ) {
+                    target.src = fantaUrl;
+                  } else if (
+                    teamLogo &&
+                    currentSrc !== safeTeamLogo &&
+                    target.src !== teamLogo
+                  ) {
                     target.src = teamLogo;
                     target.className = "h-full w-full object-contain p-4";
                     target.onerror = () => {

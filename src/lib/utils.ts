@@ -40,13 +40,44 @@ const TEAM_ID_MAP: Record<string, number> = {
 export function getTeamLogoUrl(teamName: string): string {
   if (!teamName) return "";
   const normalizedTeam = teamName.toLowerCase().trim();
-  const teamId = TEAM_ID_MAP[normalizedTeam];
 
+  // List of teams with local logos (uploaded by user)
+  const LOCAL_LOGOS = [
+    "atalanta",
+    "bologna",
+    "cagliari",
+    "como",
+    "cremonese",
+    "fiorentina",
+    "inter",
+    "juventus",
+    "lecce",
+    "milan",
+    "napoli",
+    "parma",
+    "pisa",
+    "roma",
+    "sassuolo",
+    "torino",
+    "udinese",
+  ];
+
+  if (LOCAL_LOGOS.includes(normalizedTeam)) {
+    return `/seria_A/loghi/${normalizedTeam}.png`;
+  }
+
+  // Fallback to API-Sports for others (Lazio, Genoa, Verona, etc.)
+  const teamId = TEAM_ID_MAP[normalizedTeam];
   if (teamId) {
     return `https://media.api-sports.io/football/teams/${teamId}.png`;
   }
 
   return "";
+}
+
+export function getFantacalcioImageUrl(playerId: number): string {
+  if (!playerId) return "";
+  return `https://content.fantacalcio.it/web/cfa/calciatori/large/${playerId}.png`;
 }
 
 export function getPlayerImageUrl(
@@ -55,7 +86,10 @@ export function getPlayerImageUrl(
   playerName?: string,
   playerTeam?: string
 ): string {
-  // 1. Priority: Local File System (if name/team provided)
+  // 1. Priority: External URL from DB (Highest reliability if present)
+  if (photoUrl && photoUrl.trim() !== "") return photoUrl;
+
+  // 2. Priority: Local File System (New Feature)
   if (playerName && playerTeam) {
     const slugify = (text: string) =>
       text
@@ -67,16 +101,12 @@ export function getPlayerImageUrl(
     const teamSlug = slugify(playerTeam);
     const playerSlug = slugify(playerName);
 
-    // Note matches "public/seria_A" folder structure
     return `/seria_A/${teamSlug}/${playerSlug}.webp`;
   }
 
-  // 2. Priority: External URL from DB
-  if (photoUrl && photoUrl.trim() !== "") return photoUrl;
-
   // 3. Fallback: Fantacalcio ID
   if (playerId) {
-    return `https://content.fantacalcio.it/web/cfa/calciatori/large/${playerId}.png`;
+    return getFantacalcioImageUrl(playerId);
   }
 
   return "";
