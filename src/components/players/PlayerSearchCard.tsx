@@ -24,7 +24,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { getPlayerImageUrl } from "@/lib/utils";
+import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
@@ -230,9 +230,13 @@ export function PlayerSearchCard({
                 alt={player.name}
                 className="h-full w-full object-cover"
                 onError={(e) => {
-                  // Se l'immagine non si carica, mostra placeholder
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  // Se l'immagine del giocatore non si carica, mostra il logo della squadra
+                  e.currentTarget.src = getTeamLogoUrl(player.team);
+                  e.currentTarget.onerror = () => {
+                    // Se anche il logo della squadra fallisce, mostra icona generica
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  };
                 }}
               />
               <User className="hidden h-12 w-12 text-muted-foreground" />
