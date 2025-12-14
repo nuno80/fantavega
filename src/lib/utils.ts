@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import IMAGE_MAP from "./player_image_map.json";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -89,7 +90,7 @@ export function getPlayerImageUrl(
   // 1. Priority: External URL from DB (Highest reliability if present)
   if (photoUrl && photoUrl.trim() !== "") return photoUrl;
 
-  // 2. Priority: Local File System (New Feature)
+  // 2. Priority: Local File System via Map (Fixes Name Mismatches)
   if (playerName && playerTeam) {
     const slugify = (text: string) =>
       text
@@ -101,10 +102,16 @@ export function getPlayerImageUrl(
     const teamSlug = slugify(playerTeam);
     const playerSlug = slugify(playerName);
 
-    return `/seria_A/${teamSlug}/${playerSlug}.webp`;
+    // Lookup in generated map (e.g. "atalanta/adopo" -> "michel-adopo.webp")
+    const key = `${teamSlug}/${playerSlug}` as keyof typeof IMAGE_MAP;
+    const mappedFilename = IMAGE_MAP[key];
+
+    if (mappedFilename) {
+      return `/seria_A/${teamSlug}/${mappedFilename}`;
+    }
   }
 
-  // 3. Fallback: Fantacalcio ID
+  // 3. Fallback: Fantacalcio ID (Likely 403, but kept for legacy)
   if (playerId) {
     return getFantacalcioImageUrl(playerId);
   }
