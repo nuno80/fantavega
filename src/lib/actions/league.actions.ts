@@ -6,7 +6,7 @@
 // 1. Importazioni consolidate
 import { revalidatePath } from "next/cache";
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
 import {
@@ -16,6 +16,40 @@ import {
   updateParticipantTeamName,
 } from "@/lib/db/services/auction-league.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
+
+type AppRole = "admin" | "manager";
+
+// Helper function to check admin role with fallback to Clerk API
+async function checkIsAdmin(userId: string, sessionClaims: Record<string, unknown> | null): Promise<boolean> {
+  // Tentativo 1: Cerca nei sessionClaims (se il Session Token è configurato correttamente)
+  if (sessionClaims) {
+    if ((sessionClaims.metadata as { role?: AppRole } | undefined)?.role === "admin") {
+      return true;
+    }
+    if ((sessionClaims.publicMetadata as { role?: AppRole } | undefined)?.role === "admin") {
+      return true;
+    }
+    const snakeCasePublicMeta = sessionClaims["public_metadata"] as { role?: AppRole } | undefined;
+    if (snakeCasePublicMeta?.role === "admin") {
+      return true;
+    }
+  }
+
+  // Tentativo 2: Fallback a clerkClient per ottenere i publicMetadata direttamente da Clerk API
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const clerkRole = user.publicMetadata?.role as AppRole | undefined;
+    if (clerkRole === "admin") {
+      console.log("[checkIsAdmin] Admin role found via Clerk API fallback");
+      return true;
+    }
+  } catch (error) {
+    console.error("[checkIsAdmin] Error fetching user from Clerk API:", error);
+  }
+
+  return false;
+}
 
 // 2. Action: Creare una Lega
 export type CreateLeagueFormState = {
@@ -32,8 +66,8 @@ export async function createLeague(
     return { success: false, message: "Utente non autenticato." };
   }
 
-  // Check if the user has the 'admin' role
-  const isAdmin = sessionClaims?.metadata?.role === "admin";
+  // Check if the user has the 'admin' role (with Clerk API fallback)
+  const isAdmin = await checkIsAdmin(userId, sessionClaims as Record<string, unknown> | null);
   if (!isAdmin) {
     return { success: false, message: "Non sei autorizzato a creare leghe." };
   }

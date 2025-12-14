@@ -566,18 +566,28 @@ export async function addParticipantToLeague(
           const primaryEmail = clerkUser.emailAddresses.find(
             (e) => e.id === clerkUser.primaryEmailAddressId
           )?.emailAddress;
+          const clerkRole = (clerkUser.publicMetadata?.role as string) || "manager";
+
+          // Usa ON CONFLICT per gestire sia nuovi utenti che aggiornamenti
+          // Questo risolve il problema quando email/username già esistono con altro id
           await db.execute({
-            sql: `INSERT OR IGNORE INTO users (id, email, username, role, status) VALUES (?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO users (id, email, username, role, status)
+                  VALUES (?, ?, ?, ?, ?)
+                  ON CONFLICT(id) DO UPDATE SET
+                    email = excluded.email,
+                    username = excluded.username,
+                    role = excluded.role,
+                    updated_at = strftime('%s', 'now')`,
             args: [
               clerkUser.id,
-              primaryEmail || "no-email@example.com",
-              clerkUser.username,
-              (clerkUser.publicMetadata?.role as string) || "manager",
+              primaryEmail || `${clerkUser.id}@noemail.local`,
+              clerkUser.username || clerkUser.id,
+              clerkRole,
               "active",
             ],
           });
           console.log(
-            `[SYNC] Utente ${clerkUser.id} sincronizzato con successo nel DB locale.`
+            `[SYNC] Utente ${clerkUser.id} sincronizzato con successo nel DB locale (role: ${clerkRole}).`
           );
           userInDbResult = await db.execute({
             sql: "SELECT id, role, username FROM users WHERE id = ?",
