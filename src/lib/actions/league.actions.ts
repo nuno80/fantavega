@@ -12,8 +12,10 @@ import { db } from "@/lib/db";
 import {
   addParticipantToLeague,
   removeParticipantFromLeague,
+  updateLeagueSettingForParticipantsJoining,
   updateLeagueStatus,
   updateParticipantTeamName,
+  type LeagueSettingName,
 } from "@/lib/db/services/auction-league.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
 
@@ -459,6 +461,51 @@ export async function updateActiveRolesAction(
     revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
 
     return { success: true, message: "Ruoli attivi aggiornati!" };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    return { success: false, message: errorMessage };
+  }
+}
+
+// 9. Action: Aggiornare un'impostazione della Lega (durante participants_joining)
+export type UpdateLeagueSettingFormState = { success: boolean; message: string };
+export async function updateLeagueSettingAction(
+  prevState: UpdateLeagueSettingFormState,
+  formData: FormData
+): Promise<UpdateLeagueSettingFormState> {
+  const { userId: adminUserId, sessionClaims } = await auth();
+  if (!adminUserId) {
+    return { success: false, message: "Azione non autorizzata." };
+  }
+
+  // Verifica che l'utente sia admin
+  const isAdmin = await checkIsAdmin(adminUserId, sessionClaims as Record<string, unknown> | null);
+  if (!isAdmin) {
+    return { success: false, message: "Solo gli admin possono modificare le impostazioni della lega." };
+  }
+
+  const leagueId = Number(formData.get("leagueId"));
+  const settingName = formData.get("settingName") as LeagueSettingName;
+  const newValue = formData.get("newValue") as string;
+
+  if (!leagueId || !settingName || newValue === null || newValue === undefined) {
+    return { success: false, message: "Dati mancanti." };
+  }
+
+  try {
+    const result = await updateLeagueSettingForParticipantsJoining(
+      leagueId,
+      settingName,
+      newValue
+    );
+
+    if (!result.success) {
+      return { success: false, message: result.message };
+    }
+
+    revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+    return { success: true, message: result.message };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Errore sconosciuto.";

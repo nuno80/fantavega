@@ -509,6 +509,174 @@ export const updateAuctionLeague = async (
   }
 };
 
+/**
+ * Aggiorna le impostazioni di una lega quando è in stato 'participants_joining'.
+ * Se il budget cambia, aggiorna anche il current_budget di tutti i partecipanti.
+ */
+export interface UpdateLeagueSettingResult {
+  success: boolean;
+  message: string;
+  updatedValue?: string | number | null;
+}
+
+export type LeagueSettingName =
+  | 'name'
+  | 'initial_budget_per_manager'
+  | 'timer_duration_minutes'
+  | 'league_type'
+  | 'slots_P'
+  | 'slots_D'
+  | 'slots_C'
+  | 'slots_A';
+
+export async function updateLeagueSettingForParticipantsJoining(
+  leagueId: number,
+  settingName: LeagueSettingName,
+  newValue: string | number
+): Promise<UpdateLeagueSettingResult> {
+  console.log(
+    `[SERVICE] updateLeagueSettingForParticipantsJoining: league ${leagueId}, setting ${settingName}, value ${newValue}`
+  );
+
+  try {
+    // 1. Verifica che la lega esista e sia in stato 'participants_joining'
+    const leagueResult = await db.execute({
+      sql: "SELECT id, status, initial_budget_per_manager FROM auction_leagues WHERE id = ?",
+      args: [leagueId],
+    });
+    const league = leagueResult.rows[0] as unknown as {
+      id: number;
+      status: string;
+      initial_budget_per_manager: number;
+    } | undefined;
+
+    if (!league) {
+      return { success: false, message: "Lega non trovata." };
+    }
+
+    if (league.status !== "participants_joining") {
+      return {
+        success: false,
+        message: `Impossibile modificare le impostazioni quando la lega è nello stato '${league.status}'. Le modifiche sono permesse solo nello stato 'participants_joining'.`,
+      };
+    }
+
+    // 2. Valida il nuovo valore in base al tipo di setting
+    let validatedValue: string | number = newValue;
+
+    switch (settingName) {
+      case "name":
+        if (typeof newValue !== "string" || newValue.trim() === "") {
+          return { success: false, message: "Il nome della lega non può essere vuoto." };
+        }
+        validatedValue = newValue.trim();
+        break;
+
+      case "initial_budget_per_manager":
+      case "timer_duration_minutes":
+      case "slots_P":
+      case "slots_D":
+      case "slots_C":
+      case "slots_A":
+        const numValue = typeof newValue === "string" ? parseInt(newValue, 10) : newValue;
+        if (isNaN(numValue) || numValue <= 0) {
+          return { success: false, message: `Il valore deve essere un numero positivo.` };
+        }
+        validatedValue = numValue;
+        break;
+
+      case "league_type":
+        if (newValue !== "classic" && newValue !== "mantra") {
+          return { success: false, message: "Tipo lega non valido. Usa 'classic' o 'mantra'." };
+        }
+        validatedValue = newValue;
+        break;
+
+      default:
+        return { success: false, message: `Setting '${settingName}' non supportato.` };
+    }
+
+    // 3. Esegui l'aggiornamento in una transazione
+    const tx = await db.transaction("write");
+    try {
+      // Aggiorna il setting nella tabella auction_leagues
+      await tx.execute({
+        sql: `UPDATE auction_leagues SET ${settingName} = ?, updated_at = strftime('%s', 'now') WHERE id = ?`,
+        args: [validatedValue, leagueId],
+      });
+
+      // 4. Se il budget è cambiato, aggiorna anche tutti i partecipanti
+      if (settingName === "initial_budget_per_manager") {
+        const oldBudget = league.initial_budget_per_manager;
+        const newBudget = validatedValue as number;
+        const budgetDifference = newBudget - oldBudget;
+
+        if (budgetDifference !== 0) {
+          // Aggiorna il current_budget di tutti i partecipanti
+          await tx.execute({
+            sql: `UPDATE league_participants
+                  SET current_budget = current_budget + ?,
+                      updated_at = strftime('%s', 'now')
+                  WHERE league_id = ?`,
+            args: [budgetDifference, leagueId],
+          });
+
+          // Registra la transazione di budget per ogni partecipante
+          const participantsResult = await tx.execute({
+            sql: "SELECT user_id, current_budget FROM league_participants WHERE league_id = ?",
+            args: [leagueId],
+          });
+          const participants = participantsResult.rows as unknown as {
+            user_id: string;
+            current_budget: number;
+          }[];
+
+          for (const participant of participants) {
+            await tx.execute({
+              sql: `INSERT INTO budget_transactions
+                    (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description)
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+              args: [
+                leagueId,
+                participant.user_id,
+                budgetDifference > 0 ? "admin_budget_increase" : "admin_budget_decrease",
+                budgetDifference,
+                participant.current_budget,
+                `Budget iniziale modificato da ${oldBudget} a ${newBudget} crediti`,
+              ],
+            });
+          }
+
+          console.log(
+            `[SERVICE] Updated budget for ${participants.length} participants. Difference: ${budgetDifference}`
+          );
+        }
+      }
+
+      await tx.commit();
+
+      console.log(`[SERVICE] Setting ${settingName} updated to ${validatedValue} for league ${leagueId}`);
+      return {
+        success: true,
+        message: "Impostazione aggiornata con successo.",
+        updatedValue: validatedValue,
+      };
+    } catch (txError) {
+      await tx.rollback();
+      throw txError;
+    }
+  } catch (error) {
+    console.error(`[SERVICE] Error updating league setting:`, error);
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      return { success: false, message: "Questo nome è già in uso da un'altra lega." };
+    }
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Errore sconosciuto.",
+    };
+  }
+}
+
 // --- Gestione Partecipanti Lega ---
 
 export async function addParticipantToLeague(

@@ -1,10 +1,11 @@
-// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.7 (Definitivo)
-// Versione completa della dashboard di gestione lega.
+// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.8 (Edit Settings)
+// Versione completa della dashboard di gestione lega con modifica impostazioni.
 // 1. Importazioni
 import { notFound } from "next/navigation";
 
 import { Clock, Landmark, ShieldCheck, Users } from "lucide-react";
 
+import { EditLeagueSetting } from "@/components/admin/EditLeagueSetting";
 import { EditTeamName } from "@/components/admin/EditTeamName";
 import { LeagueActiveRolesManager } from "@/components/admin/LeagueActiveRolesManager";
 import { LeagueStatusManager } from "@/components/admin/LeagueStatusManager";
@@ -103,8 +104,20 @@ export default async function LeagueDashboardPage({
               <Landmark className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {league.initialBudget} cr
+              <div className="flex items-center gap-1">
+                <span className="text-2xl font-bold">
+                  {league.initialBudget} cr
+                </span>
+                {canManageParticipants && (
+                  <EditLeagueSetting
+                    leagueId={league.id}
+                    settingName="initial_budget_per_manager"
+                    settingLabel="Budget Iniziale"
+                    currentValue={league.initialBudget}
+                    inputType="number"
+                    unit="crediti"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -114,8 +127,20 @@ export default async function LeagueDashboardPage({
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {league.timerDurationMinutes} min
+              <div className="flex items-center gap-1">
+                <span className="text-2xl font-bold">
+                  {league.timerDurationMinutes} min
+                </span>
+                {canManageParticipants && (
+                  <EditLeagueSetting
+                    leagueId={league.id}
+                    settingName="timer_duration_minutes"
+                    settingLabel="Timer Asta"
+                    currentValue={league.timerDurationMinutes}
+                    inputType="number"
+                    unit="minuti"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -125,8 +150,23 @@ export default async function LeagueDashboardPage({
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold capitalize">
-                {league.leagueType}
+              <div className="flex items-center gap-1">
+                <span className="text-2xl font-bold capitalize">
+                  {league.leagueType}
+                </span>
+                {canManageParticipants && (
+                  <EditLeagueSetting
+                    leagueId={league.id}
+                    settingName="league_type"
+                    settingLabel="Tipo Lega"
+                    currentValue={league.leagueType}
+                    inputType="select"
+                    selectOptions={[
+                      { value: "classic", label: "Classic" },
+                      { value: "mantra", label: "Mantra" },
+                    ]}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

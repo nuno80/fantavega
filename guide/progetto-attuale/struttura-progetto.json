@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-12-07T11:30:00Z",
+  "last_update": "2025-12-14T12:10:00Z",
   "files": [
     {
       "path": "src/hooks/useLeague.ts",
@@ -124,6 +124,22 @@
     {
       "path": "src/components/auction/CallPlayerInterface.tsx",
       "description": "Aggiornato per gestire il caso di database vuoto e mostrare un messaggio di errore."
+    },
+    {
+      "path": "src/components/admin/EditLeagueSetting.tsx",
+      "description": "Nuovo componente per modificare le impostazioni della lega (budget, timer, tipo) dal dashboard admin."
+    },
+    {
+      "path": "src/lib/actions/league.actions.ts",
+      "description": "Aggiunta Server Action updateLeagueSettingAction per modificare le impostazioni della lega."
+    },
+    {
+      "path": "src/lib/db/services/auction-league.service.ts",
+      "description": "Aggiunta funzione updateLeagueSettingForParticipantsJoining con sincronizzazione automatica del budget dei partecipanti."
+    },
+    {
+      "path": "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
+      "description": "Aggiornato con icone di modifica per Budget, Timer e Tipo Lega."
     }
   ]
 }

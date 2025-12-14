@@ -1,6 +1,6 @@
 {
-  "last_update": "2025-12-07T21:05:00Z",
-  "task_completed": "Fix League Flicker Bug - Server-Side Redirect",
+  "last_update": "2025-12-14T12:10:00Z",
+  "task_completed": "Edit League Settings in Admin Dashboard",
   "feature_logic": {
     "feature_name": "Selezione Dinamica della Lega",
     "summary": "Implementa una funzionalità che permette agli utenti che partecipano a più leghe di passare da una all'altra in modo dinamico. La lega viene determinata tramite URL param (gestito da redirect server-side), eliminando il flicker durante l'idratazione SSR/Client.",
@@ -341,6 +341,50 @@
       "UI: Campi privati (DISP. AUTO-BID, AUTO-BID) hanno sfondo colorato (ambra/blu) e icona 🔒.",
       "UI: Tooltip esplicativi su ogni campo per chiarire il significato.",
       "Privacy: Gli auto-bid rimangono completamente nascosti agli altri utenti."
+    ]
+  },
+  "edit_league_settings_logic": {
+    "feature_name": "Modifica Impostazioni Lega in Admin Dashboard",
+    "summary": "Permette all'admin di modificare le impostazioni della lega (Budget, Timer, Tipo Lega) direttamente dal dashboard quando la lega è in stato 'participants_joining'. Se il budget viene modificato, il sistema aggiorna automaticamente il budget di tutti i partecipanti esistenti.",
+    "architectural_pattern": "Server Action + Popover UI. Ogni card statistica ha un'icona di modifica che apre un Popover con un form. Il form invia i dati a una Server Action che valida e aggiorna il database.",
+    "user_flow": [
+      "1. L'admin apre il dashboard di gestione della lega.",
+      "2. Se la lega è in stato 'participants_joining', le card Budget, Timer e Tipo mostrano un'icona di modifica (matita).",
+      "3. L'admin clicca sull'icona e appare un Popover con un campo di input.",
+      "4. L'admin inserisce il nuovo valore e clicca 'Salva'.",
+      "5. Il sistema valida il valore e aggiorna il database.",
+      "6. Se il budget è stato modificato, anche il current_budget di tutti i partecipanti viene aggiornato.",
+      "7. Una transazione di budget viene registrata per tracciabilità.",
+      "8. La UI si aggiorna mostrando il nuovo valore."
+    ],
+    "core_components_interaction": {
+      "src/components/admin/EditLeagueSetting.tsx": "Componente Client che gestisce il form di modifica. Supporta input numerici, testuali e select dropdown.",
+      "src/lib/actions/league.actions.ts": "Contiene la Server Action `updateLeagueSettingAction` che valida e processa la richiesta.",
+      "src/lib/db/services/auction-league.service.ts": "Contiene la funzione `updateLeagueSettingForParticipantsJoining` che esegue le query SQL in transazione.",
+      "src/app/admin/leagues/[leagueId]/dashboard/page.tsx": "Dashboard modificata per integrare le icone di modifica nelle card statistiche."
+    },
+    "database_interactions": [
+      {
+        "table": "auction_leagues",
+        "operation": "UPDATE",
+        "description": "Aggiorna il campo specificato (name, initial_budget_per_manager, timer_duration_minutes, league_type, slots_*)."
+      },
+      {
+        "table": "league_participants",
+        "operation": "UPDATE",
+        "description": "Se il budget cambia, aggiorna il current_budget di tutti i partecipanti."
+      },
+      {
+        "table": "budget_transactions",
+        "operation": "INSERT",
+        "description": "Registra una transazione 'admin_budget_increase' o 'admin_budget_decrease' per ogni partecipante."
+      }
+    ],
+    "technical_details": [
+      "Validazione: Il sistema verifica che la lega sia in stato 'participants_joining' prima di permettere modifiche.",
+      "Budget Sync: Quando il budget cambia, il sistema calcola la differenza (newBudget - oldBudget) e la applica a tutti i partecipanti.",
+      "Transazioni: Tutte le operazioni sono eseguite in una transazione SQL per garantire consistenza.",
+      "UI: Le icone di modifica sono visibili solo quando `status === 'participants_joining'`."
     ]
   }
 }
