@@ -484,19 +484,21 @@ export const abandonAuction = async (
 
   const transaction = await db.transaction("write");
   try {
-    // Trova asta attiva
+    // Trova asta attiva e durata timer dalla lega
     const auctionResult = await transaction.execute({
       sql: `
-      SELECT id, current_highest_bid_amount
-      FROM auctions
-      WHERE player_id = ? AND auction_league_id = ? AND status = 'active'
+      SELECT a.id, a.current_highest_bid_amount, al.timer_duration_minutes
+      FROM auctions a
+      JOIN auction_leagues al ON a.auction_league_id = al.id
+      WHERE a.player_id = ? AND a.auction_league_id = ? AND a.status = 'active'
     `,
       args: [playerId, leagueId],
     });
     const auction = auctionResult.rows[0]
       ? {
         id: auctionResult.rows[0].id as number,
-        current_highest_bid_amount: auctionResult.rows[0].current_highest_bid_amount as number
+        current_highest_bid_amount: auctionResult.rows[0].current_highest_bid_amount as number,
+        timer_duration_minutes: auctionResult.rows[0].timer_duration_minutes as number
       }
       : undefined;
 
@@ -532,6 +534,18 @@ export const abandonAuction = async (
     `,
       args: [now, timer.id],
     });
+
+    // Resetta il timer dell'asta alla durata configurata nella lega
+    const newScheduledEndTime = now + (auction.timer_duration_minutes * 60);
+    await transaction.execute({
+      sql: `
+      UPDATE auctions
+      SET scheduled_end_time = ?, updated_at = ?
+      WHERE id = ?
+    `,
+      args: [newScheduledEndTime, now, auction.id],
+    });
+    console.log(`[TIMER] Reset auction ${auction.id} timer to ${auction.timer_duration_minutes} minutes`);
 
     // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
     // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid

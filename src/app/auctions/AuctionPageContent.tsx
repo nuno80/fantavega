@@ -303,7 +303,17 @@ export function AuctionPageContent({
       newPrice: number;
       highestBidderId: string;
       scheduledEndTime: number;
+      action?: string; // Added to handle abandon events
     }) => {
+      // Se l'asta è stata abbandonata, ricarichiamo tutti i dati per aggiornare la UI
+      if (data.action === "abandoned") {
+        console.log("[SOCKET DEBUG] Auction abandoned, reloading data...");
+        fetchManagersData(selectedLeagueId);
+        fetchCurrentAuction(selectedLeagueId);
+        fetchUserAuctionStates(selectedLeagueId);
+        return;
+      }
+
       // Update currentAuction state locally (no refetch)
       setCurrentAuction((prev) => {
         if (prev && data.playerId === prev.player_id) {
