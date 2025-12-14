@@ -441,7 +441,19 @@ export const processUserComplianceAndPenalties = async (
             const refTime =
               complianceRecord.last_penalty_applied_for_hour_ending_at ||
               gracePeriodEndTime;
-            const hoursSince = Math.floor((now - refTime) / 3600);
+
+            // BUGFIX: Previously Math.floor((now - refTime) / 3600)
+            // This meant 0-59 mins after grace period = 0 penalties.
+            // We want 0-59 mins after grace period = 1 penalty (for that started hour).
+            // Logic:
+            // If now >= refTime, at least 1 penalty block has started.
+            // If it's the first penalty ever (last_penalty... is null), refTime is graceEnd.
+            //    now = graceEnd + 1s. diff = 1. floor(1/3600) = 0. We want 1.
+            // If it's subsequent (last_penalty... is graceEnd + 3600).
+            //    now = graceEnd + 3601s. refTime = graceEnd + 3600. diff = 1. We want 1 more.
+            // Formula: Math.floor((now - refTime) / 3600) + 1
+            const diffSeconds = now - refTime;
+            const hoursSince = diffSeconds >= 0 ? Math.floor(diffSeconds / 3600) + 1 : 0;
 
             // Calcola quante penalità possono essere applicate rispettando sia il limite del ciclo che il limite assoluto
             const remainingPenaltiesInCycle =
@@ -490,7 +502,10 @@ export const processUserComplianceAndPenalties = async (
               await tx.execute({
                 sql: "UPDATE user_league_compliance_status SET last_penalty_applied_for_hour_ending_at = ?, penalties_applied_this_cycle = penalties_applied_this_cycle + ?, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
                 args: [
-                  now,
+                  // New reference time: reset to the end of the covered period.
+                  // If we applied N penalties, we cover N hours from the OLD refTime.
+                  // refTime is what we calculated hoursSince from.
+                  refTime + (penaltiesToApply * 3600),
                   penaltiesToApply,
                   now,
                   leagueId,
