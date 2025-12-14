@@ -22,6 +22,7 @@ export interface Player {
   updated_at?: number;
   auction_status?: "no_auction" | "active_auction" | "assigned";
   current_bid?: number;
+  scheduled_end_time?: number; // Unix timestamp for auction end
 }
 
 export interface GetPlayersOptions {
@@ -129,12 +130,13 @@ export const getPlayers = async (
           ELSE 'no_auction'
         END as auction_status,
         (SELECT current_highest_bid_amount FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as current_bid,
+        (SELECT scheduled_end_time FROM auctions a WHERE a.player_id = p.id AND a.auction_league_id = ? AND a.status = 'active') as scheduled_end_time,
         COALESCE(upp.is_starter, p.is_starter) as computed_is_starter,
         COALESCE(upp.is_favorite, p.is_favorite) as computed_is_favorite,
         COALESCE(upp.integrity_value, p.integrity_value) as computed_integrity_value,
         COALESCE(upp.has_fmv, p.has_fmv) as computed_has_fmv
     `;
-    selectParams.push(leagueId, leagueId, leagueId);
+    selectParams.push(leagueId, leagueId, leagueId, leagueId);
   } else {
     selectClause = "SELECT p.*, 'no_auction' as auction_status, NULL as current_bid, p.is_starter as computed_is_starter, p.is_favorite as computed_is_favorite, p.integrity_value as computed_integrity_value, p.has_fmv as computed_has_fmv";
   }

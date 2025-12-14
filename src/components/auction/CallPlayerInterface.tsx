@@ -105,6 +105,7 @@ interface ApiPlayer {
   fvm_mantra?: number;
   auction_status?: "no_auction" | "active_auction" | "assigned";
   current_bid?: number;
+  scheduled_end_time?: number; // Unix timestamp for auction end
   // New fields from DB (computed aliases)
   computed_is_starter?: boolean | number;
   computed_is_favorite?: boolean | number;
@@ -224,6 +225,10 @@ export function CallPlayerInterface({
             auctionStatus: player.auction_status || ("no_auction" as const),
             // Map current_bid from API to currentBid in our interface
             currentBid: player.current_bid || 0,
+            // Calculate timeRemaining from scheduled_end_time
+            timeRemaining: player.scheduled_end_time
+              ? Math.max(0, player.scheduled_end_time - Math.floor(Date.now() / 1000))
+              : undefined,
             // Map preferences from DB columns
             isStarter: !!(player.computed_is_starter ?? player.is_starter),
             isFavorite: !!(player.computed_is_favorite ?? player.is_favorite),
