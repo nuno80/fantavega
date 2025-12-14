@@ -24,7 +24,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-
+import { getPlayerImageUrl } from "@/lib/utils";
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
@@ -225,15 +225,17 @@ export function PlayerSearchCard({
           {/* Player Avatar */}
           <div className="ml-2 flex flex-col items-center gap-1">
             <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted shadow-sm">
-              {player.photo_url ? (
-                <img
-                  src={player.photo_url}
-                  alt={player.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <User className="h-12 w-12 text-muted-foreground" />
-              )}
+              <img
+                src={getPlayerImageUrl(player.id, player.photo_url)}
+                alt={player.name}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Se l'immagine non si carica, mostra placeholder
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <User className="hidden h-12 w-12 text-muted-foreground" />
             </div>
           </div>
         </div>
