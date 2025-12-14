@@ -546,12 +546,14 @@ export async function addParticipantToLeague(
       );
 
     let userInDbResult = await db.execute({
-      sql: "SELECT id, role, username FROM users WHERE id = ?",
+      sql: "SELECT id, role, username, email FROM users WHERE id = ?",
       args: [participantUserId],
     });
     let userInDb = userInDbResult.rows[0] as unknown as
-      | { id: string; role: string; username?: string }
+      | { id: string; role: string; username?: string; email?: string }
       | undefined;
+
+    console.log(`[ADD_PARTICIPANT] Checking user ${participantUserId}:`, userInDb ? `Found (role: ${userInDb.role})` : 'Not found in DB');
 
     if (!userInDb) {
       console.log(
@@ -568,34 +570,64 @@ export async function addParticipantToLeague(
           )?.emailAddress;
           const clerkRole = (clerkUser.publicMetadata?.role as string) || "manager";
 
-          // Usa ON CONFLICT per gestire sia nuovi utenti che aggiornamenti
-          // Questo risolve il problema quando email/username già esistono con altro id
-          await db.execute({
-            sql: `INSERT INTO users (id, email, username, role, status)
-                  VALUES (?, ?, ?, ?, ?)
-                  ON CONFLICT(id) DO UPDATE SET
-                    email = excluded.email,
-                    username = excluded.username,
-                    role = excluded.role,
-                    updated_at = strftime('%s', 'now')`,
-            args: [
-              clerkUser.id,
-              primaryEmail || `${clerkUser.id}@noemail.local`,
-              clerkUser.username || clerkUser.id,
-              clerkRole,
-              "active",
-            ],
-          });
+          console.log(`[SYNC] Clerk user found: ${clerkUser.id}, email: ${primaryEmail}, role from metadata: ${clerkRole}`);
+
+          // Genera email e username unici se necessario per evitare conflitti UNIQUE
+          const safeEmail = primaryEmail || `${clerkUser.id}@clerk.local`;
+          const safeUsername = clerkUser.username || `user_${clerkUser.id.slice(-8)}`;
+
+          try {
+            // Prima prova INSERT normale
+            await db.execute({
+              sql: `INSERT INTO users (id, email, username, role, status)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                      email = excluded.email,
+                      username = excluded.username,
+                      role = excluded.role,
+                      updated_at = strftime('%s', 'now')`,
+              args: [
+                clerkUser.id,
+                safeEmail,
+                safeUsername,
+                clerkRole,
+                "active",
+              ],
+            });
+          } catch (insertError) {
+            // Se fallisce per UNIQUE constraint su email/username, prova con valori alternativi
+            console.warn(`[SYNC] First insert attempt failed, trying with unique identifiers:`, insertError);
+            const uniqueEmail = `${clerkUser.id}@clerk.local`;
+            const uniqueUsername = `clerk_${clerkUser.id.slice(-12)}`;
+
+            await db.execute({
+              sql: `INSERT INTO users (id, email, username, role, status)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                      role = excluded.role,
+                      updated_at = strftime('%s', 'now')`,
+              args: [
+                clerkUser.id,
+                uniqueEmail,
+                uniqueUsername,
+                clerkRole,
+                "active",
+              ],
+            });
+          }
+
           console.log(
             `[SYNC] Utente ${clerkUser.id} sincronizzato con successo nel DB locale (role: ${clerkRole}).`
           );
           userInDbResult = await db.execute({
-            sql: "SELECT id, role, username FROM users WHERE id = ?",
+            sql: "SELECT id, role, username, email FROM users WHERE id = ?",
             args: [participantUserId],
           });
           userInDb = userInDbResult.rows[0] as unknown as
-            | { id: string; role: string; username?: string }
+            | { id: string; role: string; username?: string; email?: string }
             | undefined;
+
+          console.log(`[SYNC] User after sync:`, userInDb);
         } else {
           throw new Error(
             `Utente con ID ${participantUserId} non trovato su Clerk.`
@@ -603,23 +635,28 @@ export async function addParticipantToLeague(
         }
       } catch (clerkError) {
         console.error(
-          `[SYNC] Errore durante il fetch da Clerk per l'utente ${participantUserId}:`,
+          `[SYNC] Errore durante il fetch/sync da Clerk per l'utente ${participantUserId}:`,
           clerkError
         );
         throw new Error(
-          `Impossibile verificare l'utente ${participantUserId} su Clerk.`
+          `Impossibile sincronizzare l'utente ${participantUserId}: ${clerkError instanceof Error ? clerkError.message : 'Errore sconosciuto'}`
         );
       }
     }
 
-    if (!userInDb)
+    if (!userInDb) {
+      console.error(`[ADD_PARTICIPANT] User ${participantUserId} still not found after sync attempt`);
       throw new Error(
-        `Sincronizzazione fallita per l'utente ${participantUserId}.`
+        `Sincronizzazione fallita per l'utente ${participantUserId}. Verifica i log del server.`
       );
-    if (userInDb.role !== "manager")
+    }
+
+    // Permetti sia manager che admin di essere partecipanti
+    if (userInDb.role !== "manager" && userInDb.role !== "admin") {
       throw new Error(
-        `L'utente ${userInDb.username || userInDb.id} non è un 'manager'.`
+        `L'utente ${userInDb.username || userInDb.id} ha un ruolo non valido: '${userInDb.role}'.`
       );
+    }
 
     const existingParticipantResult = await db.execute({
       sql: "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?",
