@@ -133,7 +133,7 @@ export function AddParticipantForm({
           Aggiungi Partecipante
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Aggiungi un nuovo manager</DialogTitle>
           <DialogDescription>
