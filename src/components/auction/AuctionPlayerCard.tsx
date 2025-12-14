@@ -66,7 +66,7 @@ export function AuctionPlayerCard({
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               {(playerImage || playerId) && (
                 <img
-                  src={playerImage || getPlayerImageUrl(playerId)}
+                  src={getPlayerImageUrl(playerId, playerImage, playerName, playerTeam)}
                   alt={playerName}
                   className="h-full w-full object-cover"
                   onError={(e) => {

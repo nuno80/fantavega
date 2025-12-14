@@ -130,7 +130,9 @@ export function AuctionRealtimeDisplay({
               <img
                 src={getPlayerImageUrl(
                   auctionData.player?.id,
-                  auctionData.player?.photo_url
+                  auctionData.player?.photo_url,
+                  auctionData.player_name || "",
+                  auctionData.player?.team || ""
                 )}
                 alt={auctionData.player_name || "Player"}
                 className="h-full w-full object-cover"

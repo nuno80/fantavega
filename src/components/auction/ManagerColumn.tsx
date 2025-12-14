@@ -233,7 +233,7 @@ function AssignedSlot({
           <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
             {(player.photo_url || player.id) && (
               <img
-                src={getPlayerImageUrl(player.id, player.photo_url)}
+                src={getPlayerImageUrl(player.id, player.photo_url, player.name, player.team)}
                 alt={player.name}
                 className="h-full w-full object-cover object-top"
                 style={{
@@ -406,7 +406,9 @@ function ResponseNeededSlot({
                 <img
                   src={getPlayerImageUrl(
                     state.player_id,
-                    state.player_photo_url
+                    state.player_photo_url,
+                    state.player_name,
+                    state.player_team
                   )}
                   alt={state.player_name}
                   className="h-9 w-9 flex-shrink-0 rounded-full object-cover object-top"
@@ -578,7 +580,9 @@ function InAuctionSlot({
             <img
               src={getPlayerImageUrl(
                 auction.player_id,
-                auction.player_photo_url
+                auction.player_photo_url,
+                auction.player_name,
+                auction.player_team
               )}
               alt={auction.player_name}
               className="h-full w-full object-cover object-top"

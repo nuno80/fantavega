@@ -24,7 +24,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { getTeamLogoUrl } from "@/lib/utils";
+import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
@@ -224,34 +224,45 @@ export function PlayerSearchCard({
 
           {/* Player Avatar */}
           <div className="ml-2 flex flex-col items-center gap-1">
-            <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted shadow-sm">
-              {player.photo_url ? (
+            <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted shadow-sm relative">
+              {(player.photo_url || player.id || player.name) && (
                 <img
-                  src={player.photo_url}
+                  src={getPlayerImageUrl(
+                    player.id,
+                    player.photo_url,
+                    player.name,
+                    player.team
+                  )}
                   alt={player.name}
                   className="h-full w-full object-cover"
                   onError={(e) => {
-                    // Se l'immagine non si carica, mostra il logo della squadra
-                    e.currentTarget.src = getTeamLogoUrl(player.team);
-                    e.currentTarget.onerror = () => {
-                      // Se anche il logo fallisce, nascondi l'immagine
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    };
-                  }}
-                />
-              ) : (
-                <img
-                  src={getTeamLogoUrl(player.team)}
-                  alt={player.team}
-                  className="h-20 w-20 object-contain"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    const target = e.currentTarget;
+                    const teamLogo = getTeamLogoUrl(player.team || "");
+                    if (teamLogo && target.src !== teamLogo) {
+                      target.src = teamLogo;
+                      target.className = "h-20 w-20 object-contain"; // Adjusted for logo size in this card
+                      target.onerror = () => {
+                        target.style.display = "none";
+                        target.parentElement
+                          ?.querySelector(".fallback-icon")
+                          ?.classList.remove("hidden");
+                      };
+                    } else {
+                      target.style.display = "none";
+                      target.parentElement
+                        ?.querySelector(".fallback-icon")
+                        ?.classList.remove("hidden");
+                    }
                   }}
                 />
               )}
-              <User className="hidden h-12 w-12 text-muted-foreground" />
+              <User className="fallback-icon hidden h-12 w-12 text-muted-foreground absolute" />
+              <div
+                className={`fallback-icon absolute flex h-full w-full items-center justify-center ${player.photo_url || player.id || player.name ? "hidden" : ""
+                  }`}
+              >
+                <User className="h-12 w-12 text-muted-foreground" />
+              </div>
             </div>
           </div>
         </div>

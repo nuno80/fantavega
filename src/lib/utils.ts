@@ -1,77 +1,83 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function getPlayerImageUrl(playerId: number | undefined, photoUrl?: string | null): string {
-  if (photoUrl && photoUrl.trim() !== "") return photoUrl;
-  if (!playerId) return "";
-  return `https://content.fantacalcio.it/web/cfa/calciatori/large/${playerId}.png`;
-}
-
-/**
- * Mappa dei nomi delle squadre ai loro ID per i loghi.
- * Usa i loghi placeholder gratuiti.
- */
 const TEAM_ID_MAP: Record<string, number> = {
-  // Serie A 2024-25 (IDs da API-Football)
-  "atalanta": 499,
-  "bologna": 500,
-  "cagliari": 490,
-  "como": 520,
-  "empoli": 511,
-  "fiorentina": 502,
-  "genoa": 495,
-  "inter": 505,
-  "juventus": 496,
-  "lazio": 487,
-  "lecce": 867,
-  "milan": 489,
-  "monza": 1579,
-  "napoli": 492,
-  "parma": 523,
-  "roma": 497,
-  "torino": 503,
-  "udinese": 494,
-  "venezia": 517,
-  "verona": 504,
-  // Varianti comuni
+  // Serie A 2024/25
+  atalanta: 499,
+  bologna: 500,
+  cagliari: 490,
+  como: 928,
+  cremonese: 520,
+  empoli: 511,
+  fiorentina: 502,
+  genoa: 495,
   "hellas verona": 504,
-  "hellas": 504,
-  "ac milan": 489,
-  "as roma": 497,
-  "fc inter": 505,
-  "internazionale": 505,
-  "juventus fc": 496,
-  "juve": 496,
-  "ssc napoli": 492,
-  "acf fiorentina": 502,
-  // Serie B comuni
-  "pisa": 522,
-  "sassuolo": 488,
-  "sampdoria": 498,
-  "spezia": 514,
-  "cremonese": 512,
-  "frosinone": 1343,
-  "salernitana": 519,
+  verona: 504,
+  inter: 505,
+  juventus: 496,
+  lazio: 487,
+  lecce: 867,
+  milan: 489,
+  monza: 1573,
+  napoli: 492,
+  parma: 523,
+  pisa: 506,
+  roma: 497,
+  sassuolo: 488,
+  torino: 503,
+  udinese: 494,
+  venezia: 517,
+  salernitana: 514,
+  spezia: 515,
+  frosinone: 512,
+  test_team: 0,
 };
 
-/**
- * Ritorna l'URL del logo della squadra.
- * Usa i loghi da media.api-sports.io (gratuiti per uso non commerciale).
- */
 export function getTeamLogoUrl(teamName: string): string {
+  if (!teamName) return "";
   const normalizedTeam = teamName.toLowerCase().trim();
   const teamId = TEAM_ID_MAP[normalizedTeam];
 
   if (teamId) {
-    // Usa loghi da API-Sports (funzionano senza API key per le immagini)
     return `https://media.api-sports.io/football/teams/${teamId}.png`;
   }
 
-  // Fallback: placeholder generico
+  return "";
+}
+
+export function getPlayerImageUrl(
+  playerId: number | undefined,
+  photoUrl?: string | null,
+  playerName?: string,
+  playerTeam?: string
+): string {
+  // 1. Priority: Local File System (if name/team provided)
+  if (playerName && playerTeam) {
+    const slugify = (text: string) =>
+      text
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+    const teamSlug = slugify(playerTeam);
+    const playerSlug = slugify(playerName);
+
+    // Note matches "public/seria_A" folder structure
+    return `/seria_A/${teamSlug}/${playerSlug}.webp`;
+  }
+
+  // 2. Priority: External URL from DB
+  if (photoUrl && photoUrl.trim() !== "") return photoUrl;
+
+  // 3. Fallback: Fantacalcio ID
+  if (playerId) {
+    return `https://content.fantacalcio.it/web/cfa/calciatori/large/${playerId}.png`;
+  }
+
   return "";
 }
