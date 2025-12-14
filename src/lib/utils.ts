@@ -87,10 +87,8 @@ export function getPlayerImageUrl(
   playerName?: string,
   playerTeam?: string
 ): string {
-  // 1. Priority: External URL from DB (Highest reliability if present)
-  if (photoUrl && photoUrl.trim() !== "") return photoUrl;
-
-  // 2. Priority: Local File System via Map (Fixes Name Mismatches)
+  // 1. Priority: Local File System via Map (Highest reliability for this project)
+  // We check this FIRST to override broken "fantacalcio.it" URLs in the DB
   if (playerName && playerTeam) {
     const slugify = (text: string) =>
       text
@@ -102,7 +100,7 @@ export function getPlayerImageUrl(
     const teamSlug = slugify(playerTeam);
     const playerSlug = slugify(playerName);
 
-    // Lookup in generated map (e.g. "atalanta/adopo" -> "michel-adopo.webp")
+    // Lookup in generated map
     const key = `${teamSlug}/${playerSlug}` as keyof typeof IMAGE_MAP;
     const mappedFilename = IMAGE_MAP[key];
 
@@ -111,7 +109,11 @@ export function getPlayerImageUrl(
     }
   }
 
-  // 3. Fallback: Fantacalcio ID (Likely 403, but kept for legacy)
+  // 2. Priority: External URL from DB
+  // Use this if we don't have a local match (e.g. manually added photo)
+  if (photoUrl && photoUrl.trim() !== "") return photoUrl;
+
+  // 3. Fallback: Fantacalcio ID (Likely blocked, but kept as last resort)
   if (playerId) {
     return getFantacalcioImageUrl(playerId);
   }
