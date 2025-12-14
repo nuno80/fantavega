@@ -229,7 +229,7 @@ export async function GET(
       | undefined;
 
     if (!auction) {
-      return NextResponse.json({ maxAmount: 0, isActive: false });
+      return NextResponse.json({ auto_bid: null });
     }
 
     const autoBidResult = await db.execute({
@@ -241,12 +241,14 @@ export async function GET(
       | undefined;
 
     if (!autoBid) {
-      return NextResponse.json({ maxAmount: 0, isActive: false });
+      return NextResponse.json({ auto_bid: null });
     }
 
     return NextResponse.json({
-      maxAmount: autoBid.max_amount,
-      isActive: Boolean(autoBid.is_active),
+      auto_bid: {
+        max_amount: autoBid.max_amount,
+        is_active: Boolean(autoBid.is_active),
+      },
     });
   } catch (error) {
     console.error("[API AUTO-BID GET] Error:", error);
