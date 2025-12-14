@@ -487,7 +487,7 @@ export const abandonAuction = async (
     // Trova asta attiva e durata timer dalla lega
     const auctionResult = await transaction.execute({
       sql: `
-      SELECT a.id, a.current_highest_bid_amount, al.timer_duration_minutes
+      SELECT a.id, a.current_highest_bid_amount, a.current_highest_bidder_id, al.timer_duration_minutes
       FROM auctions a
       JOIN auction_leagues al ON a.auction_league_id = al.id
       WHERE a.player_id = ? AND a.auction_league_id = ? AND a.status = 'active'
@@ -498,6 +498,7 @@ export const abandonAuction = async (
       ? {
         id: auctionResult.rows[0].id as number,
         current_highest_bid_amount: auctionResult.rows[0].current_highest_bid_amount as number,
+        current_highest_bidder_id: auctionResult.rows[0].current_highest_bidder_id as string,
         timer_duration_minutes: auctionResult.rows[0].timer_duration_minutes as number
       }
       : undefined;
@@ -611,7 +612,7 @@ export const abandonAuction = async (
 
     await transaction.commit();
 
-    // Notifica real-time usando auction-update per aggiornare la UI
+    // Notifica real-time con dati completi per aggiornare la UI immediatamente
     await notifySocketServer({
       event: "auction-update",
       room: `league-${leagueId}`,
@@ -620,6 +621,10 @@ export const abandonAuction = async (
         playerId,
         auctionId: auction.id,
         action: "abandoned",
+        // Include complete data for instant UI update
+        newPrice: auction.current_highest_bid_amount,
+        highestBidderId: auction.current_highest_bidder_id,
+        scheduledEndTime: newScheduledEndTime,
       },
     });
 

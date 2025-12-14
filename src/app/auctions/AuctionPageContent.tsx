@@ -305,11 +305,41 @@ export function AuctionPageContent({
       scheduledEndTime: number;
       action?: string; // Added to handle abandon events
     }) => {
-      // Se l'asta è stata abbandonata, ricarichiamo tutti i dati per aggiornare la UI
+      // Se l'asta è stata abbandonata, aggiorniamo immediatamente con i dati ricevuti
       if (data.action === "abandoned") {
-        console.log("[SOCKET DEBUG] Auction abandoned, reloading data...");
+        console.log("[SOCKET DEBUG] Auction abandoned, updating UI with complete data...");
+
+        // Aggiorna immediatamente lo stato locale con i dati ricevuti
+        if (data.newPrice !== undefined && data.highestBidderId && data.scheduledEndTime) {
+          setCurrentAuction((prev) => {
+            if (prev && data.playerId === prev.player_id) {
+              return {
+                ...prev,
+                current_highest_bid_amount: data.newPrice,
+                current_highest_bidder_id: data.highestBidderId,
+                scheduled_end_time: data.scheduledEndTime,
+              };
+            }
+            return prev;
+          });
+
+          setActiveAuctions((prevAuctions) =>
+            prevAuctions.map((auction) => {
+              if (auction.player_id === data.playerId) {
+                return {
+                  ...auction,
+                  current_highest_bid_amount: data.newPrice,
+                  current_highest_bidder_id: data.highestBidderId,
+                  scheduled_end_time: data.scheduledEndTime,
+                };
+              }
+              return auction;
+            })
+          );
+        }
+
+        // Poi ricarica i dati completi per sincronizzazione
         fetchManagersData(selectedLeagueId);
-        fetchCurrentAuction(selectedLeagueId);
         fetchUserAuctionStates(selectedLeagueId);
         return;
       }
