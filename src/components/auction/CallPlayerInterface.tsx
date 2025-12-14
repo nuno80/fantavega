@@ -661,7 +661,7 @@ export function CallPlayerInterface({
               {/* Auto-dropdown */}
               {isDropdownOpen && filteredPlayers.length > 0 && (
                 <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-border bg-card shadow-lg">
-                  {filteredPlayers.slice(0, 10).map((player) => (
+                  {filteredPlayers.map((player) => (
                     <div
                       key={player.id}
                       className="cursor-pointer border-b border-border px-3 py-2 text-foreground last:border-b-0 hover:bg-muted"
@@ -697,11 +697,7 @@ export function CallPlayerInterface({
                       </div>
                     </div>
                   ))}
-                  {filteredPlayers.length > 10 && (
-                    <div className="border-t border-gray-600 px-3 py-2 text-center text-sm text-gray-400">
-                      ... e altri {filteredPlayers.length - 10} giocatori
-                    </div>
-                  )}
+                  {/* Removed limit footer */}
                 </div>
               )}
             </div>
