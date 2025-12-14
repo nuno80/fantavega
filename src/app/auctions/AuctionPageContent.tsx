@@ -618,7 +618,7 @@ export function AuctionPageContent({
       </div>
 
       {/* Bottom Panel - Manager Columns (Horizontal Grid on Desktop, Vertical on Mobile) */}
-      <div className="scrollbar-hide flex flex-1 flex-col space-y-2 overflow-y-auto px-2 py-1 md:flex-row md:space-x-2 md:space-y-0 md:overflow-x-auto">
+      <div className="flex flex-1 flex-col space-y-2 overflow-y-auto px-2 py-1 md:flex-row md:space-x-2 md:space-y-0 md:overflow-x-auto">
         {managers.length > 0 ? (
           // Sort managers: Current user first, then others
           [...managers]
