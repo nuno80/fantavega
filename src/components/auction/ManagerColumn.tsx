@@ -1,6 +1,6 @@
 "use client";
 
-import { getPlayerImageUrl } from "@/lib/utils";
+import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
 import React, { memo, useEffect, useState } from "react";
 
 import {
@@ -230,21 +230,39 @@ function AssignedSlot({
       >
         <div className="flex min-w-0 items-center gap-2">
           {/* Player Photo */}
-          <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
-            {player.photo_url || player.id ? (
+          <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
+            {(player.photo_url || player.id) && (
               <img
                 src={getPlayerImageUrl(player.id, player.photo_url)}
                 alt={player.name}
                 className="h-full w-full object-cover object-top"
                 style={{
-                  objectPosition: '50% 15%' // Slightly adjusted top alignment
+                  objectPosition: "50% 15%",
+                }}
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const teamLogo = getTeamLogoUrl(player.team || "");
+                  if (teamLogo && target.src !== teamLogo) {
+                    target.src = teamLogo;
+                    target.style.objectPosition = "center";
+                    target.className = "h-full w-full object-contain p-1";
+                    target.onerror = () => {
+                      target.style.display = "none";
+                      target.nextElementSibling?.classList.remove("hidden");
+                    };
+                  } else {
+                    target.style.display = "none";
+                    target.nextElementSibling?.classList.remove("hidden");
+                  }
                 }}
               />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center">
-                <User className="h-5 w-5 text-muted-foreground" />
-              </div>
             )}
+            <div
+              className={`flex h-full w-full items-center justify-center ${player.photo_url || player.id ? "hidden" : ""
+                }`}
+            >
+              <User className="h-5 w-5 text-muted-foreground" />
+            </div>
           </div>
           <div
             className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
@@ -382,15 +400,38 @@ function ResponseNeededSlot({
           {/* Left side: Player info */}
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {/* Player Avatar */}
-            {state.player_photo_url || state.player_id ? (
-              <img
-                src={getPlayerImageUrl(state.player_id, state.player_photo_url)}
-                alt={state.player_name}
-                className="h-9 w-9 flex-shrink-0 rounded-full object-cover object-top"
+            {/* Player Avatar */}
+            <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-gray-700">
+              {(state.player_photo_url || state.player_id) && (
+                <img
+                  src={getPlayerImageUrl(
+                    state.player_id,
+                    state.player_photo_url
+                  )}
+                  alt={state.player_name}
+                  className="h-9 w-9 flex-shrink-0 rounded-full object-cover object-top"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const teamLogo = getTeamLogoUrl(state.player_team || "");
+                    if (teamLogo && target.src !== teamLogo) {
+                      target.src = teamLogo;
+                      target.className = "h-full w-full object-contain p-1";
+                      target.onerror = () => {
+                        target.style.display = "none";
+                        target.nextElementSibling?.classList.remove("hidden");
+                      };
+                    } else {
+                      target.style.display = "none";
+                      target.nextElementSibling?.classList.remove("hidden");
+                    }
+                  }}
+                />
+              )}
+              <div
+                className={`flex h-full w-full items-center justify-center ${state.player_photo_url || state.player_id ? "hidden" : ""
+                  }`}
               />
-            ) : (
-              <div className="h-9 w-9 flex-shrink-0 rounded-full bg-gray-700" />
-            )}
+            </div>
 
             {/* Player name and timer */}
             <div className="flex min-w-0 flex-1 flex-col">
@@ -532,21 +573,42 @@ function InAuctionSlot({
       )}
 
       <div className="flex min-w-0 items-center gap-2">
-        <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
-          {auction.player_photo_url || auction.player_id ? (
+        <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
+          {(auction.player_photo_url || auction.player_id) && (
             <img
-              src={getPlayerImageUrl(auction.player_id, auction.player_photo_url)}
+              src={getPlayerImageUrl(
+                auction.player_id,
+                auction.player_photo_url
+              )}
               alt={auction.player_name}
               className="h-full w-full object-cover object-top"
               style={{
-                objectPosition: '50% 15%'
+                objectPosition: "50% 15%",
+              }}
+              onError={(e) => {
+                const target = e.currentTarget;
+                const teamLogo = getTeamLogoUrl(auction.player_team || "");
+                if (teamLogo && target.src !== teamLogo) {
+                  target.src = teamLogo;
+                  target.style.objectPosition = "center";
+                  target.className = "h-full w-full object-contain p-1";
+                  target.onerror = () => {
+                    target.style.display = "none";
+                    target.nextElementSibling?.classList.remove("hidden");
+                  };
+                } else {
+                  target.style.display = "none";
+                  target.nextElementSibling?.classList.remove("hidden");
+                }
               }}
             />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <User className="h-5 w-5 text-muted-foreground" />
-            </div>
           )}
+          <div
+            className={`flex h-full w-full items-center justify-center ${auction.player_photo_url || auction.player_id ? "hidden" : ""
+              }`}
+          >
+            <User className="h-5 w-5 text-muted-foreground" />
+          </div>
         </div>
         <div
           className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}

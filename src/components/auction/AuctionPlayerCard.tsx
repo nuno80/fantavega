@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getPlayerImageUrl } from "@/lib/utils";
+import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
 
 interface AuctionPlayerCardProps {
   playerName: string;
@@ -64,17 +64,34 @@ export function AuctionPlayerCard({
           {/* Player Image */}
           <div className="relative">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-              {playerImage || playerId ? (
+              {(playerImage || playerId) && (
                 <img
                   src={playerImage || getPlayerImageUrl(playerId)}
                   alt={playerName}
                   className="h-full w-full object-cover"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const teamLogo = getTeamLogoUrl(playerTeam || "");
+                    if (teamLogo && target.src !== teamLogo) {
+                      target.src = teamLogo;
+                      target.className = "h-full w-full object-contain p-2";
+                      target.onerror = () => {
+                        target.style.display = "none";
+                        target.nextElementSibling?.classList.remove("hidden");
+                      };
+                    } else {
+                      target.style.display = "none";
+                      target.nextElementSibling?.classList.remove("hidden");
+                    }
+                  }}
                 />
-              ) : (
-                <span className="text-2xl font-bold text-gray-500">
-                  {playerName?.charAt(0) || "?"}
-                </span>
               )}
+              <div
+                className={`flex h-full w-full items-center justify-center bg-muted text-2xl font-bold text-gray-500 ${playerImage || playerId ? "hidden" : ""
+                  }`}
+              >
+                {playerName?.charAt(0) || "?"}
+              </div>
             </div>
             {/* Role Badge */}
             <Badge

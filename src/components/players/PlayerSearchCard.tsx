@@ -24,7 +24,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
+import { getTeamLogoUrl } from "@/lib/utils";
 interface PlayerSearchCardProps {
   player: PlayerWithAuctionStatus;
   onBidOnPlayer: (player: PlayerWithAuctionStatus) => void;
@@ -225,20 +225,32 @@ export function PlayerSearchCard({
           {/* Player Avatar */}
           <div className="ml-2 flex flex-col items-center gap-1">
             <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted shadow-sm">
-              <img
-                src={getPlayerImageUrl(player.id, player.photo_url)}
-                alt={player.name}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  // Se l'immagine del giocatore non si carica, mostra il logo della squadra
-                  e.currentTarget.src = getTeamLogoUrl(player.team);
-                  e.currentTarget.onerror = () => {
-                    // Se anche il logo della squadra fallisce, mostra icona generica
+              {player.photo_url ? (
+                <img
+                  src={player.photo_url}
+                  alt={player.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    // Se l'immagine non si carica, mostra il logo della squadra
+                    e.currentTarget.src = getTeamLogoUrl(player.team);
+                    e.currentTarget.onerror = () => {
+                      // Se anche il logo fallisce, nascondi l'immagine
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    };
+                  }}
+                />
+              ) : (
+                <img
+                  src={getTeamLogoUrl(player.team)}
+                  alt={player.team}
+                  className="h-20 w-20 object-contain"
+                  onError={(e) => {
                     e.currentTarget.style.display = 'none';
                     e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                  };
-                }}
-              />
+                  }}
+                />
+              )}
               <User className="hidden h-12 w-12 text-muted-foreground" />
             </div>
           </div>

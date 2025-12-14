@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { useSocket } from "@/contexts/SocketContext";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
-import { getPlayerImageUrl } from "@/lib/utils";
+import { getPlayerImageUrl, getTeamLogoUrl } from "@/lib/utils";
 import { toast } from "sonner";
 
 // src/components/auction/AuctionRealtimeDisplay.tsx v.2.0
@@ -125,13 +125,36 @@ export function AuctionRealtimeDisplay({
     <div className="rounded-xl border bg-card p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-card/80 dark:backdrop-blur-sm">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          {auctionData.player?.photo_url ? (
-            <div className="h-40 w-40 overflow-hidden rounded-full border-4 border-primary/20 shadow-lg">
+          {auctionData.player?.photo_url || auctionData.player?.id ? (
+            <div className="relative h-40 w-40 overflow-hidden rounded-full border-4 border-primary/20 shadow-lg bg-muted">
               <img
-                src={getPlayerImageUrl(auctionData.player?.id, auctionData.player?.photo_url)}
+                src={getPlayerImageUrl(
+                  auctionData.player?.id,
+                  auctionData.player?.photo_url
+                )}
                 alt={auctionData.player_name || "Player"}
                 className="h-full w-full object-cover"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const teamLogo = getTeamLogoUrl(
+                    auctionData.player?.team || ""
+                  );
+                  if (teamLogo && target.src !== teamLogo) {
+                    target.src = teamLogo;
+                    target.className = "h-full w-full object-contain p-4";
+                    target.onerror = () => {
+                      target.style.display = "none";
+                      target.nextElementSibling?.classList.remove("hidden");
+                    };
+                  } else {
+                    target.style.display = "none";
+                    target.nextElementSibling?.classList.remove("hidden");
+                  }
+                }}
               />
+              <div className="hidden absolute inset-0 flex items-center justify-center">
+                <span className="text-6xl">⚽</span>
+              </div>
             </div>
           ) : (
             <div className="flex h-40 w-40 items-center justify-center rounded-full bg-muted border-4 border-muted-foreground/10">

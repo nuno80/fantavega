@@ -13,59 +13,65 @@ export function getPlayerImageUrl(playerId: number | undefined, photoUrl?: strin
 }
 
 /**
- * Mappa dei nomi delle squadre ai loro ID su Lega Serie A per i loghi.
- * URL pattern: https://img.legaseriea.it/vimages/64df7bcf/[NOME_SQUADRA].png
+ * Mappa dei nomi delle squadre ai loro ID per i loghi.
+ * Usa i loghi placeholder gratuiti.
  */
-const TEAM_LOGO_MAP: Record<string, string> = {
-  // Serie A 2024-25
-  "atalanta": "atalanta",
-  "bologna": "bologna",
-  "cagliari": "cagliari",
-  "como": "como",
-  "empoli": "empoli",
-  "fiorentina": "fiorentina",
-  "genoa": "genoa",
-  "inter": "inter",
-  "juventus": "juventus",
-  "lazio": "lazio",
-  "lecce": "lecce",
-  "milan": "milan",
-  "monza": "monza",
-  "napoli": "napoli",
-  "parma": "parma",
-  "roma": "roma",
-  "torino": "torino",
-  "udinese": "udinese",
-  "venezia": "venezia",
-  "verona": "verona",
+const TEAM_ID_MAP: Record<string, number> = {
+  // Serie A 2024-25 (IDs da API-Football)
+  "atalanta": 499,
+  "bologna": 500,
+  "cagliari": 490,
+  "como": 520,
+  "empoli": 511,
+  "fiorentina": 502,
+  "genoa": 495,
+  "inter": 505,
+  "juventus": 496,
+  "lazio": 487,
+  "lecce": 867,
+  "milan": 489,
+  "monza": 1579,
+  "napoli": 492,
+  "parma": 523,
+  "roma": 497,
+  "torino": 503,
+  "udinese": 494,
+  "venezia": 517,
+  "verona": 504,
   // Varianti comuni
-  "hellas verona": "verona",
-  "hellas": "verona",
-  "ac milan": "milan",
-  "as roma": "roma",
-  "fc inter": "inter",
-  "internazionale": "inter",
-  "juventus fc": "juventus",
-  "juve": "juventus",
-  "ssc napoli": "napoli",
-  "acf fiorentina": "fiorentina",
-  "pisa": "pisa",
-  "sassuolo": "sassuolo",
-  "sampdoria": "sampdoria",
-  "spezia": "spezia",
-  "cremonese": "cremonese",
-  "frosinone": "frosinone",
-  "salernitana": "salernitana",
+  "hellas verona": 504,
+  "hellas": 504,
+  "ac milan": 489,
+  "as roma": 497,
+  "fc inter": 505,
+  "internazionale": 505,
+  "juventus fc": 496,
+  "juve": 496,
+  "ssc napoli": 492,
+  "acf fiorentina": 502,
+  // Serie B comuni
+  "pisa": 522,
+  "sassuolo": 488,
+  "sampdoria": 498,
+  "spezia": 514,
+  "cremonese": 512,
+  "frosinone": 1343,
+  "salernitana": 519,
 };
 
 /**
  * Ritorna l'URL del logo della squadra.
- * Usa i loghi dalla Lega Serie A.
+ * Usa i loghi da media.api-sports.io (gratuiti per uso non commerciale).
  */
 export function getTeamLogoUrl(teamName: string): string {
   const normalizedTeam = teamName.toLowerCase().trim();
-  const mappedTeam = TEAM_LOGO_MAP[normalizedTeam] || normalizedTeam.replace(/\s+/g, "-");
+  const teamId = TEAM_ID_MAP[normalizedTeam];
 
-  // Usa i loghi da Lega Serie A (formato 64x64)
-  return `https://img.legaseriea.it/vimages/64df7bcf/${mappedTeam}.png`;
+  if (teamId) {
+    // Usa loghi da API-Sports (funzionano senza API key per le immagini)
+    return `https://media.api-sports.io/football/teams/${teamId}.png`;
+  }
+
+  // Fallback: placeholder generico
+  return "";
 }
