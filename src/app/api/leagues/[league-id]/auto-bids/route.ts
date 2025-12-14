@@ -37,26 +37,25 @@ export async function GET(
       );
     }
 
-    // Restituisce tutti gli auto-bid attivi della lega (di tutti i manager)
+    // Restituisce SOLO gli auto-bid dell'utente corrente per privacy
+    // Gli altri utenti non devono vedere gli importi degli auto-bid altrui
     const autoBidsResult = await db.execute({
       sql: `
         SELECT
-          ab.player_id,
+          a.player_id,
           ab.max_amount,
-          ab.is_active,
-          ab.user_id
+          ab.is_active
         FROM auto_bids ab
         JOIN auctions a ON ab.auction_id = a.id
-        WHERE a.auction_league_id = ? AND ab.is_active = TRUE
+        WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
       `,
-      args: [leagueId],
+      args: [leagueId, user.id],
     });
 
     const autoBids = autoBidsResult.rows.map((row) => ({
       player_id: row.player_id as number,
       max_amount: row.max_amount as number,
       is_active: Boolean(row.is_active),
-      user_id: row.user_id as string,
     }));
 
     return NextResponse.json({ autoBids }, { status: 200 });
