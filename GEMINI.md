@@ -127,21 +127,16 @@ Fantavega is a fantasy football (soccer) auction system built with Next.js 15, T
 
 ## 1. prima di iniziare a scrivere codice, in caso di dubbi o possibilità multiple di sviluppo, fai domande chiare e solo dopo avere le risposte inizia la modifica del codice
 
-## 2. Aggiorna i File di Stato\*\*: Una volta superati i controlli, genera e fornisci INSIEME, in un unico messaggio, le versioni aggiornate dei seguenti tre file JSON
+## 2. Riferimenti Tecnici del Progetto
 
-- **`tasks.json`**: Aggiorna lo stato del sub-task/task completato da "pending" a "completed".
-- **`logica-app.json`**: Aggiorna o crea questo file per documentare la logica implementata.
-
-## 3. Riferimenti Tecnici del Progetto
-
-### 3.1. Panoramica del Progetto
+### 2.1. Panoramica del Progetto
 
 Fantavega è un sistema di asta per fantacalcio basato su Next.js 15. Gestisce leghe di fantacalcio attraverso aste competitive con offerte in tempo reale, gestione budget, sistemi di penalità automatici e amministrazione della lega.
 
 **Nome Progetto**: Fantavega - Fantacalcio Auction System
 **Obiettivo Progetto**: Sviluppare una piattaforma d'asta per il fantacalcio con gestione di leghe/stagioni, aste per singoli giocatori con timer e reset, offerte manuali/quick, gestione budget per manager, e funzionalità di riparazione.
 
-### 3.2. Stack Tecnologico
+### 2.2. Stack Tecnologico
 
 - **Frontend**: Next.js 15 (App Router), React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes (TypeScript)
@@ -154,19 +149,9 @@ Fantavega è un sistema di asta per fantacalcio basato su Next.js 15. Gestisce l
 - **Sviluppo**: Docker & Docker Compose (Node 20 Slim/Debian)
 - **Excel Parsing**: xlsx (SheetJS)
 
-### 3.3. Comandi Utili
 
-- `pnpm run dev`: Avvia il server di sviluppo.
-- `pnpm run build`: Crea la build di produzione.
-- `pnpm run test`: Esegue la suite di test.
-- `pnpm run test:watch`: Esegue i test in modalità "watch".
-- `pnpm run db:migrate`: Applica lo schema completo del database.
-- `pnpm run db:reset`: Resetta il database da un backup.
-- `pnpm run db:seed`: Popola il database con dati di test.
-- `pnpm run db:backup`: Crea un backup manuale.
-- `pnpm run db:apply-changes`: Esegue modifiche SQL ad-hoc.
 
-### 3.4. Struttura Directory Chiave
+### 2.3. Struttura Directory Chiave
 
 - `src/app/`: Pagine e API routes (App Router).
 - `src/lib/db/services/`: Logica di business (servizi per asta, offerte, budget).
@@ -197,7 +182,7 @@ Fantavega è un sistema di asta per fantacalcio basato su Next.js 15. Gestisce l
 - `src/app/api/admin/leagues/[league-id]/rosters/export/csv/route.ts`: Route API specifica per l'esportazione CSV delle rose di una lega.
 - `src/app/api/leagues/[league-id]/check-compliance/route.ts`: Route API per triggerare il controllo di conformità per le penalità.
 
-### 3.5. Gestione Database
+### 2.4. Gestione Database
 
 - **Schema**: Definito in `database/schema.sql`.
 - **Migrazioni**: Applicare lo schema completo con `pnpm run db:migrate`.
@@ -216,7 +201,7 @@ Fantavega è un sistema di asta per fantacalcio basato su Next.js 15. Gestisce l
 - `budget_transactions`: Log delle modifiche al `current_budget`.
 - `user_league_compliance_status`: Traccia lo stato di conformità dell'utente ai requisiti di rosa per lega/fase.
 
-### 3.6. Logica di Dominio e Flussi
+### 2.5. Logica di Dominio e Flussi
 
 **Sistema di Notifiche e Aggiornamenti in Tempo Reale**:
 
