@@ -700,6 +700,7 @@ export function AuctionPageContent({
                     onPenaltyApplied={() => selectedLeagueId && fetchComplianceData(selectedLeagueId)}
                     onPlayerDiscarded={() => selectedLeagueId && fetchManagersData(selectedLeagueId)}
                     onOpenBidModal={handleOpenBidModal}
+                    currentUserId={userId}
                   />
                 </div>
               );

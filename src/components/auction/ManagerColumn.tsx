@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CheckCircle,
   DollarSign,
+  Gavel,
   Info,
   Lock,
   Star,
@@ -138,6 +139,7 @@ interface ManagerColumnProps {
   onPenaltyApplied?: () => void; // Callback for when penalty is applied
   onPlayerDiscarded?: () => void; // Callback for when player is discarded
   onOpenBidModal?: (playerId: number) => void; // Callback to open bid modal
+  currentUserId?: string; // Current user ID for bid icon visibility
 }
 
 // Helper functions
@@ -544,12 +546,16 @@ function InAuctionSlot({
   isLast,
   isCurrentUser,
   leagueId,
+  currentUserId,
+  onOpenBidModal,
 }: {
   auction: ActiveAuction;
   role: string;
   isLast: boolean;
   isCurrentUser: boolean;
   leagueId?: number;
+  currentUserId?: string;
+  onOpenBidModal?: (playerId: number) => void;
 }) {
   const [playerAutoBid, setPlayerAutoBid] = useState<{
     max_amount: number;
@@ -667,6 +673,16 @@ function InAuctionSlot({
           className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
         />
         <span className="truncate text-xs font-medium">{auction.player_name}</span>
+        {/* Quick bid icon - visible only to users who are NOT the highest bidder */}
+        {onOpenBidModal && currentUserId && auction.current_highest_bidder_id !== currentUserId && (
+          <button
+            onClick={() => onOpenBidModal(auction.player_id)}
+            className="ml-1 rounded p-0.5 transition-colors hover:bg-green-600/20"
+            title={`Rilancia su ${auction.player_name}`}
+          >
+            <Gavel className="h-3.5 w-3.5 text-green-400 hover:text-green-300" />
+          </button>
+        )}
       </div>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1">
@@ -717,6 +733,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   onPenaltyApplied,
   onPlayerDiscarded,
   onOpenBidModal,
+  currentUserId,
 }) => {
 
 
@@ -1189,6 +1206,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       isLast={isLast}
                       isCurrentUser={isCurrentUser}
                       leagueId={leagueId}
+                      currentUserId={currentUserId}
+                      onOpenBidModal={onOpenBidModal}
                     />
                   );
                 } else {
