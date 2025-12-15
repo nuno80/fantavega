@@ -1461,7 +1461,7 @@ export const getLeagueManagersWithRosters = async (
     const roster = await getManagerRoster(leagueId, p.user_id);
     // Get total penalties
     const penaltiesResult = await db.execute({
-      sql: "SELECT COALESCE(SUM(amount), 0) as total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty'",
+      sql: "SELECT COALESCE(SUM(amount), 0) as total FROM budget_transactions WHERE auction_league_id = ? AND user_id = ? AND transaction_type = 'penalty_requirement'",
       args: [leagueId, p.user_id],
     });
     const totalPenalties = penaltiesResult.rows[0]?.total as number || 0;
