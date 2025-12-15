@@ -81,14 +81,19 @@ async function main() {
   await client.execute({ sql: 'DELETE FROM user_league_compliance_status WHERE league_id = ?', args: [leagueId] });
   console.log('   ✅ Stati compliance eliminati');
 
-  // 4. Reset budget dei partecipanti (nota: usa league_id, non auction_league_id)
+  // 4. Reset budget E contatori giocatori dei partecipanti (nota: usa league_id, non auction_league_id)
   await client.execute({
     sql: `UPDATE league_participants
-          SET current_budget = ?, locked_credits = 0
+          SET current_budget = ?,
+              locked_credits = 0,
+              players_P_acquired = 0,
+              players_D_acquired = 0,
+              players_C_acquired = 0,
+              players_A_acquired = 0
           WHERE league_id = ?`,
     args: [league.initial_budget_per_manager, leagueId]
   });
-  console.log('   ✅ Budget partecipanti resettato');
+  console.log('   ✅ Budget e contatori giocatori partecipanti resettati');
 
   console.log('\n✨ Reset completato con successo!\n');
 
