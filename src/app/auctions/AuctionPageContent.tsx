@@ -11,6 +11,7 @@ import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/Man
 // import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
+import { useInactivityRedirect } from "@/hooks/useInactivityRedirect";
 import { useLeague } from "@/hooks/useLeague";
 
 // Dynamic import per lazy loading del modale - riduce il bundle iniziale
@@ -80,6 +81,9 @@ export function AuctionPageContent({
   const { socket, isConnected } = useSocket();
   const isMobile = useMobile();
   const { selectedLeagueId, switchToLeague } = useLeague();
+
+  // Redirect to home after 30 seconds of inactivity
+  useInactivityRedirect({ timeoutSeconds: 30 });
 
   // Initialize state with props if available, otherwise default
   const [managers, setManagers] = useState<ManagerWithRoster[]>(initialManagers || []);

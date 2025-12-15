@@ -11,6 +11,7 @@ import { PlayerSearchBar } from "@/components/players/PlayerSearchBar";
 import { PlayerSearchResults } from "@/components/players/PlayerSearchResults";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/contexts/SocketContext";
+import { useInactivityRedirect } from "@/hooks/useInactivityRedirect";
 
 // Dynamic import per lazy loading del modale
 const QuickBidModal = dynamic(
@@ -97,6 +98,9 @@ export function PlayerSearchInterface({
   userId,
   userRole,
 }: PlayerSearchInterfaceProps) {
+  // Redirect to home after 30 seconds of inactivity
+  useInactivityRedirect({ timeoutSeconds: 30 });
+
   const [players, setPlayers] = useState<PlayerWithAuctionStatus[]>([]);
   // filteredPlayers is no longer needed as players will contain only the filtered page
   const [isLoading, setIsLoading] = useState(true);
