@@ -105,6 +105,8 @@ Il sistema di compliance è ora **event-driven**. Non si basa più su uno schedu
 
 **Trigger Points per il Controllo Compliance e Applicazione Penalità:**
 
+> ⚠️ **IMPORTANTE**: Il sistema di compliance funziona solo per utenti che hanno effettuato almeno un login. Questo è un comportamento voluto per evitare penalità a utenti che non hanno mai interagito con l'applicazione. Al primo login, viene creato un record nella tabella `user_sessions` che abilita il monitoraggio della compliance.
+
 1. **Qualsiasi Interazione Rilevante**: Azioni come il login, il piazzare un'offerta, o qualsiasi evento che invochi la funzione `checkAndRecordCompliance`.
 2. **Controllo Automatico**: Ad ogni chiamata, la funzione `checkAndRecordCompliance` esegue i seguenti passi:
    - Verifica lo stato di compliance attuale dell'utente.

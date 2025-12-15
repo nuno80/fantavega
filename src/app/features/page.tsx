@@ -83,6 +83,30 @@ export default function FeaturesPage() {
           {/* PENALTIES SECTION */}
           <TabsContent value="penalties" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
+              {/* First Login Card */}
+              <Card className="h-full border-green-200 dark:border-green-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-green-500" />
+                    Primo Accesso
+                  </CardTitle>
+                  <CardDescription>
+                    Tempo per costruire il tuo team.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p>
+                    Al <strong>primo login</strong>, il sistema di penalità <strong>non è attivo</strong>. Questo ti permette di costruire la tua rosa con calma, senza la pressione del timer.
+                  </p>
+                  <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-sm">
+                    <strong>⏱️ Logout Automatico:</strong>
+                    <br />
+                    Dopo <strong>30 secondi di inattività</strong>, verrai automaticamente disconnesso. Al successivo login, il sistema di compliance si attiverà.
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Compliance Rules Card */}
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -90,12 +114,12 @@ export default function FeaturesPage() {
                     Regole di Conformità
                   </CardTitle>
                   <CardDescription>
-                    Mantenere una rosa valida è fondamentale.
+                    Dal secondo login in poi.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p>
-                    Il sistema verifica costantemente che tu abbia almeno <strong>N-1 giocatori</strong> per ogni ruolo, dove N è il numero di slot previsti dalla lega.
+                    Dal <strong>secondo login</strong>, il sistema verifica che tu abbia almeno <strong>N-1 giocatori</strong> per ogni ruolo attivo.
                   </p>
                   <div className="space-y-2 text-sm text-muted-foreground">
                     <p>La verifica scatta automaticamente quando:</p>
@@ -108,7 +132,8 @@ export default function FeaturesPage() {
                 </CardContent>
               </Card>
 
-              <Card className="h-full">
+              {/* Penalty Application Card */}
+              <Card className="h-full md:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
@@ -118,22 +143,22 @@ export default function FeaturesPage() {
                     Tempi e costi delle infrazioni.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4">
+                <CardContent>
+                  <div className="grid gap-6 md:grid-cols-3">
                     <div className="space-y-2">
-                      <h4 className="font-semibold text-sm">Periodo di Grazia</h4>
+                      <h4 className="font-semibold text-sm">⏳ Periodo di Grazia</h4>
                       <p className="text-sm text-muted-foreground">
                         Hai <strong>1 ora</strong> di tempo per rimediare (acquistando o vincendo un&apos;asta) dal momento in cui diventi non conforme.
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <h4 className="font-semibold text-sm">Costo</h4>
+                      <h4 className="font-semibold text-sm">💰 Costo</h4>
                       <p className="text-sm text-muted-foreground">
                         Se il timer scade, paghi <strong>5 crediti</strong> di penalità. Il ciclo si ripete ogni ora finché non torni conforme.
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <h4 className="font-semibold text-sm">Limite</h4>
+                      <h4 className="font-semibold text-sm">🛑 Limite</h4>
                       <p className="text-sm text-muted-foreground">
                         Massimo <strong>5 penalità</strong> (25 crediti) per ciclo di non-conformità.
                       </p>
