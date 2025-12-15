@@ -306,7 +306,10 @@ interface ExpiredAuctionData {
 }
 
 // 3. Funzione Helper Interna per Controllo Slot e Budget (ASYNC)
+// MODIFICA v3.1: Aggiunta validazione che riserva 1 credito per ogni slot vuoto rimanente
+// MODIFICA v3.2: Aggiunto parametro txClient per garantire isolamento transazionale
 const checkSlotsAndBudgetOrThrow = async (
+  txClient: { execute: typeof db.execute }, // Accetta sia db che una transazione
   league: LeagueForBidding,
   player: PlayerForBidding,
   participant: ParticipantForBidding,
@@ -315,15 +318,73 @@ const checkSlotsAndBudgetOrThrow = async (
   isNewAuctionAttempt: boolean,
   currentAuctionTargetPlayerId?: number
 ) => {
-  const availableBudget =
-    participant.current_budget - participant.locked_credits;
+  // 1. Calcola slot massimi totali dalla configurazione della lega
+  const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
+
+  // 2. Calcola giocatori già acquisiti (dai campi del participant)
+  const totalAcquired =
+    (participant.players_P_acquired || 0) +
+    (participant.players_D_acquired || 0) +
+    (participant.players_C_acquired || 0) +
+    (participant.players_A_acquired || 0);
+
+  // 3. Calcola offerte vincenti attive (aste dove l'utente è miglior offerente) - esclude l'asta corrente se è un rilancio
+  let activeWinningBidsSql = `
+    SELECT COUNT(*) as count FROM auctions
+    WHERE auction_league_id = ? AND current_highest_bidder_id = ?
+    AND status IN ('active', 'closing')
+  `;
+  const activeWinningBidsArgs: (string | number)[] = [league.id, bidderUserIdForCheck];
+
+  if (!isNewAuctionAttempt && currentAuctionTargetPlayerId !== undefined) {
+    // Se è un rilancio su asta esistente, non contarla due volte
+    activeWinningBidsSql += ` AND player_id != ?`;
+    activeWinningBidsArgs.push(currentAuctionTargetPlayerId);
+  }
+
+  // Usa txClient invece di db per isolamento transazionale
+  const activeWinningBidsResult = await txClient.execute({
+    sql: activeWinningBidsSql,
+    args: activeWinningBidsArgs,
+  });
+  const activeWinningBids = Number(activeWinningBidsResult.rows[0].count);
+
+  // 4. Slot virtuali occupati (già acquisiti + offerte vincenti)
+  const slotsOccupied = totalAcquired + activeWinningBids;
+
+  // 5. Slot rimanenti da riempire DOPO questa offerta
+  // Se è una nuova asta, questa offerta riempirà uno slot aggiuntivo
+  const slotsRemainingAfterBid = isNewAuctionAttempt
+    ? totalMaxSlots - slotsOccupied - 1  // -1 perché questa offerta occuperà uno slot
+    : totalMaxSlots - slotsOccupied;      // Rilancio su asta esistente: slot già contato
+
+  // 6. Crediti da riservare per slot vuoti futuri (1 credito per slot)
+  // Ogni slot vuoto deve avere 1 credito riservato per poter essere riempito
+  const creditsToReserve = Math.max(0, slotsRemainingAfterBid);
+
+  // 7. Calcola budget disponibile per questa offerta (sottraendo crediti riservati)
+  const baseBudget = participant.current_budget - participant.locked_credits;
+  const availableBudget = baseBudget - creditsToReserve;
+
+  console.log(
+    `[BUDGET_CHECK] User ${bidderUserIdForCheck}: budget=${participant.current_budget}, ` +
+    `locked=${participant.locked_credits}, slotsOccupied=${slotsOccupied}, ` +
+    `slotsRemaining=${slotsRemainingAfterBid}, reserve=${creditsToReserve}, ` +
+    `available=${availableBudget}, bid=${bidAmountForCheck}`
+  );
+
   if (availableBudget < bidAmountForCheck) {
     throw new Error(
-      `Budget disponibile insufficiente. Disponibile: ${availableBudget}, Offerta: ${bidAmountForCheck}.`
+      `Budget insufficiente. Disponibile: ${availableBudget} crediti ` +
+      `(${participant.current_budget} totale - ${participant.locked_credits} bloccati ` +
+      `- ${creditsToReserve} riservati per ${slotsRemainingAfterBid} slot vuoti). ` +
+      `Offerta: ${bidAmountForCheck} crediti.`
     );
   }
 
-  const countAssignedPlayerForRoleResult = await db.execute({
+  // --- Controllo Slot per Ruolo (logica originale) ---
+  // Usa txClient invece di db per isolamento transazionale
+  const countAssignedPlayerForRoleResult = await txClient.execute({
     sql: `SELECT COUNT(*) as count FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? AND pa.user_id = ? AND p.role = ?`,
     args: [league.id, bidderUserIdForCheck, player.role],
   });
@@ -341,7 +402,8 @@ const checkSlotsAndBudgetOrThrow = async (
     activeBidsAsWinnerSql += ` AND a.player_id != ?`;
     activeBidsQueryParams.push(currentAuctionTargetPlayerId);
   }
-  const activeBidsResult = await db.execute({
+  // Usa txClient invece di db per isolamento transazionale
+  const activeBidsResult = await txClient.execute({
     sql: activeBidsAsWinnerSql,
     args: activeBidsQueryParams,
   });
@@ -390,6 +452,7 @@ const checkSlotsAndBudgetOrThrow = async (
 };
 
 // 4. Funzioni Esportate del Servizio per le Offerte
+
 
 export const placeInitialBidAndCreateAuction = async (
   leagueIdParam: number,
@@ -477,7 +540,7 @@ export const placeInitialBidAndCreateAuction = async (
     }
 
     const participantResult = await tx.execute({
-      sql: "SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?",
+      sql: "SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?",
       args: [leagueIdParam, bidderUserIdParam],
     });
     const participant = participantResult.rows[0] as unknown as
@@ -523,12 +586,9 @@ export const placeInitialBidAndCreateAuction = async (
         ? autoBidMaxAmount
         : bidAmountParam;
 
-    // NOTA: checkSlotsAndBudgetOrThrow usa db.execute, che non è nella transazione corrente 'tx'.
-    // Tuttavia, dato che stiamo solo leggendo, va bene.
-    // IDEALMENTE dovremmo passare 'tx' alla funzione helper, ma per ora lasciamo così
-    // dato che la logica di controllo è complessa e richiede letture multiple.
-    // Se necessario, refactorizzare checkSlotsAndBudgetOrThrow per accettare un client.
+    // v3.2: Ora checkSlotsAndBudgetOrThrow usa txClient per isolamento transazionale
     await checkSlotsAndBudgetOrThrow(
+      tx,
       league,
       player,
       participant,
@@ -829,7 +889,7 @@ export async function placeBidOnExistingAuction({
       }
     }
     const participantResult = await tx.execute({
-      sql: `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
+      sql: `SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?`,
       args: [leagueId, userId],
     });
     const participant = participantResult.rows[0] as unknown as
@@ -854,6 +914,7 @@ export async function placeBidOnExistingAuction({
 
     console.log(`[BID_SERVICE] Calling checkSlotsAndBudgetOrThrow...`);
     await checkSlotsAndBudgetOrThrow(
+      tx,
       league,
       player,
       participant,
@@ -976,7 +1037,7 @@ export async function placeBidOnExistingAuction({
 
     // Valida budget e slot per il vincitore finale
     const finalWinnerParticipantResult = await tx.execute({
-      sql: `SELECT user_id, current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
+      sql: `SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?`,
       args: [leagueId, finalBidderId],
     });
     const finalWinnerParticipant = finalWinnerParticipantResult.rows[0] as unknown as
@@ -988,6 +1049,7 @@ export async function placeBidOnExistingAuction({
     }
 
     await checkSlotsAndBudgetOrThrow(
+      tx,
       league,
       player,
       finalWinnerParticipant,
