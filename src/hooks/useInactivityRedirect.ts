@@ -80,6 +80,16 @@ export function useInactivityRedirect(options: UseInactivityRedirectOptions = {}
       toast.info('Sessione sospesa per inattività. I timer ripartiranno quando tornerai.', {
         duration: 5000,
       });
+
+      // Chiudi la sessione nel backend PRIMA del redirect
+      // Usa sendBeacon per garantire l'invio anche durante la navigazione
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/user/set-inactive');
+      } else {
+        // Fallback per browser che non supportano sendBeacon
+        fetch('/api/user/set-inactive', { method: 'POST', keepalive: true });
+      }
+
       router.push(redirectPath as '/');
     }, timeoutSeconds * 1000);
   }, [enabled, timeoutSeconds, warningSeconds, redirectPath, router, clearTimeouts]);
