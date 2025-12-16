@@ -54,7 +54,8 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
     }
 
     // Poi attiva timer pendenti per questo utente
-    await activateTimersForUser(userId);
+    // Passa direttamente 'now' per evitare race condition con query concorrenti
+    await activateTimersForUser(userId, now);
   } catch (error) {
     console.error("[SESSION] Error recording login:", error);
     // Don't throw, just log. This prevents blocking the UI if session tracking fails.

@@ -105,18 +105,20 @@ export const createResponseTimer = async (
 /**
  * Attiva i timer di risposta pendenti per un utente quando torna online.
  * Timer parte dal momento del login, non da quando è stato superato.
+ * @param loginTime - Opzionale. Se fornito, usa questo valore invece di query al DB (evita race condition)
  */
-export const activateTimersForUser = async (userId: string): Promise<void> => {
+export const activateTimersForUser = async (userId: string, loginTime?: number): Promise<void> => {
   try {
-    // Trova quando l'utente è tornato online
-    const loginTime = await getUserLastLogin(userId);
-    if (!loginTime) {
+    // Usa loginTime passato direttamente o query al DB come fallback
+    const effectiveLoginTime = loginTime ?? await getUserLastLogin(userId);
+    if (!effectiveLoginTime) {
       console.log(`[TIMER] No active session found for user ${userId}`);
       return;
     }
 
     // Timer di 1 ora dal login
-    const deadline = loginTime + RESPONSE_TIME_HOURS * 3600;
+    const deadline = effectiveLoginTime + RESPONSE_TIME_HOURS * 3600;
+
 
     // Trova tutti i timer pendenti per l'utente
     const pendingTimersResult = await db.execute({
@@ -144,7 +146,7 @@ export const activateTimersForUser = async (userId: string): Promise<void> => {
         SET response_deadline = ?, activated_at = ?
         WHERE id = ?
       `,
-        args: [deadline, loginTime, timer.id],
+        args: [deadline, effectiveLoginTime, timer.id],
       });
 
       // Invia notifica Socket.IO per ogni timer attivato
