@@ -1,7 +1,7 @@
 // src/lib/db/services/auction-states.service.ts
 // Servizio per gestire gli stati dei giocatori nelle aste
 import { db } from "@/lib/db";
-import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
+import { activateTimersForUser, createResponseTimer } from "@/lib/db/services/response-timer.service";
 import { recordUserLogin } from "@/lib/db/services/session.service";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
@@ -282,26 +282,12 @@ export const handleBidderChange = async (
         "rilancio_possibile"
       );
 
-      // Crea timer per il countdown (1 ora)
-      const deadline = Math.floor(Date.now() / 1000) + 1 * 3600; // 1 ora
-
       // Salva timer per il countdown UI
-      await db.execute({
-        sql: `
-        INSERT OR REPLACE INTO user_auction_response_timers
-        (auction_id, user_id, created_at, response_deadline, status)
-        VALUES (?, ?, ?, ?, 'pending')
-      `,
-        args: [
-          auctionId,
-          previousBidderId,
-          Math.floor(Date.now() / 1000),
-          deadline,
-        ],
-      });
+      // Usa createResponseTimer per gestire correttamente lo stato offline/online
+      await createResponseTimer(auctionId, previousBidderId);
 
       console.log(
-        `[AUCTION_STATES] User ${previousBidderId} set to 'rilancio_possibile' with 1h timer`
+        `[AUCTION_STATES] User ${previousBidderId} set to 'rilancio_possibile' via createResponseTimer`
       );
     }
   } catch (error) {
