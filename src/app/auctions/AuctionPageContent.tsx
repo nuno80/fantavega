@@ -688,7 +688,8 @@ export function AuctionPageContent({
             .sort((a, b) => {
               if (a.user_id === userId) return -1;
               if (b.user_id === userId) return 1;
-              return 0;
+              // Ordinamento secondario stabile per nome team (alfabetico)
+              return a.manager_team_name.localeCompare(b.manager_team_name);
             })
             .map((manager, index) => {
               const compliance = complianceData.find(

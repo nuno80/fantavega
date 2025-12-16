@@ -75,19 +75,26 @@ export function useInactivityRedirect(options: UseInactivityRedirectOptions = {}
     }, (timeoutSeconds - warningSeconds) * 1000);
 
     // Timer per il redirect
-    timeoutRef.current = setTimeout(() => {
+    timeoutRef.current = setTimeout(async () => {
       toast.dismiss('inactivity-warning');
       toast.info('Sessione sospesa per inattività. I timer ripartiranno quando tornerai.', {
         duration: 5000,
       });
 
       // Chiudi la sessione nel backend PRIMA del redirect
-      // Usa sendBeacon per garantire l'invio anche durante la navigazione
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/user/set-inactive');
-      } else {
-        // Fallback per browser che non supportano sendBeacon
-        fetch('/api/user/set-inactive', { method: 'POST', keepalive: true });
+      // IMPORTANTE: Usa fetch con credentials per inviare i cookie di auth Clerk
+      try {
+        const response = await fetch('/api/user/set-inactive', {
+          method: 'POST',
+          credentials: 'include', // Include auth cookies
+        });
+        if (response.ok) {
+          console.log('[INACTIVITY] Session closed successfully');
+        } else {
+          console.error('[INACTIVITY] Failed to close session:', response.status);
+        }
+      } catch (error) {
+        console.error('[INACTIVITY] Error closing session:', error);
       }
 
       router.push(redirectPath as '/');
