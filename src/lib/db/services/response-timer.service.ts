@@ -613,6 +613,7 @@ export const abandonAuction = async (
     await transaction.commit();
 
     // Notifica real-time con dati completi per aggiornare la UI immediatamente
+    // Include budgetUpdates per aggiornare i crediti senza refresh
     await notifySocketServer({
       event: "auction-update",
       room: `league-${leagueId}`,
@@ -625,6 +626,11 @@ export const abandonAuction = async (
         newPrice: auction.current_highest_bid_amount,
         highestBidderId: auction.current_highest_bidder_id,
         scheduledEndTime: newScheduledEndTime,
+        // Include budget update for real-time credit refresh
+        budgetUpdates: [{
+          userId,
+          newLockedCredits: totalLocked,
+        }],
       },
     });
 

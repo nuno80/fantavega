@@ -308,10 +308,29 @@ export function AuctionPageContent({
       highestBidderId: string;
       scheduledEndTime: number;
       action?: string; // Added to handle abandon events
+      budgetUpdates?: Array<{ userId: string; newLockedCredits: number }>; // Real-time budget updates
     }) => {
       // Se l'asta è stata abbandonata, aggiorniamo immediatamente con i dati ricevuti
       if (data.action === "abandoned") {
         console.log("[SOCKET DEBUG] Auction abandoned, updating UI with complete data...");
+
+        // Aggiorna istantaneamente locked_credits se presente nel payload
+        if (data.budgetUpdates) {
+          const myBudgetUpdate = data.budgetUpdates.find(u => u.userId === userId);
+          if (myBudgetUpdate) {
+            console.log("[BUDGET_UPDATE] Instant locked_credits update:", myBudgetUpdate.newLockedCredits);
+            setCurrentUserBudget(prev => prev ? {
+              ...prev,
+              locked_credits: myBudgetUpdate.newLockedCredits,
+            } : prev);
+            // Aggiorna anche nel managers array
+            setManagers(prev => prev.map(m =>
+              m.user_id === userId
+                ? { ...m, locked_credits: myBudgetUpdate.newLockedCredits }
+                : m
+            ));
+          }
+        }
 
         // Aggiorna immediatamente lo stato locale con i dati ricevuti
         if (data.newPrice !== undefined && data.highestBidderId && data.scheduledEndTime) {
