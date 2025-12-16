@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Banknote, Gavel, HandCoins, ShieldCheck, Zap } from "lucide-react";
+import { AlertTriangle, Banknote, DollarSign, Gavel, HandCoins, Info, ShieldCheck, Star, Trash2, X, Zap } from "lucide-react";
 
 export default function FeaturesPage() {
   return (
@@ -17,12 +17,132 @@ export default function FeaturesPage() {
 
         <Tabs defaultValue="autobid" className="mx-auto w-full max-w-5xl">
           <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsList className="grid w-full max-w-md grid-cols-4">
+              <TabsTrigger value="auction">Asta</TabsTrigger>
               <TabsTrigger value="autobid">Auto-Bid</TabsTrigger>
               <TabsTrigger value="penalties">Penalità</TabsTrigger>
               <TabsTrigger value="credits">Crediti</TabsTrigger>
             </TabsList>
           </div>
+
+          {/* AUCTION GUIDE SECTION */}
+          <TabsContent value="auction" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5 text-blue-500" />
+                    Legenda Icone
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/20">
+                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold">Il Tuo Team</p>
+                        <p className="text-muted-foreground text-xs">Indica il tuo team per riconoscerlo a colpo d&apos;occhio.</p>
+                      </div>
+                    </div>
+
+
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
+                        <Gavel className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold">Asta Attiva</p>
+                        <p className="text-muted-foreground text-xs">Indica che un&apos;asta è in corso. Clicca per rilanciare.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold">Rilancia</p>
+                        <p className="text-muted-foreground text-xs">Aumenta l&apos;offerta di 1 credito.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                        <X className="h-4 w-4 text-red-600" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold">Abbandona</p>
+                        <p className="text-muted-foreground text-xs">Lascia l&apos;asta (disponibile solo se superati).</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                        <div className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                          P
+                        </div>
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold">Penalità</p>
+                        <p className="text-muted-foreground text-xs">Penalità attiva applicata al manager.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold">Scarta Giocatore</p>
+                        <p className="text-muted-foreground text-xs">Disponibile solo in fase di riparazione per liberare slot.</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gavel className="h-5 w-5 text-green-500" />
+                    Come Partecipare
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="space-y-2">
+                    <p className="font-semibold text-base">👁️ Dove vedo il Calciatore?</p>
+                    <ul className="list-disc pl-5 text-muted-foreground">
+                      <li>
+                        Se appare nella <strong>tua colonna</strong> (quella con la stella), significa che <strong>sei il miglior offerente</strong>.
+                      </li>
+                      <li>
+                        Se appare nella tua colonna ma evidenziato in <strong>rosso con timer</strong>, significa che sei stato superato e devi decidere: <strong>rilanciare</strong> o abbandonare.
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-semibold text-base">💰 Rilanciare</p>
+                    <div className="rounded bg-muted p-2 dark:bg-muted/50">
+                      <p>Il rilancio minimo è sempre <strong>+1 credito</strong>.</p>
+                    </div>
+                    <p className="text-muted-foreground">
+                      Puoi usare il pulsante rapido (martelletto verde) nella colonna avversaria o aprire il dettaglio per un&apos;offerta manuale.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-semibold text-base">🔒 Slot e Ruoli</p>
+                    <p className="text-muted-foreground">
+                      Puoi fare offerte solo se hai <strong>slot liberi</strong> per quel ruolo e <strong>budget disponibile</strong>.
+                      Il sistema ti bloccherà automaticamente se non rispetti i requisiti.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* AUTO-BID SECTION */}
           <TabsContent value="autobid" className="space-y-6">
