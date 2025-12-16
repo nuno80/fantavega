@@ -123,7 +123,7 @@ export function CallPlayerInterface({
   userId,
   onStartAuction,
 }: CallPlayerInterfaceProps) {
-  const [selectedRole, setSelectedRole] = useState<string>("ALL");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedPlayer, setSelectedPlayer] = useState<string>("");
   const [players, setPlayers] = useState<PlayerWithStatus[]>([]);
@@ -166,6 +166,7 @@ export function CallPlayerInterface({
     isFavorite: false,
     hasIntegrity: false,
     hasFmv: false,
+    maxPrice: null as number | null, // null = nessun filtro, 1, 5, 10, 20
   });
 
   // State for active tab
@@ -268,9 +269,9 @@ export function CallPlayerInterface({
       );
     }
 
-    // Filter by role
-    if (selectedRole !== "ALL") {
-      filtered = filtered.filter((player) => player.role === selectedRole);
+    // Filter by role (multi-select)
+    if (selectedRoles.length > 0) {
+      filtered = filtered.filter((player) => selectedRoles.includes(player.role));
     }
 
     // Filter by preferences
@@ -289,9 +290,14 @@ export function CallPlayerInterface({
       filtered = filtered.filter((player) => player.hasFmv);
     }
 
+    // Filter by max price (QTA)
+    if (preferenceFilters.maxPrice !== null) {
+      filtered = filtered.filter((player) => player.qtA <= preferenceFilters.maxPrice!);
+    }
+
     setFilteredPlayers(filtered);
     setVisibleCount(50);
-  }, [players, searchTerm, selectedRole, preferenceFilters]);
+  }, [players, searchTerm, selectedRoles, preferenceFilters]);
 
   // Socket.IO real-time updates - CENTRALIZED IN AuctionPageContent
   useEffect(() => {
@@ -572,11 +578,12 @@ export function CallPlayerInterface({
           {/* Active filters indicator */}
           {(() => {
             const activeFiltersCount =
-              (selectedRole !== "ALL" ? 1 : 0) +
+              selectedRoles.length +
               (preferenceFilters.isStarter ? 1 : 0) +
               (preferenceFilters.isFavorite ? 1 : 0) +
               (preferenceFilters.hasIntegrity ? 1 : 0) +
-              (preferenceFilters.hasFmv ? 1 : 0);
+              (preferenceFilters.hasFmv ? 1 : 0) +
+              (preferenceFilters.maxPrice !== null ? 1 : 0);
 
             return activeFiltersCount > 0 ? (
               <div className="flex items-center gap-1 text-xs">
@@ -602,6 +609,21 @@ export function CallPlayerInterface({
         </div>
       )}
 
+      {/* Messaggio informativo quando i filtri preferenze non producono risultati */}
+      {!hasNoPlayers &&
+        filteredPlayers.length === 0 &&
+        (preferenceFilters.isStarter ||
+          preferenceFilters.isFavorite ||
+          preferenceFilters.hasIntegrity ||
+          preferenceFilters.hasFmv) && (
+          <div className="m-4 border-l-4 border-amber-500 bg-amber-100 p-4 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <p className="font-bold">Nessun risultato</p>
+            <p>
+              I filtri Titolari, Preferiti, Integrità, FMV funzionano solo se li hai selezionati nella pagina <strong>Cerca Calciatori</strong>.
+            </p>
+          </div>
+        )}
+
       {/* Tab Content */}
       <div className="p-2">
         {activeTab === "chiama" && (
@@ -616,19 +638,20 @@ export function CallPlayerInterface({
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
                 className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${(() => {
                   const activeFiltersCount =
-                    (selectedRole !== "ALL" ? 1 : 0) +
+                    selectedRoles.length +
                     (preferenceFilters.isStarter ? 1 : 0) +
                     (preferenceFilters.isFavorite ? 1 : 0) +
                     (preferenceFilters.hasIntegrity ? 1 : 0) +
-                    (preferenceFilters.hasFmv ? 1 : 0);
+                    (preferenceFilters.hasFmv ? 1 : 0) +
+                    (preferenceFilters.maxPrice !== null ? 1 : 0);
                   return activeFiltersCount > 0
                     ? "border-blue-500 bg-blue-50/10"
                     : "";
                 })()}`}
                 title={(() => {
                   const activeFilters = [];
-                  if (selectedRole !== "ALL")
-                    activeFilters.push(`Ruolo: ${selectedRole}`);
+                  if (selectedRoles.length > 0)
+                    activeFilters.push(`Ruoli: ${selectedRoles.join(", ")}`);
                   if (preferenceFilters.isStarter)
                     activeFilters.push("Titolari");
                   if (preferenceFilters.isFavorite)
@@ -636,6 +659,8 @@ export function CallPlayerInterface({
                   if (preferenceFilters.hasIntegrity)
                     activeFilters.push("Integrità");
                   if (preferenceFilters.hasFmv) activeFilters.push("FMV");
+                  if (preferenceFilters.maxPrice !== null)
+                    activeFilters.push(`Prezzo ≤${preferenceFilters.maxPrice}`);
                   return activeFilters.length > 0
                     ? `Filtri attivi: ${activeFilters.join(", ")}`
                     : "Cerca giocatore o squadra...";
@@ -645,11 +670,12 @@ export function CallPlayerInterface({
               {/* Active filters indicator in search bar */}
               {(() => {
                 const activeFiltersCount =
-                  (selectedRole !== "ALL" ? 1 : 0) +
+                  selectedRoles.length +
                   (preferenceFilters.isStarter ? 1 : 0) +
                   (preferenceFilters.isFavorite ? 1 : 0) +
                   (preferenceFilters.hasIntegrity ? 1 : 0) +
-                  (preferenceFilters.hasFmv ? 1 : 0);
+                  (preferenceFilters.hasFmv ? 1 : 0) +
+                  (preferenceFilters.maxPrice !== null ? 1 : 0);
 
                 return activeFiltersCount > 0 ? (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -676,7 +702,7 @@ export function CallPlayerInterface({
                         <div>
                           <span className="font-medium">{player.name}</span>
                           <span className="ml-2 text-gray-400">
-                            ({player.role}) - {player.team}
+                            ({player.role}) - {player.team} • QTA: {player.qtA}
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -721,7 +747,7 @@ export function CallPlayerInterface({
                   >
                     <div className="flex w-full items-center justify-between">
                       <span>
-                        {player.name} ({player.role}) - {player.team}
+                        {player.name} ({player.role}) - {player.team} • QTA: {player.qtA}
                       </span>
                       {player.auctionStatus === "active_auction" && (
                         <Badge variant="destructive" className="ml-2 text-xs">
@@ -839,12 +865,13 @@ export function CallPlayerInterface({
                 variant="outline"
                 className="border-gray-600 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
                 onClick={() => {
-                  setSelectedRole("ALL");
+                  setSelectedRoles([]);
                   setPreferenceFilters({
                     isStarter: false,
                     isFavorite: false,
                     hasIntegrity: false,
                     hasFmv: false,
+                    maxPrice: null,
                   });
                   // Toast rimosso - i filtri si resettano visivamente
                 }}
@@ -857,20 +884,35 @@ export function CallPlayerInterface({
             {/* Role Filter Buttons */}
             <div className="flex items-center gap-2">
               <span className="mr-2 text-sm text-gray-400">Ruoli:</span>
-              {roleButtons.map((role) => (
-                <Button
-                  key={role.key}
-                  size="sm"
-                  variant={selectedRole === role.key ? "default" : "secondary"}
-                  className={`px-3 py-1 text-xs ${selectedRole === role.key
-                    ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-gray-700 text-white hover:bg-gray-600"
-                    }`}
-                  onClick={() => setSelectedRole(role.key)}
-                >
-                  {role.label}
-                </Button>
-              ))}
+              {roleButtons.map((role) => {
+                const isAllSelected = role.key === "ALL" && selectedRoles.length === 0;
+                const isRoleSelected = role.key !== "ALL" && selectedRoles.includes(role.key);
+                const isActive = isAllSelected || isRoleSelected;
+                return (
+                  <Button
+                    key={role.key}
+                    size="sm"
+                    variant={isActive ? "default" : "secondary"}
+                    className={`px-3 py-1 text-xs ${isActive
+                      ? "bg-red-600 text-white hover:bg-red-700"
+                      : "bg-gray-700 text-white hover:bg-gray-600"
+                      }`}
+                    onClick={() => {
+                      if (role.key === "ALL") {
+                        setSelectedRoles([]);
+                      } else {
+                        setSelectedRoles((prev) =>
+                          prev.includes(role.key)
+                            ? prev.filter((r) => r !== role.key)
+                            : [...prev, role.key]
+                        );
+                      }
+                    }}
+                  >
+                    {role.label}
+                  </Button>
+                );
+              })}
             </div>
 
             {/* Preference Filters */}
@@ -947,6 +989,30 @@ export function CallPlayerInterface({
                 <TrendingUp className="mr-1 h-4 w-4" />
                 FMV
               </Button>
+            </div>
+
+            {/* Price Filters */}
+            <div className="flex items-center gap-2">
+              <span className="mr-2 text-sm text-gray-400">Prezzo max:</span>
+              {[1, 5, 10, 20].map((price) => (
+                <Button
+                  key={price}
+                  size="sm"
+                  variant="ghost"
+                  className={`px-3 py-1 text-xs ${preferenceFilters.maxPrice === price
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/90"
+                    }`}
+                  onClick={() =>
+                    setPreferenceFilters((prev) => ({
+                      ...prev,
+                      maxPrice: prev.maxPrice === price ? null : price,
+                    }))
+                  }
+                >
+                  ≤{price}
+                </Button>
+              ))}
             </div>
           </div>
         )}
