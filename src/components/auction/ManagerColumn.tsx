@@ -928,8 +928,14 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
             {manager.manager_team_name || `Team #${position}`}
           </span>
 
-          {/* Compliance Status - Visible to all users */}
-          <div className="flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2">
+            {/* Total Budget (Admin Set) */}
+            <span
+              className="rounded-sm bg-indigo-50 px-1.5 py-0.5 font-mono text-xs font-bold text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+              title="Budget Iniziale (impostato dall'admin)"
+            >
+              {validTotalBudget}
+            </span>
             {/* Penalty indicator - visible to all if penalties exist */}
             {manager.total_penalties > 0 && !isNaN(manager.total_penalties) && (
               <span
