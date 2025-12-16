@@ -37,27 +37,30 @@ export const createResponseTimer = async (
       `[TIMER] Creating pending timer for user ${userId}, auction ${auctionId}`
     );
 
-    /// Verifica se esiste già un timer pending per questa combinazione
+    /// Verifica se esiste già un timer per questa combinazione (qualsiasi status)
     const existingTimerResult = await db.execute({
       sql: `
-    SELECT id FROM user_auction_response_timers
-    WHERE auction_id = ? AND user_id = ? AND status = 'pending'
+    SELECT id, status FROM user_auction_response_timers
+    WHERE auction_id = ? AND user_id = ?
   `,
       args: [auctionId, userId],
     });
     const existingTimer = existingTimerResult.rows[0]
-      ? { id: existingTimerResult.rows[0].id as number }
+      ? {
+        id: existingTimerResult.rows[0].id as number,
+        status: existingTimerResult.rows[0].status as string
+      }
       : undefined;
 
     if (existingTimer) {
       console.log(
-        `[TIMER] Resetting existing pending timer ${existingTimer.id}`
+        `[TIMER] Found existing timer ${existingTimer.id} with status '${existingTimer.status}', resetting to pending`
       );
-      // Resetta il timer esistente
+      // Resetta il timer esistente a pending
       await db.execute({
         sql: `
         UPDATE user_auction_response_timers
-        SET created_at = ?, response_deadline = NULL, activated_at = NULL, processed_at = NULL
+        SET created_at = ?, response_deadline = NULL, activated_at = NULL, processed_at = NULL, status = 'pending'
         WHERE id = ?
       `,
         args: [now, existingTimer.id],
@@ -79,12 +82,16 @@ export const createResponseTimer = async (
     }
 
     // Se utente è online, attiva subito il timer
-    if (await isUserCurrentlyOnline(userId)) {
+    const isOnline = await isUserCurrentlyOnline(userId);
+    if (isOnline) {
+      console.log(`[TIMER] ⚡ User ${userId} is ONLINE, activating timer immediately`);
       await activateTimerForUser(userId, auctionId);
+    } else {
+      console.log(`[TIMER] 💤 User ${userId} is OFFLINE, timer stays PENDING`);
     }
 
     console.log(
-      `[TIMER] Pending timer created successfully for user ${userId}`
+      `[TIMER] Timer created for user ${userId} - Online: ${isOnline}`
     );
   } catch (error) {
     console.error(

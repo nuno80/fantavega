@@ -19,28 +19,22 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
       args: [userId],
     });
 
-    // Only create a new session if one doesn't exist
-    if (activeSessionResult.rows.length === 0) {
-      // Chiudi eventuali sessioni precedenti rimaste aperte
+    // If already has an active session, skip creating/reopening
+    if (activeSessionResult.rows.length > 0) {
+      // Session already active, just proceed to timer activation
+    } else {
+      // Use REPLACE INTO to handle race conditions:
+      // - If no row exists: inserts new row
+      // - If row exists (by user_id unique constraint): replaces it
+      // This atomically handles the case where session was closed
       await db.execute({
         sql: `
-          UPDATE user_sessions
-          SET session_end = ?
-          WHERE user_id = ? AND session_end IS NULL
-        `,
-        args: [now, userId],
-      });
-
-      // Crea nuova sessione
-      await db.execute({
-        sql: `
-          INSERT INTO user_sessions (user_id, session_start)
-          VALUES (?, ?)
+          REPLACE INTO user_sessions (user_id, session_start, session_end)
+          VALUES (?, ?, NULL)
         `,
         args: [userId, now],
       });
-
-      console.log(`[SESSION] User ${userId} logged in at ${now}`);
+      console.log(`[SESSION] User ${userId} session opened/reopened at ${now}`);
     }
 
     // Prima processa timer scaduti globalmente (libera slot)
@@ -81,10 +75,12 @@ export const recordUserLogout = async (userId: string): Promise<void> => {
     });
 
     if (result.rowsAffected > 0) {
-      console.log(`[SESSION] User ${userId} logged out at ${now}`);
+      console.log(`[SESSION] ✅ User ${userId} logged out at ${now} - ${result.rowsAffected} session(s) closed`);
+    } else {
+      console.log(`[SESSION] ⚠️ User ${userId} logout called but no active session found to close`);
     }
   } catch (error) {
-    console.error("[SESSION] Error recording logout:", error);
+    console.error("[SESSION] ❌ Error recording logout:", error);
     throw error;
   }
 };
@@ -122,7 +118,9 @@ export const isUserCurrentlyOnline = async (userId: string): Promise<boolean> =>
       args: [userId],
     });
 
-    return result.rows.length > 0;
+    const isOnline = result.rows.length > 0;
+    console.log(`[SESSION] isUserCurrentlyOnline(${userId}) = ${isOnline}`);
+    return isOnline;
   } catch (error) {
     console.error("[SESSION] Error checking online status:", error);
     return false;

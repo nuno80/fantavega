@@ -1,11 +1,12 @@
 // src/app/api/user/leagues/route.ts
 // API endpoint to get leagues for the current user
+// NOTE: This endpoint does NOT call recordUserLogin because it's used by the home page.
+// Session tracking should only happen on auction/players specific endpoints.
 import { NextRequest, NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
-import { recordUserLogin } from "@/lib/db/services/session.service";
 
 // Type per le righe restituite dalla query
 interface UserLeagueRow {
@@ -26,13 +27,9 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    // Registra login utente
-    try {
-      await recordUserLogin(user.id);
-    } catch (error) {
-      console.error("[USER_LEAGUES] Error recording login:", error);
-      // Non bloccare la richiesta per errori di sessione
-    }
+    // NOTE: recordUserLogin is NOT called here intentionally.
+    // This allows the inactivity redirect to properly close the session
+    // without it being immediately reopened when user lands on home page.
 
     // Get leagues where the user is a participant
     const userLeaguesResult = await db.execute({
