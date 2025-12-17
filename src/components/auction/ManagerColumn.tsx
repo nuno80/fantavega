@@ -288,10 +288,10 @@ function AssignedSlot({
           <div
             className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
           />
-          <span className="truncate text-xs font-medium">{player.name}</span>
+          <span className="truncate text-sm font-medium">{player.name}</span>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-          <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
+          <span className="text-sm font-mono font-semibold text-foreground tabular-nums">
             {player.assignment_price}
           </span>
           {showDiscardOption ? (
@@ -482,26 +482,26 @@ function ResponseNeededSlot({
                 <div
                   className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor}`}
                 />
-                <span className="truncate text-xs font-medium text-red-600 dark:text-red-300">
+                <span className="truncate text-sm font-medium text-red-600 dark:text-red-300">
                   {state.player_name}
                 </span>
               </div>
               {/* Response Timer */}
               {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
                 <span
-                  className={`font-mono text-xs font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
+                  className={`font-mono text-sm font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
                 >
                   {formatResponseTimer(currentTimeRemaining)}
                 </span>
               ) : (
-                <span className="text-xs font-bold text-red-500">Scaduto</span>
+                <span className="text-sm font-bold text-red-500">Scaduto</span>
               )}
             </div>
           </div>
 
           {/* Right side: Price and buttons */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold text-foreground tabular-nums">{state.current_bid}</span>
+            <span className="text-sm font-mono font-bold text-foreground tabular-nums">{state.current_bid}</span>
             <button
               onClick={() => onCounterBid(state.player_id)}
               className="rounded p-1 transition-colors hover:bg-green-600/20"
@@ -672,7 +672,7 @@ function InAuctionSlot({
         <div
           className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${roleColor} ${timeInfo.remaining < 60 ? "animate-pulse" : ""}`}
         />
-        <span className="truncate text-xs font-medium">{auction.player_name}</span>
+        <span className="truncate text-sm font-medium">{auction.player_name}</span>
         {/* Quick bid icon - visible only to users who are NOT the highest bidder */}
         {onOpenBidModal && currentUserId && auction.current_highest_bidder_id !== currentUserId && (
           <button
@@ -684,7 +684,7 @@ function InAuctionSlot({
           </button>
         )}
       </div>
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-1">
           {showUserAutoBid && (
             <span className="font-mono font-semibold text-blue-400 tabular-nums">

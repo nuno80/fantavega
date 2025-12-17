@@ -699,7 +699,7 @@ export function CallPlayerInterface({
                       className="cursor-pointer border-b border-border px-3 py-2 text-foreground last:border-b-0 hover:bg-muted"
                       onClick={() => handlePlayerSelect(player.id.toString())}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between text-sm">
                         <div>
                           <span className="font-medium">{player.name}</span>
                           <span className="ml-2 text-gray-400">
@@ -874,7 +874,6 @@ export function CallPlayerInterface({
                     hasFmv: false,
                     maxPrice: null,
                   });
-                  // Toast rimosso - i filtri si resettano visivamente
                 }}
                 title="Reset tutti i filtri"
               >
@@ -883,7 +882,7 @@ export function CallPlayerInterface({
             </div>
 
             {/* Role Filter Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="mr-2 text-sm text-gray-400">Ruoli:</span>
               {roleButtons.map((role) => {
                 const isAllSelected = role.key === "ALL" && selectedRoles.length === 0;
@@ -917,7 +916,7 @@ export function CallPlayerInterface({
             </div>
 
             {/* Preference Filters */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="mr-2 text-sm text-gray-400">Preferenze:</span>
               <Button
                 size="sm"
@@ -993,7 +992,7 @@ export function CallPlayerInterface({
             </div>
 
             {/* Price Filters */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="mr-2 text-sm text-gray-400">Prezzo max:</span>
               {[1, 5, 10, 20].map((price) => (
                 <Button
