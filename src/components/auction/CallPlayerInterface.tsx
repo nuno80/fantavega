@@ -541,20 +541,21 @@ export function CallPlayerInterface({
   return (
     <div className="rounded-xl border border-border bg-card">
       {/* Tab Navigation */}
-      <div className="flex border-b border-border">
+      <div className="flex flex-wrap items-center border-b border-border">
         <button
           onClick={() => setActiveTab("chiama")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "chiama"
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${activeTab === "chiama"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <Gavel className="h-4 w-4" />
-          CHIAMA
+          <span className="hidden xs:inline sm:inline">CHIAMA</span>
+          <span className="inline xs:hidden sm:hidden">CHIAMA</span>
         </button>
         <button
           onClick={() => setActiveTab("stats")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "stats"
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${activeTab === "stats"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
@@ -564,7 +565,7 @@ export function CallPlayerInterface({
         </button>
         <button
           onClick={() => setActiveTab("filtri")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === "filtri"
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${activeTab === "filtri"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
@@ -574,7 +575,7 @@ export function CallPlayerInterface({
         </button>
 
         {/* Results counter and active filters indicator in tab bar */}
-        <div className="ml-auto flex items-center gap-3 px-4 py-3">
+        <div className="ml-auto w-full flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-4 py-2 text-xs sm:w-auto sm:border-t-0 sm:bg-transparent sm:py-3">
           {/* Active filters indicator */}
           {(() => {
             const activeFiltersCount =
@@ -586,15 +587,15 @@ export function CallPlayerInterface({
               (preferenceFilters.maxPrice !== null ? 1 : 0);
 
             return activeFiltersCount > 0 ? (
-              <div className="flex items-center gap-1 text-xs">
-                <Badge variant="secondary" className="text-xs">
+              <div className="flex items-center gap-1">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
                   {activeFiltersCount} filtri attivi
                 </Badge>
               </div>
             ) : null;
           })()}
 
-          <div className="text-xs text-gray-400">
+          <div className="text-gray-400">
             {filteredPlayers.length} trovati
           </div>
         </div>

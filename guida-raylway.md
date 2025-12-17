@@ -26,12 +26,12 @@ Questa guida spiega come creare un nuovo progetto Railway da zero per ospitare *
 Dobbiamo dire a Railway di avviare il file `socket-server.ts` invece del sito web.
 
 1.  Clicca sul servizio appena creato (il riquadro del repository).
-    ![Impostazioni Servizio Railway](./images/railway-settings.png)
+    ![Impostazioni Servizio Railway](guide/images/railway-settings.png)
 2.  Vai su **Settings**.
 3.  Scorri fino a **Service Commands**.
 4.  Configura esattamente come nello screenshot qui sotto:
 
-    ![Configurazione Finale Railway](./images/railway-settings-final.png)
+    ![Configurazione Finale Railway](guide/images/railway-settings-final.png)
 
     *   **Custom Build Command**: `echo "skipping build"`
         *   (Questo velocizza il deploy ignorando la build del frontend, dato che qui serve solo il socket).
