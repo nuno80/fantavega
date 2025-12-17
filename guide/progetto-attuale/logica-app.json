@@ -386,5 +386,20 @@
       "Transazioni: Tutte le operazioni sono eseguite in una transazione SQL per garantire consistenza.",
       "UI: Le icone di modifica sono visibili solo quando `status === 'participants_joining'`."
     ]
+  },
+  "production_timer_fix": {
+    "feature_name": "Fix Critico Timer Produzione (Offline Handling)",
+    "summary": "Risoluzione di un bug critico in produzione dove i timer di risposta partivano immediatamente (con scadenza 1 ora da SUBITO) anche se l'utente era offline o rediretto per inattività. La logica è stata corretta per creare timer PENDENTI che si attivano solo al ritorno dell'utente.",
+    "technical_details": [
+      "Root Cause: La funzione `handleBidderChange` in `auction-states.service.ts` inseriva manualmente un record nella tabella `user_auction_response_timers` con `response_deadline = now + 1h` e `status = 'pending'`, bypassando del tutto il controllo di presenza online.",
+      "Fix: Sostituito l'inserimento manuale SQL con la chiamata alla funzione centralizzata `createResponseTimer` (da `response-timer.service.ts`).",
+      "Logic: `createResponseTimer` verifica `isUserCurrentlyOnline`. Se TRUE -> attiva subito. Se FALSE -> crea timer pending con deadline NULL. Al login successivo, `activateTimersForUser` imposta la deadline a `loginTime + 1h`.",
+      "Race Condition Fix: In `session.service.ts`, `recordUserLogin` ora passa il timestamp `now` direttamente a `activateTimersForUser`, evitando che una query concorrente legga un vecchio `session_start` prima che la transazione di login sia committata."
+    ],
+    "core_components_interaction": {
+      "src/lib/db/services/auction-states.service.ts": "Rimosso INSERT manuale, importata e usata `createResponseTimer`.",
+      "src/lib/db/services/response-timer.service.ts": "Aggiornata `activateTimersForUser` per accettare un timestamp opzionale per evitare race conditions.",
+      "src/lib/db/services/session.service.ts": "Aggiornata `recordUserLogin` per usare `REPLACE INTO` (atomic upsert) e passare il timestamp preciso al timer service."
+    }
   }
 }

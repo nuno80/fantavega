@@ -29,7 +29,7 @@ database/*.db
 database/*.db-journal
 database/*.db-shm
 database/*.db-wal
-database/backups/ 
+database/backups/
 
 # debug
 npm-debug.log*
@@ -49,3 +49,6 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 .crush
+
+# Railway env
+.env.raylway
