@@ -212,6 +212,7 @@ function AssignedSlot({
   leagueStatus,
   leagueId,
   onPlayerDiscarded,
+  isReadOnly,
 }: {
   player: PlayerInRoster;
   role: string;
