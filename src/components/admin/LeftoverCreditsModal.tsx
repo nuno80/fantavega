@@ -99,6 +99,13 @@ export function LeftoverCreditsModal({
 
   const totalToAdd = Object.values(credits).reduce((sum, val) => sum + val, 0);
 
+  // Verifica se qualche budget andrebbe in negativo
+  const hasNegativeBudget = participants.some((p) => {
+    const toAdd = credits[p.userId] || 0;
+    const newBudget = p.currentBudget + toAdd;
+    return newBudget < 0;
+  });
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -199,11 +206,17 @@ export function LeftoverCreditsModal({
           </div>
         )}
 
+        {hasNegativeBudget && (
+          <div className="text-sm text-destructive text-right font-medium">
+            ⚠️ Il budget non può andare in negativo
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>
             Annulla
           </Button>
-          <Button onClick={handleApply} disabled={isPending || totalToAdd === 0}>
+          <Button onClick={handleApply} disabled={isPending || totalToAdd === 0 || hasNegativeBudget}>
             {isPending ? "Applicazione..." : "Applica Modifiche"}
           </Button>
         </DialogFooter>
