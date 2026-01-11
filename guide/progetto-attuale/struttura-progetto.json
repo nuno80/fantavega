@@ -1,5 +1,5 @@
 {
-  "last_update": "2024-05-24T15:00:00Z",
+  "last_update": "2024-05-24T16:00:00Z",
   "files": [
     {
       "path": "src/app/auctions/page.tsx",
@@ -16,6 +16,14 @@
     {
       "path": "src/components/auction/CallPlayerInterface.tsx",
       "description": "Interfaccia di chiamata giocatori, aggiornata per disabilitare azioni in sola lettura."
+    },
+    {
+      "path": "src/components/admin/CsvImportModal.tsx",
+      "description": "Modal per import rose CSV, aggiunto dropdown per selezione sorgente prezzo (CSV o quotazioni DB)."
+    },
+    {
+      "path": "src/lib/actions/league.actions.ts",
+      "description": "Server Actions per gestione leghe, aggiunto parametro priceSource a importRosterFromCsvAction."
     }
   ]
 }

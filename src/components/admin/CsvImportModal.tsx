@@ -56,7 +56,7 @@ export function CsvImportModal({
   const [csvContent, setCsvContent] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ValidationPreview | null>(null);
-  const [priceSource, setPriceSource] = useState<PriceSource>("csv");
+  const [priceSource, setPriceSource] = useState<PriceSource>("database");
   const [isPending, startTransition] = useTransition();
 
   // Parsing locale per preview
@@ -148,7 +148,7 @@ export function CsvImportModal({
     setCsvContent(null);
     setFileName(null);
     setPreview(null);
-    setPriceSource("csv");
+    setPriceSource("database");
   };
 
   return (

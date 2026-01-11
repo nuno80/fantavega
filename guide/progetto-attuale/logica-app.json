@@ -1,22 +1,22 @@
 {
-  "last_update": "2024-05-24T15:00:00Z",
-  "task_completed": "Implementazione Accesso Admin Sola Lettura alle Aste",
+  "last_update": "2024-05-24T16:00:00Z",
+  "task_completed": "Implementazione Selezione Sorgente Prezzo Import CSV",
   "feature_logic": {
-    "feature_name": "Accesso Admin Sola Lettura",
-    "summary": "Consente agli amministratori di visualizzare qualsiasi asta di lega in modalità sola lettura, anche se non sono partecipanti diretti. Questo facilita la supervisione dell'asta senza interferire con le dinamiche competitive.",
-    "architectural_pattern": "Propagazione di flag 'isReadOnly' e 'isAdmin' dai Server Components ai Client Components. Utilizzo di questi flag per disabilitare selettivamente gli elementi interattivi (offerte, chiamate giocatori, scarti) nella UI.",
+    "feature_name": "Scelta Sorgente Prezzo nell'Import CSV",
+    "summary": "Permette all'admin di scegliere durante l'import delle rose CSV se utilizzare i prezzi di acquisto salvati nel file CSV oppure le quotazioni attuali dal database.",
+    "architectural_pattern": "Select component nella UI del modal di import che passa il parametro 'priceSource' alla Server Action, la quale lo inoltra al servizio roster-import.service.ts che gestisce la logica di determinazione del prezzo.",
     "user_flow": [
-      "1. Un Admin accede a '/auctions' (o '/auctions?leagueId=X').",
-      "2. Il server verifica se l'utente è un partecipante della lega.",
-      "3. Se l'utente è Admin ma NON partecipante, la pagina viene caricata in modalità 'isReadOnly'.",
-      "4. La UI mostra un banner informativo 'MODALITÀ SOLA LETTURA'.",
-      "5. Tutti i bottoni di azione (rilancio, avvio asta, scarto) sono disabilitati o nascosti."
+      "1. L'Admin apre il modal 'Importa Rose CSV' dalla dashboard della lega.",
+      "2. Seleziona un file CSV con le rose esportate dal Fantacalcio.",
+      "3. Prima di confermare, sceglie dal dropdown 'Sorgente Prezzo di Acquisto' tra:",
+      "   - 'Prezzi dal CSV': usa i prezzi salvati nel file",
+      "   - 'Quotazioni attuali': usa le quotazioni correnti dal database dei giocatori",
+      "4. Conferma l'import, il backend usa la sorgente prezzo selezionata per calcolare i costi e aggiornare i budget."
     ],
     "core_components_interaction": {
-      "src/app/auctions/page.tsx": "Gestisce la logica lato server per determinare se attivare la modalità sola lettura basandosi sul ruolo utente e la partecipazione.",
-      "src/app/auctions/AuctionPageContent.tsx": "Riceve i flag e visualizza il banner informativo, propagando 'isReadOnly' ai componenti figli.",
-      "src/components/auction/ManagerColumn.tsx": "Disabilita le azioni di rilancio e scarto se 'isReadOnly' è true.",
-      "src/components/auction/CallPlayerInterface.tsx": "Disabilita la ricerca e l'avvio delle aste se 'isReadOnly' è true."
+      "src/components/admin/CsvImportModal.tsx": "Aggiunto stato 'priceSource', import dei componenti Select, e un dropdown per la selezione. Il valore viene passato alla action.",
+      "src/lib/actions/league.actions.ts": "La funzione 'importRosterFromCsvAction' ora accetta un terzo parametro 'priceSource' che viene passato al servizio di import.",
+      "src/lib/db/services/roster-import.service.ts": "La funzione 'importRostersToLeague' usa il parametro 'priceSource' per determinare se usare 'entry.purchasePrice' (csv) o 'playerQuotations.get(entry.playerId)' (database)."
     }
   }
 }
