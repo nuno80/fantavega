@@ -1,10 +1,13 @@
 import { Navbar } from "@/components/navbar";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { getLeagueManagersWithRosters } from "@/lib/db/services/auction-league.service";
 import { getUserAuctionStates } from "@/lib/db/services/auction-states.service";
 import { getCurrentActiveAuction } from "@/lib/db/services/bid.service";
 import { getAllComplianceStatus } from "@/lib/db/services/penalty.service";
 import { currentUser } from "@clerk/nextjs/server";
+import { Trophy } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuctionPageContent } from "./AuctionPageContent";
@@ -26,9 +29,11 @@ export default async function AuctionsPage2(props: {
   let leagueId: number | null = null;
   let shouldRedirect = false;
   const queriedLeagueId = searchParams.league ? parseInt(searchParams.league) : null;
+  const isAdmin = user.publicMetadata?.role === "admin";
+  let isReadOnly = false;
 
   try {
-    // If league ID is in URL, verify user participates in it
+    // If league ID is in URL, verify user participates in it OR is admin
     if (queriedLeagueId) {
       const participationCheck = await db.execute({
         sql: `SELECT league_id FROM league_participants WHERE user_id = ? AND league_id = ?`,
@@ -38,6 +43,18 @@ export default async function AuctionsPage2(props: {
       if (participationCheck.rows.length > 0) {
         hasLeagues = true;
         leagueId = queriedLeagueId;
+        isReadOnly = false;
+      } else if (isAdmin) {
+        // Check if league exists at all
+        const leagueExists = await db.execute({
+          sql: `SELECT id FROM auction_leagues WHERE id = ?`,
+          args: [queriedLeagueId],
+        });
+        if (leagueExists.rows.length > 0) {
+          hasLeagues = true;
+          leagueId = queriedLeagueId;
+          isReadOnly = true;
+        }
       }
     }
 
@@ -51,7 +68,20 @@ export default async function AuctionsPage2(props: {
       if (userLeaguesResult.rows.length > 0) {
         hasLeagues = true;
         leagueId = userLeaguesResult.rows[0].league_id as number;
-        shouldRedirect = true; // Segna per redirect dopo il try-catch
+        isReadOnly = false;
+        shouldRedirect = true;
+      } else if (isAdmin) {
+        // Fallback for admins with no leagues: pick the first one in the system
+        const firstLeagueResult = await db.execute({
+          sql: `SELECT id FROM auction_leagues ORDER BY created_at DESC LIMIT 1`,
+          args: [],
+        });
+        if (firstLeagueResult.rows.length > 0) {
+          hasLeagues = true;
+          leagueId = firstLeagueResult.rows[0].id as number;
+          isReadOnly = true;
+          shouldRedirect = true;
+        }
       }
     }
   } catch (error) {
@@ -61,7 +91,6 @@ export default async function AuctionsPage2(props: {
 
   // REDIRECT: Se non c'era URL param ma abbiamo trovato una lega,
   // facciamo redirect per avere sempre l'URL esplicito.
-  // NOTA: redirect() lancia un'eccezione interna, quindi deve stare FUORI dal try-catch!
   if (shouldRedirect && leagueId) {
     redirect(`/auctions?league=${leagueId}`);
   }
@@ -71,7 +100,7 @@ export default async function AuctionsPage2(props: {
       <div className="flex h-screen flex-col bg-background">
         <Navbar />
         <div className="flex-1 overflow-y-auto">
-          <NoLeagueMessage />
+          <NoLeagueMessage isAdmin={isAdmin} />
         </div>
       </div>
     );
@@ -125,6 +154,8 @@ export default async function AuctionsPage2(props: {
             initialComplianceData={serializedData.complianceData}
             initialUserAuctionStates={serializedData.userAuctionStates}
             initialLeagueStatus={serializedData.leagueStatus}
+            isReadOnly={isReadOnly}
+            isAdmin={isAdmin}
           />
         </Suspense>
       </div>
@@ -150,29 +181,27 @@ function AuctionPageSkeleton() {
   );
 }
 
-function NoLeagueMessage() {
+function NoLeagueMessage({ isAdmin }: { isAdmin: boolean }) {
   return (
-    <div className="container px-4 py-6">
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-6">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
-              </svg>
-            </div>
-          </div>
-          <h2 className="mb-3 text-2xl font-bold text-foreground">Accesso Limitato</h2>
-          <p className="mb-6 leading-relaxed text-muted-foreground">
-            Questa pagina puo essere visualizzata solo da utenti iscritti a una lega. Contatta un amministratore per essere aggiunto a una lega esistente.
-          </p>
-          <div className="space-y-3">
-            <a href="/dashboard" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">
-              Torna alla Dashboard
-            </a>
-          </div>
-        </div>
+    <div className="flex flex-col items-center justify-center space-y-4 text-center">
+      <div className="rounded-full bg-muted p-4">
+        <Trophy className="h-8 w-8 text-muted-foreground" />
       </div>
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold tracking-tight">
+          {isAdmin ? "Nessuna Lega Trovata" : "Non sei in nessuna Lega"}
+        </h2>
+        <p className="text-muted-foreground">
+          {isAdmin
+            ? "Non sono state trovate leghe attive nel sistema."
+            : "Non partecipi a nessuna lega attiva al momento."}
+        </p>
+      </div>
+      {!isAdmin && (
+        <Button asChild>
+          <Link href="/dashboard">Torna alla Dashboard</Link>
+        </Button>
+      )}
     </div>
   );
 }

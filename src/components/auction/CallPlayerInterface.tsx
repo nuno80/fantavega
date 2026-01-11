@@ -89,6 +89,7 @@ interface CallPlayerInterfaceProps {
   leagueId: number;
   userId: string;
   onStartAuction?: (playerId: number) => void;
+  isReadOnly?: boolean;
 }
 
 interface ApiPlayer {
@@ -122,6 +123,7 @@ export function CallPlayerInterface({
   leagueId,
   userId,
   onStartAuction,
+  isReadOnly = false,
 }: CallPlayerInterfaceProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -398,13 +400,14 @@ export function CallPlayerInterface({
 
   // Handle bid on player (for active auctions)
   const handleBidOnPlayer = (player: PlayerWithStatus) => {
+    if (isReadOnly) return;
     setSelectedPlayerForBid(player);
     setIsBidModalOpen(true);
   };
 
   // Handle start auction
   const handleMainAction = () => {
-    if (!selectedPlayerDetails) return;
+    if (!selectedPlayerDetails || isReadOnly) return;
 
     // DEBUG: Log action decision
     console.log("[DEBUG MAIN ACTION] Player details:", {
@@ -425,7 +428,7 @@ export function CallPlayerInterface({
   };
 
   const handleStartAuction = () => {
-    if (!selectedPlayerDetails) return;
+    if (!selectedPlayerDetails || isReadOnly) return;
 
     // Check if player already has an active auction
     if (selectedPlayerDetails.auctionStatus === "active_auction") {
@@ -781,6 +784,7 @@ export function CallPlayerInterface({
               onClick={handleMainAction}
               disabled={
                 !selectedPlayer ||
+                isReadOnly ||
                 (selectedPlayerDetails?.auctionStatus !== "no_auction" &&
                   selectedPlayerDetails?.auctionStatus !== "active_auction")
               }

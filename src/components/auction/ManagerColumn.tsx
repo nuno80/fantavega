@@ -140,6 +140,7 @@ interface ManagerColumnProps {
   onPlayerDiscarded?: () => void; // Callback for when player is discarded
   onOpenBidModal?: (playerId: number) => void; // Callback to open bid modal
   currentUserId?: string; // Current user ID for bid icon visibility
+  isReadOnly?: boolean;
 }
 
 // Helper functions
@@ -218,6 +219,7 @@ function AssignedSlot({
   leagueStatus?: string;
   leagueId?: number;
   onPlayerDiscarded?: () => void;
+  isReadOnly?: boolean;
 }) {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const roleColor = getRoleColor(role);
@@ -227,7 +229,7 @@ function AssignedSlot({
   // console.log('[AssignedSlot] Player:', player.name, 'photo_url:', player.photo_url);
 
   // Show trash icon only if current user and league is in repair mode
-  const showDiscardOption = isCurrentUser && leagueStatus === "repair_active";
+  const showDiscardOption = isCurrentUser && leagueStatus === "repair_active" && !isReadOnly;
 
   return (
     <>
@@ -329,7 +331,6 @@ function AssignedSlot({
     </>
   );
 }
-
 function ResponseNeededSlot({
   state,
   role,
@@ -337,6 +338,7 @@ function ResponseNeededSlot({
   isLast,
   onCounterBid,
   isCurrentUser,
+  isReadOnly,
 }: {
   state: UserAuctionStateDetail;
   role: string;
@@ -344,6 +346,7 @@ function ResponseNeededSlot({
   isLast: boolean;
   onCounterBid: (playerId: number) => void;
   isCurrentUser: boolean;
+  isReadOnly?: boolean;
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
@@ -405,6 +408,8 @@ function ResponseNeededSlot({
   };
 
   const progressPercent = Math.min(100, (currentTimeRemaining === Infinity ? 3600 : currentTimeRemaining / 3600) * 100); // Scale to 1 hour
+
+  const showActions = isCurrentUser && !isReadOnly;
 
   return (
     <>
@@ -506,20 +511,20 @@ function ResponseNeededSlot({
               onClick={() => onCounterBid(state.player_id)}
               className="rounded p-1 transition-colors hover:bg-green-600/20"
               title="Rilancia"
-              disabled={(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser}
+              disabled={(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !showActions}
             >
               <DollarSign
-                className={`h-3 w-3 ${(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !isCurrentUser ? "text-gray-500" : "text-green-400"}`}
+                className={`h-3 w-3 ${(currentTimeRemaining <= 0 && currentTimeRemaining !== Infinity) || !showActions ? "text-gray-500" : "text-green-400"}`}
               />
             </button>
             <button
               onClick={() => setShowModal(true)}
               className="rounded p-1 transition-colors hover:bg-red-600/20"
               title="Abbandona"
-              disabled={currentTimeRemaining <= 0 || !isCurrentUser}
+              disabled={currentTimeRemaining <= 0 || !showActions}
             >
               <X
-                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !isCurrentUser ? "text-gray-500" : "text-red-400"}`}
+                className={`h-3 w-3 ${currentTimeRemaining <= 0 || !showActions ? "text-gray-500" : "text-red-400"}`}
               />
             </button>
           </div>
@@ -548,6 +553,7 @@ function InAuctionSlot({
   leagueId,
   currentUserId,
   onOpenBidModal,
+  isReadOnly,
 }: {
   auction: ActiveAuction;
   role: string;
@@ -556,6 +562,7 @@ function InAuctionSlot({
   leagueId?: number;
   currentUserId?: string;
   onOpenBidModal?: (playerId: number) => void;
+  isReadOnly?: boolean;
 }) {
   const [playerAutoBid, setPlayerAutoBid] = useState<{
     max_amount: number;
@@ -674,7 +681,7 @@ function InAuctionSlot({
         />
         <span className="truncate text-sm font-medium">{auction.player_name}</span>
         {/* Quick bid icon - visible only to users who are NOT the highest bidder */}
-        {onOpenBidModal && currentUserId && auction.current_highest_bidder_id !== currentUserId && (
+        {onOpenBidModal && currentUserId && auction.current_highest_bidder_id !== currentUserId && !isReadOnly && (
           <button
             onClick={() => onOpenBidModal(auction.player_id)}
             className="ml-1 rounded p-0.5 transition-colors hover:bg-green-600/20"
@@ -734,6 +741,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   onPlayerDiscarded,
   onOpenBidModal,
   currentUserId,
+  isReadOnly = false,
 }) => {
 
 
@@ -1190,6 +1198,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       leagueStatus={leagueStatus}
                       leagueId={leagueId}
                       onPlayerDiscarded={onPlayerDiscarded}
+                      isReadOnly={isReadOnly}
                     />
                   );
                 } else if (slot.type === "response_needed") {
@@ -1199,9 +1208,10 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       state={slot.state}
                       role={role}
                       leagueId={leagueId || 0}
-                      isLast={isLast}
-                      onCounterBid={onOpenBidModal ? () => onOpenBidModal(slot.state.player_id) : () => { }}
-                      isCurrentUser={isCurrentUser}
+                      isLast={idx === slots.length - 1}
+                      onCounterBid={onOpenBidModal || (() => { })}
+                      isCurrentUser={isCurrentUser && !isReadOnly}
+                      isReadOnly={isReadOnly}
                     />
                   );
                 } else if (slot.type === "in_auction") {
@@ -1215,6 +1225,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       leagueId={leagueId}
                       currentUserId={currentUserId}
                       onOpenBidModal={onOpenBidModal}
+                      isReadOnly={isReadOnly}
                     />
                   );
                 } else {

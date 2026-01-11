@@ -13,6 +13,7 @@ import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
 import { useInactivityRedirect } from "@/hooks/useInactivityRedirect";
 import { useLeague } from "@/hooks/useLeague";
+import { Info } from "lucide-react";
 
 // Dynamic import per lazy loading del modale - riduce il bundle iniziale
 const StandardBidModal = dynamic(
@@ -51,6 +52,8 @@ interface AuctionPageContentProps {
   initialComplianceData?: ComplianceRecord[];
   initialUserAuctionStates?: UserAuctionStateDetail[];
   initialLeagueStatus?: string;
+  isReadOnly?: boolean;
+  isAdmin?: boolean;
 }
 
 interface UserBudgetInfo {
@@ -76,6 +79,8 @@ export function AuctionPageContent({
   initialComplianceData,
   initialUserAuctionStates,
   initialLeagueStatus,
+  isReadOnly = false,
+  isAdmin = false,
 }: AuctionPageContentProps) {
   const router = useRouter();
   const { socket, isConnected } = useSocket();
@@ -668,12 +673,24 @@ export function AuctionPageContent({
 
   return (
     <div className="flex h-full flex-col bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 transition-colors duration-300 dark:from-gray-900 dark:to-gray-950 dark:text-white">
+      {isReadOnly && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 flex items-center justify-center gap-2 flex-shrink-0">
+          <Info className="h-4 w-4 text-amber-500" />
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+            MODALITÀ SOLA LETTURA: Sei loggato come Admin e non partecipi a questa lega.
+          </span>
+        </div>
+      )}
       {/* Top Panel - Call Player Interface */}
       <div className="flex-shrink-0 border-b border-gray-200 bg-white/80 p-2 backdrop-blur-md transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900/80">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">
             {selectedLeagueId && (
-              <CallPlayerInterface leagueId={selectedLeagueId} userId={userId} />
+              <CallPlayerInterface
+                leagueId={selectedLeagueId}
+                userId={userId}
+                isReadOnly={isReadOnly}
+              />
             )}
           </div>
           {/* <ThemeToggle /> */}
@@ -723,8 +740,9 @@ export function AuctionPageContent({
                     }
                     onPenaltyApplied={() => selectedLeagueId && fetchComplianceData(selectedLeagueId)}
                     onPlayerDiscarded={() => selectedLeagueId && fetchManagersData(selectedLeagueId)}
-                    onOpenBidModal={handleOpenBidModal}
+                    onOpenBidModal={isReadOnly ? undefined : handleOpenBidModal}
                     currentUserId={userId}
+                    isReadOnly={isReadOnly}
                   />
                 </div>
               );

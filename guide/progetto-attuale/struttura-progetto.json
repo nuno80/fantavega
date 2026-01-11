@@ -1,145 +1,21 @@
 {
-  "last_update": "2025-12-14T12:10:00Z",
+  "last_update": "2024-05-24T15:00:00Z",
   "files": [
     {
-      "path": "src/hooks/useLeague.ts",
-      "description": "Nuovo custom hook per la gestione dello stato della lega attiva a livello globale."
-    },
-    {
-      "path": "src/components/league/LeagueSelector.tsx",
-      "description": "Nuovo componente React che permette all'utente di selezionare la lega attiva."
-    },
-    {
-      "path": "src/components/navbar.tsx",
-      "description": "Modificata per integrare il nuovo componente LeagueSelector."
-    },
-    {
-      "path": "src/app/auctions/AuctionPageContent.tsx",
-      "description": "Modificata per consumare l'hook useLeague e mostrare i dati in base alla lega selezionata."
-    },
-    {
-      "path": "guide/progetto-attuale/logica-app.json",
-      "description": "Aggiornato per documentare la nuova logica di selezione della lega."
-    },
-    {
-      "path": "src/lib/scheduler.ts",
-      "description": "Modificato per includere il processamento delle aste scadute e per ridurre l'intervallo di esecuzione."
-    },
-    {
-      "path": "src/lib/db/services/player.service.ts",
-      "description": "Aggiornato per includere il campo `current_bid` nella query `getPlayers` per le aste attive."
-    },
-    {
-      "path": "src/components/auction/CallPlayerInterface.tsx",
-      "description": "Aggiornato per mappare `current_bid` dall'API allo stato del componente."
-    },
-    {
-      "path": "src/components/players/QuickBidModal.tsx",
-      "description": "Aggiornato per utilizzare `currentBid + 1` come valore di default per le offerte."
-    },
-    {
       "path": "src/app/auctions/page.tsx",
-      "description": "Aggiornato per implementare SSR: recupera dati iniziali e li passa al client component."
+      "description": "Pagina principale dell'asta, aggiornata per supportare l'accesso admin non partecipante."
     },
     {
       "path": "src/app/auctions/AuctionPageContent.tsx",
-      "description": "Refactoring per supportare SSR: accetta props iniziali e gestisce idratazione stato."
-    },
-    {
-      "path": "src/lib/db/services/auction-league.service.ts",
-      "description": "Aggiunta funzione getLeagueManagersWithRosters per aggregazione dati SSR."
-    },
-    {
-      "path": "src/lib/db/services/auction-states.service.ts",
-      "description": "Aggiunta funzione getUserAuctionStates e fix tipi per SSR."
+      "description": "Componente client per l'asta, include il banner di sola lettura e la propagazione dei flag di permessi."
     },
     {
       "path": "src/components/auction/ManagerColumn.tsx",
-      "description": "Fix tipi e gestione props opzionali per compatibilità SSR."
-    },
-    {
-      "path": "src/contexts/SocketContext.tsx",
-      "description": "Fix dipendenze useEffect per evitare loop infiniti."
-    },
-    {
-      "path": "socket-server.ts",
-      "description": "Aggiunti handler generici join-room/leave-room per fixare la ricezione eventi."
+      "description": "Visualizzazione colonna manager, aggiornata per disabilitare azioni in sola lettura."
     },
     {
       "path": "src/components/auction/CallPlayerInterface.tsx",
-      "description": "Aggiornato per utilizzare `placeBidAction` per l'avvio delle aste."
-    },
-    {
-      "path": "src/lib/actions/auction.actions.ts",
-      "description": "Nuovo file contenente le Server Actions per le interazioni d'asta (placeBidAction, abandonAuctionAction)."
-    },
-    {
-      "path": "src/app/auctions/AuctionPageContent.tsx",
-      "description": "Aggiornato per utilizzare `placeBidAction` per le offerte e `abandonAuctionAction`."
-    },
-    {
-      "path": "src/components/players/QuickBidModal.tsx",
-      "description": "Aggiornato per utilizzare `placeBidAction` per le offerte rapide."
-    },
-    {
-      "path": "src/app/api/debug/budget-verification/route.ts",
-      "description": "API Endpoint protetto per la verifica della coerenza del budget e il debug dei crediti bloccati."
-    },
-    {
-      "path": "src/app/debug/budget/page.tsx",
-      "description": "Pagina di debug UI per visualizzare i risultati della verifica del budget."
-    },
-    {
-      "path": "src/components/players/PlayerFilterBar.tsx",
-      "description": "Nuovo componente UI per la barra dei filtri compatta nella pagina di ricerca giocatori."
-    },
-    {
-      "path": "src/app/api/leagues/[league-id]/players-with-status/route.ts",
-      "description": "Endpoint ottimizzato con query batch per recuperare giocatori e status (cooldown) in modo performante."
-    },
-    {
-      "path": "src/components/ThemeToggle.tsx",
-      "description": "Componente per il cambio tema chiaro/scuro."
-    },
-    {
-      "path": "src/components/auction/ManagerColumn.tsx",
-      "description": "Aggiornato styling con glassmorphism e nuova palette colori."
-    },
-    {
-      "path": "src/components/auction/AuctionRealtimeDisplay.tsx",
-      "description": "Aggiunte animazioni per aggiornamenti offerta e timer."
-    },
-    {
-      "path": "src/components/auction/BiddingInterface.tsx",
-      "description": "Migliorata interattività pulsanti offerta."
-    },
-    {
-      "path": "src/app/auctions/AuctionPageContent.tsx",
-      "description": "Aggiornato layout e sfondo pagina."
-    },
-    {
-      "path": "next.config.mjs",
-      "description": "Abilitato experimental.reactCompiler."
-    },
-    {
-      "path": "src/components/auction/CallPlayerInterface.tsx",
-      "description": "Aggiornato per gestire il caso di database vuoto e mostrare un messaggio di errore."
-    },
-    {
-      "path": "src/components/admin/EditLeagueSetting.tsx",
-      "description": "Nuovo componente per modificare le impostazioni della lega (budget, timer, tipo) dal dashboard admin."
-    },
-    {
-      "path": "src/lib/actions/league.actions.ts",
-      "description": "Aggiunta Server Action updateLeagueSettingAction per modificare le impostazioni della lega."
-    },
-    {
-      "path": "src/lib/db/services/auction-league.service.ts",
-      "description": "Aggiunta funzione updateLeagueSettingForParticipantsJoining con sincronizzazione automatica del budget dei partecipanti."
-    },
-    {
-      "path": "src/app/admin/leagues/[leagueId]/dashboard/page.tsx",
-      "description": "Aggiornato con icone di modifica per Budget, Timer e Tipo Lega."
+      "description": "Interfaccia di chiamata giocatori, aggiornata per disabilitare azioni in sola lettura."
     }
   ]
 }
