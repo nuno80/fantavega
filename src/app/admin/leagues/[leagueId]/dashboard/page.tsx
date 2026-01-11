@@ -1,14 +1,16 @@
-// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.8 (Edit Settings)
-// Versione completa della dashboard di gestione lega con modifica impostazioni.
+// src/app/admin/leagues/[leagueId]/dashboard/page.tsx v.1.9 (CSV Import & Leftover Credits)
+// Aggiunta funzionalità di import rose e crediti residui.
 // 1. Importazioni
 import { notFound } from "next/navigation";
 
 import { Clock, Landmark, ShieldCheck, Users } from "lucide-react";
 
+import { CsvImportModal } from "@/components/admin/CsvImportModal";
 import { EditLeagueSetting } from "@/components/admin/EditLeagueSetting";
 import { EditTeamName } from "@/components/admin/EditTeamName";
 import { LeagueActiveRolesManager } from "@/components/admin/LeagueActiveRolesManager";
 import { LeagueStatusManager } from "@/components/admin/LeagueStatusManager";
+import { LeftoverCreditsModal } from "@/components/admin/LeftoverCreditsModal";
 import { RemoveParticipant } from "@/components/admin/RemoveParticipant";
 import { AddParticipantForm } from "@/components/forms/AddParticipantForm";
 import { Navbar } from "@/components/navbar";
@@ -245,6 +247,35 @@ export default async function LeagueDashboardPage({
               leagueId={league.id}
               currentActiveRoles={league.activeAuctionRoles}
             />
+
+            {/* Sezione Import e Crediti - visibile solo in participants_joining */}
+            {canManageParticipants && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Strumenti Import</CardTitle>
+                  <CardDescription>
+                    Importa rose da file CSV o aggiungi crediti residui
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  <CsvImportModal
+                    leagueId={league.id}
+                    leagueName={league.name}
+                    participantsCount={league.participants.length}
+                  />
+                  <LeftoverCreditsModal
+                    leagueId={league.id}
+                    leagueName={league.name}
+                    participants={league.participants.map((p) => ({
+                      userId: p.userId,
+                      username: p.username,
+                      teamName: p.teamName,
+                      currentBudget: p.currentBudget,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </main>

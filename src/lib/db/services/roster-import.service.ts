@@ -216,16 +216,21 @@ export async function validateImportData(
 
   // 4. Valida ogni entry
   const teamsFound = new Set<string>();
+  const teamsSkipped = new Set<string>();
 
   for (const entry of entries) {
     const teamNameLower = entry.teamName.toLowerCase();
     const userId = teamNameToUserId.get(teamNameLower);
 
-    // Verifica che il team esista
+    // Verifica che il team esista - se non esiste, salta silenziosamente (import parziale)
     if (!userId) {
-      errors.push(
-        `Riga ${entry.lineNumber}: Team "${entry.teamName}" non trovato tra i partecipanti della lega`
-      );
+      // Solo aggiungi warning la prima volta che vediamo questo team
+      if (!teamsSkipped.has(teamNameLower)) {
+        teamsSkipped.add(teamNameLower);
+        warnings.push(
+          `Team "${entry.teamName}" non trovato tra i partecipanti - giocatori saltati`
+        );
+      }
       continue;
     }
 
@@ -242,8 +247,9 @@ export async function validateImportData(
     teamsFound.add(entry.teamName);
   }
 
+  // Import è valido se abbiamo almeno un'entry valida (import parziale consentito)
   const result: ValidationResult = {
-    isValid: errors.length === 0 && validEntries.length > 0,
+    isValid: validEntries.length > 0,
     errors,
     warnings,
     validEntries,

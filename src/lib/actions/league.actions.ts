@@ -512,3 +512,148 @@ export async function updateLeagueSettingAction(
     return { success: false, message: errorMessage };
   }
 }
+
+// 10. Action: Importare Rose da CSV
+export type ImportRosterFormState = {
+  success: boolean;
+  message: string;
+  teamsImported?: number;
+  playersImported?: number;
+  errors?: string[];
+  warnings?: string[];
+};
+
+export async function importRosterFromCsvAction(
+  leagueId: number,
+  csvContent: string
+): Promise<ImportRosterFormState> {
+  const { userId: adminUserId, sessionClaims } = await auth();
+  if (!adminUserId) {
+    return { success: false, message: "Azione non autorizzata." };
+  }
+
+  // Verifica che l'utente sia admin
+  const isAdmin = await checkIsAdmin(adminUserId, sessionClaims as Record<string, unknown> | null);
+  if (!isAdmin) {
+    return { success: false, message: "Solo gli admin possono importare rose." };
+  }
+
+  if (!leagueId || !csvContent) {
+    return { success: false, message: "Dati mancanti." };
+  }
+
+  try {
+    // Importa dinamicamente il servizio per evitare problemi di bundling
+    const { parseCsvContent, importRostersToLeague } = await import(
+      "@/lib/db/services/roster-import.service"
+    );
+
+    // Parse del CSV
+    const entries = parseCsvContent(csvContent);
+    if (entries.length === 0) {
+      return { success: false, message: "Nessuna entry valida trovata nel CSV." };
+    }
+
+    // Esegui l'import
+    const result = await importRostersToLeague(leagueId, entries, "csv");
+
+    if (!result.success) {
+      return {
+        success: false,
+        message: "Import fallito.",
+        errors: result.errors,
+        warnings: result.warnings,
+      };
+    }
+
+    revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+    return {
+      success: true,
+      message: `Import completato: ${result.playersImported} giocatori per ${result.teamsImported} team.`,
+      teamsImported: result.teamsImported,
+      playersImported: result.playersImported,
+      warnings: result.warnings,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    console.error("[importRosterFromCsvAction] Errore:", error);
+    return { success: false, message: errorMessage };
+  }
+}
+
+// 11. Action: Aggiungere Crediti Residui a un Partecipante
+export type AddLeftoverCreditsFormState = { success: boolean; message: string };
+
+export async function addLeftoverCreditsAction(
+  leagueId: number,
+  userId: string,
+  amount: number
+): Promise<AddLeftoverCreditsFormState> {
+  const { userId: adminUserId, sessionClaims } = await auth();
+  if (!adminUserId) {
+    return { success: false, message: "Azione non autorizzata." };
+  }
+
+  // Verifica che l'utente sia admin
+  const isAdmin = await checkIsAdmin(adminUserId, sessionClaims as Record<string, unknown> | null);
+  if (!isAdmin) {
+    return { success: false, message: "Solo gli admin possono modificare i crediti." };
+  }
+
+  if (!leagueId || !userId || amount === 0) {
+    return { success: false, message: "Dati mancanti o importo nullo." };
+  }
+
+  try {
+    // Verifica che il partecipante esista nella lega
+    const participantResult = await db.execute({
+      sql: `SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?`,
+      args: [leagueId, userId],
+    });
+
+    if (participantResult.rows.length === 0) {
+      return { success: false, message: "Partecipante non trovato nella lega." };
+    }
+
+    const currentBudget = participantResult.rows[0].current_budget as number;
+    const newBudget = currentBudget + amount;
+
+    if (newBudget < 0) {
+      return { success: false, message: "Il budget non può diventare negativo." };
+    }
+
+    // Aggiorna il budget del partecipante
+    await db.execute({
+      sql: `UPDATE league_participants SET current_budget = ? WHERE league_id = ? AND user_id = ?`,
+      args: [newBudget, leagueId, userId],
+    });
+
+    // Registra la transazione
+    const transactionType = amount > 0 ? "admin_budget_increase" : "admin_budget_decrease";
+    await db.execute({
+      sql: `INSERT INTO budget_transactions
+            (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [
+        leagueId,
+        userId,
+        transactionType,
+        amount,
+        `Crediti residui: ${amount > 0 ? "+" : ""}${amount} crediti`,
+        newBudget,
+      ],
+    });
+
+    revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+    return {
+      success: true,
+      message: `Budget aggiornato: ${amount > 0 ? "+" : ""}${amount} crediti.`,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto.";
+    console.error("[addLeftoverCreditsAction] Errore:", error);
+    return { success: false, message: errorMessage };
+  }
+}
