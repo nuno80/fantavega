@@ -525,7 +525,8 @@ export type ImportRosterFormState = {
 
 export async function importRosterFromCsvAction(
   leagueId: number,
-  csvContent: string
+  csvContent: string,
+  priceSource: "csv" | "database" = "csv"
 ): Promise<ImportRosterFormState> {
   const { userId: adminUserId, sessionClaims } = await auth();
   if (!adminUserId) {
@@ -554,8 +555,8 @@ export async function importRosterFromCsvAction(
       return { success: false, message: "Nessuna entry valida trovata nel CSV." };
     }
 
-    // Esegui l'import
-    const result = await importRostersToLeague(leagueId, entries, "csv");
+    // Esegui l'import con la sorgente prezzo selezionata
+    const result = await importRostersToLeague(leagueId, entries, priceSource);
 
     if (!result.success) {
       return {

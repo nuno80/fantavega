@@ -18,9 +18,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 import { importRosterFromCsvAction } from "@/lib/actions/league.actions";
+
+// Tipo per la fonte del prezzo (deve matchare quello del servizio)
+type PriceSource = "csv" | "database";
 
 interface CsvImportModalProps {
   leagueId: number;
@@ -46,6 +56,7 @@ export function CsvImportModal({
   const [csvContent, setCsvContent] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ValidationPreview | null>(null);
+  const [priceSource, setPriceSource] = useState<PriceSource>("csv");
   const [isPending, startTransition] = useTransition();
 
   // Parsing locale per preview
@@ -107,7 +118,7 @@ export function CsvImportModal({
     if (!csvContent) return;
 
     startTransition(async () => {
-      const result = await importRosterFromCsvAction(leagueId, csvContent);
+      const result = await importRosterFromCsvAction(leagueId, csvContent, priceSource);
 
       if (result.success) {
         toast.success("Import completato!", {
@@ -137,6 +148,7 @@ export function CsvImportModal({
     setCsvContent(null);
     setFileName(null);
     setPreview(null);
+    setPriceSource("csv");
   };
 
   return (
@@ -193,6 +205,30 @@ export function CsvImportModal({
                 Rimuovi
               </Button>
             )}
+          </div>
+
+          {/* Price source selection */}
+          <div className="p-4 border rounded-lg bg-muted/30">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-medium">Sorgente Prezzo di Acquisto</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Scegli da dove prendere i prezzi per i giocatori importati
+                </p>
+              </div>
+              <Select
+                value={priceSource}
+                onValueChange={(value: "csv" | "database") => setPriceSource(value)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">Prezzi dal CSV</SelectItem>
+                  <SelectItem value="database">Quotazioni attuali</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Preview */}
