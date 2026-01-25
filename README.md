@@ -17,32 +17,48 @@ This application requires **two separate services** to run in production:
 
 ### Step 1: Deploy Socket.IO Server to Railway
 
-1. **Create New Project on Railway:**
-   - Go to [Railway Dashboard](https://railway.app/dashboard)
-   - Click "New Project" → "Deploy from GitHub repo"
-   - Select your `fantavega` repository
+#### 1. Connect GitHub Repository
 
-2. **Configure Build Settings:**
-   - Railway should auto-detect Node.js
-   - Set **Start Command**: `node socket-server.ts`
-   - Set **Build Command**: (leave empty, no build needed)
+If you're having trouble connecting the repository or Railway connects to an old account:
 
-3. **Set Environment Variables:**
-   ```
-   ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-app-git-main.vercel.app
-   TURSO_DATABASE_URL=your_turso_url
-   TURSO_AUTH_TOKEN=your_turso_token
-   ```
-   > ⚠️ **Important**: Add ALL Vercel deployment URLs (production + preview branches) to `ALLOWED_ORIGINS`
+1. **Revoke Old Access**: Go to GitHub → **Settings** → **Applications** → **Authorized OAuth Apps** and click **Revoke** on Railway.
 
-4. **Get Railway Public URL:**
-   - After deployment, Railway will provide a public URL (e.g., `https://fantavega-production.up.railway.app`)
-   - **Copy this URL** - you'll need it for Vercel configuration
+2. **Repository Permissions**: In GitHub → **Settings** → **Applications** → **Installed GitHub Apps** → **Railway**, ensure the `fantavega` repository is selected and click the green **Save** button.
 
-5. **Keep Service Active:**
-   - Railway may pause services after inactivity (Hobby plan)
-   - Check Railway dashboard if real-time features stop working
-   - Upgrade to paid plan to prevent auto-pause
+3. **Sync Repository**: In the Railway Dashboard, click **"New Project"** → **"Deploy from GitHub repo"**. If you don't see the repo, click **"Configure GitHub App"** to force a refresh.
+
+#### 2. Configure Build Settings
+
+Railway should auto-detect Node.js.
+
+- **Start Command**: `npx tsx socket-server.ts`
+- **Build Command**: (leave empty, or `npm install`)
+
+> 💡 **Note**: We use `tsx` instead of `node` because the file has a `.ts` extension. Node.js alone cannot read TypeScript directly.
+
+#### 3. Set Environment Variables
+
+Configure these variables in the **Variables** tab of your service:
+
+```
+ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-app-git-main.vercel.app
+TURSO_DATABASE_URL=your_turso_url
+TURSO_AUTH_TOKEN=your_turso_token
+```
+
+> ⚠️ **Important**: Include ALL Vercel URLs (production and preview) separated by commas without spaces.
+
+#### 4. Get Railway Public URL
+
+- Go to **Settings** → **Networking** → **Generate Domain** (if not already present).
+- Copy the generated URL (e.g., `https://fantavega-production.up.railway.app`).
+- You'll need this to configure the frontend client on Vercel (variable `NEXT_PUBLIC_SOCKET_URL`).
+
+#### 5. Keep Service Active
+
+- Railway's Hobby plan may pause inactive services.
+- Periodically check the dashboard if real-time features appear interrupted.
+- Consider the "Trial" or "Pro" plan to avoid auto-pause.
 
 ### Step 2: Deploy Next.js App to Vercel
 
