@@ -38,7 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInFallbackRedirectUrl="/features"
+      signUpFallbackRedirectUrl="/features"
+    >
       <html lang="en" suppressHydrationWarning>
         {/* La tua struttura di classi per i font (MANTENUTA) */}
         <body

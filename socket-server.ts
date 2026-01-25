@@ -220,7 +220,7 @@ const httpServer = createServer((req, res) => {
 // 4. Inizializzazione Server Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: true, // Allow all origins temporarily for debugging
+    origin: ALLOWED_ORIGINS, // Use explicit allowed origins from env
     methods: ["GET", "POST"],
     credentials: true,
   },
