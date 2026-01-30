@@ -258,23 +258,24 @@ export function AuctionPageContent({
 
       setIsLoading(true);
       try {
-        // Trigger compliance check on page access
-        try {
-          await fetch("/api/user/trigger-login-check", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
-          console.log("Compliance check triggered successfully");
-        } catch (error) {
-          console.warn("Failed to trigger compliance check:", error);
-        }
-
         await Promise.all([
           fetchManagersData(selectedLeagueId),
           fetchCurrentAuction(selectedLeagueId),
           fetchComplianceData(selectedLeagueId),
           fetchUserAuctionStates(selectedLeagueId),
         ]);
+
+        // Trigger compliance check AFTER fetching data, using league-specific endpoint
+        // This ensures the check uses the correct phase_identifier for the current league status
+        try {
+          await fetch(`/api/leagues/${selectedLeagueId}/check-compliance`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          console.log("League-specific compliance check triggered successfully");
+        } catch (error) {
+          console.warn("Failed to trigger compliance check:", error);
+        }
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati della lega.");

@@ -216,17 +216,6 @@ export function PlayerSearchInterface({
       try {
         setIsLoading(true);
 
-        // Trigger compliance check on page access
-        try {
-          await fetch("/api/user/trigger-login-check", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
-          console.log("Compliance check triggered successfully");
-        } catch (error) {
-          console.warn("Failed to trigger compliance check:", error);
-        }
-
         // Get user's leagues first
         const leaguesResponse = await fetch("/api/user/leagues");
         if (!leaguesResponse.ok) throw new Error("Failed to fetch leagues");
@@ -265,6 +254,18 @@ export function PlayerSearchInterface({
         // Use first league for now (in real app, user might select)
         const league = leagues[0];
         setSelectedLeagueId(league.id);
+
+        // Trigger league-specific compliance check after getting the league ID
+        // This ensures the check uses the correct phase_identifier for the current league status
+        try {
+          await fetch(`/api/leagues/${league.id}/check-compliance`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          console.log("League-specific compliance check triggered successfully");
+        } catch (error) {
+          console.warn("Failed to trigger compliance check:", error);
+        }
 
         // Use the existing refresh function to load player data, passing the league ID directly
         // Note: refreshPlayersData depends on state which might not be updated yet in this closure

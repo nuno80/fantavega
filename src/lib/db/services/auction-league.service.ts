@@ -1309,30 +1309,9 @@ export async function updateLeagueStatus(
       // Non blocchiamo l'operazione se la notifica socket fallisce
     }
 
-    // Trigger compliance check per tutti i partecipanti quando si entra in una fase attiva
-    if (["draft_active", "repair_active"].includes(newStatus)) {
-      try {
-        const { checkAndRecordCompliance } = await import("@/lib/db/services/penalty.service");
-        const participantsResult = await db.execute({
-          sql: "SELECT user_id FROM league_participants WHERE league_id = ?",
-          args: [leagueId],
-        });
-        const participants = participantsResult.rows as unknown as { user_id: string }[];
-
-        console.log(`[COMPLIANCE_TRIGGER] Triggering compliance check for ${participants.length} participants after status change to '${newStatus}'`);
-
-        for (const participant of participants) {
-          try {
-            await checkAndRecordCompliance(participant.user_id, leagueId);
-          } catch (complianceError) {
-            console.warn(`[COMPLIANCE_TRIGGER] Error checking compliance for user ${participant.user_id}:`, complianceError);
-            // Continuiamo con gli altri partecipanti anche se uno fallisce
-          }
-        }
-      } catch (importError) {
-        console.warn(`[COMPLIANCE_TRIGGER] Error importing penalty service:`, importError);
-      }
-    }
+    // NOTA: Il compliance check NON viene triggerato qui al cambio status.
+    // Il timer di compliance parte SOLO quando l'utente fa login (trigger-login-check endpoint).
+    // Questo evita di far partire timer per utenti che non hanno ancora fatto accesso.
 
     return {
       success: true,
