@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Railway env
 .env.raylway
+
+# Windows Zone.Identifier files (metadata for downloaded files)
+*:Zone.Identifier
