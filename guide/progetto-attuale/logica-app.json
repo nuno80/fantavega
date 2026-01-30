@@ -1,22 +1,19 @@
 {
-  "last_update": "2024-05-24T16:00:00Z",
-  "task_completed": "Implementazione Selezione Sorgente Prezzo Import CSV",
+  "last_update": "2026-01-30T18:45:00Z",
+  "task_completed": "Fix Calcolo Budget Residuo",
   "feature_logic": {
-    "feature_name": "Scelta Sorgente Prezzo nell'Import CSV",
-    "summary": "Permette all'admin di scegliere durante l'import delle rose CSV se utilizzare i prezzi di acquisto salvati nel file CSV oppure le quotazioni attuali dal database.",
-    "architectural_pattern": "Select component nella UI del modal di import che passa il parametro 'priceSource' alla Server Action, la quale lo inoltra al servizio roster-import.service.ts che gestisce la logica di determinazione del prezzo.",
+    "feature_name": "Visualizzazione Budget Residuo Reale",
+    "summary": "Corretto il calcolo del 'Residuo' nella dashboard manager per riflettere il 'Current Budget' modificabile dall'admin, anziché una derivazione dal 'Total Budget' iniziale.",
+    "architectural_pattern": "UI Update in Client Component ManagerColumn.tsx. La logica di visualizzazione ora privilegia il dato 'current_budget' persistito nel DB rispetto al calcolo teorico, permettendo all'admin di sovrascrivere manualmente i crediti disponibili.",
     "user_flow": [
-      "1. L'Admin apre il modal 'Importa Rose CSV' dalla dashboard della lega.",
-      "2. Seleziona un file CSV con le rose esportate dal Fantacalcio.",
-      "3. Prima di confermare, sceglie dal dropdown 'Sorgente Prezzo di Acquisto' tra:",
-      "   - 'Prezzi dal CSV': usa i prezzi salvati nel file",
-      "   - 'Quotazioni attuali': usa le quotazioni correnti dal database dei giocatori",
-      "4. Conferma l'import, il backend usa la sorgente prezzo selezionata per calcolare i costi e aggiornare i budget."
+      "1. Admin modifica il budget di un manager tramite 'Aggiungi Crediti' (es. imposta a 0).",
+      "2. Il database aggiorna 'current_budget'.",
+      "3. La UI del manager (ManagerColumn) legge il nuovo 'current_budget'.",
+      "4. Il campo 'Residuo' mostra esattamente il valore impostato (es. 0), indipendentemente dalle spese precedenti."
     ],
     "core_components_interaction": {
-      "src/components/admin/CsvImportModal.tsx": "Aggiunto stato 'priceSource', import dei componenti Select, e un dropdown per la selezione. Il valore viene passato alla action.",
-      "src/lib/actions/league.actions.ts": "La funzione 'importRosterFromCsvAction' ora accetta un terzo parametro 'priceSource' che viene passato al servizio di import.",
-      "src/lib/db/services/roster-import.service.ts": "La funzione 'importRostersToLeague' usa il parametro 'priceSource' per determinare se usare 'entry.purchasePrice' (csv) o 'playerQuotations.get(entry.playerId)' (database)."
+      "src/components/auction/ManagerColumn.tsx": "Aggiornata formula calcolo variabile 'residuo'.",
+      "scripts/": "Aggiunti script di utility per debug e gestione DB (count-leagues, find-duplicates)."
     }
   }
 }
