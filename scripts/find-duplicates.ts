@@ -1,0 +1,535 @@
+// Analisi duplicati nel CSV delle rose
+const csvData = `La Qpola,7181,17
+La Qpola,7071,7
+La Qpola,7070,11
+La Qpola,6814,4
+La Qpola,6667,1
+La Qpola,6215,14
+La Qpola,6060,14
+La Qpola,5527,3
+La Qpola,5319,11
+La Qpola,5022,9
+La Qpola,4994,10
+La Qpola,4870,6
+La Qpola,4777,45
+La Qpola,4360,8
+La Qpola,4317,11
+La Qpola,4312,16
+La Qpola,4159,9
+La Qpola,2815,1
+La Qpola,2764,71
+La Qpola,2529,9
+La Qpola,2379,23
+La Qpola,827,13
+La Qpola,788,11
+La Qpola,785,19
+La Qpola,770,6
+Rigatonen DDR,6990,2
+Rigatonen DDR,6965,3
+Rigatonen DDR,6831,13
+Rigatonen DDR,6047,5
+Rigatonen DDR,5995,21
+Rigatonen DDR,5876,17
+Rigatonen DDR,5820,6
+Rigatonen DDR,5792,14
+Rigatonen DDR,5784,4
+Rigatonen DDR,5761,19
+Rigatonen DDR,4730,28
+Rigatonen DDR,4728,20
+Rigatonen DDR,4220,16
+Rigatonen DDR,4186,12
+Rigatonen DDR,2606,13
+Rigatonen DDR,2593,12
+Rigatonen DDR,2194,22
+Rigatonen DDR,2120,17
+Rigatonen DDR,1930,1
+Rigatonen DDR,1852,7
+Rigatonen DDR,531,21
+Rigatonen DDR,505,3
+Rigatonen DDR,309,35
+Rigatonen DDR,254,19
+Rigatonen DDR,218,1
+Paranza,7238,1
+Paranza,7162,3
+Paranza,7143,7
+Paranza,7142,1
+Paranza,7133,13
+Paranza,7017,9
+Paranza,7008,40
+Paranza,6836,2
+Paranza,6832,7
+Paranza,6252,9
+Paranza,6226,60
+Paranza,6020,6
+Paranza,5862,10
+Paranza,5851,6
+Paranza,5422,7
+Paranza,5286,1
+Paranza,4502,6
+Paranza,4431,14
+Paranza,4287,9
+Paranza,2816,14
+Paranza,2423,50
+Paranza,2297,1
+Paranza,536,70
+Paranza,247,1
+Paranza,4,1
+Atletico Puppao FC,7252,0
+Atletico Puppao FC,7146,0
+Atletico Puppao FC,7143,0
+Atletico Puppao FC,7125,0
+Atletico Puppao FC,7008,0
+Atletico Puppao FC,6966,0
+Atletico Puppao FC,6908,0
+Atletico Puppao FC,6867,0
+Atletico Puppao FC,6519,0
+Atletico Puppao FC,6252,0
+Atletico Puppao FC,6184,0
+Atletico Puppao FC,6106,0
+Atletico Puppao FC,5862,0
+Atletico Puppao FC,5835,0
+Atletico Puppao FC,5719,0
+Atletico Puppao FC,5672,0
+Atletico Puppao FC,5620,0
+Atletico Puppao FC,5119,0
+Atletico Puppao FC,4463,0
+Atletico Puppao FC,4409,0
+Atletico Puppao FC,2521,0
+Atletico Puppao FC,2167,0
+Atletico Puppao FC,2077,0
+Atletico Puppao FC,393,0
+Atletico Puppao FC,247,0
+Cuoci & Scuoti,7211,6
+Cuoci & Scuoti,7179,8
+Cuoci & Scuoti,7068,8
+Cuoci & Scuoti,6967,16
+Cuoci & Scuoti,6916,6
+Cuoci & Scuoti,6889,9
+Cuoci & Scuoti,6842,5
+Cuoci & Scuoti,6766,7
+Cuoci & Scuoti,6675,20
+Cuoci & Scuoti,6642,8
+Cuoci & Scuoti,6462,5
+Cuoci & Scuoti,6271,9
+Cuoci & Scuoti,5877,10
+Cuoci & Scuoti,5589,14
+Cuoci & Scuoti,5561,11
+Cuoci & Scuoti,5427,7
+Cuoci & Scuoti,4923,11
+Cuoci & Scuoti,4896,8
+Cuoci & Scuoti,4199,9
+Cuoci & Scuoti,4137,5
+Cuoci & Scuoti,2848,30
+Cuoci & Scuoti,2766,11
+Cuoci & Scuoti,2764,70
+Cuoci & Scuoti,2155,11
+Cuoci & Scuoti,647,14
+Luongobarda,6908,10
+Luongobarda,6884,20
+Luongobarda,6875,35
+Luongobarda,6869,5
+Luongobarda,6844,14
+Luongobarda,6431,1
+Luongobarda,6398,13
+Luongobarda,6365,61
+Luongobarda,6294,2
+Luongobarda,6159,7
+Luongobarda,5750,5
+Luongobarda,5637,13
+Luongobarda,5620,12
+Luongobarda,5603,5
+Luongobarda,5119,11
+Luongobarda,4896,8
+Luongobarda,4807,4
+Luongobarda,4510,59
+Luongobarda,4401,7
+Luongobarda,2845,1
+Luongobarda,2170,5
+Luongobarda,2061,11
+Luongobarda,572,20
+Luongobarda,513,9
+Luongobarda,441,12
+Swiss,7208,3
+Swiss,7162,3
+Swiss,6925,1
+Swiss,6875,43
+Swiss,6832,4
+Swiss,6814,4
+Swiss,6669,7
+Swiss,6485,7
+Swiss,6435,30
+Swiss,6054,3
+Swiss,5998,5
+Swiss,5688,7
+Swiss,5687,14
+Swiss,5603,5
+Swiss,4728,46
+Swiss,4510,61
+Swiss,4431,14
+Swiss,4378,8
+Swiss,4159,9
+Swiss,2670,15
+Swiss,2423,32
+Swiss,2297,1
+Swiss,505,3
+Swiss,254,24
+Swiss,4,1
+A.g Deltaplano,7126,12
+A.g Deltaplano,6519,11
+A.g Deltaplano,6206,10
+A.g Deltaplano,5888,12
+A.g Deltaplano,5835,14
+A.g Deltaplano,5812,5
+A.g Deltaplano,5735,6
+A.g Deltaplano,5685,14
+A.g Deltaplano,5526,8
+A.g Deltaplano,5498,4
+A.g Deltaplano,5449,5
+A.g Deltaplano,5116,2
+A.g Deltaplano,4923,11
+A.g Deltaplano,4463,10
+A.g Deltaplano,4378,8
+A.g Deltaplano,2841,38
+A.g Deltaplano,2766,15
+A.g Deltaplano,2745,4
+A.g Deltaplano,2724,13
+A.g Deltaplano,2499,20
+A.g Deltaplano,2428,16
+A.g Deltaplano,2167,59
+A.g Deltaplano,2137,35
+A.g Deltaplano,1926,1
+A.g Deltaplano,795,10
+T.M. Deportivo La Cadrega,7070,9
+T.M. Deportivo La Cadrega,6965,3
+T.M. Deportivo La Cadrega,6632,8
+T.M. Deportivo La Cadrega,6549,10
+T.M. Deportivo La Cadrega,6424,4
+T.M. Deportivo La Cadrega,6365,19
+T.M. Deportivo La Cadrega,6226,44
+T.M. Deportivo La Cadrega,6202,9
+T.M. Deportivo La Cadrega,6125,1
+T.M. Deportivo La Cadrega,5841,20
+T.M. Deportivo La Cadrega,5800,24
+T.M. Deportivo La Cadrega,5750,5
+T.M. Deportivo La Cadrega,5637,13
+T.M. Deportivo La Cadrega,5544,41
+T.M. Deportivo La Cadrega,5500,4
+T.M. Deportivo La Cadrega,4711,5
+T.M. Deportivo La Cadrega,4433,16
+T.M. Deportivo La Cadrega,4210,3
+T.M. Deportivo La Cadrega,2841,28
+T.M. Deportivo La Cadrega,632,42
+T.M. Deportivo La Cadrega,610,1
+T.M. Deportivo La Cadrega,460,9
+T.M. Deportivo La Cadrega,333,5
+T.M. Deportivo La Cadrega,252,10
+T.M. Deportivo La Cadrega,22,12
+Sporting Masaniello,7132,9
+Sporting Masaniello,7023,30
+Sporting Masaniello,6991,1
+Sporting Masaniello,6842,5
+Sporting Masaniello,6822,1
+Sporting Masaniello,6666,11
+Sporting Masaniello,6634,9
+Sporting Masaniello,6572,20
+Sporting Masaniello,6485,7
+Sporting Masaniello,6202,9
+Sporting Masaniello,6106,11
+Sporting Masaniello,6066,4
+Sporting Masaniello,6052,40
+Sporting Masaniello,5800,40
+Sporting Masaniello,5719,4
+Sporting Masaniello,5701,4
+Sporting Masaniello,5687,14
+Sporting Masaniello,5515,6
+Sporting Masaniello,5307,4
+Sporting Masaniello,4734,8
+Sporting Masaniello,2765,35
+Sporting Masaniello,2160,18
+Sporting Masaniello,647,14
+Sporting Masaniello,460,7
+Sporting Masaniello,188,9
+A.S. Tronzi,7159,1
+A.S. Tronzi,7157,0
+A.S. Tronzi,7132,9
+A.S. Tronzi,7017,9
+A.S. Tronzi,6990,2
+A.S. Tronzi,6893,6
+A.S. Tronzi,6495,8
+A.S. Tronzi,5792,14
+A.S. Tronzi,5559,12
+A.S. Tronzi,5022,9
+A.S. Tronzi,4892,12
+A.S. Tronzi,4871,61
+A.S. Tronzi,4751,8
+A.S. Tronzi,2845,1
+A.S. Tronzi,2653,5
+A.S. Tronzi,2170,0
+A.S. Tronzi,2160,18
+A.S. Tronzi,2097,0
+A.S. Tronzi,2038,16
+A.S. Tronzi,1933,15
+A.S. Tronzi,788,11
+A.S. Tronzi,779,10
+A.S. Tronzi,770,6
+A.S. Tronzi,572,16
+A.S. Tronzi,479,13
+DJ Team,7252,13
+DJ Team,7222,2
+DJ Team,7135,16
+DJ Team,6893,7
+DJ Team,6684,10
+DJ Team,6675,20
+DJ Team,6664,10
+DJ Team,6434,35
+DJ Team,6351,4
+DJ Team,6314,23
+DJ Team,5831,8
+DJ Team,5672,21
+DJ Team,5559,12
+DJ Team,5520,14
+DJ Team,5514,10
+DJ Team,5336,16
+DJ Team,5318,17
+DJ Team,4957,4
+DJ Team,2722,3
+DJ Team,2188,8
+DJ Team,2077,17
+DJ Team,1933,18
+DJ Team,449,14
+DJ Team,133,11
+DJ Team,22,12
+Atleticomicatanto,7264,1
+Atleticomicatanto,7171,1
+Atleticomicatanto,6677,1
+Atleticomicatanto,6645,1
+Atleticomicatanto,6631,4
+Atleticomicatanto,6549,10
+Atleticomicatanto,6218,12
+Atleticomicatanto,6184,1
+Atleticomicatanto,5998,6
+Atleticomicatanto,5844,10
+Atleticomicatanto,5562,19
+Atleticomicatanto,5513,21
+Atleticomicatanto,4871,85
+Atleticomicatanto,4433,16
+Atleticomicatanto,4137,5
+Atleticomicatanto,2847,1
+Atleticomicatanto,2521,14
+Atleticomicatanto,2097,56
+Atleticomicatanto,1870,24
+Atleticomicatanto,608,21
+Atleticomicatanto,393,9
+Atleticomicatanto,388,5
+Atleticomicatanto,313,18
+Atleticomicatanto,252,8
+Atleticomicatanto,158,1
+bigspoonFT,7172,0
+bigspoonFT,7131,0
+bigspoonFT,7129,0
+bigspoonFT,7012,0
+bigspoonFT,6989,0
+bigspoonFT,6663,0
+bigspoonFT,6314,0
+bigspoonFT,6151,0
+bigspoonFT,6052,0
+bigspoonFT,5833,0
+bigspoonFT,5761,0
+bigspoonFT,5685,0
+bigspoonFT,5319,0
+bigspoonFT,4994,0
+bigspoonFT,4807,0
+bigspoonFT,4777,0
+bigspoonFT,4423,0
+bigspoonFT,4401,0
+bigspoonFT,4186,0
+bigspoonFT,2722,0
+bigspoonFT,2379,0
+bigspoonFT,2061,0
+bigspoonFT,785,0
+bigspoonFT,313,0
+bigspoonFT,133,0
+Amaroluciano,7255,1
+Amaroluciano,7133,1
+Amaroluciano,7120,1
+Amaroluciano,7023,1
+Amaroluciano,6884,1
+Amaroluciano,6666,1
+Amaroluciano,6646,1
+Amaroluciano,6641,1
+Amaroluciano,6572,1
+Amaroluciano,6398,1
+Amaroluciano,6215,1
+Amaroluciano,5885,1
+Amaroluciano,5876,1
+Amaroluciano,5823,1
+Amaroluciano,5526,1
+Amaroluciano,5520,1
+Amaroluciano,5422,1
+Amaroluciano,5273,1
+Amaroluciano,4772,1
+Amaroluciano,4734,1
+Amaroluciano,4730,1
+Amaroluciano,2765,1
+Amaroluciano,2593,1
+Amaroluciano,449,1
+Amaroluciano,218,1
+FC PRO SECCO,7175,9
+FC PRO SECCO,7155,5
+FC PRO SECCO,7146,7
+FC PRO SECCO,6867,6
+FC PRO SECCO,6629,13
+FC PRO SECCO,6482,3
+FC PRO SECCO,6435,20
+FC PRO SECCO,6219,6
+FC PRO SECCO,6145,8
+FC PRO SECCO,6125,2
+FC PRO SECCO,5885,12
+FC PRO SECCO,5850,9
+FC PRO SECCO,5833,9
+FC PRO SECCO,5544,75
+FC PRO SECCO,5273,12
+FC PRO SECCO,4976,9
+FC PRO SECCO,4892,12
+FC PRO SECCO,4887,13
+FC PRO SECCO,4364,8
+FC PRO SECCO,4359,17
+FC PRO SECCO,2814,12
+FC PRO SECCO,2670,15
+FC PRO SECCO,2038,18
+FC PRO SECCO,2012,1
+FC PRO SECCO,632,43
+DIFFERENZIATA LA CORUNA FC,7223,1
+DIFFERENZIATA LA CORUNA FC,6629,11
+DIFFERENZIATA LA CORUNA FC,6217,8
+DIFFERENZIATA LA CORUNA FC,5995,21
+DIFFERENZIATA LA CORUNA FC,5858,10
+DIFFERENZIATA LA CORUNA FC,5791,13
+DIFFERENZIATA LA CORUNA FC,5513,28
+DIFFERENZIATA LA CORUNA FC,5301,6
+DIFFERENZIATA LA CORUNA FC,5116,1
+DIFFERENZIATA LA CORUNA FC,4887,13
+DIFFERENZIATA LA CORUNA FC,4436,11
+DIFFERENZIATA LA CORUNA FC,2788,17
+DIFFERENZIATA LA CORUNA FC,2525,4
+DIFFERENZIATA LA CORUNA FC,2517,41
+DIFFERENZIATA LA CORUNA FC,2489,13
+DIFFERENZIATA LA CORUNA FC,2428,23
+DIFFERENZIATA LA CORUNA FC,2194,22
+DIFFERENZIATA LA CORUNA FC,2137,20
+DIFFERENZIATA LA CORUNA FC,2120,17
+DIFFERENZIATA LA CORUNA FC,2012,1
+DIFFERENZIATA LA CORUNA FC,1926,1
+DIFFERENZIATA LA CORUNA FC,1870,18
+DIFFERENZIATA LA CORUNA FC,787,8
+DIFFERENZIATA LA CORUNA FC,531,21
+DIFFERENZIATA LA CORUNA FC,322,10
+Pescara Manzia,7181,15
+Pescara Manzia,7175,8
+Pescara Manzia,7126,8
+Pescara Manzia,6956,11
+Pescara Manzia,6434,26
+Pescara Manzia,6218,12
+Pescara Manzia,6046,10
+Pescara Manzia,5734,20
+Pescara Manzia,5562,41
+Pescara Manzia,5286,1
+Pescara Manzia,4976,9
+Pescara Manzia,4957,4
+Pescara Manzia,4502,6
+Pescara Manzia,4479,11
+Pescara Manzia,4359,17
+Pescara Manzia,4317,11
+Pescara Manzia,4220,16
+Pescara Manzia,2814,12
+Pescara Manzia,2606,13
+Pescara Manzia,2499,15
+Pescara Manzia,795,8
+Pescara Manzia,761,6
+Pescara Manzia,608,19
+Pescara Manzia,513,9
+Pescara Manzia,309,26
+Sporting Kociak e Mayone,7139,7
+Sporting Kociak e Mayone,6956,15
+Sporting Kociak e Mayone,6669,7
+Sporting Kociak e Mayone,6646,13
+Sporting Kociak e Mayone,6164,11
+Sporting Kociak e Mayone,5877,10
+Sporting Kociak e Mayone,5841,23
+Sporting Kociak e Mayone,5823,7
+Sporting Kociak e Mayone,5734,34
+Sporting Kociak e Mayone,5589,14
+Sporting Kociak e Mayone,5500,4
+Sporting Kociak e Mayone,4772,18
+Sporting Kociak e Mayone,4465,8
+Sporting Kociak e Mayone,4459,8
+Sporting Kociak e Mayone,4349,9
+Sporting Kociak e Mayone,4199,9
+Sporting Kociak e Mayone,2788,13
+Sporting Kociak e Mayone,2517,51
+Sporting Kociak e Mayone,2489,13
+Sporting Kociak e Mayone,2296,11
+Sporting Kociak e Mayone,2263,4
+Sporting Kociak e Mayone,2134,7
+Sporting Kociak e Mayone,779,10
+Sporting Kociak e Mayone,610,1
+Sporting Kociak e Mayone,418,4
+Eminflex FC,7183,0
+Eminflex FC,7147,0
+Eminflex FC,7071,0
+Eminflex FC,6831,0
+Eminflex FC,6552,0
+Eminflex FC,6060,0
+Eminflex FC,5918,0
+Eminflex FC,5888,0
+Eminflex FC,5831,0
+Eminflex FC,5514,0
+Eminflex FC,5336,0
+Eminflex FC,4465,0
+Eminflex FC,4427,0
+Eminflex FC,4312,0
+Eminflex FC,2816,0
+Eminflex FC,2815,0
+Eminflex FC,2724,0
+Eminflex FC,2529,0
+Eminflex FC,2296,0
+Eminflex FC,2188,0
+Eminflex FC,827,0
+Eminflex FC,697,0
+Eminflex FC,554,0
+Eminflex FC,536,0
+Eminflex FC,188,0`;
+
+// Parse e trova duplicati
+const rows = csvData.split('\n').map(line => {
+  const [team, playerId, price] = line.split(',');
+  return { team: team.trim(), playerId: parseInt(playerId), price: parseInt(price) };
+});
+
+// Conta occorrenze per player_id
+const playerCount = new Map<number, { team: string, price: number }[]>();
+
+for (const row of rows) {
+  if (!playerCount.has(row.playerId)) {
+    playerCount.set(row.playerId, []);
+  }
+  playerCount.get(row.playerId)!.push({ team: row.team, price: row.price });
+}
+
+// Trova duplicati
+console.log('=== GIOCATORI DUPLICATI NEL CSV ===\n');
+let duplicateCount = 0;
+
+for (const [playerId, teams] of playerCount) {
+  if (teams.length > 1) {
+    duplicateCount++;
+    console.log(`❌ Player ID ${playerId} assegnato a ${teams.length} squadre:`);
+    for (const t of teams) {
+      console.log(`   - ${t.team} (prezzo: ${t.price})`);
+    }
+  }
+}
+
+console.log(`\n=== TOTALE DUPLICATI: ${duplicateCount} ===`);
+console.log('\n⚠️  Il CSV contiene giocatori assegnati a più squadre.');
+console.log('    Questo viola il vincolo UNIQUE del database.');
