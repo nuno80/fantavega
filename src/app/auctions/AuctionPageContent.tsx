@@ -261,10 +261,9 @@ export function AuctionPageContent({
         await Promise.all([
           fetchManagersData(selectedLeagueId),
           fetchCurrentAuction(selectedLeagueId),
-          fetchComplianceData(selectedLeagueId),
           fetchUserAuctionStates(selectedLeagueId),
         ]);
-        // NOTE: Compliance check is now in a separate useEffect to ensure it always runs
+        // NOTE: Compliance data is fetched AFTER check-compliance in the separate useEffect below
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati della lega.");
@@ -278,7 +277,6 @@ export function AuctionPageContent({
     selectedLeagueId,
     fetchManagersData,
     fetchCurrentAuction,
-    fetchComplianceData,
     fetchUserAuctionStates,
     initialLeagueId
   ]);
@@ -305,13 +303,14 @@ export function AuctionPageContent({
         if (response.ok) {
           const data = await response.json();
           console.log("[ComplianceCheck] Success:", data);
-          // Refresh compliance data to update UI immediately without requiring a page refresh
-          await fetchComplianceData(selectedLeagueId);
         } else {
           console.warn("[ComplianceCheck] Failed with status:", response.status);
         }
       } catch (error) {
         console.warn("[ComplianceCheck] Error:", error);
+      } finally {
+        // Always fetch compliance data to update UI, regardless of check result
+        await fetchComplianceData(selectedLeagueId);
       }
     };
 
