@@ -62,7 +62,8 @@ function simulateAutoBidBattle(
 
   // CORREZIONE: Controlla se ci sono auto-bid che possono competere
   // NOTA: Non escludere l'auto-bid dell'offerente - può competere con altri auto-bid
-  const competingAutoBids = autoBids.filter((ab) => ab.maxAmount > currentBid);
+  // FIX: Usare >= invece di > per includere parità - l'auto-bid vince in caso di parità
+  const competingAutoBids = autoBids.filter((ab) => ab.maxAmount >= currentBid);
 
   if (competingAutoBids.length === 0) {
     // Nessun auto-bid può competere, l'offerta manuale vince
