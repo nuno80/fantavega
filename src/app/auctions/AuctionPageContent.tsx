@@ -305,6 +305,8 @@ export function AuctionPageContent({
         if (response.ok) {
           const data = await response.json();
           console.log("[ComplianceCheck] Success:", data);
+          // Refresh compliance data to update UI immediately without requiring a page refresh
+          await fetchComplianceData(selectedLeagueId);
         } else {
           console.warn("[ComplianceCheck] Failed with status:", response.status);
         }
@@ -314,7 +316,7 @@ export function AuctionPageContent({
     };
 
     triggerComplianceCheck();
-  }, [selectedLeagueId]);
+  }, [selectedLeagueId, fetchComplianceData]);
 
   // Socket event handlers
   useEffect(() => {
