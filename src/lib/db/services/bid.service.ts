@@ -1149,6 +1149,54 @@ export async function placeBidOnExistingAuction({
       );
     }
 
+    // FIX: Ricalcola locked_credits anche per il vincitore finale e il precedente offerente
+    // perché potrebbero avere offerte manuali senza auto-bid
+    const usersToRecalculate = new Set<string>();
+    usersToRecalculate.add(finalBidderId);
+    if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
+      usersToRecalculate.add(previousHighestBidderId);
+    }
+    // Escludi gli utenti già ricalcolati sopra (auto-bid superati)
+    for (const bid of outbidAutoBids) {
+      usersToRecalculate.delete(bid.user_id);
+    }
+
+    for (const recalcUserId of usersToRecalculate) {
+      const userLockedCreditsResult = await tx.execute({
+        sql: `
+          SELECT
+            COALESCE(
+              (SELECT SUM(ab.max_amount)
+               FROM auto_bids ab
+               JOIN auctions a ON ab.auction_id = a.id
+               WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
+              0
+            ) +
+            COALESCE(
+              (SELECT SUM(a.current_highest_bid_amount)
+               FROM auctions a
+               LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
+               WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
+                 AND ab.id IS NULL
+                 AND a.status IN ('active', 'closing')),
+              0
+            ) as total_locked
+        `,
+        args: [leagueId, recalcUserId, recalcUserId, leagueId, recalcUserId],
+      });
+      const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+
+      await tx.execute({
+        sql: `UPDATE league_participants
+         SET locked_credits = ?
+         WHERE user_id = ? AND league_id = ?`,
+        args: [totalLocked, recalcUserId, leagueId],
+      });
+      console.log(
+        `[BID_SERVICE] Ricalcolati locked_credits per utente ${recalcUserId}: ${totalLocked}`
+      );
+    }
+
     // Inserisci solo l'offerta finale nel DB per mantenere la cronologia pulita
     const finalBidType = battleResult.initialBidderHadWinningManualBid
       ? bidType
