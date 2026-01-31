@@ -264,18 +264,7 @@ export function AuctionPageContent({
           fetchComplianceData(selectedLeagueId),
           fetchUserAuctionStates(selectedLeagueId),
         ]);
-
-        // Trigger compliance check AFTER fetching data, using league-specific endpoint
-        // This ensures the check uses the correct phase_identifier for the current league status
-        try {
-          await fetch(`/api/leagues/${selectedLeagueId}/check-compliance`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
-          console.log("League-specific compliance check triggered successfully");
-        } catch (error) {
-          console.warn("Failed to trigger compliance check:", error);
-        }
+        // NOTE: Compliance check is now in a separate useEffect to ensure it always runs
       } catch (error) {
         console.error("Error fetching initial data:", error);
         toast.error("Errore nel caricamento dei dati della lega.");
@@ -300,6 +289,32 @@ export function AuctionPageContent({
     isCompliant: boolean;
     timestamp: number;
   } | null>(null);
+
+  // Separate useEffect for compliance check - runs ALWAYS when league changes
+  // This is separate from data loading to ensure it's not skipped by cache optimization
+  useEffect(() => {
+    if (!selectedLeagueId) return;
+
+    const triggerComplianceCheck = async () => {
+      try {
+        console.log(`[ComplianceCheck] Triggering for league ${selectedLeagueId}...`);
+        const response = await fetch(`/api/leagues/${selectedLeagueId}/check-compliance`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          console.log("[ComplianceCheck] Success:", data);
+        } else {
+          console.warn("[ComplianceCheck] Failed with status:", response.status);
+        }
+      } catch (error) {
+        console.warn("[ComplianceCheck] Error:", error);
+      }
+    };
+
+    triggerComplianceCheck();
+  }, [selectedLeagueId]);
 
   // Socket event handlers
   useEffect(() => {
