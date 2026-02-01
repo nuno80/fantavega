@@ -122,8 +122,8 @@ export function StandardBidModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      // IMPORTANT: Ensure minimum bid is at least 3 credits for new auctions
-      const initialBid = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
+      // Use player quotation as minimum bid for new auctions (respects league config)
+      const initialBid = isNewAuction ? playerQtA : currentBid + 1;
       setBidAmount(initialBid);
 
       // Use existing auto-bid data if available
@@ -150,16 +150,15 @@ export function StandardBidModal({
   const availableBudget = userBudget
     ? userBudget.current_budget - userBudget.locked_credits
     : 0;
-  // IMPORTANT: Ensure minimum bid is at least 3 credits for new auctions
-  // This addresses the backend requirement: "Devi offrire almeno 3 crediti per avviare l'asta"
-  const baseMinBid = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
+  // Use player quotation as minimum bid for new auctions (respects league config)
+  const baseMinBid = isNewAuction ? playerQtA : currentBid + 1;
   const minValidBid = baseMinBid;
   const canSubmitBid =
     bidAmount >= minValidBid && bidAmount <= availableBudget && !isSubmitting;
 
   const handleQuickBid = (increment: number) => {
-    // IMPORTANT: Ensure minimum bid is at least 3 credits for new auctions
-    const baseAmount = isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1;
+    // Use player quotation as base for new auctions
+    const baseAmount = isNewAuction ? playerQtA : currentBid + 1;
     setBidAmount(baseAmount + increment);
   };
 
@@ -318,7 +317,7 @@ export function StandardBidModal({
                 onClick={() => handleQuickBid(0)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) >
+                  (isNewAuction ? playerQtA : currentBid + 1) >
                   availableBudget
                 }
               >
@@ -330,7 +329,7 @@ export function StandardBidModal({
                 onClick={() => handleQuickBid(1)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 1 >
+                  (isNewAuction ? playerQtA : currentBid + 1) + 1 >
                   availableBudget
                 }
               >
@@ -342,7 +341,7 @@ export function StandardBidModal({
                 onClick={() => handleQuickBid(4)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 4 >
+                  (isNewAuction ? playerQtA : currentBid + 1) + 4 >
                   availableBudget
                 }
               >
@@ -354,7 +353,7 @@ export function StandardBidModal({
                 onClick={() => handleQuickBid(9)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) + 9 >
+                  (isNewAuction ? playerQtA : currentBid + 1) + 9 >
                   availableBudget
                 }
               >
@@ -366,7 +365,7 @@ export function StandardBidModal({
                 onClick={() => handleQuickBid(19)}
                 disabled={
                   isSubmitting ||
-                  (isNewAuction ? Math.max(playerQtA, 3) : currentBid + 1) +
+                  (isNewAuction ? playerQtA : currentBid + 1) +
                   19 >
                   availableBudget
                 }
