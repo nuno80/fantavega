@@ -663,8 +663,13 @@ export const processExpiredComplianceTimers = async (): Promise<{
         WHERE ulcs.compliance_timer_start_at IS NOT NULL
           AND ulcs.compliance_timer_start_at + 3600 <= ?
           AND al.status IN ('draft_active', 'repair_active')
+          AND (
+            ulcs.last_penalty_applied_for_hour_ending_at IS NULL
+            OR ulcs.last_penalty_applied_for_hour_ending_at + 3600 <= ?
+          )
+          AND ulcs.penalties_applied_this_cycle < ?
         `,
-      args: [now],
+      args: [now, now, MAX_PENALTIES_PER_CYCLE],
     });
     const expiredTimers = expiredTimersResult.rows as unknown as Array<{
       league_id: number;
