@@ -1,19 +1,19 @@
 {
-  "last_update": "2026-01-30T18:45:00Z",
-  "task_completed": "Fix Calcolo Budget Residuo",
+  "last_update": "2026-02-01T12:22:00Z",
+  "task_completed": "Bid Performance Optimization Phase 1 + Phase 2",
   "feature_logic": {
-    "feature_name": "Visualizzazione Budget Residuo Reale",
-    "summary": "Corretto il calcolo del 'Residuo' nella dashboard manager per riflettere il 'Current Budget' modificabile dall'admin, anziché una derivazione dal 'Total Budget' iniziale.",
-    "architectural_pattern": "UI Update in Client Component ManagerColumn.tsx. La logica di visualizzazione ora privilegia il dato 'current_budget' persistito nel DB rispetto al calcolo teorico, permettendo all'admin di sovrascrivere manualmente i crediti disponibili.",
+    "feature_name": "Ottimizzazione Performance Bidding",
+    "summary": "Ridotta latenza bidding con: (1) fire-and-forget per compliance/timer/socket e (2) query consolidation con JOIN.",
+    "architectural_pattern": "Fire-and-forget + Query consolidation: 3 query separate (auction, league, player) consolidate in singola JOIN.",
     "user_flow": [
-      "1. Admin modifica il budget di un manager tramite 'Aggiungi Crediti' (es. imposta a 0).",
-      "2. Il database aggiorna 'current_budget'.",
-      "3. La UI del manager (ManagerColumn) legge il nuovo 'current_budget'.",
-      "4. Il campo 'Residuo' mostra esattamente il valore impostato (es. 0), indipendentemente dalle spese precedenti."
+      "1. User piazza offerta",
+      "2. Singola query JOIN carica auction+league+player",
+      "3. Transazione completata",
+      "4. Compliance/Timer/Notifiche in background",
+      "5. Risposta client più veloce (~1-2s guadagnati)"
     ],
     "core_components_interaction": {
-      "src/components/auction/ManagerColumn.tsx": "Aggiornata formula calcolo variabile 'residuo'.",
-      "scripts/": "Aggiunti script di utility per debug e gestione DB (count-leagues, find-duplicates)."
+      "src/lib/db/services/bid.service.ts": "placeBidOnExistingAuction() con query consolidata e fire-and-forget post-transaction"
     }
   }
 }

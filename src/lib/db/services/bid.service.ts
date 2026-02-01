@@ -769,46 +769,94 @@ export async function placeBidOnExistingAuction({
 
   try {
     console.log(`[BID_SERVICE] Transaction started.`);
-    // --- Blocco 1: Recupero Dati e Validazione Iniziale ---
-    const auctionResult = await tx.execute({
-      sql: `SELECT id, current_highest_bid_amount, current_highest_bidder_id, scheduled_end_time, user_auction_states FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'`,
+    // --- Blocco 1: Recupero Dati e Validazione Iniziale (OTTIMIZZATO - SINGLE JOIN) ---
+    // OPTIMIZATION Phase 2: Consolidate auction + league + player in una singola query
+    const combinedDataResult = await tx.execute({
+      sql: `SELECT
+          a.id as auction_id,
+          a.current_highest_bid_amount,
+          a.current_highest_bidder_id,
+          a.scheduled_end_time,
+          a.user_auction_states,
+          al.id as league_id,
+          al.status as league_status,
+          al.active_auction_roles,
+          al.min_bid,
+          al.timer_duration_minutes,
+          al.slots_P,
+          al.slots_D,
+          al.slots_C,
+          al.slots_A,
+          p.id as player_id,
+          p.role as player_role
+        FROM auctions a
+        JOIN auction_leagues al ON a.auction_league_id = al.id
+        JOIN players p ON a.player_id = p.id
+        WHERE a.auction_league_id = ? AND a.player_id = ? AND a.status = 'active'`,
       args: [leagueId, playerId],
     });
-    const auction = auctionResult.rows[0] as unknown as
+
+    const combinedData = combinedDataResult.rows[0] as unknown as
       | {
-        id: number;
+        auction_id: number;
         current_highest_bid_amount: number;
         current_highest_bidder_id: string | null;
         scheduled_end_time: number;
         user_auction_states: string | null;
+        league_id: number;
+        league_status: string;
+        active_auction_roles: string | null;
+        min_bid: number;
+        timer_duration_minutes: number;
+        slots_P: number;
+        slots_D: number;
+        slots_C: number;
+        slots_A: number;
+        player_id: number;
+        player_role: string;
       }
       | undefined;
 
-    if (!auction) {
+    if (!combinedData) {
       console.error(
-        `[BID_SERVICE] Auction not found or not active for league ${leagueId}, player ${playerId}`
+        `[BID_SERVICE] Auction/League/Player not found for league ${leagueId}, player ${playerId}`
       );
       throw new Error("Asta non trovata o non più attiva.");
     }
-    console.log(`[BID_SERVICE] Auction found: ${JSON.stringify(auction)}`);
+
+    // Reconstruct individual objects for backward compatibility
+    const auction = {
+      id: combinedData.auction_id,
+      current_highest_bid_amount: combinedData.current_highest_bid_amount,
+      current_highest_bidder_id: combinedData.current_highest_bidder_id,
+      scheduled_end_time: combinedData.scheduled_end_time,
+      user_auction_states: combinedData.user_auction_states,
+    };
+
+    const league: LeagueForBidding = {
+      id: combinedData.league_id,
+      status: combinedData.league_status,
+      active_auction_roles: combinedData.active_auction_roles,
+      min_bid: combinedData.min_bid,
+      timer_duration_minutes: combinedData.timer_duration_minutes,
+      slots_P: combinedData.slots_P,
+      slots_D: combinedData.slots_D,
+      slots_C: combinedData.slots_C,
+      slots_A: combinedData.slots_A,
+    };
+
+    const player: PlayerForBidding = {
+      id: combinedData.player_id,
+      role: combinedData.player_role,
+    };
+
+    console.log(`[BID_SERVICE] Combined data loaded in single query.`);
 
     // Check if auction has expired
     const now = Math.floor(Date.now() / 1000);
     if (auction.scheduled_end_time <= now) {
       console.error(`[BID_SERVICE] Auction expired: ${auction.id}`);
       throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
-    }
-
-    const leagueResult = await tx.execute({
-      sql: `SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?`,
-      args: [leagueId],
-    });
-    const league = leagueResult.rows[0] as unknown as
-      | LeagueForBidding
-      | undefined;
-    if (!league) {
-      console.error(`[BID_SERVICE] League not found: ${leagueId}`);
-      throw new Error("Lega non trovata.");
     }
 
     // Ottieni l'ID del miglior offerente attuale prima di qualsiasi controllo
@@ -858,19 +906,7 @@ export async function placeBidOnExistingAuction({
       );
     }
 
-    // --- Blocco 2: Validazione Avanzata Budget e Slot (CORRETTO) ---
-    const playerResult = await tx.execute({
-      sql: `SELECT id, role FROM players WHERE id = ?`,
-      args: [playerId],
-    });
-    const player = playerResult.rows[0] as unknown as
-      | PlayerForBidding
-      | undefined;
-    if (!player) {
-      console.error(`[BID_SERVICE] Player not found: ${playerId}`);
-      throw new Error(`Giocatore con ID ${playerId} non trovato.`);
-    }
-
+    // --- Blocco 2: Validazione Avanzata Budget e Slot ---
     // Check if player role is in active auction roles
     if (league.active_auction_roles) {
       const activeRoles =
@@ -1246,7 +1282,8 @@ export async function placeBidOnExistingAuction({
     throw error;
   }
 
-  // --- Gestione Compliance e Timer (FUORI DALLA TRANSAZIONE) ---
+  // --- Gestione Compliance e Timer (FUORI DALLA TRANSAZIONE - FIRE AND FORGET) ---
+  // OPTIMIZATION: Queste operazioni non bloccano la risposta al client
   if (result.success) {
     const usersToCheck = new Set<string>();
     if (result.previousHighestBidderId) {
@@ -1254,64 +1291,48 @@ export async function placeBidOnExistingAuction({
     }
     usersToCheck.add(result.finalBidderId);
 
+    // Fire-and-forget: compliance check non blocca la risposta bid
     for (const user of usersToCheck) {
-      try {
-        console.log(
-          `[BID_SERVICE] Checking compliance for user ${user} after bid.`
-        );
-        await checkAndRecordCompliance(user, leagueId);
-      } catch (error) {
+      checkAndRecordCompliance(user, leagueId).catch((error) => {
         console.error(
           `[BID_SERVICE] Error checking compliance for user ${user}:`,
           error
         );
-      }
-    }
-
-    // --- Gestione Timer di Risposta ---
-    // Cancella timer per l'utente che ha rilanciato (se era lui a dover rispondere)
-    try {
-      const auctionInfoResult = await db.execute({
-        sql: "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'",
-        args: [leagueId, playerId],
       });
-      const auctionInfoForCancel = auctionInfoResult.rows[0] as unknown as
-        | { id: number }
-        | undefined;
-      if (auctionInfoForCancel) {
-        await cancelResponseTimer(auctionInfoForCancel.id, userId);
-      }
-    } catch (error) {
-      console.log(
-        `[BID_SERVICE] Timer cancellation non-critical error: ${error}`
-      );
     }
 
-    // Crea timer pendente per l'utente superato
-    if (
-      result.previousHighestBidderId &&
-      result.previousHighestBidderId !== result.finalBidderId
-    ) {
+    // --- Gestione Timer di Risposta (Fire-and-forget) ---
+    // OPTIMIZATION: Timer management non blocca risposta bid
+    (async () => {
       try {
         const auctionInfoResult = await db.execute({
           sql: "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'",
           args: [leagueId, playerId],
         });
-        const auctionInfo = auctionInfoResult.rows[0] as unknown as
+        const auctionInfoForCancel = auctionInfoResult.rows[0] as unknown as
           | { id: number }
           | undefined;
-        if (auctionInfo) {
+        if (auctionInfoForCancel) {
+          await cancelResponseTimer(auctionInfoForCancel.id, userId);
+        }
+
+        // Crea timer pendente per l'utente superato
+        if (
+          result.previousHighestBidderId &&
+          result.previousHighestBidderId !== result.finalBidderId &&
+          auctionInfoForCancel
+        ) {
           await createResponseTimer(
-            auctionInfo.id,
+            auctionInfoForCancel.id,
             result.previousHighestBidderId
           );
         }
       } catch (error) {
-        console.error(
-          `[BID_SERVICE] Error creating response timer for outbid user: ${error}`
+        console.log(
+          `[BID_SERVICE] Timer management non-critical error: ${error}`
         );
       }
-    }
+    })();  // IIFE eseguita senza await
   }
 
   // --- Blocco 7: Invio Notifiche Socket.IO (OTTIMIZZATO) ---
@@ -1397,14 +1418,18 @@ export async function placeBidOnExistingAuction({
       `[BID_SERVICE] Notifying socket server with rich payload for auction-update.`
     );
 
-    // 3. Invia l'evento `auction-update` arricchito
+    // OPTIMIZATION: Parallelizza tutte le notifiche socket per ridurre latenza
+    // L'evento auction-update è critico, lo attendiamo
+    // Le notifiche individuali sono fire-and-forget
+
+    // 3. Invia l'evento `auction-update` arricchito (CRITICO - lo attendiamo)
     await notifySocketServer({
       room: `league-${leagueId}`,
       event: "auction-update",
       data: richPayload,
     });
 
-    // 4. Gestisci le notifiche individuali (invariato)
+    // 4. Gestisci le notifiche individuali (FIRE-AND-FORGET - non bloccanti)
     const surpassedUsers = new Set<string>();
     if (
       result.previousHighestBidderId &&
@@ -1416,11 +1441,12 @@ export async function placeBidOnExistingAuction({
       surpassedUsers.add(userId);
     }
 
+    // Fire-and-forget per notifiche utente superato
     for (const surpassedUserId of surpassedUsers) {
       console.log(
         `[BID_SERVICE] Notifying user ${surpassedUserId} of being surpassed.`
       );
-      await notifySocketServer({
+      notifySocketServer({
         room: `user-${surpassedUserId}`,
         event: "bid-surpassed-notification",
         data: {
@@ -1429,9 +1455,10 @@ export async function placeBidOnExistingAuction({
           autoBidActivated: true,
           autoBidUsername: result.autoBidUsername,
         },
-      });
+      }).catch((err) => console.error(`[BID_SERVICE] Socket notification error:`, err));
     }
 
+    // Fire-and-forget per auto-bid notification
     if (
       result.autoBidActivated &&
       result.finalBidderId === result.autoBidUserId
@@ -1439,7 +1466,7 @@ export async function placeBidOnExistingAuction({
       console.log(
         `[BID_SERVICE] Notifying auto-bidder (${result.autoBidUserId}) of auto-bid activation.`
       );
-      await notifySocketServer({
+      notifySocketServer({
         room: `user-${result.autoBidUserId}`,
         event: "auto-bid-activated-notification",
         data: {
@@ -1447,20 +1474,20 @@ export async function placeBidOnExistingAuction({
           bidAmount: result.finalBidAmount,
           triggeredBy: userId,
         },
-      });
+      }).catch((err) => console.error(`[BID_SERVICE] Socket notification error:`, err));
     }
 
-    // 5. Gestisci cambio stato (invariato)
+    // 5. Gestisci cambio stato (Fire-and-forget)
     if (auctionInfoForBid) {
       for (const surpassedUserId of surpassedUsers) {
         console.log(
           `[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`
         );
-        await handleBidderChange(
+        handleBidderChange(
           auctionInfoForBid.id,
           surpassedUserId,
           result.finalBidderId!
-        );
+        ).catch((err) => console.error(`[BID_SERVICE] State change error:`, err));
       }
     }
   }

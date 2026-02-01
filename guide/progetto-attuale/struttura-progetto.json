@@ -1,21 +1,9 @@
 {
-  "last_update": "2026-01-30T18:45:00Z",
+  "last_update": "2026-02-01T12:15:00Z",
   "files": [
     {
-      "path": "src/components/auction/ManagerColumn.tsx",
-      "description": "Fix formula calcolo 'residuo' per usare current_budget."
-    },
-    {
-      "path": "scripts/count-leagues.ts",
-      "description": "Script TS per contare le leghe nel DB Turso (utility)."
-    },
-    {
-      "path": "scripts/count-leagues.sh",
-      "description": "Wrapper Bash per eseguire script TS con env vars locali."
-    },
-    {
-      "path": "scripts/find-duplicates.ts",
-      "description": "Script TS per analizzare CSV e trovare giocatori duplicati tra squadre."
+      "path": "src/lib/db/services/bid.service.ts",
+      "description": "Ottimizzazione Phase 1: fire-and-forget per compliance, timer, socket notifications."
     }
   ]
 }
