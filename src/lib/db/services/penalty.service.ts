@@ -668,6 +668,14 @@ export const processExpiredComplianceTimers = async (): Promise<{
             OR ulcs.last_penalty_applied_for_hour_ending_at + 3600 <= ?
           )
           AND ulcs.penalties_applied_this_cycle < ?
+          AND ulcs.phase_identifier = (
+            al.status || '_' ||
+            CASE
+              WHEN al.active_auction_roles IS NULL OR al.active_auction_roles = '' OR UPPER(al.active_auction_roles) = 'ALL'
+              THEN 'ALL_ROLES'
+              ELSE REPLACE(REPLACE(REPLACE(REPLACE(UPPER(al.active_auction_roles), ' ', ''), 'A,C,D,P', 'A,C,D,P'), 'P,D,C,A', 'A,C,D,P'), 'D,C,A,P', 'A,C,D,P')
+            END
+          )
         `,
       args: [now, now, MAX_PENALTIES_PER_CYCLE],
     });
