@@ -43,17 +43,16 @@ export async function GET(request: Request) {
       `[USER_AUCTION_STATES] Processing for user: ${user.id}, league: ${leagueId}`
     );
 
-    // **FASE 0: Registra login utente**
-    try {
-      await recordUserLogin(user.id);
-    } catch (error) {
+    // **FASE 0: Registra login utente (fire-and-forget)**
+    recordUserLogin(user.id).catch((error) => {
       console.error("[USER_AUCTION_STATES] Error recording login:", error);
-      // Non bloccare la richiesta per errori di sessione
-    }
+    });
 
-    // **FASE 1: Attiva i timer pendenti per l'utente**
+    // **FASE 1: Attiva i timer pendenti per l'utente (fire-and-forget)**
     // Questa è la logica chiave: il timer parte quando l'utente "vede" lo stato.
-    await activateTimersForUser(user.id);
+    activateTimersForUser(user.id).catch((error) => {
+      console.error("[USER_AUCTION_STATES] Error activating timers:", error);
+    });
 
     // **FASE 2: Recupera lo stato di tutte le aste attive in cui l'utente è coinvolto**
     const now = Math.floor(Date.now() / 1000);

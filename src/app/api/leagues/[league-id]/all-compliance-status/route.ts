@@ -89,18 +89,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Get compliance data for all users in the league with the specific phase identifier
-    // Use a subquery to get only the most recent record for each user based on updated_at timestamp
+    // Direct query - each user has only one record per (league_id, phase_identifier)
     const complianceDataResult = await db.execute({
-      sql: `SELECT t1.user_id, t1.compliance_timer_start_at
-         FROM user_league_compliance_status t1
-         INNER JOIN (
-           SELECT user_id, MAX(updated_at) as max_updated_at
-           FROM user_league_compliance_status
-           WHERE league_id = ? AND phase_identifier = ?
-           GROUP BY user_id
-         ) t2 ON t1.user_id = t2.user_id AND t1.updated_at = t2.max_updated_at
-         WHERE t1.league_id = ? AND t1.phase_identifier = ?`,
-      args: [leagueId, phaseIdentifier, leagueId, phaseIdentifier],
+      sql: `SELECT user_id, compliance_timer_start_at
+         FROM user_league_compliance_status
+         WHERE league_id = ? AND phase_identifier = ?`,
+      args: [leagueId, phaseIdentifier],
     });
     const complianceData = complianceDataResult.rows as unknown as ComplianceRecord[];
 
