@@ -61,7 +61,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     // Usa la variabile d'ambiente in produzione, fallback a localhost in dev
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
     const newSocket = io(socketUrl, {
-      transports: ["polling"], // Forza solo polling per stabilità su Railway
+      transports: ["websocket", "polling"], // WebSocket first, polling fallback
     });
 
     // Salviamo l'istanza del socket nello stato
