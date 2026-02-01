@@ -100,45 +100,87 @@ export async function GET(
     };
     const leagueStatus = leagueRow.status;
 
-    // Get all managers/participants in the league
-    const managersResult = await db.execute({
-      sql: `
-        SELECT
-          lp.user_id,
-          lp.manager_team_name,
-          lp.current_budget,
-          lp.locked_credits,
-          al.initial_budget_per_manager as total_budget
-        FROM league_participants lp
-        JOIN auction_leagues al ON lp.league_id = al.id
-        WHERE lp.league_id = ?
-        ORDER BY lp.manager_team_name ASC, lp.user_id ASC
-      `,
-      args: [leagueId],
-    });
+    // Get all managers/participants in the league, penalties, active auctions, and player assignments in parallel
+    const [managersResult, penaltiesResult, activeAuctionsResult, allPlayersResult] = await Promise.all([
+      // Query 1: Managers
+      db.execute({
+        sql: `
+          SELECT
+            lp.user_id,
+            lp.manager_team_name,
+            lp.current_budget,
+            lp.locked_credits,
+            al.initial_budget_per_manager as total_budget
+          FROM league_participants lp
+          JOIN auction_leagues al ON lp.league_id = al.id
+          WHERE lp.league_id = ?
+          ORDER BY lp.manager_team_name ASC, lp.user_id ASC
+        `,
+        args: [leagueId],
+      }),
+      // Query 2: Penalties
+      db.execute({
+        sql: `
+          SELECT
+            user_id,
+            COALESCE(SUM(amount), 0) as total_penalties
+          FROM budget_transactions
+          WHERE auction_league_id = ? AND transaction_type = 'penalty_requirement'
+          GROUP BY user_id
+        `,
+        args: [leagueId],
+      }),
+      // Query 3: Active auctions
+      db.execute({
+        sql: `
+          SELECT
+            a.player_id,
+            p.name as player_name,
+            p.role as player_role,
+            p.team as player_team,
+            p.photo_url as player_photo_url,
+            a.current_highest_bidder_id,
+            a.current_highest_bid_amount,
+            a.scheduled_end_time
+          FROM auctions a
+          JOIN players p ON a.player_id = p.id
+          WHERE a.auction_league_id = ? AND a.status = 'active'
+        `,
+        args: [leagueId],
+      }),
+      // Query 4: All players
+      db.execute({
+        sql: `
+          SELECT
+            pa.user_id,
+            p.id,
+            p.name,
+            p.role,
+            p.team,
+            p.photo_url,
+            pa.purchase_price as assignment_price
+          FROM player_assignments pa
+          JOIN players p ON pa.player_id = p.id
+          WHERE pa.auction_league_id = ?
+          ORDER BY p.role, p.name
+        `,
+        args: [leagueId],
+      }),
+    ]);
 
+    // Extract results from parallel queries
     const managers = managersResult.rows as unknown as Omit<
       Manager,
       "players" | "firstName" | "lastName" | "total_penalties"
     >[];
 
-    // Get total penalties for each manager
-    const penaltiesResult = await db.execute({
-      sql: `
-        SELECT
-          user_id,
-          COALESCE(SUM(amount), 0) as total_penalties
-        FROM budget_transactions
-        WHERE auction_league_id = ? AND transaction_type = 'penalty_requirement'
-        GROUP BY user_id
-      `,
-      args: [leagueId],
-    });
-
     const penaltiesData = penaltiesResult.rows as unknown as {
       user_id: string;
       total_penalties: number;
     }[];
+
+    const activeAuctions = activeAuctionsResult.rows as unknown as ActiveAuction[];
+    const allPlayersInLeague = allPlayersResult.rows as unknown as (PlayerInRoster & { user_id: string })[];
 
     // Maximum penalty limit enforcement
     const MAX_TOTAL_PENALTY_CREDITS = 25;
@@ -153,27 +195,6 @@ export async function GET(
       );
       penaltiesByUser.set(penalty.user_id, limitedPenalties);
     }
-
-    // Get active auctions with current bid amounts
-    const activeAuctionsResult = await db.execute({
-      sql: `
-        SELECT
-          a.player_id,
-          p.name as player_name,
-          p.role as player_role,
-          p.team as player_team,
-          p.photo_url as player_photo_url,
-          a.current_highest_bidder_id,
-          a.current_highest_bid_amount,
-          a.scheduled_end_time
-        FROM auctions a
-        JOIN players p ON a.player_id = p.id
-        WHERE a.auction_league_id = ? AND a.status = 'active'
-      `,
-      args: [leagueId],
-    });
-
-    const activeAuctions = activeAuctionsResult.rows as unknown as ActiveAuction[];
 
     // Get auto bid indicators for all active auctions (without revealing amounts)
     const autoBidsResult = await db.execute({
@@ -193,27 +214,6 @@ export async function GET(
       player_id: number;
       auto_bid_count: number;
     }[];
-
-    // Get all players for the league in one go
-    const allPlayersResult = await db.execute({
-      sql: `
-        SELECT
-          pa.user_id,
-          p.id,
-          p.name,
-          p.role,
-          p.team,
-          p.photo_url,
-          pa.purchase_price as assignment_price
-        FROM player_assignments pa
-        JOIN players p ON pa.player_id = p.id
-        WHERE pa.auction_league_id = ?
-        ORDER BY p.role, p.name
-      `,
-      args: [leagueId],
-    });
-
-    const allPlayersInLeague = allPlayersResult.rows as unknown as (PlayerInRoster & { user_id: string })[];
 
     // DEBUG: Log first player to check if photo_url is present in DB result
     /*
