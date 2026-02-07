@@ -1,15 +1,10 @@
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
+// src/components/admin/LeagueStatusManager.tsx v.1.2
+// FIX: Usa isPending da useActionState invece di useFormStatus separato
 "use client";
 
-// 1. Importazioni
 import { useActionState, useEffect } from "react";
-
-import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
-// Componenti UI
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,82 +25,22 @@ import {
   updateLeagueStatusAction,
 } from "@/lib/actions/league.actions";
 
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// src/components/admin/LeagueStatusManager.tsx v.1.1
-// Aggiornato con la lista di stati della lega semplificata.
-
-// 2. Props del componente (invariate)
 interface LeagueStatusManagerProps {
   leagueId: number;
   currentStatus: string;
 }
 
-// 3. Componente per il bottone di submit (invariato)
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Aggiornamento..." : "Aggiorna Stato"}
-    </Button>
-  );
-}
-
-// 4. Componente principale
 export function LeagueStatusManager({
   leagueId,
   currentStatus,
 }: LeagueStatusManagerProps) {
   const initialState: UpdateStatusFormState = { success: false, message: "" };
-  const [state, formAction] = useActionState(
+  // FIX: useActionState ritorna isPending come terzo valore
+  const [state, formAction, isPending] = useActionState(
     updateLeagueStatusAction,
     initialState
   );
 
-  // CORREZIONE: Array degli stati possibili semplificato
   const possibleStates = [
     { value: "participants_joining", label: "Iscrizioni Aperte" },
     { value: "draft_active", label: "Asta Iniziale" },
@@ -152,7 +87,9 @@ export function LeagueStatusManager({
               </SelectContent>
             </Select>
           </div>
-          <SubmitButton />
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Aggiornamento..." : "Aggiorna Stato"}
+          </Button>
         </form>
       </CardContent>
     </Card>

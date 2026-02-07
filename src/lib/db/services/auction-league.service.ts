@@ -1291,23 +1291,18 @@ export async function updateLeagueStatus(
       );
     }
 
-    // Notifica tutti i client nella lega del cambio di stato
-    try {
-      const { notifySocketServer } = await import("@/lib/socket-emitter");
-      await notifySocketServer({
-        event: "league-status-changed",
-        room: `league-${leagueId}`,
-        data: {
-          leagueId,
-          newStatus,
-          timestamp: Date.now(),
-        },
-      });
-      console.log(`[SOCKET] Notificato cambio stato lega ${leagueId} a '${newStatus}'`);
-    } catch (socketError) {
-      console.warn(`[SOCKET] Errore notifica cambio stato:`, socketError);
-      // Non blocchiamo l'operazione se la notifica socket fallisce
-    }
+    // Fire-and-forget: notifica socket senza bloccare la risposta all'utente
+    import("@/lib/socket-emitter")
+      .then(({ notifySocketServer }) =>
+        notifySocketServer({
+          event: "league-status-changed",
+          room: `league-${leagueId}`,
+          data: { leagueId, newStatus, timestamp: Date.now() },
+        })
+      )
+      .then(() => console.log(`[SOCKET] Notificato cambio stato lega ${leagueId} a '${newStatus}'`))
+      .catch((err) => console.warn(`[SOCKET] Errore notifica cambio stato:`, err));
+
 
     // NOTA: Il compliance check NON viene triggerato qui al cambio status.
     // Il timer di compliance parte SOLO quando l'utente fa login (trigger-login-check endpoint).

@@ -68,9 +68,20 @@ export default async function LeagueDashboardPage({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              {league.name}
-            </h1>
+            <div className="flex items-center gap-1">
+              <h1 className="text-3xl font-bold text-foreground">
+                {league.name}
+              </h1>
+              {canManageParticipants && (
+                <EditLeagueSetting
+                  leagueId={league.id}
+                  settingName="name"
+                  settingLabel="Nome Lega"
+                  currentValue={league.name}
+                  inputType="text"
+                />
+              )}
+            </div>
             <p className="text-muted-foreground">Dashboard di Gestione</p>
           </div>
           <Badge

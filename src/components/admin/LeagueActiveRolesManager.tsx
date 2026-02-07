@@ -1,14 +1,10 @@
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
+// src/components/admin/LeagueActiveRolesManager.tsx v.1.2
+// FIX: Usa isPending da useActionState invece di useFormStatus separato
 "use client";
 
-// 1. Importazioni
 import { useActionState, useEffect, useState } from "react";
-
-import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
-// Componenti UI
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,66 +20,11 @@ import {
   updateActiveRolesAction,
 } from "@/lib/actions/league.actions";
 
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// src/components/admin/LeagueActiveRolesManager.tsx v.1.1
-// Componente client per la gestione dei ruoli attivi in un'asta.
-
-// 2. Props del componente
 interface LeagueActiveRolesManagerProps {
   leagueId: number;
-  currentActiveRoles: string | null; // Es. "P,D,C,A"
+  currentActiveRoles: string | null;
 }
-// 3. Componente per il bottone di submit
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="mt-4 w-full">
-      {pending ? "Aggiornamento..." : "Salva Ruoli Attivi"}
-    </Button>
-  );
-}
-// 4. Componente principale
+
 export function LeagueActiveRolesManager({
   leagueId,
   currentActiveRoles,
@@ -92,19 +33,21 @@ export function LeagueActiveRolesManager({
     success: false,
     message: "",
   };
-  const [state, formAction] = useActionState(
+  // FIX: useActionState ritorna isPending come terzo valore
+  const [state, formAction, isPending] = useActionState(
     updateActiveRolesAction,
     initialState
   );
+
   const allRoles = ["P", "D", "C", "A"];
-  // Stato per gestire i ruoli selezionati
   const [selectedRoles, setSelectedRoles] = useState<string[]>(() => {
     return currentActiveRoles ? currentActiveRoles.split(",") : [];
   });
-  // Sincronizza lo stato quando le props cambiano
+
   useEffect(() => {
     setSelectedRoles(currentActiveRoles ? currentActiveRoles.split(",") : []);
   }, [currentActiveRoles]);
+
   useEffect(() => {
     if (state && state.message) {
       if (state.success) {
@@ -114,6 +57,7 @@ export function LeagueActiveRolesManager({
       }
     }
   }, [state]);
+
   const handleRoleChange = (role: string, checked: boolean) => {
     setSelectedRoles((prev) => {
       if (checked) {
@@ -123,6 +67,7 @@ export function LeagueActiveRolesManager({
       }
     });
   };
+
   return (
     <Card>
       <CardHeader>
@@ -158,7 +103,9 @@ export function LeagueActiveRolesManager({
               </div>
             ))}
           </div>
-          <SubmitButton />
+          <Button type="submit" disabled={isPending} className="mt-4 w-full">
+            {isPending ? "Aggiornamento..." : "Salva Ruoli Attivi"}
+          </Button>
         </form>
       </CardContent>
     </Card>
