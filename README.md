@@ -29,12 +29,23 @@ If you're having trouble connecting the repository or Railway connects to an old
 
 #### 2. Configure Build Settings
 
-Railway should auto-detect Node.js.
+The project includes a `railway.json` file that automatically configures the build:
 
-- **Start Command**: `npx tsx socket-server.ts`
-- **Build Command**: (leave empty, or `npm install`)
+```json
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pnpm install --prod"
+  },
+  "deploy": {
+    "startCommand": "node --import tsx socket-server.ts",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+```
 
-> 💡 **Note**: We use `tsx` instead of `node` because the file has a `.ts` extension. Node.js alone cannot read TypeScript directly.
+> 💡 **Note**: The `--prod` flag skips devDependencies installation for faster builds.
 
 #### 3. Set Environment Variables
 
