@@ -159,11 +159,9 @@ export const checkAndRecordCompliance = async (
       >
       | undefined;
 
-    if (
-      !league ||
-      !["draft_active", "repair_active"].includes(league.status)
-    ) {
+    if (!league || league.status !== "draft_active") {
       // Not a phase where penalties apply, so no status change.
+      // Penalties are only active during draft_active, NOT during repair_active.
       return { statusChanged: false, isCompliant: true };
     }
 
@@ -367,10 +365,8 @@ export const processUserComplianceAndPenalties = async (
         >
         | undefined;
 
-      if (
-        !league ||
-        !["draft_active", "repair_active"].includes(league.status)
-      ) {
+      if (!league || league.status !== "draft_active") {
+        // Penalties are only active during draft_active, NOT during repair_active.
         finalMessage = `League ${leagueId} not found or not in an active penalty phase.`;
         await tx.commit();
         return {
@@ -662,7 +658,7 @@ export const processExpiredComplianceTimers = async (): Promise<{
         JOIN auction_leagues al ON ulcs.league_id = al.id
         WHERE ulcs.compliance_timer_start_at IS NOT NULL
           AND ulcs.compliance_timer_start_at + 3600 <= ?
-          AND al.status IN ('draft_active', 'repair_active')
+          AND al.status = 'draft_active'
           AND (
             ulcs.last_penalty_applied_for_hour_ending_at IS NULL
             OR ulcs.last_penalty_applied_for_hour_ending_at + 3600 <= ?

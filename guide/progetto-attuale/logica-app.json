@@ -1,19 +1,18 @@
 {
-  "last_update": "2026-02-01T12:22:00Z",
-  "task_completed": "Bid Performance Optimization Phase 1 + Phase 2",
+  "last_update": "2026-02-08T09:36:00Z",
+  "task_completed": "Disable Penalties in Repair Phase",
   "feature_logic": {
-    "feature_name": "Ottimizzazione Performance Bidding",
-    "summary": "Ridotta latenza bidding con: (1) fire-and-forget per compliance/timer/socket e (2) query consolidation con JOIN.",
-    "architectural_pattern": "Fire-and-forget + Query consolidation: 3 query separate (auction, league, player) consolidate in singola JOIN.",
+    "feature_name": "Sistema Penalità - Fase Repair Esclusa",
+    "summary": "Il sistema di compliance check e penalità è ora attivo SOLO durante draft_active. La fase repair_active serve esclusivamente per svincolare calciatori senza rischio di penalità.",
+    "architectural_pattern": "Conditional activation: penalità attive solo in draft_active, disabilitate in repair_active e altri stati.",
     "user_flow": [
-      "1. User piazza offerta",
-      "2. Singola query JOIN carica auction+league+player",
-      "3. Transazione completata",
-      "4. Compliance/Timer/Notifiche in background",
-      "5. Risposta client più veloce (~1-2s guadagnati)"
+      "1. Durante draft_active: compliance check attivo, penalità dopo 1 ora di non conformità",
+      "2. Durante repair_active: nessun check, nessuna penalità - utenti possono svincolare liberamente",
+      "3. Transizione draft -> repair: timer penalità non applicati",
+      "4. Transizione repair -> draft: timer riparte da zero se non conformi"
     ],
     "core_components_interaction": {
-      "src/lib/db/services/bid.service.ts": "placeBidOnExistingAuction() con query consolidata e fire-and-forget post-transaction"
+      "src/lib/db/services/penalty.service.ts": "Modificate 3 condizioni per attivare penalità solo in draft_active: checkAndRecordCompliance (L164), processUserComplianceAndPenalties (L372), processExpiredComplianceTimers (L665)"
     }
   }
 }

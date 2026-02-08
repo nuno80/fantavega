@@ -1,9 +1,9 @@
 {
-  "last_update": "2026-02-01T12:15:00Z",
+  "last_update": "2026-02-08T09:36:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/bid.service.ts",
-      "description": "Ottimizzazione Phase 1: fire-and-forget per compliance, timer, socket notifications."
+      "path": "src/lib/db/services/penalty.service.ts",
+      "description": "Sistema penalità: attivo solo in draft_active, disabilitato in repair_active. Modifiche alle linee 164, 372, 665."
     }
   ]
 }
