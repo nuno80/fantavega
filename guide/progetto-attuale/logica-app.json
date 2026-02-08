@@ -1,18 +1,26 @@
 {
-  "last_update": "2026-02-08T09:36:00Z",
-  "task_completed": "Disable Penalties in Repair Phase",
+  "last_update": "2026-02-08T11:55:00Z",
+  "task_completed": "Pulizia Automatica Giocatori durante Import Excel",
   "feature_logic": {
-    "feature_name": "Sistema Penalità - Fase Repair Esclusa",
-    "summary": "Il sistema di compliance check e penalità è ora attivo SOLO durante draft_active. La fase repair_active serve esclusivamente per svincolare calciatori senza rischio di penalità.",
-    "architectural_pattern": "Conditional activation: penalità attive solo in draft_active, disabilitate in repair_active e altri stati.",
+    "feature_name": "Orphan Players Cleanup",
+    "summary": "Durante l'import di un nuovo file Excel dei giocatori, dopo l'UPSERT dei dati, il sistema elimina automaticamente i giocatori 'orfani' che non sono presenti nel file E non sono assegnati a nessuna rosa E non hanno aste attive.",
+    "architectural_pattern": "Post-processing cleanup: dopo l'UPSERT batch, esegue una DELETE query con esclusioni per player_assignments e auctions attive.",
     "user_flow": [
-      "1. Durante draft_active: compliance check attivo, penalità dopo 1 ora di non conformità",
-      "2. Durante repair_active: nessun check, nessuna penalità - utenti possono svincolare liberamente",
-      "3. Transizione draft -> repair: timer penalità non applicati",
-      "4. Transizione repair -> draft: timer riparte da zero se non conformi"
+      "1. Admin carica un nuovo file Excel con la lista aggiornata dei giocatori",
+      "2. Il sistema esegue UPSERT per tutti i giocatori nel file (insert o update)",
+      "3. Il sistema raccoglie tutti gli ID dei giocatori nel file Excel",
+      "4. Il sistema elimina i giocatori che: non sono nella lista AND non sono in player_assignments AND non hanno aste active/closing",
+      "5. Il risultato mostra: giocatori upserted + giocatori orphans eliminati"
     ],
     "core_components_interaction": {
-      "src/lib/db/services/penalty.service.ts": "Modificate 3 condizioni per attivare penalità solo in draft_active: checkAndRecordCompliance (L164), processUserComplianceAndPenalties (L372), processExpiredComplianceTimers (L665)"
-    }
+      "src/lib/db/services/player-import.service.ts": "Aggiunto campo deletedOrphanPlayers, raccolta importedPlayerIds durante processing, query DELETE per orphans dopo UPSERT"
+    },
+    "database_interactions": [
+      {
+        "table": "players",
+        "operation": "DELETE",
+        "description": "Elimina giocatori non nel file Excel, non in player_assignments, e senza aste attive"
+      }
+    ]
   }
 }

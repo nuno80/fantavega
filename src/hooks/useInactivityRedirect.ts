@@ -77,9 +77,7 @@ export function useInactivityRedirect(options: UseInactivityRedirectOptions = {}
     // Timer per il redirect
     timeoutRef.current = setTimeout(async () => {
       toast.dismiss('inactivity-warning');
-      toast.info('Sessione sospesa per inattività. I timer ripartiranno quando tornerai.', {
-        duration: 5000,
-      });
+      // Toast rimosso perché troppo ripetitivo - il redirect è sufficiente
 
       // Chiudi la sessione nel backend PRIMA del redirect
       // IMPORTANTE: Usa fetch con credentials per inviare i cookie di auth Clerk

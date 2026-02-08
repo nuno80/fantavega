@@ -45,6 +45,7 @@ export interface PlayerImportResult {
   successfullyUpsertedRows: number;
   failedValidationRows: number;
   failedDbOperationsRows: number;
+  deletedOrphanPlayers: number; // Giocatori rimossi perché non nel file e non assegnati
   errors: string[];
 }
 
@@ -60,8 +61,12 @@ export const processPlayersExcel = async (
     successfullyUpsertedRows: 0,
     failedValidationRows: 0,
     failedDbOperationsRows: 0,
+    deletedOrphanPlayers: 0,
     errors: [],
   };
+
+  // Array per raccogliere tutti gli ID importati dal file Excel
+  const importedPlayerIds: number[] = [];
 
   try {
     // Dynamic import di xlsx - caricato solo quando serve
@@ -184,6 +189,9 @@ export const processPlayersExcel = async (
           result.failedValidationRows++;
           continue;
         }
+
+        // Aggiunge l'ID alla lista degli ID importati
+        importedPlayerIds.push(id);
 
         const role = roleVal?.toString().toUpperCase();
         if (!role || !["P", "D", "C", "A"].includes(role)) {
@@ -320,15 +328,47 @@ export const processPlayersExcel = async (
       }
     }
 
+    // Eliminazione dei giocatori "orfani" (non nel file importato e non assegnati a rose)
+    if (importedPlayerIds.length > 0) {
+      try {
+        console.log(`[SERVICE PLAYER_IMPORT] Starting orphan cleanup. Imported ${importedPlayerIds.length} player IDs.`);
+
+        // Crea placeholders per la query IN (...)
+        const placeholders = importedPlayerIds.map(() => '?').join(',');
+
+        // Query: elimina giocatori che:
+        // 1. NON sono nella lista degli ID importati
+        // 2. NON sono assegnati a nessuna rosa (player_assignments)
+        // 3. NON hanno aste attive o in chiusura
+        const deleteOrphansResult = await db.execute({
+          sql: `
+            DELETE FROM players
+            WHERE id NOT IN (${placeholders})
+              AND id NOT IN (SELECT DISTINCT player_id FROM player_assignments)
+              AND id NOT IN (SELECT DISTINCT player_id FROM auctions WHERE status IN ('active', 'closing'))
+          `,
+          args: importedPlayerIds,
+        });
+
+        result.deletedOrphanPlayers = Number(deleteOrphansResult.rowsAffected) || 0;
+        console.log(`[SERVICE PLAYER_IMPORT] Orphan cleanup completed. Deleted ${result.deletedOrphanPlayers} orphan players.`);
+      } catch (cleanupError) {
+        console.error('[SERVICE PLAYER_IMPORT] Error during orphan cleanup:', cleanupError);
+        result.errors.push(
+          `Orphan cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : 'Unknown error'}`
+        );
+      }
+    }
+
     if (
       result.failedValidationRows === 0 &&
       result.failedDbOperationsRows === 0
     ) {
       result.success = true;
-      result.message = `Successfully processed ${result.successfullyUpsertedRows} players from Excel.`;
+      result.message = `Successfully processed ${result.successfullyUpsertedRows} players from Excel. Deleted ${result.deletedOrphanPlayers} orphan players.`;
     } else {
       result.success = false;
-      result.message = `Processed ${jsonDataObjects.length} rows. Successful Upserts: ${result.successfullyUpsertedRows}, Validation Failures: ${result.failedValidationRows}, DB Operation Failures: ${result.failedDbOperationsRows}. Check errors array.`;
+      result.message = `Processed ${jsonDataObjects.length} rows. Upserts: ${result.successfullyUpsertedRows}, Validation Failures: ${result.failedValidationRows}, DB Failures: ${result.failedDbOperationsRows}, Orphans Deleted: ${result.deletedOrphanPlayers}. Check errors.`;
     }
   } catch (error: unknown) {
     console.error(
