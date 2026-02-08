@@ -101,7 +101,7 @@ export function PlayerImportForm() {
       }
 
       toast.success("Upload completato con successo!", {
-        description: `Giocatori processati: ${result.processedCount}. Creati: ${result.createdCount}, Aggiornati: ${result.updatedCount}.`,
+        description: `Giocatori processati: ${result.parsedDataRows ?? 0}. Aggiornati/creati: ${result.successfullyUpserted ?? 0}${result.deletedOrphans ? `, Orfani eliminati: ${result.deletedOrphans}` : ''}.`,
       });
       formRef.current?.reset();
     } catch (error) {

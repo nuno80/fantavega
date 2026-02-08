@@ -89,6 +89,7 @@ export async function POST(request: Request) {
           totalRowsInSheet: importResult.totalRowsInSheet,
           parsedDataRows: importResult.processedRows,
           successfullyUpserted: importResult.successfullyUpsertedRows,
+          deletedOrphans: importResult.deletedOrphanPlayers,
           // Se success è true, failedValidationRows e failedDbOperationsRows dovrebbero essere 0
           // e errors dovrebbe essere vuoto. Li includiamo per completezza se necessario,
           // ma potrebbero essere omessi dalla risposta di successo.
