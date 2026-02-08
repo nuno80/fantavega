@@ -26,6 +26,7 @@ export function PlayerFilterBar({
   const [isRolePopoverOpen, setIsRolePopoverOpen] = useState(false);
   const [isTeamPopoverOpen, setIsTeamPopoverOpen] = useState(false);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+  const [isSortPopoverOpen, setIsSortPopoverOpen] = useState(false);
 
   const roles = [
     { value: "P", label: "Portiere" },
@@ -46,6 +47,12 @@ export function PlayerFilterBar({
     { value: "6_24h", label: "6-24 ore" },
     { value: "more_24h", label: "> 24 ore" },
   ];
+
+  const sortOptions = [
+    { value: "name", label: "Nome" },
+    { value: "qtA", label: "Quotazione Attuale" },
+    { value: "fvm", label: "FVM" },
+  ] as const;
 
   const handleRoleToggle = (role: string) => {
     const newRoles = filters.roles.includes(role)
@@ -75,6 +82,23 @@ export function PlayerFilterBar({
     onFiltersChange({ ...filters, teams: newTeams });
   };
 
+  const handleSortChange = (sortBy: 'name' | 'qtA' | 'fvm') => {
+    // Se stessa colonna, toggle direzione; altrimenti, imposta nuova colonna con desc
+    if (filters.sortBy === sortBy) {
+      onFiltersChange({
+        ...filters,
+        sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc'
+      });
+    } else {
+      onFiltersChange({
+        ...filters,
+        sortBy,
+        sortOrder: 'desc'  // Default desc per quotazioni (valori alti prima)
+      });
+    }
+    setIsSortPopoverOpen(false);
+  };
+
   const clearAllFilters = () => {
     onFiltersChange({
       searchTerm: filters.searchTerm,
@@ -87,6 +111,8 @@ export function PlayerFilterBar({
       isFavorite: false,
       hasIntegrity: false,
       hasFmv: false,
+      sortBy: 'name',
+      sortOrder: 'asc',
     });
   };
 
@@ -200,6 +226,39 @@ export function PlayerFilterBar({
                   {status.label}
                 </Label>
               </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Sorting Dropdown */}
+      <Popover open={isSortPopoverOpen} onOpenChange={setIsSortPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-8">
+            <ArrowUpDown className="mr-1 h-3 w-3" />
+            Ordina: {sortOptions.find(s => s.value === filters.sortBy)?.label || 'Nome'}
+            <span className="ml-1 text-xs text-muted-foreground">
+              {filters.sortOrder === 'asc' ? '↑' : '↓'}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-3" align="start">
+          <div className="space-y-1">
+            {sortOptions.map((option) => (
+              <Button
+                key={option.value}
+                variant={filters.sortBy === option.value ? "secondary" : "ghost"}
+                size="sm"
+                className="w-full justify-between"
+                onClick={() => handleSortChange(option.value)}
+              >
+                <span>{option.label}</span>
+                {filters.sortBy === option.value && (
+                  <span className="text-xs">
+                    {filters.sortOrder === 'asc' ? '↑ Crescente' : '↓ Decrescente'}
+                  </span>
+                )}
+              </Button>
             ))}
           </div>
         </PopoverContent>

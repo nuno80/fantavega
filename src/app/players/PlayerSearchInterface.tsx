@@ -87,6 +87,8 @@ export interface SearchFilters {
   isFavorite: boolean;
   hasIntegrity: boolean;
   hasFmv: boolean;
+  sortBy: 'name' | 'qtA' | 'fvm';
+  sortOrder: 'asc' | 'desc';
 }
 
 interface PlayerSearchInterfaceProps {
@@ -126,6 +128,8 @@ export function PlayerSearchInterface({
     isFavorite: false,
     hasIntegrity: false,
     hasFmv: false,
+    sortBy: 'name',
+    sortOrder: 'asc',
   });
 
   // Debounce search term
@@ -179,6 +183,10 @@ export function PlayerSearchInterface({
         if (filters.hasIntegrity) queryParams.set("hasIntegrity", "true");
         if (filters.hasFmv) queryParams.set("hasFmv", "true");
 
+        // Sorting params
+        queryParams.set("sortBy", filters.sortBy);
+        queryParams.set("sortOrder", filters.sortOrder);
+
         const playersResponse = await fetch(
           `/api/leagues/${leagueId}/players-with-status?${queryParams.toString()}`
         );
@@ -206,7 +214,9 @@ export function PlayerSearchInterface({
       filters.isStarter,
       filters.isFavorite,
       filters.hasIntegrity,
-      filters.hasFmv
+      filters.hasFmv,
+      filters.sortBy,
+      filters.sortOrder
     ]
   );
 

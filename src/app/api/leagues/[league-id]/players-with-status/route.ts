@@ -69,6 +69,19 @@ export async function GET(
     const auctionStatus = searchParams.get("auctionStatus")?.split(",") || [];
     const showAssigned = searchParams.get("showAssigned") !== "false";
 
+    // Sorting params
+    const sortByParam = searchParams.get("sortBy") || "name";
+    const sortOrderParam = searchParams.get("sortOrder") || "asc";
+
+    // Validate and map sortBy to SQL column
+    const sortColumnMap: Record<string, string> = {
+      name: "p.name",
+      qtA: "p.current_quotation",
+      fvm: "p.fvm",
+    };
+    const sortColumn = sortColumnMap[sortByParam] || "p.name";
+    const sortDirection = sortOrderParam === "desc" ? "DESC" : "ASC";
+
     // Preference filters
     const isStarter = searchParams.get("isStarter") === "true";
     const isFavorite = searchParams.get("isFavorite") === "true";
@@ -242,7 +255,7 @@ export async function GET(
 
       ${baseQuery}
       ${whereClause}
-      ORDER BY p.name ASC
+      ORDER BY ${sortColumn} ${sortDirection}
       LIMIT ? OFFSET ?
     `;
 
