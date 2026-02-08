@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, X } from "lucide-react";
+import { ArrowUpDown, Filter, X } from "lucide-react";
 import { useState } from "react";
 
 import { SearchFilters } from "@/app/players/PlayerSearchInterface";
