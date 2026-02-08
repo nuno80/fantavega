@@ -91,6 +91,8 @@ export function PlayerAdvancedFilters({
       isFavorite: false,
       hasIntegrity: false,
       hasFmv: false,
+      sortBy: 'name',
+      sortOrder: 'asc',
     });
   };
 
