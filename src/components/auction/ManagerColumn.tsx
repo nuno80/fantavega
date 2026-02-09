@@ -877,9 +877,9 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   // 4. DISP. AUTO-BID = Current Budget - Auto-bid
   const dispAutoBid = Math.max(0, validCurrentBudget - autoBid);
 
-  // Per altri utenti: RESIDUO = current_budget (budget attuale modificabile dall'admin)
-  // Questo riflette direttamente il valore impostato dall'admin
-  const residuo = Math.max(0, validCurrentBudget);
+  // Per altri utenti: RESIDUO = current_budget - offerte vincenti attive
+  // Mostra il budget effettivamente disponibile (senza rivelare auto-bid che rimangono privati)
+  const residuo = Math.max(0, validCurrentBudget - currentWinningBidsAmount);
 
   // Legacy: manteniamo per compatibilità
   const spentCredits = spesi;
