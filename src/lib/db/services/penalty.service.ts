@@ -136,7 +136,8 @@ const checkUserCompliance = (
 
 export const checkAndRecordCompliance = async (
   userId: string,
-  leagueId: number
+  leagueId: number,
+  startTimerIfNonCompliant: boolean = true
 ): Promise<{ statusChanged: boolean; isCompliant: boolean }> => {
   try {
     // Rimosso db.transaction() per evitare transazioni annidate
@@ -209,15 +210,23 @@ export const checkAndRecordCompliance = async (
         `[PENALTY_SERVICE] User ${userId} is now compliant. Timer stopped.`
       );
     } else if (!isCompliant && !wasTimerActive) {
-      // CASE B: User became non-compliant, start the timer.
-      await db.execute({
-        sql: "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
-        args: [now, now, leagueId, userId, phaseIdentifier],
-      });
-      statusChanged = true;
-      console.log(
-        `[PENALTY_SERVICE] User ${userId} is now non-compliant. Timer started.`
-      );
+      // CASE B: User became non-compliant.
+      // Avvia il timer SOLO se startTimerIfNonCompliant è true (trigger da frontend/utente online).
+      // Se false (trigger da server-side, es. bid/auction), registra solo lo stato senza avviare il countdown.
+      if (startTimerIfNonCompliant) {
+        await db.execute({
+          sql: "UPDATE user_league_compliance_status SET compliance_timer_start_at = ?, penalties_applied_this_cycle = 0, last_penalty_applied_for_hour_ending_at = NULL, updated_at = ? WHERE league_id = ? AND user_id = ? AND phase_identifier = ?",
+          args: [now, now, leagueId, userId, phaseIdentifier],
+        });
+        statusChanged = true;
+        console.log(
+          `[PENALTY_SERVICE] User ${userId} is now non-compliant. Timer started.`
+        );
+      } else {
+        console.log(
+          `[PENALTY_SERVICE] User ${userId} is now non-compliant but timer NOT started (server-side trigger, user may be offline).`
+        );
+      }
     }
 
     // If the compliance status changed, notify all users in the league

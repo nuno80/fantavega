@@ -1,9 +1,13 @@
 {
-  "last_update": "2026-02-08T11:55:00Z",
+  "last_update": "2026-02-10T20:04:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/player-import.service.ts",
-      "description": "Servizio import Excel con pulizia automatica giocatori orfani. Dopo UPSERT, elimina giocatori non nel file e non assegnati a rose."
+      "path": "src/lib/db/services/penalty.service.ts",
+      "description": "Servizio penalità: checkAndRecordCompliance ora ha parametro startTimerIfNonCompliant per distinguere trigger online/offline."
+    },
+    {
+      "path": "src/lib/db/services/bid.service.ts",
+      "description": "Servizio offerte: tutte le chiamate a checkAndRecordCompliance passano false per non avviare timer per utenti offline."
     }
   ]
 }

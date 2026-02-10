@@ -1,25 +1,27 @@
 {
-  "last_update": "2026-02-08T11:55:00Z",
-  "task_completed": "Pulizia Automatica Giocatori durante Import Excel",
+  "last_update": "2026-02-10T20:04:00Z",
+  "task_completed": "BUGFIX - Compliance Timer si avvia per utenti offline",
   "feature_logic": {
-    "feature_name": "Orphan Players Cleanup",
-    "summary": "Durante l'import di un nuovo file Excel dei giocatori, dopo l'UPSERT dei dati, il sistema elimina automaticamente i giocatori 'orfani' che non sono presenti nel file E non sono assegnati a nessuna rosa E non hanno aste attive.",
-    "architectural_pattern": "Post-processing cleanup: dopo l'UPSERT batch, esegue una DELETE query con esclusioni per player_assignments e auctions attive.",
+    "feature_name": "Fix Compliance Timer Lazy Evaluation",
+    "summary": "Corretto un bug critico in cui il timer di compliance (per le penalità di rosa) si avviava anche per utenti offline/logout. Il timer ora si avvia SOLO quando l'utente è effettivamente online e interagisce con l'applicazione (approccio lazy evaluation corretto).",
+    "architectural_pattern": "Parameterized Guard Pattern: la funzione checkAndRecordCompliance accetta un parametro booleano startTimerIfNonCompliant per distinguere tra trigger frontend (utente online) e trigger server-side (utente potenzialmente offline).",
     "user_flow": [
-      "1. Admin carica un nuovo file Excel con la lista aggiornata dei giocatori",
-      "2. Il sistema esegue UPSERT per tutti i giocatori nel file (insert o update)",
-      "3. Il sistema raccoglie tutti gli ID dei giocatori nel file Excel",
-      "4. Il sistema elimina i giocatori che: non sono nella lista AND non sono in player_assignments AND non hanno aste active/closing",
-      "5. Il risultato mostra: giocatori upserted + giocatori orphans eliminati"
+      "1. Manager A è online, completa tutte le slot obbligatorie e fa logout.",
+      "2. Manager B rilancia su un giocatore precedentemente vinto da A.",
+      "3. Il server rileva la non-compliance di A ma NON avvia il timer (startTimerIfNonCompliant=false).",
+      "4. Manager A torna online e accede alla pagina asta o fa login.",
+      "5. Il frontend chiama /api/leagues/[id]/check-compliance che usa il default startTimerIfNonCompliant=true.",
+      "6. ORA il timer di 1 ora parte, dando ad A il tempo di rimettersi in regola."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/player-import.service.ts": "Aggiunto campo deletedOrphanPlayers, raccolta importedPlayerIds durante processing, query DELETE per orphans dopo UPSERT"
+      "src/lib/db/services/penalty.service.ts": "checkAndRecordCompliance ora accetta startTimerIfNonCompliant (default true). Quando false, registra lo stato di non-compliance senza avviare il countdown delle penalità.",
+      "src/lib/db/services/bid.service.ts": "Le 4 chiamate a checkAndRecordCompliance (dopo bid, dopo chiusura asta, per auto-bid perdenti, per bidder manuali perdenti) passano false per evitare di avviare il timer per utenti offline."
     },
     "database_interactions": [
       {
-        "table": "players",
-        "operation": "DELETE",
-        "description": "Elimina giocatori non nel file Excel, non in player_assignments, e senza aste attive"
+        "table": "user_league_compliance_status",
+        "operation": "UPDATE (condizionale)",
+        "description": "compliance_timer_start_at viene impostato SOLO quando il trigger proviene dal frontend (utente online), non più dai trigger server-side."
       }
     ]
   }

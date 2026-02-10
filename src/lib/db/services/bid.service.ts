@@ -1293,7 +1293,7 @@ export async function placeBidOnExistingAuction({
 
     // Fire-and-forget: compliance check non blocca la risposta bid
     for (const user of usersToCheck) {
-      checkAndRecordCompliance(user, leagueId).catch((error) => {
+      checkAndRecordCompliance(user, leagueId, false).catch((error) => {
         console.error(
           `[BID_SERVICE] Error checking compliance for user ${user}:`,
           error
@@ -1749,7 +1749,8 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
       // TASK 1.2: Re-check compliance after player assignment
       await checkAndRecordCompliance(
         auction.current_highest_bidder_id,
-        auction.auction_league_id
+        auction.auction_league_id,
+        false
       );
 
       // NUOVO: Check compliance for all users who had auto-bids but didn't win
@@ -1769,7 +1770,8 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
           );
           const complianceResult = await checkAndRecordCompliance(
             otherAutoBid.user_id,
-            auction.auction_league_id
+            auction.auction_league_id,
+            false
           );
 
           if (
@@ -1810,7 +1812,8 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
             );
             const complianceResult = await checkAndRecordCompliance(
               losingBidder.user_id,
-              auction.auction_league_id
+              auction.auction_league_id,
+              false
             );
 
             if (
