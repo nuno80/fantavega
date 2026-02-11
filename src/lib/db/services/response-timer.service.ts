@@ -32,6 +32,13 @@ export const createResponseTimer = async (
 ): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
 
+  // DISABLE_TIMER: Funzionalità disabilitata temporaneamente su richiesta
+  console.log(
+    `[TIMER] Creation DISABLED. Skipping timer for user ${userId}, auction ${auctionId}`
+  );
+  return;
+
+  /* CODICE DISABILITATO
   try {
     console.log(
       `[TIMER] Creating pending timer for user ${userId}, auction ${auctionId}`
@@ -100,6 +107,7 @@ export const createResponseTimer = async (
     );
     throw error;
   }
+  */
 };
 
 /**
