@@ -1,27 +1,28 @@
 {
-  "last_update": "2026-02-10T20:04:00Z",
-  "task_completed": "BUGFIX - Compliance Timer si avvia per utenti offline",
+  "last_update": "2026-02-11T07:34:00Z",
+  "task_completed": "BUGFIX - Compliance Timer + Data Corrections Leghe 8/9",
   "feature_logic": {
-    "feature_name": "Fix Compliance Timer Lazy Evaluation",
-    "summary": "Corretto un bug critico in cui il timer di compliance (per le penalità di rosa) si avviava anche per utenti offline/logout. Il timer ora si avvia SOLO quando l'utente è effettivamente online e interagisce con l'applicazione (approccio lazy evaluation corretto).",
-    "architectural_pattern": "Parameterized Guard Pattern: la funzione checkAndRecordCompliance accetta un parametro booleano startTimerIfNonCompliant per distinguere tra trigger frontend (utente online) e trigger server-side (utente potenzialmente offline).",
+    "feature_name": "Fix Compliance Timer Lazy Evaluation + Script Diagnostico",
+    "summary": "Corretto un bug critico in cui il timer di compliance si avviava per utenti offline. Creato script diagnostico per ispezionare lo stato completo di una lega su Turso. Applicate correzioni dati su leghe 8 e 9 (penalità, cooldown, timer, aste).",
+    "architectural_pattern": "Parameterized Guard Pattern + Script diagnostico standalone con @libsql/client per accesso diretto a Turso.",
     "user_flow": [
       "1. Manager A è online, completa tutte le slot obbligatorie e fa logout.",
       "2. Manager B rilancia su un giocatore precedentemente vinto da A.",
       "3. Il server rileva la non-compliance di A ma NON avvia il timer (startTimerIfNonCompliant=false).",
       "4. Manager A torna online e accede alla pagina asta o fa login.",
-      "5. Il frontend chiama /api/leagues/[id]/check-compliance che usa il default startTimerIfNonCompliant=true.",
+      "5. Il frontend chiama /api/leagues/[id]/check-compliance con startTimerIfNonCompliant=true.",
       "6. ORA il timer di 1 ora parte, dando ad A il tempo di rimettersi in regola."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/penalty.service.ts": "checkAndRecordCompliance ora accetta startTimerIfNonCompliant (default true). Quando false, registra lo stato di non-compliance senza avviare il countdown delle penalità.",
-      "src/lib/db/services/bid.service.ts": "Le 4 chiamate a checkAndRecordCompliance (dopo bid, dopo chiusura asta, per auto-bid perdenti, per bidder manuali perdenti) passano false per evitare di avviare il timer per utenti offline."
+      "src/lib/db/services/penalty.service.ts": "checkAndRecordCompliance accetta startTimerIfNonCompliant (default true). Quando false, registra lo stato senza avviare countdown.",
+      "src/lib/db/services/bid.service.ts": "Le 4 chiamate a checkAndRecordCompliance passano false per evitare timer per utenti offline.",
+      "scripts/diagnose-league8.ts": "Script diagnostico per Turso. Uso: TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npx tsx scripts/diagnose-league8.ts. Mostra aste, offerte, timer, cooldown, compliance, sessioni, assegnazioni e transazioni per una lega."
     },
     "database_interactions": [
       {
         "table": "user_league_compliance_status",
         "operation": "UPDATE (condizionale)",
-        "description": "compliance_timer_start_at viene impostato SOLO quando il trigger proviene dal frontend (utente online), non più dai trigger server-side."
+        "description": "compliance_timer_start_at impostato SOLO da trigger frontend."
       }
     ]
   }

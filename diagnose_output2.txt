@@ -1,0 +1,364 @@
+=== DIAGNOSI LEGA 8 - MALEN & RASPADORI ===
+
+--- GIOCATORI ---
+┌─────────┬──────┬─────────────┬──────┬────────────┐
+│ (index) │ id   │ name        │ role │ team       │
+├─────────┼──────┼─────────────┼──────┼────────────┤
+│ 0       │ 4371 │ 'Raspadori' │ 'A'  │ 'Atalanta' │
+│ 1       │ 5585 │ 'Malen'     │ 'A'  │ 'Roma'     │
+└─────────┴──────┴─────────────┴──────┴────────────┘
+
+--- ASTE PER PLAYER ID 4371 (Raspadori) ---
+┌─────────┬─────┬──────────┬────────────────────────────┬────────────────────────────────────┬───────────────────────┬───────────────────────┬───────────────────────┬────────────────┐
+│ (index) │ id  │ status   │ current_highest_bid_amount │ current_highest_bidder_id          │ start_cet             │ end_cet               │ updated_cet           │ highest_bidder │
+├─────────┼─────┼──────────┼────────────────────────────┼────────────────────────────────────┼───────────────────────┼───────────────────────┼───────────────────────┼────────────────┤
+│ 0       │ 225 │ 'active' │ 41                         │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ '2026-02-09 21:11:16' │ '2026-02-12 17:36:09' │ '2026-02-11 07:25:24' │ 'armando'      │
+│ 1       │ 193 │ 'sold'   │ 18                         │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ '2026-02-01 11:52:48' │ '2026-02-01 23:42:47' │ '2026-02-10 21:28:40' │ 'armando'      │
+└─────────┴─────┴──────────┴────────────────────────────┴────────────────────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┴────────────────┘
+
+  --- OFFERTE ASTA ID 225 ---
+┌─────────┬─────┬────────────────────────────────────┬───────────┬────────┬──────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username  │ amount │ bid_type │ bid_time_cet          │
+├─────────┼─────┼────────────────────────────────────┼───────────┼────────┼──────────┼───────────────────────┤
+│ 0       │ 347 │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'  │ 15     │ 'manual' │ '2026-02-09 21:11:16' │
+│ 1       │ 412 │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza' │ 40     │ 'manual' │ '2026-02-10 06:32:37' │
+│ 2       │ 430 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 41     │ 'manual' │ '2026-02-10 21:28:38' │
+└─────────┴─────┴────────────────────────────────────┴───────────┴────────┴──────────┴───────────────────────┘
+
+  --- AUTO-BIDS ASTA ID 225 ---
+┌─────────┐
+│ (index) │
+├─────────┤
+└─────────┘
+
+  --- RESPONSE TIMERS ASTA ID 225 ---
+┌─────────┬─────┬────────────────────────────────────┬───────────┬───────────┬───────────────────────┬───────────────────────┬───────────────────────┬───────────────┐
+│ (index) │ id  │ user_id                            │ username  │ status    │ created_cet           │ deadline_cet          │ activated_cet         │ processed_cet │
+├─────────┼─────┼────────────────────────────────────┼───────────┼───────────┼───────────────────────┼───────────────────────┼───────────────────────┼───────────────┤
+│ 0       │ 202 │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza' │ 'pending' │ '2026-02-10 21:28:39' │ '2026-02-11 11:52:23' │ '2026-02-10 23:22:23' │ null          │
+│ 1       │ 193 │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'  │ 'pending' │ '2026-02-10 06:32:39' │ '2026-02-11 18:35:26' │ '2026-02-11 06:05:26' │ null          │
+└─────────┴─────┴────────────────────────────────────┴───────────┴───────────┴───────────────────────┴───────────────────────┴───────────────────────┴───────────────┘
+
+  --- OFFERTE ASTA ID 193 ---
+┌─────────┬─────┬────────────────────────────────────┬─────────────┬────────┬──────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username    │ amount │ bid_type │ bid_time_cet          │
+├─────────┼─────┼────────────────────────────────────┼─────────────┼────────┼──────────┼───────────────────────┤
+│ 0       │ 307 │ 'user_36o60LV7cAU6XbfKEpArGATDRdr' │ 'fragrande' │ 16     │ 'manual' │ '2026-02-01 11:52:48' │
+│ 1       │ 308 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'   │ 18     │ 'auto'   │ '2026-02-01 12:02:46' │
+└─────────┴─────┴────────────────────────────────────┴─────────────┴────────┴──────────┴───────────────────────┘
+
+  --- AUTO-BIDS ASTA ID 193 ---
+┌─────────┬────────────────────────────────────┬───────────┬────────────┬───────────┬───────────────────────┬───────────────────────┐
+│ (index) │ user_id                            │ username  │ max_amount │ is_active │ created_cet           │ updated_cet           │
+├─────────┼────────────────────────────────────┼───────────┼────────────┼───────────┼───────────────────────┼───────────────────────┤
+│ 0       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 20         │ 0         │ '2026-02-01 12:02:46' │ '2026-02-01 23:42:47' │
+└─────────┴────────────────────────────────────┴───────────┴────────────┴───────────┴───────────────────────┴───────────────────────┘
+
+  --- RESPONSE TIMERS ASTA ID 193 ---
+┌─────────┬─────┬────────────────────────────────────┬─────────────┬─────────────┬───────────────────────┬───────────────────────┬───────────────────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username    │ status      │ created_cet           │ deadline_cet          │ activated_cet         │ processed_cet         │
+├─────────┼─────┼────────────────────────────────────┼─────────────┼─────────────┼───────────────────────┼───────────────────────┼───────────────────────┼───────────────────────┤
+│ 0       │ 168 │ 'user_36o60LV7cAU6XbfKEpArGATDRdr' │ 'fragrande' │ 'cancelled' │ '2026-02-01 12:02:57' │ '2026-02-09 00:35:18' │ '2026-02-08 12:05:18' │ '2026-02-11 07:25:24' │
+│ 1       │ 203 │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'cancelled' │ '2026-02-10 21:28:40' │ '2026-02-11 00:22:23' │ '2026-02-10 23:22:23' │ '2026-02-11 07:25:24' │
+│ 2       │ 194 │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'    │ 'cancelled' │ '2026-02-10 06:32:39' │ '2026-02-11 07:05:26' │ '2026-02-11 06:05:26' │ '2026-02-11 07:25:24' │
+└─────────┴─────┴────────────────────────────────────┴─────────────┴─────────────┴───────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┘
+
+--- ASTE PER PLAYER ID 5585 (Malen) ---
+┌─────────┬─────┬──────────┬────────────────────────────┬────────────────────────────────────┬───────────────────────┬───────────────────────┬───────────────────────┬────────────────┐
+│ (index) │ id  │ status   │ current_highest_bid_amount │ current_highest_bidder_id          │ start_cet             │ end_cet               │ updated_cet           │ highest_bidder │
+├─────────┼─────┼──────────┼────────────────────────────┼────────────────────────────────────┼───────────────────────┼───────────────────────┼───────────────────────┼────────────────┤
+│ 0       │ 209 │ 'active' │ 70                         │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ '2026-02-09 20:12:38' │ '2026-02-12 08:25:17' │ '2026-02-11 07:25:24' │ 'gaegiglio'    │
+│ 1       │ 196 │ 'sold'   │ 38                         │ 'user_36q5Xb1zxy1FXeHnMiaUxfrzUwu' │ '2026-02-06 20:56:57' │ '2026-02-07 09:11:57' │ '2026-02-09 22:42:48' │ 'luke'         │
+└─────────┴─────┴──────────┴────────────────────────────┴────────────────────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┴────────────────┘
+
+  --- OFFERTE ASTA ID 209 ---
+┌─────────┬─────┬────────────────────────────────────┬─────────────┬────────┬──────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username    │ amount │ bid_type │ bid_time_cet          │
+├─────────┼─────┼────────────────────────────────────┼─────────────┼────────┼──────────┼───────────────────────┤
+│ 0       │ 331 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'   │ 50     │ 'manual' │ '2026-02-09 20:12:38' │
+│ 1       │ 351 │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'    │ 51     │ 'manual' │ '2026-02-09 21:20:02' │
+│ 2       │ 364 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'   │ 52     │ 'manual' │ '2026-02-09 21:44:33' │
+│ 3       │ 377 │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 62     │ 'manual' │ '2026-02-09 22:14:25' │
+│ 4       │ 395 │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 70     │ 'manual' │ '2026-02-09 22:42:45' │
+└─────────┴─────┴────────────────────────────────────┴─────────────┴────────┴──────────┴───────────────────────┘
+
+  --- AUTO-BIDS ASTA ID 209 ---
+┌─────────┐
+│ (index) │
+├─────────┤
+└─────────┘
+
+  --- RESPONSE TIMERS ASTA ID 209 ---
+┌─────────┬─────┬────────────────────────────────────┬───────────┬───────────┬───────────────────────┬───────────────────────┬───────────────────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username  │ status    │ created_cet           │ deadline_cet          │ activated_cet         │ processed_cet         │
+├─────────┼─────┼────────────────────────────────────┼───────────┼───────────┼───────────────────────┼───────────────────────┼───────────────────────┼───────────────────────┤
+│ 0       │ 173 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 'pending' │ '2026-02-09 22:14:28' │ '2026-02-11 09:24:10' │ '2026-02-10 20:54:10' │ null                  │
+│ 1       │ 176 │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'  │ 'expired' │ '2026-02-09 21:44:35' │ '2026-02-10 21:44:37' │ '2026-02-09 21:44:37' │ '2026-02-11 07:25:24' │
+│ 2       │ 181 │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza' │ 'expired' │ '2026-02-09 22:42:48' │ '2026-02-10 22:42:49' │ '2026-02-09 22:42:49' │ '2026-02-11 07:25:26' │
+└─────────┴─────┴────────────────────────────────────┴───────────┴───────────┴───────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┘
+
+  --- OFFERTE ASTA ID 196 ---
+┌─────────┬─────┬────────────────────────────────────┬───────────┬────────┬──────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username  │ amount │ bid_type │ bid_time_cet          │
+├─────────┼─────┼────────────────────────────────────┼───────────┼────────┼──────────┼───────────────────────┤
+│ 0       │ 311 │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 15     │ 'manual' │ '2026-02-06 20:56:57' │
+│ 1       │ 312 │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 17     │ 'auto'   │ '2026-02-06 21:21:31' │
+│ 2       │ 313 │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 19     │ 'auto'   │ '2026-02-06 21:21:41' │
+│ 3       │ 314 │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 25     │ 'auto'   │ '2026-02-06 21:21:57' │
+│ 4       │ 315 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 35     │ 'manual' │ '2026-02-06 21:22:06' │
+└─────────┴─────┴────────────────────────────────────┴───────────┴────────┴──────────┴───────────────────────┘
+
+  --- AUTO-BIDS ASTA ID 196 ---
+┌─────────┬────────────────────────────────────┬──────────┬────────────┬───────────┬───────────────────────┬───────────────────────┐
+│ (index) │ user_id                            │ username │ max_amount │ is_active │ created_cet           │ updated_cet           │
+├─────────┼────────────────────────────────────┼──────────┼────────────┼───────────┼───────────────────────┼───────────────────────┤
+│ 0       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'  │ 25         │ 0         │ '2026-02-06 20:56:57' │ '2026-02-07 09:12:13' │
+│ 1       │ 'user_36q5Xb1zxy1FXeHnMiaUxfrzUwu' │ 'luke'   │ 55         │ 0         │ '2026-02-06 21:31:56' │ '2026-02-07 09:12:13' │
+└─────────┴────────────────────────────────────┴──────────┴────────────┴───────────┴───────────────────────┴───────────────────────┘
+
+  --- RESPONSE TIMERS ASTA ID 196 ---
+┌─────────┬─────┬────────────────────────────────────┬───────────┬─────────────┬───────────────────────┬───────────────────────┬───────────────────────┬───────────────────────┐
+│ (index) │ id  │ user_id                            │ username  │ status      │ created_cet           │ deadline_cet          │ activated_cet         │ processed_cet         │
+├─────────┼─────┼────────────────────────────────────┼───────────┼─────────────┼───────────────────────┼───────────────────────┼───────────────────────┼───────────────────────┤
+│ 0       │ 170 │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 'expired'   │ '2026-02-06 21:22:09' │ '2026-02-06 23:54:08' │ '2026-02-06 22:54:08' │ '2026-02-06 23:54:08' │
+│ 1       │ 169 │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 'cancelled' │ '2026-02-09 22:14:28' │ '2026-02-10 21:54:10' │ '2026-02-10 20:54:10' │ '2026-02-11 07:25:24' │
+│ 2       │ 177 │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'  │ 'cancelled' │ '2026-02-09 21:44:36' │ '2026-02-10 10:14:37' │ '2026-02-09 21:44:37' │ '2026-02-11 07:25:24' │
+│ 3       │ 182 │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza' │ 'cancelled' │ '2026-02-09 22:42:48' │ '2026-02-10 11:12:49' │ '2026-02-09 22:42:49' │ '2026-02-11 07:25:24' │
+└─────────┴─────┴────────────────────────────────────┴───────────┴─────────────┴───────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┘
+
+--- COOLDOWNS LEGA 8 ---
+┌─────────┬────────────────────────────────────┬───────────┬───────────┬──────────────────┬─────────────────┬───────────────────────┐
+│ (index) │ user_id                            │ username  │ player_id │ player_name      │ preference_type │ expires_cet           │
+├─────────┼────────────────────────────────────┼───────────┼───────────┼──────────────────┼─────────────────┼───────────────────────┤
+│ 0       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6646      │ 'Adams C.'       │ 'preference'    │ null                  │
+│ 1       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6496      │ 'Bartesaghi'     │ 'preference'    │ null                  │
+│ 2       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7219      │ 'Bernasconi'     │ 'preference'    │ null                  │
+│ 3       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 787       │ 'Djimsiti'       │ 'preference'    │ null                  │
+│ 4       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4657      │ 'Celik'          │ 'preference'    │ null                  │
+│ 5       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6672      │ 'Idzes'          │ 'preference'    │ null                  │
+│ 6       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 5678      │ 'Holm'           │ 'preference'    │ null                  │
+│ 7       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4665      │ 'Maripan'        │ 'preference'    │ null                  │
+│ 8       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4973      │ 'McKennie'       │ 'preference'    │ null                  │
+│ 9       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6190      │ 'Pisilli'        │ 'preference'    │ null                  │
+│ 10      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4947      │ 'Brescianini'    │ 'preference'    │ null                  │
+│ 11      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6815      │ 'Fadera'         │ 'preference'    │ null                  │
+│ 12      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 5036      │ 'Caqueret'       │ 'preference'    │ null                  │
+│ 13      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6967      │ 'Diao'           │ 'preference'    │ null                  │
+│ 14      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7128      │ 'Kuhn'           │ 'preference'    │ null                  │
+│ 15      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7129      │ 'Rodriguez Je.'  │ 'preference'    │ null                  │
+│ 16      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7127      │ 'Addai'          │ 'preference'    │ null                  │
+│ 17      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6151      │ 'Perrone'        │ 'preference'    │ null                  │
+│ 18      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4371      │ 'Raspadori'      │ 'preference'    │ null                  │
+│ 19      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 554       │ 'Zappacosta'     │ 'preference'    │ null                  │
+│ 20      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6046      │ 'Hien'           │ 'preference'    │ null                  │
+│ 21      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2640      │ 'Kolasinac'      │ 'preference'    │ null                  │
+│ 22      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7219      │ 'Bernasconi'     │ 'preference'    │ null                  │
+│ 23      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6015      │ 'Berisha M.'     │ 'preference'    │ null                  │
+│ 24      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7220      │ 'Belghali'       │ 'preference'    │ null                  │
+│ 25      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7253      │ 'Bella-Kotchap'  │ 'preference'    │ null                  │
+│ 26      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7028      │ 'Bernede'        │ 'preference'    │ null                  │
+│ 27      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6639      │ 'Frese'          │ 'preference'    │ null                  │
+│ 28      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6552      │ 'Orban G.'       │ 'preference'    │ null                  │
+│ 29      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6013      │ 'Barbieri'       │ 'preference'    │ null                  │
+│ 30      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6496      │ 'Bartesaghi'     │ 'preference'    │ null                  │
+│ 31      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6217      │ 'Bisseck'        │ 'preference'    │ null                  │
+│ 32      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4657      │ 'Celik'          │ 'preference'    │ null                  │
+│ 33      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6642      │ 'Coco'           │ 'preference'    │ null                  │
+│ 34      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6663      │ 'Circati'        │ 'preference'    │ null                  │
+│ 35      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6495      │ 'Comuzzo'        │ 'preference'    │ null                  │
+│ 36      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 256       │ 'Juan Jesus'     │ 'preference'    │ null                  │
+│ 37      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4665      │ 'Maripan'        │ 'preference'    │ null                  │
+│ 38      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6439      │ 'Cheddira'       │ 'preference'    │ null                  │
+│ 39      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4436      │ 'Cambiaghi'      │ 'preference'    │ null                  │
+│ 40      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 5471      │ 'Djuric'         │ 'preference'    │ null                  │
+│ 41      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2678      │ 'Fullkrug'       │ 'preference'    │ null                  │
+│ 42      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7199      │ 'Kilicsoy'       │ 'preference'    │ null                  │
+│ 43      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2531      │ 'Lukaku'         │ 'preference'    │ null                  │
+│ 44      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 5455      │ 'Moreo'          │ 'preference'    │ null                  │
+│ 45      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7313      │ 'Ratkov'         │ 'preference'    │ null                  │
+│ 46      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 152       │ 'Zielinski'      │ 'preference'    │ null                  │
+│ 47      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6717      │ 'Kone I.'        │ 'preference'    │ null                  │
+│ 48      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7316      │ 'Durosinmi'      │ 'preference'    │ null                  │
+│ 49      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 530       │ 'Pellegrini Lo.' │ 'preference'    │ null                  │
+│ 50      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4427      │ 'Malinovskyi'    │ 'preference'    │ null                  │
+│ 51      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4404      │ 'Thorsby'        │ 'preference'    │ null                  │
+│ 52      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7314      │ 'Taylor K.'      │ 'preference'    │ null                  │
+│ 53      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 1976      │ 'Mazzitelli'     │ 'preference'    │ null                  │
+│ 54      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2077      │ 'Pasalic'        │ 'preference'    │ null                  │
+│ 55      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2839      │ 'Sottil'         │ 'preference'    │ null                  │
+│ 56      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4236      │ 'Muric'          │ 'preference'    │ null                  │
+│ 57      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4263      │ 'Kabasele'       │ 'preference'    │ null                  │
+│ 58      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4409      │ 'Rrahmani'       │ 'preference'    │ null                  │
+│ 59      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2528      │ 'Matic'          │ 'preference'    │ null                  │
+│ 60      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 6458      │ 'Serdar'         │ 'preference'    │ null                  │
+│ 61      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4486      │ 'Strefezza'      │ 'preference'    │ null                  │
+│ 62      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 7341      │ 'Amorim'         │ 'preference'    │ null                  │
+│ 63      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 256       │ 'Juan Jesus'     │ 'preference'    │ null                  │
+│ 64      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4263      │ 'Kabasele'       │ 'preference'    │ null                  │
+│ 65      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6809      │ 'Marianucci'     │ 'preference'    │ null                  │
+│ 66      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 5435      │ 'Moreno Alb.'    │ 'preference'    │ null                  │
+│ 67      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4409      │ 'Rrahmani'       │ 'preference'    │ null                  │
+│ 68      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7014      │ 'Smolcic I.'     │ 'preference'    │ null                  │
+│ 69      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6896      │ 'Van Der Brempt' │ 'preference'    │ null                  │
+│ 70      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 554       │ 'Zappacosta'     │ 'preference'    │ null                  │
+│ 71      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 184       │ 'Bernardeschi'   │ 'preference'    │ null                  │
+│ 72      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4947      │ 'Brescianini'    │ 'preference'    │ null                  │
+│ 73      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 333       │ 'Cataldi'        │ 'preference'    │ null                  │
+│ 74      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4479      │ 'Elmas'          │ 'preference'    │ null                  │
+│ 75      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6112      │ 'Iling Junior'   │ 'preference'    │ null                  │
+│ 76      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4711      │ 'Kostic'         │ 'preference'    │ null                  │
+│ 77      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4427      │ 'Malinovskyi'    │ 'preference'    │ null                  │
+│ 78      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4973      │ 'McKennie'       │ 'preference'    │ null                  │
+│ 79      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7351      │ 'Santos A.'      │ 'preference'    │ null                  │
+│ 80      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4486      │ 'Strefezza'      │ 'preference'    │ null                  │
+│ 81      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7314      │ 'Taylor K.'      │ 'preference'    │ null                  │
+│ 82      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7223      │ 'Vergara'        │ 'preference'    │ null                  │
+│ 83      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 5422      │ 'Zalewski'       │ 'preference'    │ null                  │
+│ 84      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 152       │ 'Zielinski'      │ 'preference'    │ null                  │
+│ 85      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7127      │ 'Addai'          │ 'preference'    │ null                  │
+│ 86      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6001      │ 'Banda'          │ 'preference'    │ null                  │
+│ 87      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6967      │ 'Diao'           │ 'preference'    │ null                  │
+│ 88      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 2678      │ 'Fullkrug'       │ 'preference'    │ null                  │
+│ 89      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7199      │ 'Kilicsoy'       │ 'preference'    │ null                  │
+│ 90      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 2531      │ 'Lukaku'         │ 'preference'    │ null                  │
+│ 91      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4371      │ 'Raspadori'      │ 'preference'    │ null                  │
+│ 92      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6552      │ 'Orban G.'       │ 'preference'    │ null                  │
+│ 93      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 7129      │ 'Rodriguez Je.'  │ 'preference'    │ null                  │
+│ 94      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6380      │ 'Solomon'        │ 'preference'    │ null                  │
+│ 95      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 2841      │ 'Vlahovic'       │ 'preference'    │ null                  │
+│ 96      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 2816      │ 'Di Lorenzo'     │ 'preference'    │ null                  │
+│ 97      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando' │ 4210      │ 'Mina'           │ 'preference'    │ null                  │
+│ 98      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 5301      │ 'Luis Henrique'  │ 'preference'    │ null                  │
+│ 99      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 4404      │ 'Thorsby'        │ 'preference'    │ null                  │
+│ 100     │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 5840      │ 'Olivera'        │ 'preference'    │ null                  │
+│ 101     │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 6916      │ 'Ahanor'         │ 'preference'    │ null                  │
+│ 102     │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'   │ 5578      │ 'Kossounou'      │ 'preference'    │ null                  │
+│ 103     │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'  │ 5585      │ 'Malen'          │ 'cooldown'      │ '2026-02-13 07:25:24' │
+│ 104     │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza' │ 5585      │ 'Malen'          │ 'cooldown'      │ '2026-02-13 07:25:26' │
+└─────────┴────────────────────────────────────┴───────────┴───────────┴──────────────────┴─────────────────┴───────────────────────┘
+
+--- COMPLIANCE STATUS LEGA 8 ---
+┌─────────┬────────────────────────────────────┬────────────────┬─────────────────────────┬─────────────────┬──────────────────────────────┬───────────────────────┐
+│ (index) │ user_id                            │ username       │ phase_identifier        │ timer_start_cet │ penalties_applied_this_cycle │ updated_cet           │
+├─────────┼────────────────────────────────────┼────────────────┼─────────────────────────┼─────────────────┼──────────────────────────────┼───────────────────────┤
+│ 0       │ 'user_36naxV1BTI1KxszgGueVsOBc2Wq' │ 'amaroluciano' │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 1       │ 'user_36naxV1BTI1KxszgGueVsOBc2Wq' │ 'amaroluciano' │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 2       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'        │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 3       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'        │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 4       │ 'user_36o60LV7cAU6XbfKEpArGATDRdr' │ 'fragrande'    │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 5       │ 'user_36o60LV7cAU6XbfKEpArGATDRdr' │ 'fragrande'    │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 6       │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1'    │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 7       │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1'    │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 8       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'      │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 9       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'      │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 10      │ 'user_36pmU3lg5WQ0ye2btbennJzGOHX' │ 'fedee'        │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 11      │ 'user_36pmU3lg5WQ0ye2btbennJzGOHX' │ 'fedee'        │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 12      │ 'user_36q5Xb1zxy1FXeHnMiaUxfrzUwu' │ 'luke'         │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 13      │ 'user_36q5Xb1zxy1FXeHnMiaUxfrzUwu' │ 'luke'         │ 'repair_active_A,C,D,P' │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 14      │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'       │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 15      │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'      │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 16      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn'    │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 17      │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'       │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 18      │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio'    │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+│ 19      │ 'user_39LgsT8PoxguMapeXAHECJMOlrb' │ 'mariods'      │ 'draft_active_A,C,D,P'  │ null            │ 0                            │ '2026-02-11 07:25:23' │
+└─────────┴────────────────────────────────────┴────────────────┴─────────────────────────┴─────────────────┴──────────────────────────────┴───────────────────────┘
+
+--- SESSIONI UTENTE (ULTIMI LOGIN/LOGOUT) LEGA 8 ---
+┌─────────┬────────────────────────────────────┬─────────────┬───────────────────────┬───────────────────────┬───────────┐
+│ (index) │ user_id                            │ username    │ login_cet             │ logout_cet            │ status    │
+├─────────┼────────────────────────────────────┼─────────────┼───────────────────────┼───────────────────────┼───────────┤
+│ 0       │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'    │ '2026-02-11 06:09:49' │ '2026-02-11 06:10:55' │ 'OFFLINE' │
+│ 1       │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'    │ '2026-02-11 06:05:26' │ '2026-02-11 06:08:09' │ 'OFFLINE' │
+│ 2       │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ '2026-02-11 05:47:46' │ '2026-02-11 05:50:30' │ 'OFFLINE' │
+│ 3       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ '2026-02-11 00:39:47' │ '2026-02-11 00:39:47' │ 'OFFLINE' │
+│ 4       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ '2026-02-11 00:39:37' │ '2026-02-11 00:39:39' │ 'OFFLINE' │
+│ 5       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ '2026-02-11 00:37:38' │ '2026-02-11 00:39:32' │ 'OFFLINE' │
+│ 6       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ '2026-02-11 00:20:35' │ '2026-02-11 00:37:08' │ 'OFFLINE' │
+│ 7       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-11 00:04:21' │ '2026-02-11 00:04:35' │ 'OFFLINE' │
+│ 8       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-11 00:03:00' │ '2026-02-11 00:04:19' │ 'OFFLINE' │
+│ 9       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-10 23:55:11' │ '2026-02-10 23:55:15' │ 'OFFLINE' │
+│ 10      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-10 23:49:34' │ '2026-02-10 23:49:37' │ 'OFFLINE' │
+│ 11      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 23:39:06' │ '2026-02-10 23:42:20' │ 'OFFLINE' │
+│ 12      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 23:33:55' │ '2026-02-10 23:37:10' │ 'OFFLINE' │
+│ 13      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 23:33:16' │ '2026-02-10 23:33:52' │ 'OFFLINE' │
+│ 14      │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ '2026-02-10 23:24:09' │ '2026-02-10 23:24:25' │ 'OFFLINE' │
+│ 15      │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ '2026-02-10 23:22:23' │ '2026-02-10 23:23:07' │ 'OFFLINE' │
+│ 16      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-10 23:19:30' │ '2026-02-10 23:20:56' │ 'OFFLINE' │
+│ 17      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-10 23:17:02' │ '2026-02-10 23:18:25' │ 'OFFLINE' │
+│ 18      │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ '2026-02-10 23:14:49' │ '2026-02-10 23:16:52' │ 'OFFLINE' │
+│ 19      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 22:50:03' │ '2026-02-10 22:52:28' │ 'OFFLINE' │
+│ 20      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 22:47:19' │ '2026-02-10 22:49:25' │ 'OFFLINE' │
+│ 21      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 22:45:30' │ '2026-02-10 22:46:39' │ 'OFFLINE' │
+│ 22      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 22:43:27' │ '2026-02-10 22:45:25' │ 'OFFLINE' │
+│ 23      │ 'user_39LgsT8PoxguMapeXAHECJMOlrb' │ 'mariods'   │ '2026-02-10 22:34:01' │ '2026-02-10 22:35:28' │ 'OFFLINE' │
+│ 24      │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ '2026-02-10 22:33:02' │ '2026-02-10 22:43:00' │ 'OFFLINE' │
+│ 25      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ '2026-02-10 22:07:05' │ null                  │ 'ONLINE'  │
+│ 26      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ '2026-02-10 22:06:50' │ '2026-02-10 22:06:53' │ 'OFFLINE' │
+│ 27      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ '2026-02-10 21:52:27' │ '2026-02-10 22:06:44' │ 'OFFLINE' │
+│ 28      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ '2026-02-10 21:47:06' │ '2026-02-10 21:52:14' │ 'OFFLINE' │
+│ 29      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ '2026-02-10 21:46:09' │ '2026-02-10 21:46:56' │ 'OFFLINE' │
+└─────────┴────────────────────────────────────┴─────────────┴───────────────────────┴───────────────────────┴───────────┘
+
+--- PLAYER ASSIGNMENTS LEGA 8 (MALEN/RASPADORI) ---
+┌─────────┐
+│ (index) │
+├─────────┤
+└─────────┘
+┌─────────┐
+│ (index) │
+├─────────┤
+└─────────┘
+
+--- TRANSAZIONI BUDGET RECENTI LEGA 8 ---
+┌─────────┬────────────────────────────────────┬─────────────┬─────────────────────────┬────────┬────────────────────────────────────────────────────────────────┬───────────────────────┐
+│ (index) │ user_id                            │ username    │ transaction_type        │ amount │ description                                                    │ time_cet              │
+├─────────┼────────────────────────────────────┼─────────────┼─────────────────────────┼────────┼────────────────────────────────────────────────────────────────┼───────────────────────┤
+│ 0       │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-11 07:25:28' │
+│ 1       │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-11 07:25:27' │
+│ 2       │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'    │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-11 07:25:25' │
+│ 3       │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'    │ 'auction_abandoned'     │ 0      │ 'Abbandonata asta per giocatore 4371 - Cooldown 48h applicato' │ '2026-02-11 06:06:10' │
+│ 4       │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per Raspadori - Cooldown 48h applicato'         │ '2026-02-11 00:22:24' │
+│ 5       │ 'user_39LgsT8PoxguMapeXAHECJMOlrb' │ 'mariods'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per McKennie - Cooldown 48h applicato'          │ '2026-02-10 23:35:17' │
+│ 6       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 'timer_expired'         │ 0      │ 'Timer scaduto per Zaragoza - Cooldown 48h applicato'          │ '2026-02-10 23:20:33' │
+│ 7       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 'timer_expired'         │ 0      │ 'Timer scaduto per Zaragoza - Cooldown 48h applicato'          │ '2026-02-10 23:20:31' │
+│ 8       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 'timer_expired'         │ 0      │ 'Timer scaduto per Gandelman - Cooldown 48h applicato'         │ '2026-02-10 23:20:30' │
+│ 9       │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'    │ 'timer_expired'         │ 0      │ 'Timer scaduto per Strefezza - Cooldown 48h applicato'         │ '2026-02-10 22:40:19' │
+│ 10      │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'   │ 'auction_abandoned'     │ 0      │ 'Abbandonata asta per giocatore 5585 - Cooldown 48h applicato' │ '2026-02-10 20:55:18' │
+│ 11      │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-10 20:39:14' │
+│ 12      │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-10 20:39:14' │
+│ 13      │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'    │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-10 20:39:12' │
+│ 14      │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 'timer_expired'         │ 0      │ 'Timer scaduto per Zaragoza - Cooldown 48h applicato'          │ '2026-02-10 11:50:32' │
+│ 15      │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 'timer_expired'         │ 0      │ 'Timer scaduto per Zaragoza - Cooldown 48h applicato'          │ '2026-02-10 11:50:32' │
+│ 16      │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 'timer_expired'         │ 0      │ 'Timer scaduto per Gandelman - Cooldown 48h applicato'         │ '2026-02-10 11:50:30' │
+│ 17      │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-09 23:42:50' │
+│ 18      │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'    │ 'timer_expired'         │ 0      │ 'Timer scaduto per Malen - Cooldown 48h applicato'             │ '2026-02-09 22:44:38' │
+│ 19      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 4      │ 'Rimborso per scarto giocatore: Oristanio'                     │ '2026-02-08 18:54:20' │
+│ 20      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 6      │ 'Rimborso per scarto giocatore: Zapata D.'                     │ '2026-02-08 18:53:44' │
+│ 21      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 3      │ 'Rimborso per scarto giocatore: Morata'                        │ '2026-02-08 18:52:49' │
+│ 22      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 1      │ 'Rimborso per scarto giocatore: Buffon L.'                     │ '2026-02-08 18:52:29' │
+│ 23      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 2      │ 'Rimborso per scarto giocatore: Ambrosino'                     │ '2026-02-08 18:52:25' │
+│ 24      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 6      │ 'Rimborso per scarto giocatore: Zerbin'                        │ '2026-02-08 18:52:20' │
+│ 25      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 1      │ 'Rimborso per scarto giocatore: Marchwinski'                   │ '2026-02-08 18:51:47' │
+│ 26      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 3      │ 'Rimborso per scarto giocatore: Adzic'                         │ '2026-02-08 18:51:33' │
+│ 27      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 5      │ 'Rimborso per scarto giocatore: Ghilardi'                      │ '2026-02-08 18:51:14' │
+│ 28      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 1      │ 'Rimborso per scarto giocatore: Sernicola'                     │ '2026-02-08 18:50:58' │
+│ 29      │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 'discard_player_credit' │ 2      │ 'Rimborso per scarto giocatore: Albiol'                        │ '2026-02-08 18:50:50' │
+└─────────┴────────────────────────────────────┴─────────────┴─────────────────────────┴────────┴────────────────────────────────────────────────────────────────┴───────────────────────┘
+
+--- PARTECIPANTI LEGA 8 ---
+┌─────────┬────────────────────────────────────┬─────────────┬────────────────┬────────────────┬────────────────────┬────────────────────┬────────────────────┬────────────────────┐
+│ (index) │ user_id                            │ username    │ current_budget │ locked_credits │ players_P_acquired │ players_D_acquired │ players_C_acquired │ players_A_acquired │
+├─────────┼────────────────────────────────────┼─────────────┼────────────────┼────────────────┼────────────────────┼────────────────────┼────────────────────┼────────────────────┤
+│ 0       │ 'user_36nunZieRzX68sIsXOIc6tiBOWF' │ 'secco'     │ 82             │ 13             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 1       │ 'user_36o60LV7cAU6XbfKEpArGATDRdr' │ 'fragrande' │ 84             │ 18             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 2       │ 'user_36pT8dksMTAvpQZhTRw0VcUYmQi' │ 'rigatone1' │ 105            │ 79             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 3       │ 'user_36pgTn3e1HtCOqQ4AsrfBh6oHHE' │ 'armando'   │ 80             │ 45             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 4       │ 'user_39J4kkwnugijdOBupe2ywhJZuHp' │ 'sergio'    │ 129            │ 98             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 5       │ 'user_39L8OzdnsRnQVxVkv29zE9nLydx' │ 'paranza'   │ 112            │ 40             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 6       │ 'user_39LLcvjP0M3Jw6Z6uMAR4KMO1wA' │ 'mattiattn' │ 87             │ 82             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 7       │ 'user_39LRGNZwjowTcvmhvwbBTOHVZbW' │ 'danilo'    │ 89             │ 85             │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 8       │ 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg' │ 'gaegiglio' │ 188            │ 151            │ 3                  │ 8                  │ 8                  │ 6                  │
+│ 9       │ 'user_39LgsT8PoxguMapeXAHECJMOlrb' │ 'mariods'   │ 105            │ 8              │ 3                  │ 8                  │ 8                  │ 6                  │
+└─────────┴────────────────────────────────────┴─────────────┴────────────────┴────────────────┴────────────────────┴────────────────────┴────────────────────┴────────────────────┘
+
+=== FINE DIAGNOSI ===

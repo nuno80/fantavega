@@ -1,5 +1,5 @@
 {
-  "last_update": "2026-02-10T20:04:00Z",
+  "last_update": "2026-02-11T07:34:00Z",
   "files": [
     {
       "path": "src/lib/db/services/penalty.service.ts",
@@ -8,6 +8,14 @@
     {
       "path": "src/lib/db/services/bid.service.ts",
       "description": "Servizio offerte: tutte le chiamate a checkAndRecordCompliance passano false per non avviare timer per utenti offline."
+    },
+    {
+      "path": "src/lib/db/services/__tests__/penalty.service.test.ts",
+      "description": "Unit test per il fix compliance timer: verifica il comportamento con startTimerIfNonCompliant true/false/default."
+    },
+    {
+      "path": "scripts/diagnose-league8.ts",
+      "description": "Script diagnostico per ispezionare lo stato completo di una lega su Turso: aste, offerte, auto-bid, response timer, cooldown, compliance status, sessioni utente, assegnazioni e transazioni budget."
     }
   ]
 }
