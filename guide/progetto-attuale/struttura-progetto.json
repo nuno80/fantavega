@@ -1,9 +1,13 @@
 {
-  "last_update": "2026-02-11T13:47:00Z",
+  "last_update": "2026-02-13T19:10:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/response-timer.service.ts",
-      "description": "Servizio timer: `createResponseTimer` disabilitato (ritorna void subito)."
+      "path": "src/lib/db/services/bid.service.ts",
+      "description": "Refactoring completo: estratta 'closeSingleAuction', corretta 'processExpiredAuctionsAndAssignPlayers', aggiunta 'closeAllActiveAuctionsForLeague'."
+    },
+    {
+      "path": "src/lib/db/services/auction-league.service.ts",
+      "description": "Aggiunto hook in 'updateLeagueStatus' per invocare la chiusura aste al cambio stato (via dynamic import)."
     }
   ]
 }

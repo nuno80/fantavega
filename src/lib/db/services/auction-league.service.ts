@@ -1291,6 +1291,28 @@ export async function updateLeagueStatus(
       );
     }
 
+    // NUOVO: Se lo stato diventa 'market_closed' o 'completed', chiudi tutte le aste attive
+    // Assegnando i giocatori al miglior offerente corrente
+    if (newStatus === "market_closed" || newStatus === "completed") {
+      try {
+        console.log(
+          `[AUCTION_LEAGUE] League ${leagueId} status changed to '${newStatus}'. Closing all active auctions...`
+        );
+        // Dynamic import to avoid circular dependencies
+        const { closeAllActiveAuctionsForLeague } = await import("./bid.service");
+        await closeAllActiveAuctionsForLeague(leagueId);
+        console.log(
+          `[AUCTION_LEAGUE] Successfully closed all active auctions for league ${leagueId}.`
+        );
+      } catch (closeError) {
+        console.error(
+          `[AUCTION_LEAGUE] CRITICAL ERROR closing auctions for league ${leagueId}:`,
+          closeError
+        );
+        // Non blocchiamo il cambio stato, ma logghiamo l'errore
+      }
+    }
+
     // Fire-and-forget: notifica socket senza bloccare la risposta all'utente
     import("@/lib/socket-emitter")
       .then(({ notifySocketServer }) =>

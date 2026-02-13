@@ -1,20 +1,22 @@
 {
-  "last_update": "2026-02-11T13:47:00Z",
-  "task_completed": "DISABILITAZIONE TEMPORANEA TIMER RILANCIO",
+  "last_update": "2026-02-13T19:10:00Z",
+  "task_completed": "Refactoring Bid Service & Chiusura Automatica Aste",
   "feature_logic": {
-    "feature_name": "Disabilitazione Timer Rilancio",
-    "summary": "È stata disabilitata temporaneamente la funzionalità che avviava un timer di risposta quando un utente veniva superato in un'asta. L'utente superato non ha più l'obbligo di rilanciare entro un tempo limite.",
-    "architectural_pattern": "Early Return in `createResponseTimer`.",
+    "feature_name": "Auction Closing Logic & League Lifecycle",
+    "summary": "Implementata logica robusta per la chiusura delle aste e l'assegnazione automatica dei giocatori quando una lega cambia stato (es. 'market_closed'). Il refactoring di 'bid.service.ts' ha corretto errori di annidamento e introdotto la funzione 'closeAllActiveAuctionsForLeague' che gestisce atomicamente chiusura asta, sblocco crediti, assegnazione giocatore e notifica socket.",
+    "architectural_pattern": "Transactional Service Layer + Dynamic Import Hook",
     "user_flow": [
-      "1. Manager A è vincente su un'asta.",
-      "2. Manager B rilancia.",
-      "3. Il sistema processa l'offerta di B e lo imposta come vincente.",
-      "4. Il sistema TENTA di creare un timer per A, ma la funzione `createResponseTimer` ritorna immediatamente senza fare nulla.",
-      "5. Nessun timer viene creato o attivato per A."
-    ],
-    "core_components_interaction": {
-      "src/lib/db/services/response-timer.service.ts": "Funzione `createResponseTimer` modificata per returning immediato."
-    },
-    "database_interactions": []
+      "1. Admin/Sistema cambia stato lega a 'market_closed' o 'completed' tramite 'updateLeagueStatus'.",
+      "2. 'updateLeagueStatus' importa dinamicamente 'bid.service' (per evitare ciclicità) e chiama 'closeAllActiveAuctionsForLeague'.",
+      "3. Il sistema itera su tutte le aste attive della lega.",
+      "4. [Con Offerte]: Chiude l'asta, assegna giocatore al vincitore, scala budget, aggiorna conteggi rosa.",
+      "5. [Senza Offerte]: Chiude l'asta senza assegnazione.",
+      "6. Notifiche Socket inviate in real-time per aggiornare le UI dei client."
+    ]
+  },
+  "data_cleanup": {
+    "target": "N/A",
+    "action": "N/A",
+    "reason": "N/A"
   }
 }

@@ -1,10 +1,24 @@
--- Reset di tutti i timer delle aste attive per le leghe 8 e 9 a 24 ore esatte da adesso
-UPDATE auctions
-SET scheduled_end_time = CAST(strftime('%s', 'now') AS INTEGER) + 86400
-WHERE auction_league_id IN (8, 9) AND status = 'active';
+-- RIPRISTINO MANUALE ASTA DUROSINMI LEGA 8
+-- RIMOSSI BEGIN/COMMIT espliciti perché apply-changes.ts gestisce già la transazione.
 
--- Reset dei timer di risposta pendenti a 1 ora da adesso per evitare incoerenze con la nuova fine dell'asta
-UPDATE user_auction_response_timers
-SET response_deadline = CAST(strftime('%s', 'now') AS INTEGER) + 3600
-WHERE status = 'pending'
-  AND auction_id IN (SELECT id FROM auctions WHERE auction_league_id IN (8, 9) AND status = 'active');
+-- 1. Crea la nuova asta
+INSERT INTO auctions (auction_league_id, player_id, start_time, scheduled_end_time, current_highest_bid_amount, current_highest_bidder_id, status)
+VALUES (
+    8,
+    7316,
+    CAST(strftime('%s', 'now') AS INTEGER), -- Start Time: Adesso
+    CAST(strftime('%s', 'now') AS INTEGER) + 86400, -- End Time: Tra 24h
+    20,
+    'user_36o60LV7cAU6XbfKEpArGATDRdr',
+    'active'
+);
+
+-- 2. Inserisci l'offerta corrispondente usando l'ID appena generato
+INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type)
+VALUES (
+    last_insert_rowid(), -- Recupera ID dell'asta appena inserita
+    'user_36o60LV7cAU6XbfKEpArGATDRdr',
+    20,
+    CAST(strftime('%s', 'now') AS INTEGER),
+    'manual'
+);
