@@ -461,9 +461,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       `,
       args: [leagueIdNum],
     });
-    const leagueUsers = usersResult.rows.map((r: { id: unknown; username: unknown; full_name: unknown }) => ({
-      id: r.id as string,
-      username: (r.username || r.full_name || "Utente") as string,
+    const leagueUsers = usersResult.rows.map((r) => ({
+      id: String(r.id ?? ""),
+      username: String(r.username || r.full_name || "Utente"),
     }));
 
     return NextResponse.json(
