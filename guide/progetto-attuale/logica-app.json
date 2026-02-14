@@ -1,20 +1,24 @@
 {
-  "last_update": "2026-02-11T13:47:00Z",
-  "task_completed": "DISABILITAZIONE TEMPORANEA TIMER RILANCIO",
+  "last_update": "2026-02-14T06:50:00Z",
+  "task_completed": "Ottimizzazione Chiusura Aste",
   "feature_logic": {
-    "feature_name": "Disabilitazione Timer Rilancio",
-    "summary": "È stata disabilitata temporaneamente la funzionalità che avviava un timer di risposta quando un utente veniva superato in un'asta. L'utente superato non ha più l'obbligo di rilanciare entro un tempo limite.",
-    "architectural_pattern": "Early Return in `createResponseTimer`.",
+    "feature_name": "Ottimizzazione Chiusura Aste",
+    "summary": "Implementata logica ottimizzata per la chiusura massiva delle aste al cambio stato lega (es. 'market_closed'). Le aste senza offerte vengono chiuse con una singola query, mentre solo quelle con vincitori vengono processate individualmente.",
+    "architectural_pattern": "Bulk Update SQL per aste senza offerte + Processing loop ottimizzato solo per vincitori. Pattern fire-and-forget per notifiche socket.",
     "user_flow": [
-      "1. Manager A è vincente su un'asta.",
-      "2. Manager B rilancia.",
-      "3. Il sistema processa l'offerta di B e lo imposta come vincente.",
-      "4. Il sistema TENTA di creare un timer per A, ma la funzione `createResponseTimer` ritorna immediatamente senza fare nulla.",
-      "5. Nessun timer viene creato o attivato per A."
+      "1. Admin cambia stato lega a 'market_closed'.",
+      "2. Il sistema esegue un UPDATE massivo per chiudere istantaneamente tutte le aste senza offerte.",
+      "3. Il sistema iterara solo le aste con vincitori per assegnare giocatori e gestire budget.",
+      "4. Notifiche socket inviate in modalità fire-and-forget per non bloccare la risposta UI."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/response-timer.service.ts": "Funzione `createResponseTimer` modificata per returning immediato."
+      "src/lib/db/services/bid.service.ts": "Nuova funzione `closeAllActiveAuctionsForLeague` e refactoring `processAuctionWinner`.",
+      "src/lib/db/services/auction-league.service.ts": "Integrazione chiamata a `closeAllActiveAuctionsForLeague` in `updateLeagueStatus`."
     },
-    "database_interactions": []
+    "database_interactions": [
+      "UPDATE auctions SET status='closed' WHERE ... (Bulk)",
+      "SELECT ... FROM auctions WHERE current_highest_bidder_id IS NOT NULL (Active Winners)",
+      "Transactions per assegnazione giocatore e budget update (per singolo vincitore)"
+    ]
   }
 }

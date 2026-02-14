@@ -1303,6 +1303,17 @@ export async function updateLeagueStatus(
       .then(() => console.log(`[SOCKET] Notificato cambio stato lega ${leagueId} a '${newStatus}'`))
       .catch((err) => console.warn(`[SOCKET] Errore notifica cambio stato:`, err));
 
+    // Close all active auctions if market is closed or season completed
+    if (newStatus === "market_closed" || newStatus === "completed") {
+      try {
+        const { closeAllActiveAuctionsForLeague } = await import("./bid.service");
+        await closeAllActiveAuctionsForLeague(leagueId);
+        console.log(`[LEAGUE_STATUS] Closed all active auctions for league ${leagueId} due to status change to ${newStatus}`);
+      } catch (error) {
+        console.error(`[LEAGUE_STATUS] Error closing active auctions for league ${leagueId}:`, error);
+      }
+    }
+
 
     // NOTA: Il compliance check NON viene triggerato qui al cambio status.
     // Il timer di compliance parte SOLO quando l'utente fa login (trigger-login-check endpoint).

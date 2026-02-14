@@ -1588,6 +1588,155 @@ export const getAuctionStatusForPlayer = async (
   return null;
 };
 
+// Funzione helper per processare un vincitore d'asta
+async function processAuctionWinner(auction: ExpiredAuctionData, now: number): Promise<boolean> {
+  try {
+    // Determina l'importo corretto da sbloccare
+    const autoBidResult = await db.execute({
+      sql: "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE",
+      args: [auction.id, auction.current_highest_bidder_id],
+    });
+    const autoBid = autoBidResult.rows[0] as unknown as
+      | { max_amount: number }
+      | undefined;
+
+    // const amountToUnlock = autoBid?.max_amount || auction.current_highest_bid_amount;
+
+    const tx = await db.transaction("write");
+    try {
+      await tx.execute({
+        sql: "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?",
+        args: [now, auction.id],
+      });
+
+      // Disattiva TUTTI gli auto-bid per questa asta
+      await tx.execute({
+        sql: "UPDATE auto_bids SET is_active = FALSE, updated_at = ? WHERE auction_id = ?",
+        args: [now, auction.id],
+      });
+
+      // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
+      const allAutoBidsResult = await tx.execute({
+        sql: "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ? AND is_active = TRUE",
+        args: [auction.id, auction.current_highest_bidder_id],
+      });
+      const allAutoBidsForAuction = allAutoBidsResult.rows as unknown as {
+        user_id: string;
+        max_amount: number;
+      }[];
+
+      const affectedUsers = new Set<string>();
+      for (const otherAutoBid of allAutoBidsForAuction) {
+        affectedUsers.add(otherAutoBid.user_id);
+      }
+      affectedUsers.add(auction.current_highest_bidder_id);
+
+      for (const userId of affectedUsers) {
+        const userLockedCreditsResult = await tx.execute({
+          sql: `
+              SELECT
+                COALESCE(
+                  (SELECT SUM(ab.max_amount)
+                   FROM auto_bids ab
+                   JOIN auctions a ON ab.auction_id = a.id
+                   WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
+                  0
+                ) +
+                COALESCE(
+                  (SELECT SUM(a.current_highest_bid_amount)
+                   FROM auctions a
+                   LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
+                   WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
+                     AND ab.id IS NULL
+                     AND a.status IN ('active', 'closing')),
+                  0
+                ) as total_locked
+            `,
+          args: [auction.auction_league_id, userId, userId, auction.auction_league_id, userId],
+        });
+        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+
+        await tx.execute({
+          sql: "UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?",
+          args: [totalLocked, auction.auction_league_id, userId],
+        });
+      }
+
+      // Deduce il prezzo di acquisto dal budget del vincitore
+      await tx.execute({
+        sql: "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?",
+        args: [
+          auction.current_highest_bid_amount,
+          auction.auction_league_id,
+          auction.current_highest_bidder_id,
+        ],
+      });
+
+      const newBalanceResult = await tx.execute({
+        sql: "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?",
+        args: [auction.auction_league_id, auction.current_highest_bidder_id],
+      });
+      const newBalance = newBalanceResult.rows[0] as unknown as {
+        current_budget: number;
+      };
+
+      await tx.execute({
+        sql: `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, 'purchase', ?, ?, ?)`,
+        args: [
+          auction.auction_league_id,
+          auction.current_highest_bidder_id,
+          -auction.current_highest_bid_amount, // Negative amount for purchase
+          newBalance.current_budget,
+          `Acquisto di ${auction.player_name || "giocatore"} (${auction.player_role})`,
+        ],
+      });
+
+      // Assegna il giocatore
+      await tx.execute({
+        sql: `INSERT INTO player_assignments (auction_league_id, user_id, player_id, purchase_price, assigned_at) VALUES (?, ?, ?, ?, ?)`,
+        args: [
+          auction.auction_league_id,
+          auction.current_highest_bidder_id,
+          auction.player_id,
+          auction.current_highest_bid_amount,
+          now,
+        ],
+      });
+
+      await tx.commit();
+
+      // Trigger compliance check (fire-and-forget inside this flow usually, but we await to ensure order in cron)
+      checkAndRecordCompliance(
+        auction.current_highest_bidder_id,
+        auction.auction_league_id,
+        false
+      ).catch(err => console.error("Compliance check error:", err));
+
+      // Notifica fire-and-forget
+      notifySocketServer({
+        room: `league-${auction.auction_league_id}`,
+        event: "auction-closed",
+        data: {
+          auctionId: auction.id,
+          playerId: auction.player_id,
+          winnerId: auction.current_highest_bidder_id,
+          amount: auction.current_highest_bid_amount,
+          playerName: auction.player_name,
+          playerRole: auction.player_role,
+        },
+      }).catch(err => console.error("Error sending socket notification:", err));
+
+      return true;
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
+  } catch (err) {
+    console.error(`Error processing auction ${auction.id}:`, err);
+    return false;
+  }
+}
+
 export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
   processedCount: number;
   failedCount: number;
@@ -1608,250 +1757,46 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
   const errors: string[] = [];
 
   for (const auction of expiredAuctions) {
-    try {
-      // Determina l'importo corretto da sbloccare
-      const autoBidResult = await db.execute({
-        sql: "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE",
-        args: [auction.id, auction.current_highest_bidder_id],
-      });
-      const autoBid = autoBidResult.rows[0] as unknown as
-        | { max_amount: number }
-        | undefined;
-
-      const amountToUnlock =
-        autoBid?.max_amount || auction.current_highest_bid_amount;
-
-      const tx = await db.transaction("write");
-      try {
-        await tx.execute({
-          sql: "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?",
-          args: [now, auction.id],
-        });
-
-        // Disattiva TUTTI gli auto-bid per questa asta
-        await tx.execute({
-          sql: "UPDATE auto_bids SET is_active = FALSE, updated_at = ? WHERE auction_id = ?",
-          args: [now, auction.id],
-        });
-
-        // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
-        // FIX: Controlla is_active per evitare doppio sblocco di auto-bid già superati
-        const allAutoBidsResult = await tx.execute({
-          sql: "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ? AND is_active = TRUE",
-          args: [auction.id, auction.current_highest_bidder_id],
-        });
-        const allAutoBidsForAuction = allAutoBidsResult.rows as unknown as {
-          user_id: string;
-          max_amount: number;
-        }[];
-
-        // FIX: Ricalcola locked_credits per tutti gli utenti invece di sottrarre incrementalmente
-        const affectedUsers = new Set<string>();
-        for (const otherAutoBid of allAutoBidsForAuction) {
-          affectedUsers.add(otherAutoBid.user_id);
-        }
-        affectedUsers.add(auction.current_highest_bidder_id);
-
-        for (const userId of affectedUsers) {
-          // Ricalcola locked_credits come:
-          // 1. Somma auto-bid attivi per aste attive
-          // 2. PIÙ offerte manuali vincenti (senza auto-bid) per aste attive
-          const userLockedCreditsResult = await tx.execute({
-            sql: `
-              SELECT
-                COALESCE(
-                  (SELECT SUM(ab.max_amount)
-                   FROM auto_bids ab
-                   JOIN auctions a ON ab.auction_id = a.id
-                   WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-                  0
-                ) +
-                COALESCE(
-                  (SELECT SUM(a.current_highest_bid_amount)
-                   FROM auctions a
-                   LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-                   WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-                     AND ab.id IS NULL
-                     AND a.status IN ('active', 'closing')),
-                  0
-                ) as total_locked
-            `,
-            args: [auction.auction_league_id, userId, userId, auction.auction_league_id, userId],
-          });
-          const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
-
-          await tx.execute({
-            sql: "UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?",
-            args: [totalLocked, auction.auction_league_id, userId],
-          });
-        }
-
-        // Deduce il prezzo di acquisto dal budget del vincitore
-        await tx.execute({
-          sql: "UPDATE league_participants SET current_budget = current_budget - ? WHERE league_id = ? AND user_id = ?",
-          args: [
-            auction.current_highest_bid_amount,
-            auction.auction_league_id,
-            auction.current_highest_bidder_id,
-          ],
-        });
-
-        const newBalanceResult = await tx.execute({
-          sql: "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?",
-          args: [
-            auction.auction_league_id,
-            auction.current_highest_bidder_id,
-          ],
-        });
-        const newBalance = Number(newBalanceResult.rows[0].current_budget);
-
-        await tx.execute({
-          sql: `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, related_auction_id, related_player_id, description, balance_after_in_league, transaction_time) VALUES (?, ?, 'win_auction_debit', ?, ?, ?, ?, ?, ?)`,
-          args: [
-            auction.auction_league_id,
-            auction.current_highest_bidder_id,
-            auction.current_highest_bid_amount,
-            auction.id,
-            auction.player_id,
-            `Acquisto ${auction.player_name || `ID ${auction.player_id}`}`,
-            newBalance,
-            now,
-          ],
-        });
-
-        const col = `players_${auction.player_role}_acquired`;
-        await tx.execute({
-          sql: `UPDATE league_participants SET ${col} = ${col} + 1, updated_at = ? WHERE league_id = ? AND user_id = ?`,
-          args: [
-            now,
-            auction.auction_league_id,
-            auction.current_highest_bidder_id,
-          ],
-        });
-
-        await tx.execute({
-          sql: `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price, assigned_at) VALUES (?, ?, ?, ?, ?)`,
-          args: [
-            auction.auction_league_id,
-            auction.player_id,
-            auction.current_highest_bidder_id,
-            auction.current_highest_bid_amount,
-            now,
-          ],
-        });
-
-        await tx.commit();
-      } catch (error) {
-        await tx.rollback();
-        throw error;
-      }
-
-      // TASK 1.2: Re-check compliance after player assignment
-      await checkAndRecordCompliance(
-        auction.current_highest_bidder_id,
-        auction.auction_league_id,
-        false
-      );
-
-      // NUOVO: Check compliance for all users who had auto-bids but didn't win
-      // We need to fetch them again because we are outside the transaction now, or reuse the list if possible.
-      // We'll fetch them again to be safe.
-      const allAutoBidsForAuction = (
-        await db.execute({
-          sql: "SELECT user_id FROM auto_bids WHERE auction_id = ? AND user_id != ?",
-          args: [auction.id, auction.current_highest_bidder_id],
-        })
-      ).rows as unknown as { user_id: string }[];
-
-      for (const otherAutoBid of allAutoBidsForAuction) {
-        try {
-          console.log(
-            `[AUCTION_EXPIRED] Checking compliance for user ${otherAutoBid.user_id} who lost auction ${auction.id}`
-          );
-          const complianceResult = await checkAndRecordCompliance(
-            otherAutoBid.user_id,
-            auction.auction_league_id,
-            false
-          );
-
-          if (
-            complianceResult.statusChanged &&
-            !complianceResult.isCompliant
-          ) {
-            console.log(
-              `[AUCTION_EXPIRED] CRITICAL: User ${otherAutoBid.user_id} became non-compliant after losing auction - penalty timer restarted`
-            );
-          }
-        } catch (error) {
-          console.error(
-            `[AUCTION_EXPIRED] Error checking compliance for losing bidder ${otherAutoBid.user_id}:`,
-            error
-          );
-        }
-      }
-
-      // NUOVO: Check compliance for ALL other users who made bids (manual or auto) but didn't win
-      const allLosingBiddersResult = await db.execute({
-        sql: "SELECT DISTINCT user_id FROM bids WHERE auction_id = ? AND user_id != ?",
-        args: [auction.id, auction.current_highest_bidder_id],
-      });
-      const allLosingBidders = allLosingBiddersResult.rows as unknown as {
-        user_id: string;
-      }[];
-
-      for (const losingBidder of allLosingBidders) {
-        // Skip if already checked in auto-bid loop above
-        if (
-          !allAutoBidsForAuction.some(
-            (ab) => ab.user_id === losingBidder.user_id
-          )
-        ) {
-          try {
-            console.log(
-              `[AUCTION_EXPIRED] Checking compliance for manual bidder ${losingBidder.user_id} who lost auction ${auction.id}`
-            );
-            const complianceResult = await checkAndRecordCompliance(
-              losingBidder.user_id,
-              auction.auction_league_id,
-              false
-            );
-
-            if (
-              complianceResult.statusChanged &&
-              !complianceResult.isCompliant
-            ) {
-              console.log(
-                `[AUCTION_EXPIRED] CRITICAL: Manual bidder ${losingBidder.user_id} became non-compliant after losing auction - penalty timer restarted`
-              );
-            }
-          } catch (error) {
-            console.error(
-              `[AUCTION_EXPIRED] Error checking compliance for manual bidder ${losingBidder.user_id}:`,
-              error
-            );
-          }
-        }
-      }
-
+    const success = await processAuctionWinner(auction, now);
+    if (success) {
       processedCount++;
-
-      // **NUOVO**: Notifica Socket.IO per l'asta conclusa
-      await notifySocketServer({
-        room: `league-${auction.auction_league_id}`,
-        event: "auction-closed-notification",
-        data: {
-          playerId: auction.player_id,
-          playerName: auction.player_name,
-          winnerId: auction.current_highest_bidder_id,
-          finalPrice: auction.current_highest_bid_amount,
-        },
-      });
-    } catch (error) {
+    } else {
       failedCount++;
-      const errMsg =
-        error instanceof Error ? error.message : "Errore sconosciuto.";
-      errors.push(`Asta ID ${auction.id}: ${errMsg}`);
+      errors.push(`Failed to process auction ${auction.id}`);
     }
   }
+
   return { processedCount, failedCount, errors };
+};
+
+export const closeAllActiveAuctionsForLeague = async (leagueId: number) => {
+  const now = Math.floor(Date.now() / 1000);
+  console.log(`[BID_SERVICE] Closing all active auctions for league ${leagueId}`);
+
+  // 1. Bulk Close auctions with NO bids (optimized)
+  const bulkUpdateResult = await db.execute({
+    sql: `UPDATE auctions SET status = 'closed', updated_at = ? WHERE auction_league_id = ? AND status IN ('active', 'closing') AND current_highest_bidder_id IS NULL`,
+    args: [now, leagueId],
+  });
+  console.log(`[BID_SERVICE] Bulk closed ${bulkUpdateResult.rowsAffected} no-bid auctions.`);
+
+  // 2. Fetch active auctions WITH winners
+  const winnersResult = await db.execute({
+    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name
+          FROM auctions a
+          JOIN players p ON a.player_id = p.id
+          WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing') AND a.current_highest_bidder_id IS NOT NULL`,
+    args: [leagueId],
+  });
+  const winningAuctions = winnersResult.rows as unknown as ExpiredAuctionData[];
+
+  console.log(`[BID_SERVICE] Processing ${winningAuctions.length} active auctions with winners...`);
+
+  // 3. Process winners efficiently
+  for (const auction of winningAuctions) {
+    // We await here to ensure data consistency during league status transition
+    await processAuctionWinner(auction, now);
+  }
+
+  console.log(`[BID_SERVICE] All active auctions processed for league ${leagueId}.`);
 };

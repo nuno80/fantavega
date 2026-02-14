@@ -1,9 +1,13 @@
 {
-  "last_update": "2026-02-11T13:47:00Z",
+  "last_update": "2026-02-14T06:50:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/response-timer.service.ts",
-      "description": "Servizio timer: `createResponseTimer` disabilitato (ritorna void subito)."
+      "path": "src/lib/db/services/bid.service.ts",
+      "description": "Aggiunta `closeAllActiveAuctionsForLeague` e refactoring `processAuctionWinner`."
+    },
+    {
+      "path": "src/lib/db/services/auction-league.service.ts",
+      "description": "Chiamata dinamica a `closeAllActiveAuctionsForLeague` in `updateLeagueStatus`."
     }
   ]
 }
