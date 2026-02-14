@@ -1681,7 +1681,7 @@ async function processAuctionWinner(auction: ExpiredAuctionData, now: number): P
       };
 
       await tx.execute({
-        sql: `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, 'purchase', ?, ?, ?)`,
+        sql: `INSERT INTO budget_transactions (auction_league_id, user_id, transaction_type, amount, balance_after_in_league, description) VALUES (?, ?, 'win_auction_debit', ?, ?, ?)`,
         args: [
           auction.auction_league_id,
           auction.current_highest_bidder_id,
