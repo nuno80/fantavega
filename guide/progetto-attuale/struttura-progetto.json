@@ -1,25 +1,9 @@
 {
-  "last_update": "2026-02-14T08:05:00Z",
+  "last_update": "2026-02-14T12:17:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/bid.service.ts",
-      "description": "Logica ottimizzata chiusura aste."
-    },
-    {
-      "path": "src/lib/db/services/auction-league.service.ts",
-      "description": "Trigger chiusura aste su cambio stato."
-    },
-    {
-      "path": "src/components/auction/ManagerColumn.tsx",
-      "description": "Fix idratazione React su timer e date."
-    },
-    {
-      "path": "src/components/auction/BidHistory.tsx",
-      "description": "Fix idratazione React su formattazione date locale."
-    },
-    {
-      "path": "src/hooks/useIsMounted.ts",
-      "description": "Hook utility per rendering safe."
+      "path": "src/app/layout.tsx",
+      "description": "Aggiunto suppressHydrationWarning al tag <body> per fix Error #418."
     }
   ]
 }

@@ -46,6 +46,7 @@ export default function RootLayout({
         {/* La tua struttura di classi per i font (MANTENUTA) */}
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          suppressHydrationWarning
         >
           <ThemeProvider
             attribute="class"

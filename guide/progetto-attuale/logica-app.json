@@ -1,25 +1,19 @@
 {
-  "last_update": "2026-02-14T08:05:00Z",
-  "task_completed": "Ottimizzazione Chiusura Aste e Fix Idratazione",
+  "last_update": "2026-02-14T12:17:00Z",
+  "task_completed": "Fix React Hydration Error #418 - suppressHydrationWarning su body",
   "feature_logic": {
-    "feature_name": "Ottimizzazione Chiusura Aste",
-    "summary": "Implementata logica ottimizzata per la chiusura massiva delle aste al cambio stato lega. Risolti problemi di idratazione React in `ManagerColumn.tsx` e `BidHistory.tsx`.",
-    "architectural_pattern": "Bulk Update SQL per aste senza offerte. Processing loop ottimizzato per vincitori. Hydration-safe rendering per timer e date.",
+    "feature_name": "Fix Hydration Error #418",
+    "summary": "Aggiunto suppressHydrationWarning al tag <body> nel layout radice per prevenire errori di idratazione causati da next-themes e Clerk che iniettano attributi/stili prima dell'hydration di React.",
+    "architectural_pattern": "Standard React suppressHydrationWarning per elementi che possono avere differenze tra SSR e client (tipico con theme providers e auth providers).",
     "user_flow": [
-      "1. Admin cambia stato lega a 'market_closed'.",
-      "2. Sistema chiude aste massivamente.",
-      "3. Frontend renderizza timer e date solo dopo il mount per evitare errori di idratazione (Error #418)."
+      "1. L'utente carica qualsiasi pagina dell'applicazione.",
+      "2. next-themes inietta il tema (dark/light) sull'HTML/body prima dell'hydration.",
+      "3. suppressHydrationWarning impedisce a React di segnalare il mismatch.",
+      "4. L'applicazione si idrizza correttamente senza errori in console."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/bid.service.ts": "Nuova funzione `closeAllActiveAuctionsForLeague`.",
-      "src/lib/db/services/auction-league.service.ts": "Chiamata dinamica a `closeAllActiveAuctionsForLeague`.",
-      "src/components/auction/ManagerColumn.tsx": "Uso di `useIsMounted` e timestamp stabili per il sorting degli slot per evitare discrepanze server/client (Error #418).",
-      "src/components/auction/BidHistory.tsx": "Uso di `useIsMounted` per formattazione date sicura.",
-      "src/hooks/useIsMounted.ts": "Utility hook per safe rendering."
+      "src/app/layout.tsx": "Tag <body> con suppressHydrationWarning per prevenire Error #418."
     },
-    "database_interactions": [
-      "UPDATE auctions SET status='closed' WHERE ... (Bulk)",
-      "SELECT ... FROM auctions WHERE current_highest_bidder_id IS NOT NULL (Active Winners)"
-    ]
+    "database_interactions": []
   }
 }
