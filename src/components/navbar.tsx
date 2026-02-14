@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import {
   SignInButton,
@@ -103,7 +103,9 @@ export function Navbar() {
                 Cerca Giocatori
               </Link>
               {/* League Selector - only show for logged in users */}
-              <LeagueSelector compact={false} />
+              <Suspense fallback={null}>
+                <LeagueSelector compact={false} />
+              </Suspense>
               {isAdmin && ( // Mostra il link Dashboard/Admin solo se l'utente è admin
                 <Link
                   href="/dashboard" // Questa è la dashboard admin protetta dal middleware
@@ -133,7 +135,9 @@ export function Navbar() {
           <ModeToggle />
           <SignedIn>
             {/* League Selector for mobile - compact version */}
-            <LeagueSelector compact={true} />
+            <Suspense fallback={null}>
+              <LeagueSelector compact={true} />
+            </Suspense>
             <UserButton />
           </SignedIn>
           {/* Mostra il toggle del menu solo se ci sono link da mostrare (cioè utente loggato) o se vuoi mostrare il menu anche da sloggato */}
@@ -201,7 +205,9 @@ export function Navbar() {
               </Link>
               {/* League Selector in mobile menu - full version */}
               <div className="py-2">
-                <LeagueSelector compact={false} />
+                <Suspense fallback={null}>
+                  <LeagueSelector compact={false} />
+                </Suspense>
               </div>
               {isAdmin && ( // Mostra il link Dashboard/Admin solo se l'utente è admin
                 <Link

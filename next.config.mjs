@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   experimental: {
     typedRoutes: true,
-    reactCompiler: true,
+    // reactCompiler: true, // Disabilitato: causa hydration mismatch con next-themes + Clerk
   },
   allowedDevOrigins: [
     'local-origin.dev',
