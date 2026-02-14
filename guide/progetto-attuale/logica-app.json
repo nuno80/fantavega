@@ -1,46 +1,24 @@
 {
-<<<<<<< HEAD
-  "last_update": "2026-02-14T06:50:00Z",
-  "task_completed": "Ottimizzazione Chiusura Aste",
+  "last_update": "2026-02-14T08:05:00Z",
+  "task_completed": "Ottimizzazione Chiusura Aste e Fix Idratazione",
   "feature_logic": {
     "feature_name": "Ottimizzazione Chiusura Aste",
-    "summary": "Implementata logica ottimizzata per la chiusura massiva delle aste al cambio stato lega (es. 'market_closed'). Le aste senza offerte vengono chiuse con una singola query, mentre solo quelle con vincitori vengono processate individualmente.",
-    "architectural_pattern": "Bulk Update SQL per aste senza offerte + Processing loop ottimizzato solo per vincitori. Pattern fire-and-forget per notifiche socket.",
+    "summary": "Implementata logica ottimizzata per la chiusura massiva delle aste al cambio stato lega. Risolti problemi di idratazione React in `ManagerColumn.tsx`.",
+    "architectural_pattern": "Bulk Update SQL per aste senza offerte. Processing loop ottimizzato per vincitori. Hydration-safe rendering per timer e date.",
     "user_flow": [
       "1. Admin cambia stato lega a 'market_closed'.",
-      "2. Il sistema esegue un UPDATE massivo per chiudere istantaneamente tutte le aste senza offerte.",
-      "3. Il sistema iterara solo le aste con vincitori per assegnare giocatori e gestire budget.",
-      "4. Notifiche socket inviate in modalità fire-and-forget per non bloccare la risposta UI."
+      "2. Sistema chiude aste massivamente.",
+      "3. Frontend renderizza timer e date solo dopo il mount per evitare errori di idratazione (Error #418)."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/bid.service.ts": "Nuova funzione `closeAllActiveAuctionsForLeague` e refactoring `processAuctionWinner`.",
-      "src/lib/db/services/auction-league.service.ts": "Integrazione chiamata a `closeAllActiveAuctionsForLeague` in `updateLeagueStatus`."
+      "src/lib/db/services/bid.service.ts": "Nuova funzione `closeAllActiveAuctionsForLeague`.",
+      "src/lib/db/services/auction-league.service.ts": "Chiamata dinamica a `closeAllActiveAuctionsForLeague`.",
+      "src/components/auction/ManagerColumn.tsx": "Uso di `useIsMounted` e default values per evitare discrepanze server/client sui timer.",
+      "src/hooks/useIsMounted.ts": "Utility hook per safe rendering."
     },
     "database_interactions": [
       "UPDATE auctions SET status='closed' WHERE ... (Bulk)",
-      "SELECT ... FROM auctions WHERE current_highest_bidder_id IS NOT NULL (Active Winners)",
-      "Transactions per assegnazione giocatore e budget update (per singolo vincitore)"
+      "SELECT ... FROM auctions WHERE current_highest_bidder_id IS NOT NULL (Active Winners)"
     ]
-=======
-  "last_update": "2026-02-13T19:10:00Z",
-  "task_completed": "Refactoring Bid Service & Chiusura Automatica Aste",
-  "feature_logic": {
-    "feature_name": "Auction Closing Logic & League Lifecycle",
-    "summary": "Implementata logica robusta per la chiusura delle aste e l'assegnazione automatica dei giocatori quando una lega cambia stato (es. 'market_closed'). Il refactoring di 'bid.service.ts' ha corretto errori di annidamento e introdotto la funzione 'closeAllActiveAuctionsForLeague' che gestisce atomicamente chiusura asta, sblocco crediti, assegnazione giocatore e notifica socket.",
-    "architectural_pattern": "Transactional Service Layer + Dynamic Import Hook",
-    "user_flow": [
-      "1. Admin/Sistema cambia stato lega a 'market_closed' o 'completed' tramite 'updateLeagueStatus'.",
-      "2. 'updateLeagueStatus' usa un import STATICO di 'bid.service' (confermato safe da ciclicità) e chiama 'closeAllActiveAuctionsForLeague'.",
-      "3. Il sistema itera su tutte le aste attive della lega.",
-      "4. [Con Offerte]: Chiude l'asta, assegna giocatore al vincitore, scala budget, aggiorna conteggi rosa.",
-      "5. [Senza Offerte]: Chiude l'asta senza assegnazione.",
-      "6. Notifiche Socket inviate in real-time per aggiornare le UI dei client."
-    ]
-  },
-  "data_cleanup": {
-    "target": "N/A",
-    "action": "N/A",
-    "reason": "N/A"
->>>>>>> 1044369eb838df1949e887af4f5ecd28e2b6e99d
   }
 }

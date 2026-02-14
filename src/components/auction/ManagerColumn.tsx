@@ -590,7 +590,12 @@ function InAuctionSlot({
     }
   }, [auction.current_highest_bid_amount, prevBid]);
 
-  const timeInfo = formatTimeRemaining(auction.scheduled_end_time);
+  // FIX: Use isMounted to ensure stable rendering during hydration
+  // Server/Initial Client render gets a static placeholder, preventing mismatch on 'style' and 'className'
+  const timeInfo = isMounted
+    ? formatTimeRemaining(auction.scheduled_end_time)
+    : { text: "--:--", color: "text-muted-foreground", percent: 0, remaining: Infinity };
+
   const roleColor = getRoleColor(role);
   const pastelClass = getRolePastelColor(role);
 

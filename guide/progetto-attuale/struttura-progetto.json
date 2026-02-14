@@ -1,25 +1,21 @@
 {
-<<<<<<< HEAD
-  "last_update": "2026-02-14T06:50:00Z",
+  "last_update": "2026-02-14T08:05:00Z",
   "files": [
     {
       "path": "src/lib/db/services/bid.service.ts",
-      "description": "Aggiunta `closeAllActiveAuctionsForLeague` e refactoring `processAuctionWinner`."
+      "description": "Logica ottimizzata chiusura aste."
     },
     {
       "path": "src/lib/db/services/auction-league.service.ts",
-      "description": "Chiamata dinamica a `closeAllActiveAuctionsForLeague` in `updateLeagueStatus`."
-=======
-  "last_update": "2026-02-13T19:10:00Z",
-  "files": [
-    {
-      "path": "src/lib/db/services/bid.service.ts",
-      "description": "Refactoring completo: estratta 'closeSingleAuction', corretta 'processExpiredAuctionsAndAssignPlayers', aggiunta 'closeAllActiveAuctionsForLeague'."
+      "description": "Trigger chiusura aste su cambio stato."
     },
     {
-      "path": "src/lib/db/services/auction-league.service.ts",
-      "description": "Aggiornato import 'closeAllActiveAuctionsForLeague' da dinamico a statico per risolvere bug mancata esecuzione in produzione."
->>>>>>> 1044369eb838df1949e887af4f5ecd28e2b6e99d
+      "path": "src/components/auction/ManagerColumn.tsx",
+      "description": "Fix idratazione React su timer e date."
+    },
+    {
+      "path": "src/hooks/useIsMounted.ts",
+      "description": "Hook utility per rendering safe."
     }
   ]
 }
