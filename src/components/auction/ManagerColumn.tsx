@@ -25,6 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 
 import { UserAuctionStateDetail } from "@/lib/db/services/auction-states.service";
@@ -354,6 +355,7 @@ function ResponseNeededSlot({
     state.time_remaining === null ? Infinity : state.time_remaining
   );
 
+  const isMounted = useIsMounted();
   const roleColor = getRoleColor(role);
 
   // Response timer countdown effect
@@ -493,14 +495,18 @@ function ResponseNeededSlot({
                 </span>
               </div>
               {/* Response Timer */}
-              {currentTimeRemaining > 0 || currentTimeRemaining === Infinity ? (
-                <span
-                  className={`font-mono text-sm font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
-                >
-                  {formatResponseTimer(currentTimeRemaining)}
-                </span>
+              {isMounted ? (
+                (currentTimeRemaining > 0 || currentTimeRemaining === Infinity) ? (
+                  <span
+                    className={`font-mono text-sm font-bold tabular-nums ${getTimerColor(currentTimeRemaining)} ${currentTimeRemaining <= 300 && currentTimeRemaining !== Infinity ? "animate-pulse" : ""}`}
+                  >
+                    {formatResponseTimer(currentTimeRemaining)}
+                  </span>
+                ) : (
+                  <span className="text-sm font-bold text-red-500">Scaduto</span>
+                )
               ) : (
-                <span className="text-sm font-bold text-red-500">Scaduto</span>
+                <span className="font-mono text-sm font-bold text-gray-400">--:--</span>
               )}
             </div>
           </div>
@@ -573,6 +579,7 @@ function InAuctionSlot({
   // Track previous bid to trigger flash animation
   const [prevBid, setPrevBid] = useState(auction.current_highest_bid_amount);
   const [flash, setFlash] = useState(false);
+  const isMounted = useIsMounted();
 
   useEffect(() => {
     if (auction.current_highest_bid_amount !== prevBid) {
@@ -707,7 +714,7 @@ function InAuctionSlot({
         <span
           className={`ml-2 font-mono tabular-nums ${timeInfo.color} ${timeInfo.color === "text-red-500" && timeInfo.text.includes("s") ? "animate-pulse font-bold" : ""}`}
         >
-          {timeInfo.text}
+          {isMounted ? timeInfo.text : "--:--"}
         </span>
       </div>
     </div>
