@@ -1,8 +1,17 @@
 // src/lib/socket-emitter.ts
 
-const SOCKET_BASE_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+// Quando il socket-emitter gira dentro il processo del socket-server (Railway),
+// usiamo l'URL interno localhost per evitare 404 dal proxy Railway.
+// Quando gira su Vercel (Next.js), usiamo l'URL pubblico di Railway.
+// Detect: su Railway, la env PORT è impostata dal sistema (es. 8080).
+// Su Vercel, PORT non è impostata e NEXT_PUBLIC_SOCKET_URL punta a Railway.
+const isRunningOnSocketServer = !!process.env.PORT && !process.env.NEXT_RUNTIME;
+const SOCKET_BASE_URL = isRunningOnSocketServer
+  ? `http://localhost:${process.env.PORT}`
+  : (process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001");
 const SOCKET_SERVER_URL = `${SOCKET_BASE_URL}/api/emit`;
+
+console.log(`[Socket Emitter] Resolved URL: ${SOCKET_SERVER_URL} (isSocketServer: ${isRunningOnSocketServer})`);
 
 // Throttling mechanism to prevent duplicate events
 const recentEvents = new Map<string, number>();
