@@ -102,6 +102,12 @@ export function Navbar() {
               >
                 Cerca Giocatori
               </Link>
+              <Link
+                href="/activity-log"
+                className="text-sm font-medium transition-colors hover:text-primary"
+              >
+                Log
+              </Link>
               {/* League Selector - only show for logged in users */}
               <Suspense fallback={null}>
                 <LeagueSelector compact={false} />
@@ -202,6 +208,13 @@ export function Navbar() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Cerca Giocatori
+              </Link>
+              <Link
+                href="/activity-log"
+                className="text-sm font-medium transition-colors hover:text-primary"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Log
               </Link>
               {/* League Selector in mobile menu - full version */}
               <div className="py-2">
