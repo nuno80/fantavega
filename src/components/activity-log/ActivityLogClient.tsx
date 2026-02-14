@@ -177,7 +177,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
 
   // Filtri
   const [filterUserId, setFilterUserId] = useState<string>("");
-  const [filterEventType, setFilterEventType] = useState<string>("");
+  const [filterEventTypes, setFilterEventTypes] = useState<string[]>([]);
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
@@ -193,7 +193,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
       params.set("limit", "50");
 
       if (filterUserId) params.set("userId", filterUserId);
-      if (filterEventType) params.set("eventType", filterEventType);
+      if (filterEventTypes.length > 0) params.set("eventType", filterEventTypes.join(","));
 
       const dateFromTs = dateInputToTimestamp(filterDateFrom);
       if (dateFromTs) params.set("dateFrom", dateFromTs.toString());
@@ -222,7 +222,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
     } finally {
       setLoading(false);
     }
-  }, [leagueId, page, filterUserId, filterEventType, filterDateFrom, filterDateTo]);
+  }, [leagueId, page, filterUserId, filterEventTypes, filterDateFrom, filterDateTo]);
 
   useEffect(() => {
     fetchEvents();
@@ -232,6 +232,16 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
   const handleFilterChange = useCallback(() => {
     setPage(1);
   }, []);
+
+  // Toggle per evento tipo (multi-select)
+  const toggleEventType = useCallback((eventType: string) => {
+    setFilterEventTypes((prev) =>
+      prev.includes(eventType)
+        ? prev.filter((t) => t !== eventType)
+        : [...prev, eventType]
+    );
+    handleFilterChange();
+  }, [handleFilterChange]);
 
   // Render singolo evento
   const renderEvent = (event: ActivityEvent) => {
@@ -302,7 +312,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
         >
           <Filter className="h-4 w-4" />
           Filtri
-          {(filterUserId || filterEventType || filterDateFrom || filterDateTo) && (
+          {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo) && (
             <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
               !
             </Badge>
@@ -344,30 +354,30 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
                 </Select>
               </div>
 
-              {/* Filtro Tipo Evento */}
-              <div className="space-y-1.5">
+              {/* Filtro Tipo Evento — Multi-Select */}
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
                 <label className="text-xs font-medium text-muted-foreground">
-                  Tipo Evento
+                  Tipi Evento {filterEventTypes.length > 0 && `(${filterEventTypes.length})`}
                 </label>
-                <Select
-                  value={filterEventType}
-                  onValueChange={(value) => {
-                    setFilterEventType(value === "all" ? "" : value);
-                    handleFilterChange();
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tutti i tipi" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti i tipi</SelectItem>
-                    {ALL_EVENT_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
+                <div className="flex flex-wrap gap-1.5">
+                  {ALL_EVENT_TYPES.map((t) => {
+                    const isSelected = filterEventTypes.includes(t.value);
+                    const config = EVENT_TYPE_CONFIG[t.value];
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => toggleEventType(t.value)}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${isSelected
+                          ? `${config.bgColor} ${config.color} border-current/30 ring-1 ring-current/20`
+                          : "border-border bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                      >
                         {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Filtro Data Da */}
@@ -402,14 +412,14 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
             </div>
 
             {/* Pulsante Reset Filtri */}
-            {(filterUserId || filterEventType || filterDateFrom || filterDateTo) && (
+            {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo) && (
               <div className="mt-3 flex justify-end">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setFilterUserId("");
-                    setFilterEventType("");
+                    setFilterEventTypes([]);
                     setFilterDateFrom("");
                     setFilterDateTo("");
                     handleFilterChange();
@@ -460,7 +470,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
               <p className="text-sm text-muted-foreground">
                 Nessun evento trovato
               </p>
-              {(filterUserId || filterEventType || filterDateFrom || filterDateTo) && (
+              {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo) && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Prova a modificare i filtri
                 </p>
