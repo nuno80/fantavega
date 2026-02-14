@@ -821,7 +821,13 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
     });
 
     statesForRole.forEach((state) => {
-      allItems.push({ slot: { type: "response_needed", state }, timestamp: Date.now() });
+      // Use a stable timestamp for sorting relative to now (e.g. assume they are "current")
+      // Using Date.now() during render causes hydration mismatch because server T != client T
+      // We use a high stable number to represent "now/response phase"
+      const STABLE_NOW = 2000000000000; // Far future, or just max integer?
+      // Actually, we want them ordered by... creation?
+      // Let's use a stable value. Since we just sort, use MaxSafeInteger - 1000
+      allItems.push({ slot: { type: "response_needed", state }, timestamp: Number.MAX_SAFE_INTEGER - 2000 });
     });
 
     activeAuctionsForRole.forEach((auction) => {
@@ -830,8 +836,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
         statesForRole.some((s) => s.player_id === auction.player_id);
 
       if (!hasResponseState) {
-        // active auctions effectively have "now" + epsilon
-        allItems.push({ slot: { type: "in_auction", auction }, timestamp: Date.now() + 1000 });
+        // active auctions come after response needed
+        allItems.push({ slot: { type: "in_auction", auction }, timestamp: Number.MAX_SAFE_INTEGER - 1000 });
       }
     });
 

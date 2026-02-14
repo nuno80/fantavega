@@ -13,7 +13,7 @@
     "core_components_interaction": {
       "src/lib/db/services/bid.service.ts": "Nuova funzione `closeAllActiveAuctionsForLeague`.",
       "src/lib/db/services/auction-league.service.ts": "Chiamata dinamica a `closeAllActiveAuctionsForLeague`.",
-      "src/components/auction/ManagerColumn.tsx": "Uso di `useIsMounted` e default values per evitare discrepanze server/client sui timer.",
+      "src/components/auction/ManagerColumn.tsx": "Uso di `useIsMounted` e timestamp stabili per il sorting degli slot per evitare discrepanze server/client (Error #418).",
       "src/components/auction/BidHistory.tsx": "Uso di `useIsMounted` per formattazione date sicura.",
       "src/hooks/useIsMounted.ts": "Utility hook per safe rendering."
     },
