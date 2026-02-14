@@ -1,21 +1,33 @@
 /**
  * Sistema di scheduling per task periodici come la chiusura di aste
  * e il processamento di timer scaduti.
+ *
+ * IMPORTANT: Usa un lock di concorrenza per evitare esecuzioni sovrapposte
+ * che saturano il limite connessioni di Turso.
  */
 import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
 import { processExpiredComplianceTimers } from "./db/services/penalty.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 
-// Intervallo di controllo ridotto per una chiusura più tempestiva delle aste
-const TASK_CHECK_INTERVAL = 2 * 1000; // 2 secondi
+// Intervallo di controllo — 5 secondi è sufficiente per chiusura tempestiva
+const TASK_CHECK_INTERVAL = 5 * 1000;
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 
+// Lock di concorrenza: impedisce esecuzioni sovrapposte che saturano le connessioni DB
+let isRunning = false;
+
 /**
  * Esegue tutti i task di background necessari.
+ * Se una esecuzione precedente è ancora in corso, salta questo tick.
  */
 const runBackgroundTasks = async () => {
-  // console.log("[SCHEDULER] Running background tasks...");
+  // Guard: se il tick precedente è ancora in esecuzione, skip
+  if (isRunning) {
+    return;
+  }
+
+  isRunning = true;
 
   try {
     // 1. Processa le aste scadute
@@ -64,6 +76,9 @@ const runBackgroundTasks = async () => {
       "[SCHEDULER] Unhandled error during background task execution:",
       error
     );
+  } finally {
+    // Rilascia il lock SEMPRE, anche in caso di errore
+    isRunning = false;
   }
 };
 
@@ -72,7 +87,6 @@ const runBackgroundTasks = async () => {
  */
 export const startScheduler = () => {
   if (schedulerInterval) {
-    // console.log("[SCHEDULER] Scheduler is already running.");
     return;
   }
 
