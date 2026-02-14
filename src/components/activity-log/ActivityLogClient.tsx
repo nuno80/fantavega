@@ -18,8 +18,7 @@ import {
   Timer,
   TimerOff,
   Trophy,
-  Wallet,
-  XCircle,
+  Wallet
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -66,64 +65,68 @@ interface ActivityLogClientProps {
 // 3. Configurazione tipi di evento
 const EVENT_TYPE_CONFIG: Record<
   string,
-  { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
+  { label: string; description: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
 > = {
   login: {
     label: "Login",
+    description: "Accesso effettuato alla piattaforma",
     icon: LogIn,
     color: "text-green-500",
     bgColor: "bg-green-500/10",
   },
   logout: {
     label: "Logout",
+    description: "Uscita dalla piattaforma (manuale o scadenza sessione)",
     icon: LogOut,
     color: "text-slate-400",
     bgColor: "bg-slate-400/10",
   },
   bid: {
     label: "Offerta",
+    description: "Offerta piazzata per un giocatore",
     icon: Gavel,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
   },
   auction_created: {
     label: "Asta Aperta",
+    description: "Nuova asta iniziata per un giocatore",
     icon: Clock,
     color: "text-amber-500",
     bgColor: "bg-amber-500/10",
   },
   auction_sold: {
-    label: "Asta Venduta",
+    label: "Asta Conclusa",
+    description: "Giocatore assegnato al vincitore dell'asta",
     icon: Trophy,
     color: "text-emerald-500",
     bgColor: "bg-emerald-500/10",
   },
-  auction_not_sold: {
-    label: "Non Venduto",
-    icon: XCircle,
-    color: "text-red-400",
-    bgColor: "bg-red-400/10",
-  },
+
   budget_transaction: {
-    label: "Transazione",
+    label: "Penalità / Budget", // Ex "Transazione"
+    description: "Modifica manuale o bonus/malus al budget",
     icon: Wallet,
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
   },
   timer_activated: {
     label: "Timer",
+    description: "Timer di risposta attivato per un utente",
     icon: Timer,
     color: "text-cyan-500",
     bgColor: "bg-cyan-500/10",
   },
   timer_expired: {
-    label: "Timer Scaduto",
+    label: "Timer Rilancio Scaduto", // Ex "Timer Scaduto"
+    description: "Tempo scaduto senza risposta dall'utente",
     icon: TimerOff,
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
   },
   timer_abandoned: {
     label: "Abbandonata",
+    description: "Asta abbandonata dall'utente o per inattività",
     icon: AlertTriangle,
     color: "text-red-500",
     bgColor: "bg-red-500/10",
@@ -429,9 +432,11 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
                 </Button>
               </div>
             )}
+
           </CardContent>
         </Card>
-      )}
+      )
+      }
 
       {/* Contatore risultati */}
       <div className="mb-3 flex items-center justify-between">
@@ -485,31 +490,33 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
       </Card>
 
       {/* Paginazione */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Precedente
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Successiva
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
+      {
+        totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Precedente
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Successiva
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )
+      }
+    </div >
   );
 }

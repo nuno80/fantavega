@@ -1,55 +1,33 @@
 {
-  "last_update": "2026-02-14T14:20:00Z",
-  "task_completed": "Activity Log Page — Cronologia Completa Attività",
+  "last_update": "2026-02-14T21:45:00Z",
+  "task_completed": "FN-7 - Activity Log & Bug Fixes",
   "feature_logic": {
-    "feature_name": "Activity Log Page",
-    "summary": "Pagina accessibile a tutti i partecipanti della lega che mostra un feed cronologico unificato di tutti gli eventi: login/logout, offerte, aste create/chiuse, transazioni budget, timer di risposta. Con filtri per utente, tipo evento e range temporale.",
-    "architectural_pattern": "API Route read-only che esegue query separate su 5 tabelle DB (bids, auctions, budget_transactions, user_sessions, user_auction_response_timers), normalizza i risultati in un formato uniforme, ordina cronologicamente e pagina. Il frontend è un Client Component con fetch API e filtri locali.",
+    "feature_name": "Activity Log & Sistema Notifiche",
+    "summary": "Pagina di log attività per visualizzare cronologia eventi della lega. Filtri avanzati multi-select per tipo evento. Fix critici su concorrenza scheduler (lock) e routing notifiche socket (localhost instradamento).",
+    "architectural_pattern": "Scheduler con lock concurrency guard. Socket Emitter con auto-detect ambiente (Railway vs Vercel). UI Activity Log con filtri client-side e paginazione server-side.",
     "user_flow": [
-      "1. L'utente clicca su 'Log' nella navbar.",
-      "2. La pagina Server Component verifica partecipazione alla lega e redirige se necessario.",
-      "3. Il Client Component chiama GET /api/leagues/[league-id]/activity-log.",
-      "4. L'API raccoglie eventi da 5 tabelle DB, li normalizza e restituisce paginati.",
-      "5. L'utente vede un feed cronologico con icone colorate per tipo evento.",
-      "6. L'utente può filtrare per utente, tipo evento, range date.",
-      "7. L'utente può navigare tra le pagine con i pulsanti Precedente/Successiva."
+      "1. Utente accede a pagina 'Log' dal menu.",
+      "2. Visualizza lista eventi impaginata.",
+      "3. Filtra per utente, range date, e multi-selezione tipi evento (es. Offerte + Aste Concluse).",
+      "4. Sistema di notifiche socket ora usa instradamento interno su Railway per evitare 404.",
+      "5. Scheduler processa aste in background ogni 5s con lock per evitare saturazione DB."
     ],
     "core_components_interaction": {
-      "src/app/api/leagues/[league-id]/activity-log/route.ts": "API Route GET read-only. Query su bids, auctions, budget_transactions, user_sessions, user_auction_response_timers. Supporta filtri userId, eventType, dateFrom, dateTo, page, limit.",
-      "src/app/activity-log/page.tsx": "Server Component pagina wrapper. Verifica auth utente, risolve lega da query params, verifica partecipazione.",
-      "src/components/activity-log/ActivityLogClient.tsx": "Client Component. Timeline cronologica con icone, filtri (utente, tipo, date), paginazione.",
-      "src/components/navbar.tsx": "Aggiunto link 'Log' nella navigazione desktop e mobile."
+      "src/app/activity-log/page.tsx": "Pagina server-side container.",
+      "src/components/activity-log/ActivityLogClient.tsx": "UI Client con filtri multi-select e lista eventi.",
+      "src/lib/scheduler.ts": "Gestore task background con concurrency lock.",
+      "src/lib/socket-emitter.ts": "Emettitore eventi con logica smart per URL (localhost su Railway, public su Vercel)."
     },
     "database_interactions": [
       {
-        "table": "bids",
-        "operation": "SELECT",
-        "description": "Legge tutte le offerte della lega con dettagli utente e giocatore."
-      },
-      {
-        "table": "auctions",
-        "operation": "SELECT",
-        "description": "Legge tutte le aste della lega con stato e dettagli vincitore."
+        "table": "bids, auctions, budget_transactions, user_sessions",
+        "operation": "SELECT / JOIN",
+        "description": "Aggregazione eventi per activity log."
       },
       {
         "table": "budget_transactions",
-        "operation": "SELECT",
-        "description": "Legge tutte le transazioni budget della lega."
-      },
-      {
-        "table": "user_sessions",
-        "operation": "SELECT",
-        "description": "Legge sessioni login/logout degli utenti partecipanti."
-      },
-      {
-        "table": "user_auction_response_timers",
-        "operation": "SELECT",
-        "description": "Legge timer di risposta processati."
-      },
-      {
-        "table": "league_participants",
-        "operation": "SELECT",
-        "description": "Verifica partecipazione utente e lista partecipanti per filtro."
+        "operation": "INSERT",
+        "description": "Fix su transaction_type 'win_auction_debit' per vincolo CHECK."
       }
     ]
   }
