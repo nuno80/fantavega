@@ -7,7 +7,7 @@
     },
     {
       "path": "src/lib/db/services/auction-league.service.ts",
-      "description": "Aggiunto hook in 'updateLeagueStatus' per invocare la chiusura aste al cambio stato (via dynamic import)."
+      "description": "Aggiornato import 'closeAllActiveAuctionsForLeague' da dinamico a statico per risolvere bug mancata esecuzione in produzione."
     }
   ]
 }

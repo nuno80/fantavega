@@ -7,7 +7,7 @@
     "architectural_pattern": "Transactional Service Layer + Dynamic Import Hook",
     "user_flow": [
       "1. Admin/Sistema cambia stato lega a 'market_closed' o 'completed' tramite 'updateLeagueStatus'.",
-      "2. 'updateLeagueStatus' importa dinamicamente 'bid.service' (per evitare ciclicità) e chiama 'closeAllActiveAuctionsForLeague'.",
+      "2. 'updateLeagueStatus' usa un import STATICO di 'bid.service' (confermato safe da ciclicità) e chiama 'closeAllActiveAuctionsForLeague'.",
       "3. Il sistema itera su tutte le aste attive della lega.",
       "4. [Con Offerte]: Chiude l'asta, assegna giocatore al vincitore, scala budget, aggiorna conteggi rosa.",
       "5. [Senza Offerte]: Chiude l'asta senza assegnazione.",
