@@ -5,13 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { type BidRecord } from "@/lib/db/services/bid.service";
 
+import { useIsMounted } from "@/hooks/useIsMounted";
+
 interface BidHistoryProps {
   bids: BidRecord[];
   currentUserId?: string;
 }
 
 export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
+  const isMounted = useIsMounted();
+
   const formatTime = (timestamp: number) => {
+    if (!isMounted) return "--:--:--";
     return new Date(timestamp * 1000).toLocaleString("it-IT", {
       hour: "2-digit",
       minute: "2-digit",
@@ -58,11 +63,10 @@ export function BidHistory({ bids, currentUserId }: BidHistoryProps) {
             {(bids || []).map((bid, index) => (
               <div
                 key={bid.id}
-                className={`flex items-center justify-between rounded-lg border p-3 ${
-                  bid.user_id === currentUserId
+                className={`flex items-center justify-between rounded-lg border p-3 ${bid.user_id === currentUserId
                     ? "border-primary/20 bg-primary/10"
                     : "bg-muted/50"
-                } ${index === 0 ? "ring-2 ring-primary/50" : ""}`}
+                  } ${index === 0 ? "ring-2 ring-primary/50" : ""}`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">

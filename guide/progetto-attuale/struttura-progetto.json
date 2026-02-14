@@ -14,6 +14,10 @@
       "description": "Fix idratazione React su timer e date."
     },
     {
+      "path": "src/components/auction/BidHistory.tsx",
+      "description": "Fix idratazione React su formattazione date locale."
+    },
+    {
       "path": "src/hooks/useIsMounted.ts",
       "description": "Hook utility per rendering safe."
     }

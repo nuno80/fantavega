@@ -3,7 +3,7 @@
   "task_completed": "Ottimizzazione Chiusura Aste e Fix Idratazione",
   "feature_logic": {
     "feature_name": "Ottimizzazione Chiusura Aste",
-    "summary": "Implementata logica ottimizzata per la chiusura massiva delle aste al cambio stato lega. Risolti problemi di idratazione React in `ManagerColumn.tsx`.",
+    "summary": "Implementata logica ottimizzata per la chiusura massiva delle aste al cambio stato lega. Risolti problemi di idratazione React in `ManagerColumn.tsx` e `BidHistory.tsx`.",
     "architectural_pattern": "Bulk Update SQL per aste senza offerte. Processing loop ottimizzato per vincitori. Hydration-safe rendering per timer e date.",
     "user_flow": [
       "1. Admin cambia stato lega a 'market_closed'.",
@@ -14,6 +14,7 @@
       "src/lib/db/services/bid.service.ts": "Nuova funzione `closeAllActiveAuctionsForLeague`.",
       "src/lib/db/services/auction-league.service.ts": "Chiamata dinamica a `closeAllActiveAuctionsForLeague`.",
       "src/components/auction/ManagerColumn.tsx": "Uso di `useIsMounted` e default values per evitare discrepanze server/client sui timer.",
+      "src/components/auction/BidHistory.tsx": "Uso di `useIsMounted` per formattazione date sicura.",
       "src/hooks/useIsMounted.ts": "Utility hook per safe rendering."
     },
     "database_interactions": [
