@@ -1,18 +1,19 @@
 {
-  "last_update": "2026-02-14T12:17:00Z",
-  "task_completed": "Fix React Hydration Error #418 - suppressHydrationWarning su body",
+  "last_update": "2026-02-14T13:46:00Z",
+  "task_completed": "Fix Hydration Error #418 - Suspense wrapper + disable reactCompiler",
   "feature_logic": {
     "feature_name": "Fix Hydration Error #418",
-    "summary": "Aggiunto suppressHydrationWarning al tag <body> nel layout radice per prevenire errori di idratazione causati da next-themes e Clerk che iniettano attributi/stili prima dell'hydration di React.",
-    "architectural_pattern": "Standard React suppressHydrationWarning per elementi che possono avere differenze tra SSR e client (tipico con theme providers e auth providers).",
+    "summary": "Risolto l'errore di hydration #418 wrappando LeagueSelector (che usa useSearchParams) in <Suspense> e disabilitando il React Compiler sperimentale che causava mismatch tra server e client.",
+    "architectural_pattern": "useSearchParams() richiede un Suspense boundary in Next.js 15 per evitare la de-ottimizzazione del rendering statico.",
     "user_flow": [
-      "1. L'utente carica qualsiasi pagina dell'applicazione.",
-      "2. next-themes inietta il tema (dark/light) sull'HTML/body prima dell'hydration.",
-      "3. suppressHydrationWarning impedisce a React di segnalare il mismatch.",
-      "4. L'applicazione si idrizza correttamente senza errori in console."
+      "1. L'utente carica qualsiasi pagina con la Navbar.",
+      "2. LeagueSelector con useSearchParams è wrappato in Suspense.",
+      "3. Il rendering statico non viene invalidato.",
+      "4. Nessun errore #418 in console."
     ],
     "core_components_interaction": {
-      "src/app/layout.tsx": "Tag <body> con suppressHydrationWarning per prevenire Error #418."
+      "src/components/navbar.tsx": "Wrappato LeagueSelector in <Suspense> (3 istanze).",
+      "next.config.mjs": "Disabilitato reactCompiler sperimentale."
     },
     "database_interactions": []
   }

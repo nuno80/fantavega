@@ -1,9 +1,13 @@
 {
-  "last_update": "2026-02-14T12:17:00Z",
+  "last_update": "2026-02-14T13:46:00Z",
   "files": [
     {
-      "path": "src/app/layout.tsx",
-      "description": "Aggiunto suppressHydrationWarning al tag <body> per fix Error #418."
+      "path": "src/components/navbar.tsx",
+      "description": "Wrappato LeagueSelector in <Suspense> per fix useSearchParams hydration."
+    },
+    {
+      "path": "next.config.mjs",
+      "description": "Disabilitato reactCompiler sperimentale per fix hydration mismatch."
     }
   ]
 }
