@@ -1298,7 +1298,7 @@ export async function updateLeagueStatus(
         console.log(
           `[AUCTION_LEAGUE] League ${leagueId} status changed to '${newStatus}'. Closing all active auctions...`
         );
-        // Static import now possible as circular dependency check passed
+        const { closeAllActiveAuctionsForLeague } = await import("./bid.service");
         await closeAllActiveAuctionsForLeague(leagueId);
         console.log(
           `[AUCTION_LEAGUE] Successfully closed all active auctions for league ${leagueId}.`
@@ -1393,7 +1393,6 @@ export async function getLeaguesForAdminList(): Promise<LeagueForAdminList[]> {
   }
 }
 
-import { closeAllActiveAuctionsForLeague } from "./bid.service";
 
 export async function updateParticipantTeamName(
   leagueId: number,
