@@ -1873,44 +1873,51 @@ export const closeAllActiveAuctionsForLeague = async (leagueId: number): Promise
   console.log(`[BID_SERVICE] Closing ALL active auctions for league ${leagueId}`);
   const now = Math.floor(Date.now() / 1000);
 
-  // 1. Get all active auctions for the league
+  // 1. BULK CLOSE auctions with NO BIDS (Fast path)
+  // This avoids iterating through hundreds of players that no one wants
+  // We use db.execute directly for speed
+  try {
+    const bulkResult = await db.execute({
+      sql: `UPDATE auctions
+            SET status = 'closed', updated_at = ?
+            WHERE auction_league_id = ?
+              AND status IN ('active', 'closing')
+              AND current_highest_bidder_id IS NULL`,
+      args: [now, leagueId]
+    });
+    console.log(`[BID_SERVICE] Bulk closed ${bulkResult.rowsAffected} auctions with no bids.`);
+  } catch (err) {
+    console.error(`[BID_SERVICE] Error in bulk closing auctions:`, err);
+    // Determine if we should throw or continue. Continuing allows trying the loop.
+  }
+
+  // 2. Get active auctions WITH WINNERS (Slow path - requires assignment logic)
   const getActiveAuctionsResult = await db.execute({
     sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name
               FROM auctions a
               JOIN players p ON a.player_id = p.id
-              WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing')`,
+              WHERE a.auction_league_id = ?
+                AND a.status IN ('active', 'closing')
+                AND a.current_highest_bidder_id IS NOT NULL`, // Only fetch those with bidders
     args: [leagueId]
   });
-  const activeAuctions = getActiveAuctionsResult.rows as unknown as ExpiredAuctionData[];
+  const activeAuctionsWithWinners = getActiveAuctionsResult.rows as unknown as ExpiredAuctionData[];
 
-  console.log(`[BID_SERVICE] Found ${activeAuctions.length} active/closing auctions to force close.`);
+  console.log(`[BID_SERVICE] Found ${activeAuctionsWithWinners.length} active auctions with winners to process.`);
 
-  for (const auction of activeAuctions) {
+  // 3. Process outcomes
+  // We process winners sequentially to ensure budget consistency, but logic is robust if one fails
+  const results = await Promise.allSettled(activeAuctionsWithWinners.map(async (auction) => {
     try {
       const tx = await db.transaction("write");
       try {
-        if (auction.current_highest_bidder_id) {
-          // With bidder: close and assign
-          await closeSingleAuction(auction, now, tx);
-          console.log(`[BID_SERVICE] Closed auction ${auction.id} (Winner: ${auction.current_highest_bidder_id})`);
-        } else {
-          // No bidder: mark as unsign/closed
-          await tx.execute({
-            sql: "UPDATE auctions SET status = 'closed', updated_at = ? WHERE id = ?",
-            args: [now, auction.id]
-          });
-          console.log(`[BID_SERVICE] Closed auction ${auction.id} (No bidders)`);
-        }
+        // Logic for winners: close and assign
+        await closeSingleAuction(auction, now, tx);
         await tx.commit();
-      } catch (error) {
-        await tx.rollback();
-        console.error(`[BID_SERVICE] Failed to close auction ${auction.id}:`, error);
-        // Continue with other auctions even if one fails
-      }
+        console.log(`[BID_SERVICE] Closed auction ${auction.id} (Winner: ${auction.current_highest_bidder_id})`);
 
-      // Post-closing actions (Notification)
-      if (auction.current_highest_bidder_id) {
-        await notifySocketServer({
+        // Post-closing socket notification (Fire-and-forget inside the loop)
+        notifySocketServer({
           room: `league-${leagueId}`,
           event: "auction-closed-notification",
           data: {
@@ -1919,26 +1926,30 @@ export const closeAllActiveAuctionsForLeague = async (leagueId: number): Promise
             winnerId: auction.current_highest_bidder_id,
             finalPrice: auction.current_highest_bid_amount,
           },
-        });
-      } else {
-        // Notify about cancelled/closed auction
-        // We reuse auction-update to refresh the list, potentially marking it as closed
-        await notifySocketServer({
-          room: `league-${leagueId}`,
-          event: "auction-update", // Refresh list
-          data: {
-            playerId: auction.player_id,
-            status: 'closed',
-            // Minimal payload to trigger refresh
-            newPrice: 0,
-            highestBidderId: null,
-            scheduledEndTime: 0
-          }
-        });
-      }
+        }).catch(err => console.error(`[BID_SERVICE] Failed socket notify for auction ${auction.id}`, err));
 
+      } catch (error) {
+        await tx.rollback();
+        console.error(`[BID_SERVICE] Failed to close auction ${auction.id}:`, error);
+        throw error;
+      }
     } catch (err) {
-      console.error(`[BID_SERVICE] Error processing auction ${auction.id} during league closure:`, err);
+      // Logged above
+      throw err;
     }
-  }
+  }));
+
+  // Log summary
+  const successCount = results.filter(r => r.status === 'fulfilled').length;
+  const failCount = results.filter(r => r.status === 'rejected').length;
+  console.log(`[BID_SERVICE] Closure summary: ${successCount} processed, ${failCount} failed.`);
+
+  // 4. Final generic notification (Fire-and-forget)
+  // Just to tell clients to refresh their view in case bulk update happened
+  notifySocketServer({
+    room: `league-${leagueId}`,
+    event: "league-status-changed", // Or generic update
+    data: { leagueId, status: 'market_closed' }
+  }).catch(err => console.error(`[BID_SERVICE] Failed final socket notify`, err));
+
 };
