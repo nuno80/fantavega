@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 
 import { useSocket } from "@/contexts/SocketContext";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { type AuctionStatusDetails } from "@/lib/db/services/bid.service";
 import {
   getFantacalcioImageUrl,
@@ -34,6 +35,7 @@ export function AuctionRealtimeDisplay({
   const [auctionData, setAuctionData] = useState(initialAuctionData);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const { socket, isConnected } = useSocket();
+  const isMounted = useIsMounted();
 
   // CRITICAL FIX: Synchronize internal state when props change
   useEffect(() => {
@@ -230,7 +232,10 @@ export function AuctionRealtimeDisplay({
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Scadenza</span>
               <span className="font-mono font-medium">
-                {new Date(auctionData.scheduled_end_time * 1000).toLocaleTimeString("it-IT")}
+                {isMounted
+                  ? new Date(auctionData.scheduled_end_time * 1000).toLocaleTimeString("it-IT")
+                  : "--:--"
+                }
               </span>
             </div>
             {/* Simple progress bar visual could go here if we had the start time,

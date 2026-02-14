@@ -1,0 +1,397 @@
+﻿[DB Connection] Initializing Turso (Remote) connection...
+[TEST] Creating auction for player 247 in league 15
+wsl : Error parsing league config_json: TypeError: 
+Cannot read properties of null (reading 'min_bid_rule')
+In riga:1 car:1
++ wsl -d Debian --cd 
+/home/nuno/programmazione/fantavega npx tsx --env- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error pars 
+   ing l...'min_bid_rule'):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at placeInitialBidAndCreateAuction (/home/nuno/progr
+ammazione/fantavega/src/lib/db/services/bid.service.ts:5
+12:16)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:46:5)
+[BUDGET_CHECK] User user_36moODqjk4uK9PTjpK0ovEkSLZV: budget=500, locked=0, slotsOccupied=0, slotsRemaining=23, reserve=23, available=477, bid=10
+[BID_SERVICE] createAndStartAuction - Emitting auction-created event
+[Socket Emitter] ­ƒÜ¿ AUCTION-CREATED EVENT DETECTED for player 247: {
+  timestamp: '2026-02-13T18:06:14.534Z',
+  params: {
+    room: 'league-15',
+    event: 'auction-created',
+    data: {
+      playerId: 247,
+      auctionId: 322,
+      newPrice: 10,
+      highestBidderId: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+      scheduledEndTime: 1771092373,
+      playerName: 'Pavoletti',
+      playerRole: 'A',
+      playerTeam: 'Cagliari',
+      isNewAuction: true
+    }
+  },
+  stackTrace: [
+    'Error: Stack trace for auction-created event',
+    '    at notifySocketServer (/home/nuno/programmazione/fantavega/src/lib/socket-emitter.ts:41:21)',
+    '    at placeInitialBidAndCreateAuction (/home/nuno/programmazione/fantavega/src/lib/db/services/bid.service.ts:702:13)',
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)',
+    '    at async main (/home/nuno/programmazione/fantavega/src/scripts/verify-league-closure.ts:46:5)'
+  ]
+}
+[Socket Emitter] Sending event to Socket.IO server: {
+  url: 'http://localhost:3001/api/emit',
+  params: {
+    room: 'league-15',
+    event: 'auction-created',
+    data: {
+      playerId: 247,
+      auctionId: 322,
+      newPrice: 10,
+      highestBidderId: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+      scheduledEndTime: 1771092373,
+      playerName: 'Pavoletti',
+      playerRole: 'A',
+      playerTeam: 'Cagliari',
+      isNewAuction: true
+    }
+  }
+}
+[Socket Emitter] Error notifying socket server: 
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async notifySocketServer (/home/nuno/programmazio
+ne/fantavega/src/lib/socket-emitter.ts:107:22)
+    at async placeInitialBidAndCreateAuction (/home/nuno
+/programmazione/fantavega/src/lib/db/services/bid.servic
+e.ts:702:7)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:46:5) {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:3001
+      at TCPConnectWrap.afterConnect [as oncomplete] 
+(node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 3001
+  }
+}
+[Socket Emitter] Failed to emit event: {
+  room: 'league-15',
+  event: 'auction-created',
+  data: {
+    playerId: 247,
+    auctionId: 322,
+    newPrice: 10,
+    highestBidderId: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+    scheduledEndTime: 1771092373,
+    playerName: 'Pavoletti',
+    playerRole: 'A',
+    playerTeam: 'Cagliari',
+    isNewAuction: true
+  }
+}
+[BID_SERVICE] createAndStartAuction - Failed to emit 
+auction-created event: TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async notifySocketServer (/home/nuno/programmazio
+ne/fantavega/src/lib/socket-emitter.ts:107:22)
+    at async placeInitialBidAndCreateAuction (/home/nuno
+/programmazione/fantavega/src/lib/db/services/bid.servic
+e.ts:702:7)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:46:5) {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:3001
+      at TCPConnectWrap.afterConnect [as oncomplete] 
+(node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 3001
+  }
+}
+[TEST] Auction details before close: {
+  id: 322,
+  auction_league_id: 15,
+  player_id: 247,
+  start_time: 1771005973,
+  scheduled_end_time: 1771092373,
+  current_highest_bid_amount: 10,
+  current_highest_bidder_id: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+  user_auction_states: null,
+  status: 'active',
+  created_at: 1771005973,
+  updated_at: 1771005973
+}
+[TEST] Closing league...
+[AUCTION_LEAGUE] League 15 status changed to 'market_closed'. Closing all active auctions...
+[BID_SERVICE] Closing ALL active auctions for league 15
+[BID_SERVICE] Found 1 active/closing auctions to force close.
+[BID_SERVICE] Error closing auction 322: LibsqlError: 
+SQLITE_UNKNOWN: Internal error: Number of arguments 
+mismatch: expected 3, got 4
+    at mapHranaError (/home/nuno/programmazione/fantaveg
+a/node_modules/.pnpm/@libsql+client@0.15.15/node_modules
+/@libsql/client/lib-cjs/hrana.js:309:16)
+    at HttpTransaction.batch (/home/nuno/programmazione/
+fantavega/node_modules/.pnpm/@libsql+client@0.15.15/node
+_modules/@libsql/client/lib-cjs/hrana.js:133:19)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async closeSingleAuction (/home/nuno/programmazio
+ne/fantavega/src/lib/db/services/bid.service.ts:1702:5)
+    at async closeAllActiveAuctionsForLeague (/home/nuno
+/programmazione/fantavega/src/lib/db/services/bid.servic
+e.ts:1894:11)
+    at async updateLeagueStatus (/home/nuno/programmazio
+ne/fantavega/src/lib/db/services/auction-league.service.
+ts:1303:9)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:62:5) {
+  code: 'SQLITE_UNKNOWN',
+  rawCode: undefined,
+  [cause]: [ResponseError: Internal error: Number of 
+arguments mismatch: expected 3, got 4] {
+    code: 'SQLITE_UNKNOWN',
+    proto: {
+      message: 'Internal error: Number of arguments 
+mismatch: expected 3, got 4',
+      code: 'SQLITE_UNKNOWN'
+    }
+  }
+}
+[BID_SERVICE] Failed to close auction 322: LibsqlError: 
+SQLITE_UNKNOWN: Internal error: Number of arguments 
+mismatch: expected 3, got 4
+    at mapHranaError (/home/nuno/programmazione/fantaveg
+a/node_modules/.pnpm/@libsql+client@0.15.15/node_modules
+/@libsql/client/lib-cjs/hrana.js:309:16)
+    at HttpTransaction.batch (/home/nuno/programmazione/
+fantavega/node_modules/.pnpm/@libsql+client@0.15.15/node
+_modules/@libsql/client/lib-cjs/hrana.js:133:19)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async closeSingleAuction (/home/nuno/programmazio
+ne/fantavega/src/lib/db/services/bid.service.ts:1702:5)
+    at async closeAllActiveAuctionsForLeague (/home/nuno
+/programmazione/fantavega/src/lib/db/services/bid.servic
+e.ts:1894:11)
+    at async updateLeagueStatus (/home/nuno/programmazio
+ne/fantavega/src/lib/db/services/auction-league.service.
+ts:1303:9)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:62:5) {
+  code: 'SQLITE_UNKNOWN',
+  rawCode: undefined,
+  [cause]: [ResponseError: Internal error: Number of 
+arguments mismatch: expected 3, got 4] {
+    code: 'SQLITE_UNKNOWN',
+    proto: {
+      message: 'Internal error: Number of arguments 
+mismatch: expected 3, got 4',
+      code: 'SQLITE_UNKNOWN'
+    }
+  }
+}
+[Socket Emitter] Sending event to Socket.IO server: {
+  url: 'http://localhost:3001/api/emit',
+  params: {
+    room: 'league-15',
+    event: 'auction-closed-notification',
+    data: {
+      playerId: 247,
+      playerName: 'Pavoletti',
+      winnerId: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+      finalPrice: 10
+    }
+  }
+}
+[Socket Emitter] Error notifying socket server: 
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async notifySocketServer (/home/nuno/programmazio
+ne/fantavega/src/lib/socket-emitter.ts:107:22)
+    at async closeAllActiveAuctionsForLeague (/home/nuno
+/programmazione/fantavega/src/lib/db/services/bid.servic
+e.ts:1913:9)
+    at async updateLeagueStatus (/home/nuno/programmazio
+ne/fantavega/src/lib/db/services/auction-league.service.
+ts:1303:9)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:62:5) {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:3001
+      at TCPConnectWrap.afterConnect [as oncomplete] 
+(node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 3001
+  }
+}
+[Socket Emitter] Failed to emit event: {
+  room: 'league-15',
+  event: 'auction-closed-notification',
+  data: {
+    playerId: 247,
+    playerName: 'Pavoletti',
+    winnerId: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+    finalPrice: 10
+  }
+}
+[BID_SERVICE] Error processing auction 322 during 
+league closure: TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async notifySocketServer (/home/nuno/programmazio
+ne/fantavega/src/lib/socket-emitter.ts:107:22)
+    at async closeAllActiveAuctionsForLeague (/home/nuno
+/programmazione/fantavega/src/lib/db/services/bid.servic
+e.ts:1913:9)
+    at async updateLeagueStatus (/home/nuno/programmazio
+ne/fantavega/src/lib/db/services/auction-league.service.
+ts:1303:9)
+    at async main (/home/nuno/programmazione/fantavega/s
+rc/scripts/verify-league-closure.ts:62:5) {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:3001
+      at TCPConnectWrap.afterConnect [as oncomplete] 
+(node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 3001
+  }
+}
+[AUCTION_LEAGUE] Successfully closed all active auctions for league 15.
+[Socket Emitter] Sending event to Socket.IO server: {
+  url: 'http://localhost:3001/api/emit',
+  params: {
+    event: 'league-status-changed',
+    room: 'league-15',
+    data: {
+      leagueId: 15,
+      newStatus: 'market_closed',
+      timestamp: 1771005975310
+    }
+  }
+}
+[Socket Emitter] Error notifying socket server: 
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async notifySocketServer (/home/nuno/programmazio
+ne/fantavega/src/lib/socket-emitter.ts:107:22) {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:3001
+      at TCPConnectWrap.afterConnect [as oncomplete] 
+(node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 3001
+  }
+}
+[Socket Emitter] Failed to emit event: {
+  event: 'league-status-changed',
+  room: 'league-15',
+  data: {
+    leagueId: 15,
+    newStatus: 'market_closed',
+    timestamp: 1771005975310
+  }
+}
+[SOCKET] Errore notifica cambio stato: TypeError: fetch 
+failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:95:5)
+    at async notifySocketServer (/home/nuno/programmazio
+ne/fantavega/src/lib/socket-emitter.ts:107:22) {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:3001
+      at TCPConnectWrap.afterConnect [as oncomplete] 
+(node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 3001
+  }
+}
+[TEST] Auction status after close: {
+  id: 322,
+  status: 'active',
+  current_highest_bidder_id: 'user_36moODqjk4uK9PTjpK0ovEkSLZV'
+}
+[DEBUG] All Assignments (Last 5): [
+  {
+    auction_league_id: 8,
+    player_id: 7220,
+    user_id: 'user_39J4kkwnugijdOBupe2ywhJZuHp',
+    purchase_price: 16,
+    assigned_at: 1770973533
+  },
+  {
+    auction_league_id: 8,
+    player_id: 4657,
+    user_id: 'user_39LRGNZwjowTcvmhvwbBTOHVZbW',
+    purchase_price: 14,
+    assigned_at: 1770977431
+  },
+  {
+    auction_league_id: 8,
+    player_id: 4409,
+    user_id: 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg',
+    purchase_price: 12,
+    assigned_at: 1770979484
+  },
+  {
+    auction_league_id: 8,
+    player_id: 5119,
+    user_id: 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg',
+    purchase_price: 10,
+    assigned_at: 1770980813
+  },
+  {
+    auction_league_id: 8,
+    player_id: 2809,
+    user_id: 'user_39La1NIkEZ5cWaXviDl0Hm9AeUg',
+    purchase_price: 1,
+    assigned_at: 1770989194
+  }
+]
+[DEBUG] League Participants: [
+  {
+    league_id: 15,
+    user_id: 'user_36moODqjk4uK9PTjpK0ovEkSLZV',
+    current_budget: 500,
+    locked_credits: 10,
+    manager_team_name: null,
+    players_P_acquired: 0,
+    players_D_acquired: 0,
+    players_C_acquired: 0,
+    players_A_acquired: 0,
+    total_players_acquired: 0,
+    joined_at: 1771005973,
+    updated_at: 1771005973
+  }
+]
+[TEST] Assignment: undefined
+[TEST] Participant state: { current_budget: 500, locked_credits: 10, players_A_acquired: 0 }
+[TEST] FAILURE! Verification failed.
