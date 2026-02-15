@@ -183,6 +183,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
   const [filterEventTypes, setFilterEventTypes] = useState<string[]>([]);
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
+  const [filterMyBiddedPlayers, setFilterMyBiddedPlayers] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch data
@@ -197,6 +198,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
 
       if (filterUserId) params.set("userId", filterUserId);
       if (filterEventTypes.length > 0) params.set("eventType", filterEventTypes.join(","));
+      if (filterMyBiddedPlayers) params.set("myBiddedPlayers", "true");
 
       const dateFromTs = dateInputToTimestamp(filterDateFrom);
       if (dateFromTs) params.set("dateFrom", dateFromTs.toString());
@@ -225,7 +227,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
     } finally {
       setLoading(false);
     }
-  }, [leagueId, page, filterUserId, filterEventTypes, filterDateFrom, filterDateTo]);
+  }, [leagueId, page, filterUserId, filterEventTypes, filterDateFrom, filterDateTo, filterMyBiddedPlayers]);
 
   useEffect(() => {
     fetchEvents();
@@ -315,7 +317,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
         >
           <Filter className="h-4 w-4" />
           Filtri
-          {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo) && (
+          {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo || filterMyBiddedPlayers) && (
             <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
               !
             </Badge>
@@ -414,8 +416,27 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
               </div>
             </div>
 
+            {/* Filtro: Aste Partecipate (Toggle) */}
+            <div className="mt-4 flex items-center space-x-2 border-t pt-4">
+              <Button
+                variant={filterMyBiddedPlayers ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilterMyBiddedPlayers(!filterMyBiddedPlayers);
+                  handleFilterChange();
+                }}
+                className={filterMyBiddedPlayers ? "bg-amber-600 hover:bg-amber-700" : ""}
+              >
+                <Gavel className="mr-2 h-4 w-4" />
+                {filterMyBiddedPlayers ? "Rilanci: ON" : "Rilanci"}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Mostra solo eventi relativi ai giocatori per cui hai fatto offerte.
+              </span>
+            </div>
+
             {/* Pulsante Reset Filtri */}
-            {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo) && (
+            {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo || filterMyBiddedPlayers) && (
               <div className="mt-3 flex justify-end">
                 <Button
                   variant="ghost"
@@ -425,6 +446,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
                     setFilterEventTypes([]);
                     setFilterDateFrom("");
                     setFilterDateTo("");
+                    setFilterMyBiddedPlayers(false);
                     handleFilterChange();
                   }}
                 >
@@ -475,7 +497,7 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
               <p className="text-sm text-muted-foreground">
                 Nessun evento trovato
               </p>
-              {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo) && (
+              {(filterUserId || filterEventTypes.length > 0 || filterDateFrom || filterDateTo || filterMyBiddedPlayers) && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Prova a modificare i filtri
                 </p>

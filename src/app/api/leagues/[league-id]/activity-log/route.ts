@@ -90,6 +90,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
       ? filterEventType.split(",")
       : null;
 
+    const filterMyBiddedPlayers = searchParams.get("myBiddedPlayers") === "true";
+
+    // Subquery per trovare i player_id su cui l'utente ha fatto offerte
+    // Nota: Usiamo i parametri posizionali '?' quindi dobbiamo fare attenzione all'ordine degli args
+    const myBiddedPlayersSubquery = `
+      SELECT DISTINCT a_sub.player_id
+      FROM bids b_sub
+      JOIN auctions a_sub ON b_sub.auction_id = a_sub.id
+      WHERE b_sub.user_id = ? AND a_sub.auction_league_id = ?
+    `;
+
     // 4.5. Esegui le query in parallelo per ogni fonte dati
     const events: ActivityEvent[] = [];
 
@@ -122,6 +133,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       if (dateToTs) {
         bidSql += " AND b.bid_time <= ?";
         bidArgs.push(dateToTs);
+      }
+      if (filterMyBiddedPlayers) {
+        bidSql += ` AND p.id IN (${myBiddedPlayersSubquery})`;
+        bidArgs.push(authenticatedUserId, leagueIdNum);
       }
 
       const bidResult = await db.execute({ sql: bidSql, args: bidArgs });
@@ -178,6 +193,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       if (dateToTs) {
         auctionSql += " AND a.created_at <= ?";
         auctionArgs.push(dateToTs);
+      }
+      if (filterMyBiddedPlayers) {
+        auctionSql += ` AND p.id IN (${myBiddedPlayersSubquery})`;
+        auctionArgs.push(authenticatedUserId, leagueIdNum);
       }
 
       const auctionResult = await db.execute({
@@ -264,6 +283,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
         txSql += " AND bt.transaction_time <= ?";
         txArgs.push(dateToTs);
       }
+      if (filterMyBiddedPlayers) {
+        txSql += ` AND bt.related_player_id IN (${myBiddedPlayersSubquery})`;
+        txArgs.push(authenticatedUserId, leagueIdNum);
+      }
 
       const txResult = await db.execute({ sql: txSql, args: txArgs });
       for (const row of txResult.rows) {
@@ -309,9 +332,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // --- USER SESSIONS (login/logout) ---
+    // SE il filtro 'myBiddedPlayers' è attivo, saltiamo le sessioni perché non sono legate ai giocatori
     if (
-      !eventTypeFilter ||
-      eventTypeFilter.some((t: string) => ["login", "logout"].includes(t))
+      !filterMyBiddedPlayers && // NUOVO: Salta se filtro attivo
+      (!eventTypeFilter ||
+        eventTypeFilter.some((t: string) => ["login", "logout"].includes(t)))
     ) {
       // Prendiamo solo sessioni di utenti partecipanti a questa lega
       let sessionSql = `
@@ -407,6 +432,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       if (dateToTs) {
         timerSql += " AND rt.created_at <= ?";
         timerArgs.push(dateToTs);
+      }
+      if (filterMyBiddedPlayers) {
+        timerSql += ` AND p.id IN (${myBiddedPlayersSubquery})`;
+        timerArgs.push(authenticatedUserId, leagueIdNum);
       }
 
       const timerResult = await db.execute({

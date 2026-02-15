@@ -1,21 +1,21 @@
 {
-  "last_update": "2026-02-14T21:45:00Z",
+  "last_update": "2026-02-15T15:00:00Z",
   "files": [
     {
       "path": "src/app/api/leagues/[league-id]/activity-log/route.ts",
-      "description": "API Route per recupero eventi aggregati con paginazione e filtri array."
+      "description": "API Route aggiornata con logica di filtraggio per 'myBiddedPlayers' e subquery SQL ottimizzata."
     },
     {
       "path": "src/components/activity-log/ActivityLogClient.tsx",
-      "description": "Componente Client per visualizzazione eventi, infinite scroll, filtri multi-select (senza legenda)."
+      "description": "Componente Client aggiornato con toggle UI 'Aste Partecipate' e gestione stato filtro."
     },
     {
       "path": "src/lib/scheduler.ts",
-      "description": "Scheduler di background con concurrency lock su file system e loop 5s."
+      "description": "Scheduler di background (invariato)."
     },
     {
       "path": "src/lib/socket-emitter.ts",
-      "description": "Logic per emissione eventi socket con fallback su localhost per ambiente Railway."
+      "description": "Emettitore eventi socket (invariato)."
     }
   ]
 }

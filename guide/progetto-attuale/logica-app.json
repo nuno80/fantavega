@@ -1,33 +1,30 @@
 {
-  "last_update": "2026-02-14T21:45:00Z",
-  "task_completed": "FN-7 - Activity Log & Bug Fixes",
+  "last_update": "2026-02-15T15:00:00Z",
+  "task_completed": "FN-ActivityLog-Filter",
   "feature_logic": {
-    "feature_name": "Activity Log & Sistema Notifiche",
-    "summary": "Pagina di log attività per visualizzare cronologia eventi della lega. Filtri avanzati multi-select per tipo evento. Fix critici su concorrenza scheduler (lock) e routing notifiche socket (localhost instradamento).",
-    "architectural_pattern": "Scheduler con lock concurrency guard. Socket Emitter con auto-detect ambiente (Railway vs Vercel). UI Activity Log con filtri client-side e paginazione server-side.",
+    "feature_name": "Activity Log - Filtro 'Miei Scontri'",
+    "summary": "Miglioramento dell'Activity Log con un nuovo filtro 'Aste Partecipate' che mostra solo gli eventi relativi ai giocatori su cui l'utente ha fatto offerte.",
+    "architectural_pattern": "Filtro server-side basato su subquery SQL. Il client invia un flag `myBiddedPlayers=true` e l'API filtra i risultati (Bids, Auctions, Budget) incrociando con gli ID dei giocatori presenti nello storico offerte dell'utente.",
     "user_flow": [
-      "1. Utente accede a pagina 'Log' dal menu.",
-      "2. Visualizza lista eventi impaginata.",
-      "3. Filtra per utente, range date, e multi-selezione tipi evento (es. Offerte + Aste Concluse).",
-      "4. Sistema di notifiche socket ora usa instradamento interno su Railway per evitare 404.",
-      "5. Scheduler processa aste in background ogni 5s con lock per evitare saturazione DB."
+      "1. L'utente apre il pannello filtri nell'Activity Log.",
+      "2. Attiva il toggle 'Solo Aste Partecipate'.",
+      "3. La lista si aggiorna mostrando solo le aste (e relative offerte/transazioni) in cui l'utente è stato attivo.",
+      "4. Eventi globali non pertinenti (es. login/logout) vengono nascosti per ridurre il rumore."
     ],
     "core_components_interaction": {
-      "src/app/activity-log/page.tsx": "Pagina server-side container.",
-      "src/components/activity-log/ActivityLogClient.tsx": "UI Client con filtri multi-select e lista eventi.",
-      "src/lib/scheduler.ts": "Gestore task background con concurrency lock.",
-      "src/lib/socket-emitter.ts": "Emettitore eventi con logica smart per URL (localhost su Railway, public su Vercel)."
+      "src/app/api/leagues/[id]/activity-log/route.ts": "Gestisce il parametro `myBiddedPlayers` e inietta la clausola `WHERE player_id IN (...)`.",
+      "src/components/activity-log/ActivityLogClient.tsx": "Gestisce lo stato del toggle e aggiorna la query string della richiesta fetch."
     },
     "database_interactions": [
       {
-        "table": "bids, auctions, budget_transactions, user_sessions",
-        "operation": "SELECT / JOIN",
-        "description": "Aggregazione eventi per activity log."
+        "table": "bids, auctions",
+        "operation": "SELECT (Subquery)",
+        "description": "Recupera ID giocatori con offerte dell'utente."
       },
       {
-        "table": "budget_transactions",
-        "operation": "INSERT",
-        "description": "Fix su transaction_type 'win_auction_debit' per vincolo CHECK."
+        "table": "bids, auctions, budget_transactions, user_auction_response_timers",
+        "operation": "SELECT",
+        "description": "Filtra i record principali usando la lista di ID giocatori recuperata."
       }
     ]
   }
