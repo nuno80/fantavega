@@ -987,24 +987,50 @@ export async function placeBidOnExistingAuction({
           `[DEBUG AUTO-BID] Credit change calculation: old=${oldMaxAmount}, new=${autoBidMaxAmount}, change=${creditChange}`
         );
 
-        // 2. Aggiorna i locked_credits se c'Ã¨ una variazione
+        // 2. Aggiorna i locked_credits se c'è una variazione
         if (creditChange !== 0) {
-          // Verifica che l'utente abbia abbastanza budget per l'aumento
+          // Verifica che l'utente abbia abbastanza budget per l'aumento,
+          // includendo la riserva per slot vuoti (allineato con checkSlotsAndBudgetOrThrow)
           const currentParticipantResult = await tx.execute({
-            sql: "SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?",
+            sql: "SELECT current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?",
             args: [leagueId, userId],
           });
           const currentParticipant = currentParticipantResult.rows[0] as unknown as
-            | { current_budget: number; locked_credits: number }
+            | { current_budget: number; locked_credits: number; players_P_acquired: number; players_D_acquired: number; players_C_acquired: number; players_A_acquired: number }
             | undefined;
 
           if (currentParticipant) {
+            // Calcola la riserva per slot vuoti (stesso pattern di checkSlotsAndBudgetOrThrow)
+            const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
+            const totalAcquired =
+              (currentParticipant.players_P_acquired || 0) +
+              (currentParticipant.players_D_acquired || 0) +
+              (currentParticipant.players_C_acquired || 0) +
+              (currentParticipant.players_A_acquired || 0);
+
+            const activeWinningBidsResult = await tx.execute({
+              sql: `SELECT COUNT(*) as count FROM auctions
+                    WHERE auction_league_id = ? AND current_highest_bidder_id = ?
+                    AND status IN ('active', 'closing')`,
+              args: [leagueId, userId],
+            });
+            const activeWinningBids = Number(activeWinningBidsResult.rows[0].count);
+
+            const slotsOccupied = totalAcquired + activeWinningBids;
+            const slotsRemaining = totalMaxSlots - slotsOccupied;
+            const creditsToReserve = Math.max(0, slotsRemaining);
+
             const availableBudget =
               currentParticipant.current_budget -
-              currentParticipant.locked_credits;
+              currentParticipant.locked_credits -
+              creditsToReserve;
+
             if (creditChange > availableBudget) {
               throw new Error(
-                `Budget insufficiente per bloccare i crediti. Disponibile: ${availableBudget}, Aumento richiesto: ${creditChange}`
+                `Budget insufficiente per bloccare i crediti. Disponibile: ${availableBudget} crediti ` +
+                `(${currentParticipant.current_budget} totale - ${currentParticipant.locked_credits} bloccati ` +
+                `- ${creditsToReserve} riservati per ${slotsRemaining} slot vuoti). ` +
+                `Aumento richiesto: ${creditChange}`
               );
             }
 
@@ -1013,7 +1039,7 @@ export async function placeBidOnExistingAuction({
               args: [creditChange, leagueId, userId],
             });
             console.log(
-              `[DEBUG AUTO-BID] Updated locked_credits by ${creditChange} for user ${userId}`
+              `[DEBUG AUTO-BID] Updated locked_credits by ${creditChange} for user ${userId} (reserve=${creditsToReserve})`
             );
           }
         }

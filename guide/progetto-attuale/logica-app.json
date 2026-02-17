@@ -1,22 +1,31 @@
 {
-  "last_update": "2026-02-17T15:30:00+01:00",
-  "task_completed": "FN-Rilanci-Button",
+  "last_update": "2026-02-17T16:35:00+01:00",
+  "task_completed": "FN-BudgetAudit-AutoBidFix",
   "feature_logic": {
-    "feature_name": "Pulsante 'Rilanci' nella Pagina Aste",
-    "summary": "Aggiunta di un pulsante di navigazione 'RILANCI' nella barra tab della pagina aste (CallPlayerInterface). Il pulsante porta l'utente alla pagina Activity Log pre-filtrata per mostrare solo gli eventi relativi ai giocatori su cui l'utente ha fatto offerte.",
-    "architectural_pattern": "Navigation Link con Query Params → Server Component (lettura params) → Client Component (inizializzazione filtro da prop). Nessuna nuova API o logica di business richiesta.",
+    "feature_name": "Fix Auto-Bid Budget Check con Riserva Slot",
+    "summary": "Allineato il controllo budget dell'auto-bid con checkSlotsAndBudgetOrThrow. Il check ora include la riserva di 1 credito per ogni slot vuoto nella rosa, impedendo che l'auto-bid blocchi crediti che dovrebbero essere riservati per slot futuri.",
+    "architectural_pattern": "Validazione budget transazionale con calcolo slot vuoti: totalMaxSlots - (acquistati + aste vincenti) = slot rimanenti → 1 credito riservato per slot.",
     "user_flow": [
-      "1. L'utente è nella pagina Aste e vede il pulsante 'RILANCI' (color ambra) accanto ai tab Chiama/Stats/Filtri.",
-      "2. Cliccando 'RILANCI', viene navigato a /activity-log?league={leagueId}&myBiddedPlayers=true.",
-      "3. La pagina Activity Log legge il parametro myBiddedPlayers dal URL e lo passa come prop initialMyBiddedPlayers al componente client.",
-      "4. Il componente ActivityLogClient si inizializza con il filtro 'Rilanci' attivo e il pannello filtri aperto.",
-      "5. L'utente vede immediatamente lo storico delle proprie offerte per la lega corrente."
+      "1. L'utente piazza un'offerta con auto-bid (importo massimo) su un'asta.",
+      "2. Il sistema valida l'offerta base tramite checkSlotsAndBudgetOrThrow (invariato).",
+      "3. Per l'auto-bid, il sistema ora calcola: budget_disponibile = current_budget - locked_credits - creditsToReserve.",
+      "4. creditsToReserve = max(0, totalMaxSlots - giocatori_acquistati - aste_vincenti).",
+      "5. Se l'aumento dei crediti bloccati supera il budget disponibile (inclusa riserva), l'offerta viene rifiutata con errore dettagliato."
     ],
     "core_components_interaction": {
-      "src/components/auction/CallPlayerInterface.tsx": "Aggiunto Link di navigazione 'RILANCI' con icona ListOrdered nella barra tab.",
-      "src/app/activity-log/page.tsx": "Letto parametro myBiddedPlayers da searchParams e passato come prop booleana al client component.",
-      "src/components/activity-log/ActivityLogClient.tsx": "Accetta prop initialMyBiddedPlayers. Quando true, inizializza il filtro 'Rilanci' come attivo e apre il pannello filtri automaticamente."
+      "src/lib/db/services/bid.service.ts": "Modificato il blocco auto-bid (righe ~990-1040) per includere il calcolo di creditsToReserve. La query ora recupera anche players_X_acquired e conta le aste vincenti attive."
     },
-    "database_interactions": []
+    "database_interactions": [
+      {
+        "table": "league_participants",
+        "operation": "SELECT",
+        "description": "Recupera current_budget, locked_credits e contatori players_X_acquired per calcolare la riserva slot."
+      },
+      {
+        "table": "auctions",
+        "operation": "SELECT COUNT",
+        "description": "Conta le aste attive dove l'utente è miglior offerente per calcolare gli slot virtuali occupati."
+      }
+    ]
   }
 }

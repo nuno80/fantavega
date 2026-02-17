@@ -1,17 +1,9 @@
 {
-  "last_update": "2026-02-17T15:30:00+01:00",
+  "last_update": "2026-02-17T16:35:00+01:00",
   "files": [
     {
-      "path": "src/components/auction/CallPlayerInterface.tsx",
-      "description": "Aggiunto Link di navigazione 'RILANCI' (color ambra) nella barra tab, con import di Link (next/link) e ListOrdered (lucide-react)."
-    },
-    {
-      "path": "src/app/activity-log/page.tsx",
-      "description": "Aggiornato searchParams per accettare myBiddedPlayers. Passa initialMyBiddedPlayers al componente client."
-    },
-    {
-      "path": "src/components/activity-log/ActivityLogClient.tsx",
-      "description": "Aggiunta prop initialMyBiddedPlayers alla interface. Inizializza filterMyBiddedPlayers e showFilters dalla prop."
+      "path": "src/lib/db/services/bid.service.ts",
+      "description": "Allineato il check budget auto-bid (righe ~990-1040) con checkSlotsAndBudgetOrThrow: aggiunta riserva crediti per slot vuoti (creditsToReserve). Query estesa per includere players_X_acquired e count aste vincenti."
     }
   ]
 }
