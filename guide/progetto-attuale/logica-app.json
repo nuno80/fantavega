@@ -1,31 +1,22 @@
 {
-  "last_update": "2026-02-15T15:00:00Z",
-  "task_completed": "FN-ActivityLog-Filter",
+  "last_update": "2026-02-17T15:30:00+01:00",
+  "task_completed": "FN-Rilanci-Button",
   "feature_logic": {
-    "feature_name": "Activity Log - Filtro 'Miei Scontri'",
-    "summary": "Miglioramento dell'Activity Log con un nuovo filtro 'Aste Partecipate' che mostra solo gli eventi relativi ai giocatori su cui l'utente ha fatto offerte.",
-    "architectural_pattern": "Filtro server-side basato su subquery SQL. Il client invia un flag `myBiddedPlayers=true` e l'API filtra i risultati (Bids, Auctions, Budget) incrociando con gli ID dei giocatori presenti nello storico offerte dell'utente.",
+    "feature_name": "Pulsante 'Rilanci' nella Pagina Aste",
+    "summary": "Aggiunta di un pulsante di navigazione 'RILANCI' nella barra tab della pagina aste (CallPlayerInterface). Il pulsante porta l'utente alla pagina Activity Log pre-filtrata per mostrare solo gli eventi relativi ai giocatori su cui l'utente ha fatto offerte.",
+    "architectural_pattern": "Navigation Link con Query Params → Server Component (lettura params) → Client Component (inizializzazione filtro da prop). Nessuna nuova API o logica di business richiesta.",
     "user_flow": [
-      "1. L'utente apre il pannello filtri nell'Activity Log.",
-      "2. Attiva il toggle 'Solo Aste Partecipate'.",
-      "3. La lista si aggiorna mostrando solo le aste (e relative offerte/transazioni) in cui l'utente è stato attivo.",
-      "4. Eventi globali non pertinenti (es. login/logout) vengono nascosti per ridurre il rumore."
+      "1. L'utente è nella pagina Aste e vede il pulsante 'RILANCI' (color ambra) accanto ai tab Chiama/Stats/Filtri.",
+      "2. Cliccando 'RILANCI', viene navigato a /activity-log?league={leagueId}&myBiddedPlayers=true.",
+      "3. La pagina Activity Log legge il parametro myBiddedPlayers dal URL e lo passa come prop initialMyBiddedPlayers al componente client.",
+      "4. Il componente ActivityLogClient si inizializza con il filtro 'Rilanci' attivo e il pannello filtri aperto.",
+      "5. L'utente vede immediatamente lo storico delle proprie offerte per la lega corrente."
     ],
     "core_components_interaction": {
-      "src/app/api/leagues/[id]/activity-log/route.ts": "Gestisce il parametro `myBiddedPlayers` e inietta la clausola `WHERE player_id IN (...)`.",
-      "src/components/activity-log/ActivityLogClient.tsx": "Gestisce lo stato del toggle e aggiorna la query string della richiesta fetch."
+      "src/components/auction/CallPlayerInterface.tsx": "Aggiunto Link di navigazione 'RILANCI' con icona ListOrdered nella barra tab.",
+      "src/app/activity-log/page.tsx": "Letto parametro myBiddedPlayers da searchParams e passato come prop booleana al client component.",
+      "src/components/activity-log/ActivityLogClient.tsx": "Accetta prop initialMyBiddedPlayers. Quando true, inizializza il filtro 'Rilanci' come attivo e apre il pannello filtri automaticamente."
     },
-    "database_interactions": [
-      {
-        "table": "bids, auctions",
-        "operation": "SELECT (Subquery)",
-        "description": "Recupera ID giocatori con offerte dell'utente."
-      },
-      {
-        "table": "bids, auctions, budget_transactions, user_auction_response_timers",
-        "operation": "SELECT",
-        "description": "Filtra i record principali usando la lista di ID giocatori recuperata."
-      }
-    ]
+    "database_interactions": []
   }
 }

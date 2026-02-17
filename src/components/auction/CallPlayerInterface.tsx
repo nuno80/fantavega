@@ -1,16 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   Dumbbell,
   Gavel,
   Heart,
+  ListOrdered,
   Search,
   Shield,
   TrendingUp,
-  User,
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -576,6 +578,13 @@ export function CallPlayerInterface({
           <Search className="h-4 w-4" />
           FILTRI
         </button>
+        <Link
+          href={`/activity-log?league=${leagueId}&myBiddedPlayers=true`}
+          className="flex flex-1 items-center justify-center gap-2 border-b-2 border-transparent px-2 py-3 text-sm font-medium text-amber-500 transition-colors hover:bg-muted hover:text-amber-400 sm:flex-none sm:px-4"
+        >
+          <ListOrdered className="h-4 w-4" />
+          RILANCI
+        </Link>
 
         {/* Results counter and active filters indicator in tab bar */}
         <div className="ml-auto w-full flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-4 py-2 text-xs sm:w-auto sm:border-t-0 sm:bg-transparent sm:py-3">

@@ -1,21 +1,17 @@
 {
-  "last_update": "2026-02-15T15:00:00Z",
+  "last_update": "2026-02-17T15:30:00+01:00",
   "files": [
     {
-      "path": "src/app/api/leagues/[league-id]/activity-log/route.ts",
-      "description": "API Route aggiornata con logica di filtraggio per 'myBiddedPlayers' e subquery SQL ottimizzata."
+      "path": "src/components/auction/CallPlayerInterface.tsx",
+      "description": "Aggiunto Link di navigazione 'RILANCI' (color ambra) nella barra tab, con import di Link (next/link) e ListOrdered (lucide-react)."
+    },
+    {
+      "path": "src/app/activity-log/page.tsx",
+      "description": "Aggiornato searchParams per accettare myBiddedPlayers. Passa initialMyBiddedPlayers al componente client."
     },
     {
       "path": "src/components/activity-log/ActivityLogClient.tsx",
-      "description": "Componente Client aggiornato con toggle UI 'Aste Partecipate' e gestione stato filtro."
-    },
-    {
-      "path": "src/lib/scheduler.ts",
-      "description": "Scheduler di background (invariato)."
-    },
-    {
-      "path": "src/lib/socket-emitter.ts",
-      "description": "Emettitore eventi socket (invariato)."
+      "description": "Aggiunta prop initialMyBiddedPlayers alla interface. Inizializza filterMyBiddedPlayers e showFilters dalla prop."
     }
   ]
 }

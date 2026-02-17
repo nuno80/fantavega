@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 
 // 2. Componente Pagina (Server Component)
 export default async function ActivityLogPage(props: {
-  searchParams: Promise<{ league?: string }>;
+  searchParams: Promise<{ league?: string; myBiddedPlayers?: string }>;
 }) {
   const user = await currentUser();
 
@@ -101,7 +101,7 @@ export default async function ActivityLogPage(props: {
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <ActivityLogClient leagueId={leagueId} />
+        <ActivityLogClient leagueId={leagueId} initialMyBiddedPlayers={searchParams.myBiddedPlayers === "true"} />
       </main>
     </div>
   );

@@ -60,6 +60,7 @@ interface ActivityLogResponse {
 
 interface ActivityLogClientProps {
   leagueId: number;
+  initialMyBiddedPlayers?: boolean;
 }
 
 // 3. Configurazione tipi di evento
@@ -168,7 +169,7 @@ function dateInputToTimestamp(dateStr: string, endOfDay = false): number | null 
 }
 
 // 5. Componente Principale
-export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
+export function ActivityLogClient({ leagueId, initialMyBiddedPlayers = false }: ActivityLogClientProps) {
   // State
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [leagueUsers, setLeagueUsers] = useState<LeagueUser[]>([]);
@@ -183,8 +184,8 @@ export function ActivityLogClient({ leagueId }: ActivityLogClientProps) {
   const [filterEventTypes, setFilterEventTypes] = useState<string[]>([]);
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
-  const [filterMyBiddedPlayers, setFilterMyBiddedPlayers] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterMyBiddedPlayers, setFilterMyBiddedPlayers] = useState(initialMyBiddedPlayers);
+  const [showFilters, setShowFilters] = useState(initialMyBiddedPlayers);
 
   // Fetch data
   const fetchEvents = useCallback(async () => {
