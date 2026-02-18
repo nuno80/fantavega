@@ -6,7 +6,7 @@ import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
 import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
-import { recordUserLogin } from "@/lib/db/services/session.service";
+import { updateHeartbeat } from "@/lib/db/services/session.service";
 
 // Type per le righe restituite dalla query
 interface AuctionStateRow {
@@ -43,9 +43,9 @@ export async function GET(request: Request) {
       `[USER_AUCTION_STATES] Processing for user: ${user.id}, league: ${leagueId}`
     );
 
-    // **FASE 0: Registra login utente (fire-and-forget)**
-    recordUserLogin(user.id).catch((error) => {
-      console.error("[USER_AUCTION_STATES] Error recording login:", error);
+    // **FASE 0: Aggiorna heartbeat utente (fire-and-forget)**
+    updateHeartbeat(user.id).catch((error) => {
+      console.error("[USER_AUCTION_STATES] Error updating heartbeat:", error);
     });
 
     // **FASE 1: Attiva i timer pendenti per l'utente (fire-and-forget)**

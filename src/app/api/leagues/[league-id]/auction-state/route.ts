@@ -8,7 +8,7 @@ import {
   getAuctionStatusForPlayer,
 } from "@/lib/db/services/bid.service";
 import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
-import { recordUserLogin } from "@/lib/db/services/session.service";
+import { updateHeartbeat } from "@/lib/db/services/session.service";
 
 // --- INIZIO MODIFICA: Definizione delle interfacce per una maggiore sicurezza dei tipi ---
 interface ActiveAuction {
@@ -387,13 +387,13 @@ export async function GET(
       `[AUCTION-REALTIME] Fetching data for user ${userId}, league ${leagueId}`
     );
 
-    // Prima registra login e attiva timer (come fa l'API user/auction-states)
+    // Aggiorna heartbeat e attiva eventuali timer pendenti
     try {
-      await recordUserLogin(userId);
+      await updateHeartbeat(userId);
       await activateTimersForUser(userId);
     } catch (error) {
       console.error(
-        "[AUCTION-REALTIME] Error in login/timer activation:",
+        "[AUCTION-REALTIME] Error in heartbeat/timer activation:",
         error
       );
       // Non bloccare la richiesta per errori di sessione

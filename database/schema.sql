@@ -338,6 +338,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     user_id TEXT NOT NULL,
     session_start INTEGER NOT NULL, -- timestamp login
     session_end INTEGER, -- timestamp logout (NULL se ancora online)
+    last_heartbeat INTEGER, -- ultimo heartbeat dell'utente (aggiornato ad ogni chiamata API)
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

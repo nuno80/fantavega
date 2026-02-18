@@ -1,9 +1,29 @@
 {
-  "last_update": "2026-02-17T16:35:00+01:00",
+  "last_update": "2026-02-18T14:35:00Z",
   "files": [
     {
-      "path": "src/lib/db/services/bid.service.ts",
-      "description": "Allineato il check budget auto-bid (righe ~990-1040) con checkSlotsAndBudgetOrThrow: aggiunta riserva crediti per slot vuoti (creditsToReserve). Query estesa per includere players_X_acquired e count aste vincenti."
+      "path": "database/schema.sql",
+      "description": "Aggiunta colonna last_heartbeat a tabella user_sessions per rilevare sessioni fantasma."
+    },
+    {
+      "path": "database/adhoc_changes.sql",
+      "description": "Migration SQL per aggiungere last_heartbeat alla produzione. Svuotare dopo applicazione."
+    },
+    {
+      "path": "src/lib/db/services/session.service.ts",
+      "description": "Aggiunta funzione updateHeartbeat(). isUserCurrentlyOnline ora usa soglia di staleness di 2 minuti."
+    },
+    {
+      "path": "src/lib/db/services/response-timer.service.ts",
+      "description": "createResponseTimer ora crea timer sempre come pendenti, senza attivazione immediata."
+    },
+    {
+      "path": "src/app/api/leagues/[league-id]/auction-state/route.ts",
+      "description": "Sostituito recordUserLogin con updateHeartbeat per le chiamate di polling."
+    },
+    {
+      "path": "src/app/api/user/auction-states/route.ts",
+      "description": "Sostituito recordUserLogin con updateHeartbeat per le chiamate di polling."
     }
   ]
 }

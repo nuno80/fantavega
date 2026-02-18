@@ -29,10 +29,10 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
       // This atomically handles the case where session was closed
       await db.execute({
         sql: `
-          REPLACE INTO user_sessions (user_id, session_start, session_end)
-          VALUES (?, ?, NULL)
+          REPLACE INTO user_sessions (user_id, session_start, session_end, last_heartbeat)
+          VALUES (?, ?, NULL, ?)
         `,
-        args: [userId, now],
+        args: [userId, now, now],
       });
       console.log(`[SESSION] User ${userId} session opened/reopened at ${now}`);
     }
@@ -109,22 +109,46 @@ export const getUserLastLogin = async (userId: string): Promise<number | null> =
   }
 };
 
+// Soglia di staleness: 2 minuti senza heartbeat = sessione fantasma
+const SESSION_STALENESS_SECONDS = 120;
+
 export const isUserCurrentlyOnline = async (userId: string): Promise<boolean> => {
   try {
+    const now = Math.floor(Date.now() / 1000);
+    const staleThreshold = now - SESSION_STALENESS_SECONDS;
+
     const result = await db.execute({
       sql: `
         SELECT id FROM user_sessions
         WHERE user_id = ? AND session_end IS NULL
+          AND last_heartbeat IS NOT NULL AND last_heartbeat > ?
       `,
-      args: [userId],
+      args: [userId, staleThreshold],
     });
 
     const isOnline = result.rows.length > 0;
-    console.log(`[SESSION] isUserCurrentlyOnline(${userId}) = ${isOnline}`);
+    console.log(`[SESSION] isUserCurrentlyOnline(${userId}) = ${isOnline} (threshold=${staleThreshold})`);
     return isOnline;
   } catch (error) {
     console.error("[SESSION] Error checking online status:", error);
     return false;
+  }
+};
+
+/**
+ * Aggiorna il heartbeat della sessione utente.
+ * Operazione leggera: una sola UPDATE. Chiamata dalle API di polling.
+ */
+export const updateHeartbeat = async (userId: string): Promise<void> => {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    await db.execute({
+      sql: `UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL`,
+      args: [now, userId],
+    });
+  } catch (error) {
+    // Non bloccare la richiesta per errori di heartbeat
+    console.error("[SESSION] Error updating heartbeat:", error);
   }
 };
 

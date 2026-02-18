@@ -5,7 +5,7 @@
 import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
-import { getUserLastLogin, isUserCurrentlyOnline } from "./session.service";
+import { getUserLastLogin } from "./session.service";
 
 interface ResponseTimer {
   id: number;
@@ -81,18 +81,9 @@ export const createResponseTimer = async (
       );
     }
 
-    // Se utente è online, attiva subito il timer
-    const isOnline = await isUserCurrentlyOnline(userId);
-    if (isOnline) {
-      console.log(`[TIMER] ⚡ User ${userId} is ONLINE, activating timer immediately`);
-      await activateTimerForUser(userId, auctionId);
-    } else {
-      console.log(`[TIMER] 💤 User ${userId} is OFFLINE, timer stays PENDING`);
-    }
-
-    console.log(
-      `[TIMER] Timer created for user ${userId} - Online: ${isOnline}`
-    );
+    // Timer resta SEMPRE pendente. Si attiva solo quando l'utente
+    // effettivamente visita la pagina asta (via activateTimersForUser chiamato dalle API).
+    console.log(`[TIMER] 💤 Timer stays PENDING until user views auction page`);
   } catch (error) {
     console.error(
       `[TIMER] Error creating pending timer for user ${userId}, auction ${auctionId}:`,

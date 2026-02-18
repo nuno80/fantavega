@@ -1,30 +1,35 @@
 {
-  "last_update": "2026-02-17T16:35:00+01:00",
-  "task_completed": "FN-BudgetAudit-AutoBidFix",
+  "last_update": "2026-02-18T14:35:00Z",
+  "task_completed": "FIX - Timer Rilanci Session Ghost",
   "feature_logic": {
-    "feature_name": "Fix Auto-Bid Budget Check con Riserva Slot",
-    "summary": "Allineato il controllo budget dell'auto-bid con checkSlotsAndBudgetOrThrow. Il check ora include la riserva di 1 credito per ogni slot vuoto nella rosa, impedendo che l'auto-bid blocchi crediti che dovrebbero essere riservati per slot futuri.",
-    "architectural_pattern": "Validazione budget transazionale con calcolo slot vuoti: totalMaxSlots - (acquistati + aste vincenti) = slot rimanenti → 1 credito riservato per slot.",
+    "feature_name": "Fix Timer Rilanci - Session Ghost Detection",
+    "summary": "Risolve il bug dove il timer di risposta si attivava automaticamente per utenti offline a causa di sessioni fantasma (browser chiuso senza logout). Implementa un sistema di heartbeat per validare lo stato online e rimuove l'attivazione immediata del timer alla creazione.",
+    "architectural_pattern": "Heartbeat-based session validation. Le API di polling aggiornano un timestamp (last_heartbeat) ad ogni richiesta. isUserCurrentlyOnline verifica che il heartbeat sia recente (< 2 min). I timer sono sempre creati come pendenti e attivati solo quando l'utente effettivamente visita la pagina.",
     "user_flow": [
-      "1. L'utente piazza un'offerta con auto-bid (importo massimo) su un'asta.",
-      "2. Il sistema valida l'offerta base tramite checkSlotsAndBudgetOrThrow (invariato).",
-      "3. Per l'auto-bid, il sistema ora calcola: budget_disponibile = current_budget - locked_credits - creditsToReserve.",
-      "4. creditsToReserve = max(0, totalMaxSlots - giocatori_acquistati - aste_vincenti).",
-      "5. Se l'aumento dei crediti bloccati supera il budget disponibile (inclusa riserva), l'offerta viene rifiutata con errore dettagliato."
+      "1. Utente A apre la pagina asta → recordUserLogin crea sessione con last_heartbeat.",
+      "2. Ogni fetch API (socket events) aggiorna last_heartbeat via updateHeartbeat.",
+      "3. Utente B supera Utente A → createResponseTimer crea timer PENDENTE (mai attivato subito).",
+      "4. Se Utente A è offline: timer resta pendente. isUserCurrentlyOnline ritorna false (heartbeat scaduto).",
+      "5. Utente A ritorna → API chiama activateTimersForUser → timer si attiva con deadline 1 ora.",
+      "6. Se Utente A non risponde entro 1 ora → scheduler processa timer → asta abbandonata."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/bid.service.ts": "Modificato il blocco auto-bid (righe ~990-1040) per includere il calcolo di creditsToReserve. La query ora recupera anche players_X_acquired e conta le aste vincenti attive."
+      "src/lib/db/services/session.service.ts": "Aggiunta updateHeartbeat(). isUserCurrentlyOnline ora verifica last_heartbeat > (now - 120s).",
+      "src/lib/db/services/response-timer.service.ts": "createResponseTimer non chiama più isUserCurrentlyOnline/activateTimerForUser. Timer sempre pendente.",
+      "src/app/api/leagues/[league-id]/auction-state/route.ts": "Usa updateHeartbeat() invece di recordUserLogin().",
+      "src/app/api/user/auction-states/route.ts": "Usa updateHeartbeat() invece di recordUserLogin().",
+      "database/schema.sql": "Aggiunta colonna last_heartbeat a user_sessions."
     },
     "database_interactions": [
       {
-        "table": "league_participants",
-        "operation": "SELECT",
-        "description": "Recupera current_budget, locked_credits e contatori players_X_acquired per calcolare la riserva slot."
+        "table": "user_sessions",
+        "operation": "ALTER TABLE (ADD COLUMN)",
+        "description": "Aggiunta colonna last_heartbeat INTEGER per tracciare l'ultimo heartbeat."
       },
       {
-        "table": "auctions",
-        "operation": "SELECT COUNT",
-        "description": "Conta le aste attive dove l'utente è miglior offerente per calcolare gli slot virtuali occupati."
+        "table": "user_sessions",
+        "operation": "UPDATE",
+        "description": "updateHeartbeat aggiorna last_heartbeat ad ogni chiamata API di polling."
       }
     ]
   }
