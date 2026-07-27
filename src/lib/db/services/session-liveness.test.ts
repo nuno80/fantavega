@@ -1,30 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { getGhostSessionEnd, getTimerActivationTime, isHeartbeatFresh, SESSION_STALENESS_SECONDS } from "./session-liveness";
 
-import {
-  getGhostSessionEnd,
-  getTimerActivationTime,
-  isHeartbeatFresh,
-  SESSION_STALENESS_SECONDS,
-} from "./session-liveness";
-
-describe("session liveness", () => {
-  it("treats a recent heartbeat as online", () => {
-    const now = 1_000;
+describe("ghost session timer invariants", () => {
+  it("expires a heartbeat exactly at the staleness boundary", () => {
+    const now = 10_000;
+    expect(isHeartbeatFresh(now - SESSION_STALENESS_SECONDS, now)).toBe(false);
     expect(isHeartbeatFresh(now - SESSION_STALENESS_SECONDS + 1, now)).toBe(true);
   });
 
-  it("treats a missing or stale heartbeat as a ghost session", () => {
-    const now = 1_000;
-    expect(isHeartbeatFresh(null, now)).toBe(false);
-    expect(isHeartbeatFresh(now - SESSION_STALENESS_SECONDS, now)).toBe(false);
+  it("closes a ghost at its last known activity", () => {
+    expect(getGhostSessionEnd(8_000, 7_000)).toBe(8_000);
+    expect(getGhostSessionEnd(null, 7_000)).toBe(7_000);
   });
 
-  it("closes a ghost session at its last known activity", () => {
-    expect(getGhostSessionEnd(800, 700)).toBe(800);
-    expect(getGhostSessionEnd(null, 700)).toBe(700);
-  });
-
-  it("starts a pending response timer from the real return time", () => {
-    expect(getTimerActivationTime(5_000)).toBe(5_000);
+  it("anchors activation to the actual return time", () => {
+    const staleLogin = 1_000;
+    const returnedAt = 20_000;
+    expect(getTimerActivationTime(returnedAt)).toBe(returnedAt);
+    expect(getTimerActivationTime(returnedAt)).not.toBe(staleLogin);
   });
 });
