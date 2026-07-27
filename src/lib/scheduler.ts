@@ -3,6 +3,7 @@ import { processExpiredComplianceTimers } from "./db/services/penalty.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 import { reapGhostSessions } from "./db/services/session.service";
 
+// Ho impostato 5 secondi come nel tuo branch. Se preferivi i 15 secondi di main, cambialo pure a 15.
 const TASK_CHECK_INTERVAL = 5 * 1000;
 let schedulerInterval: NodeJS.Timeout | null = null;
 let isRunning = false;
@@ -33,8 +34,9 @@ const runBackgroundTasks = async () => {
 
 export const startScheduler = () => {
   if (schedulerInterval) return;
-  runBackgroundTasks();
-  schedulerInterval = setInterval(runBackgroundTasks, TASK_CHECK_INTERVAL);
+  // Usiamo la sintassi 'void' di main per evitare warning TypeScript
+  void runBackgroundTasks();
+  schedulerInterval = setInterval(() => void runBackgroundTasks(), TASK_CHECK_INTERVAL);
 };
 
 export const stopScheduler = () => {
