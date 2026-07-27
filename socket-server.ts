@@ -1,13 +1,17 @@
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
+import { clerkClient } from "@clerk/nextjs/server";
 
 let recordUserLogout: ((userId: string) => Promise<void>) | null = null;
+let hasLeagueAccess: ((userId: string, leagueId: number, role?: string) => Promise<boolean>) | null = null;
 let startScheduler: (() => void) | null = null;
 
 (async () => {
   try {
     const sessionModule = await import("./src/lib/db/services/session.service.js");
     recordUserLogout = sessionModule.recordUserLogout;
+    const guardModule = await import("./src/lib/auth/league-guard.js");
+    hasLeagueAccess = guardModule.hasLeagueAccess;
     const schedulerModule = await import("./src/lib/scheduler.js");
     startScheduler = schedulerModule.startScheduler;
     startScheduler?.();
@@ -24,12 +28,8 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || (process.env.NODE_ENV ==
 const recentEmissions = new Map<string, number>();
 const EMISSION_DEDUP_WINDOW_MS = 2_000;
 
-function eventKey(room: string, event: string, data: unknown) {
-  return `${room}:${event}:${JSON.stringify(data ?? null)}`;
-}
-
 function shouldEmit(room: string, event: string, data: unknown) {
-  const key = eventKey(room, event, data);
+  const key = `${room}:${event}:${JSON.stringify(data ?? null)}`;
   const now = Date.now();
   const last = recentEmissions.get(key);
   if (last && now - last < EMISSION_DEDUP_WINDOW_MS) return false;
@@ -44,17 +44,12 @@ function shouldEmit(room: string, event: string, data: unknown) {
 
 const httpServer = createServer((req, res) => {
   if (req.url !== "/api/emit" || req.method !== "POST") {
-    res.writeHead(404);
-    res.end();
-    return;
+    res.writeHead(404); res.end(); return;
   }
-
   if (!EMIT_SECRET || req.headers["x-emit-secret"] !== EMIT_SECRET) {
     res.writeHead(401, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: false, error: "Unauthorized" }));
-    return;
+    res.end(JSON.stringify({ success: false, error: "Unauthorized" })); return;
   }
-
   let body = "";
   req.on("data", (chunk) => {
     body += chunk.toString();
@@ -66,8 +61,7 @@ const httpServer = createServer((req, res) => {
       if (!payload.room || !payload.event) throw new Error("Invalid payload");
       if (!shouldEmit(payload.room, payload.event, payload.data)) {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: true, deduplicated: true }));
-        return;
+        res.end(JSON.stringify({ success: true, deduplicated: true })); return;
       }
       const roomClients = io.sockets.adapter.rooms.get(payload.room);
       io.to(payload.room).emit(payload.event, payload.data);
@@ -84,16 +78,31 @@ const io = new Server(httpServer, {
   cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST"], credentials: true },
 });
 
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (typeof token !== "string" || !token) return next(new Error("unauthorized"));
+    const client = await clerkClient();
+    const request = new Request("http://socket.local", { headers: { Authorization: `Bearer ${token}` } });
+    const state = await client.authenticateRequest(request, { authorizedParties: ALLOWED_ORIGINS });
+    if (!state.isAuthenticated) return next(new Error("unauthorized"));
+    socket.data.userId = state.toAuth().userId;
+    next();
+  } catch {
+    next(new Error("unauthorized"));
+  }
+});
+
 io.on("connection", (socket: Socket) => {
-  socket.on("join-user-room", (userId: string) => {
-    if (!userId || typeof userId !== "string" || userId.length > 128) return;
-    socket.join(`user-${userId}`);
-    (socket as Socket & { userId?: string }).userId = userId;
+  socket.on("join-user-room", () => {
+    const userId = socket.data.userId as string | undefined;
+    if (userId) socket.join(`user-${userId}`);
   });
 
-  socket.on("join-league-room", (leagueId: string) => {
-    if (!/^\d+$/.test(leagueId)) return;
-    socket.join(`league-${leagueId}`);
+  socket.on("join-league-room", async (leagueId: string) => {
+    const userId = socket.data.userId as string | undefined;
+    if (!userId || !/^\d+$/.test(leagueId) || !hasLeagueAccess) return;
+    if (await hasLeagueAccess(userId, Number(leagueId))) socket.join(`league-${leagueId}`);
   });
 
   socket.on("leave-league-room", (leagueId: string) => {
@@ -101,16 +110,12 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("disconnect", () => {
-    const userId = (socket as Socket & { userId?: string }).userId;
+    const userId = socket.data.userId as string | undefined;
     if (!userId || !recordUserLogout) return;
     setTimeout(async () => {
-      if (!io.sockets.adapter.rooms.get(`user-${userId}`)?.size) {
-        await recordUserLogout?.(userId);
-      }
+      if (!io.sockets.adapter.rooms.get(`user-${userId}`)?.size) await recordUserLogout?.(userId);
     }, 10_000);
   });
 });
 
-httpServer.listen(SOCKET_PORT, () => {
-  console.log(`[SOCKET] Listening on ${SOCKET_PORT}`);
-});
+httpServer.listen(SOCKET_PORT, () => console.log(`[SOCKET] Listening on ${SOCKET_PORT}`));
