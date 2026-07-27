@@ -1,0 +1,27 @@
+name: deployment-audit
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check deployment manifests
+        run: |
+          test -f vercel.json
+          test -f railway.json
+          node --check scripts/verify-deployment-config.mjs
+      - name: Check no hardcoded admin seed
+        run: |
+          ! grep -n "INSERT OR IGNORE INTO users" database/schema.sql
+      - name: Check no JavaScript comments inside SQL roster query
+        run: |
+          ! grep -n "pa.user_id //" 'src/app/api/leagues/[league-id]/auction-state/route.ts'
+      - name: Check test configuration
+        run: test -f vitest.config.ts && test -d tests/e2e
