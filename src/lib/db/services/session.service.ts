@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 
+import { activateTimersForUser, processExpiredResponseTimers } from "./response-timer.service";
 import { getGhostSessionEnd, isHeartbeatFresh, SESSION_STALENESS_SECONDS } from "./session-liveness";
 
 export const recordUserLogin = async (userId: string): Promise<void> => {
@@ -20,6 +21,8 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
         args: [now, userId],
       });
     }
+    await processExpiredResponseTimers();
+    await activateTimersForUser(userId, now);
   } catch (error) {
     console.error("[SESSION] Error recording login:", error);
   }
@@ -52,7 +55,6 @@ export const isUserCurrentlyOnline = async (userId: string): Promise<boolean> =>
   return isHeartbeatFresh(heartbeat, now);
 };
 
-/** Updates liveness and opens a fresh session when the previous one was closed. */
 export const updateHeartbeat = async (userId: string): Promise<number> => {
   const now = Math.floor(Date.now() / 1000);
   const result = await db.execute({
@@ -68,7 +70,6 @@ export const updateHeartbeat = async (userId: string): Promise<number> => {
   return now;
 };
 
-/** Closes sessions that have not sent a heartbeat within the liveness window. */
 export const reapGhostSessions = async (): Promise<number> => {
   const now = Math.floor(Date.now() / 1000);
   const cutoff = now - SESSION_STALENESS_SECONDS;
