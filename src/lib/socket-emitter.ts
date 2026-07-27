@@ -1,138 +1,54 @@
-// src/lib/socket-emitter.ts
-
-// Quando il socket-emitter gira dentro il processo del socket-server (Railway),
-// usiamo l'URL interno localhost per evitare 404 dal proxy Railway.
-// Quando gira su Vercel (Next.js), usiamo l'URL pubblico di Railway.
-// Detect: su Railway, la env PORT è impostata dal sistema (es. 8080).
-// Su Vercel, PORT non è impostata e NEXT_PUBLIC_SOCKET_URL punta a Railway.
 const isRunningOnSocketServer = !!process.env.PORT && !process.env.NEXT_RUNTIME;
 const SOCKET_BASE_URL = isRunningOnSocketServer
   ? `http://localhost:${process.env.PORT}`
   : (process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001");
 const SOCKET_SERVER_URL = `${SOCKET_BASE_URL}/api/emit`;
-
-console.log(`[Socket Emitter] Resolved URL: ${SOCKET_SERVER_URL} (isSocketServer: ${isRunningOnSocketServer})`);
-
-// Throttling mechanism to prevent duplicate events
-const recentEvents = new Map<string, number>();
-const THROTTLE_WINDOW_MS = 500; // 500ms throttle window for robust duplicate prevention
+const SOCKET_EMIT_SECRET = process.env.SOCKET_EMIT_SECRET;
 
 interface EmitParams {
-  room: string; // Es: 'league-1'
-  event: string; // Es: 'auction-update'
+  room: string;
+  event: string;
   data?: unknown;
 }
 
+const recentEvents = new Map<string, number>();
+const THROTTLE_WINDOW_MS = 500;
+
 function generateEventKey(params: EmitParams): string {
-  // Create a unique key for throttling based on room, event, and exact data
-  const keyData = {
-    room: params.room,
-    event: params.event,
-    // Use exact data hash for precise duplicate detection
-    dataHash: params.data ? JSON.stringify(params.data) : "no-data",
-  };
-  return JSON.stringify(keyData);
+  return JSON.stringify({ room: params.room, event: params.event, data: params.data ?? "no-data" });
 }
 
 export async function notifySocketServer(params: EmitParams) {
-  // CRITICAL: Special tracking for auction-created events to debug duplicates
-  if (
-    params.event === "auction-created" &&
-    params.data &&
-    typeof params.data === "object" &&
-    "playerId" in params.data
-  ) {
-    console.log(
-      `[Socket Emitter] 🚨 AUCTION-CREATED EVENT DETECTED for player ${params.data.playerId}:`,
-      {
-        timestamp: new Date().toISOString(),
-        params,
-        stackTrace: new Error("Stack trace for auction-created event").stack
-          ?.split("\n")
-          .slice(0, 10),
-      }
-    );
+  if (!SOCKET_EMIT_SECRET) {
+    throw new Error("SOCKET_EMIT_SECRET is not configured");
   }
 
-  // Throttling check
   const eventKey = generateEventKey(params);
   const now = Date.now();
   const lastEmitted = recentEvents.get(eventKey);
+  const carriesState = Boolean(params.data && typeof params.data === "object" && "budgetUpdates" in params.data);
 
-  if (lastEmitted && now - lastEmitted < THROTTLE_WINDOW_MS) {
-    console.warn(
-      "[Socket Emitter] THROTTLED: Duplicate event blocked within throttle window:",
-      {
-        eventKey,
-        timeSinceLastEmit: now - lastEmitted,
-        throttleWindow: THROTTLE_WINDOW_MS,
-        params,
-      }
-    );
-
-    // CRITICAL: Log throttled auction-created events specifically
-    if (params.event === "auction-created") {
-      console.error(
-        `[Socket Emitter] 🚨 THROTTLED AUCTION-CREATED EVENT! This suggests rapid duplicate calls.`
-      );
-    }
-
-    // NUOVO LOG DI DEBUG per il problema dei crediti
-    if (
-      params.event === "auction-update" &&
-      params.data &&
-      typeof params.data === "object" &&
-      "budgetUpdates" in params.data &&
-      (params.data as { budgetUpdates: unknown[] }).budgetUpdates.length > 0
-    ) {
-      console.error(
-        `[Socket Emitter] 🚨 CRITICAL DEBUG: Un evento 'auction-update' con 'budgetUpdates' è stato bloccato dal throttling!`,
-        { eventKey }
-      );
-    }
-
+  if (!carriesState && lastEmitted && now - lastEmitted < THROTTLE_WINDOW_MS) {
     return { success: true, throttled: true };
   }
-
-  // Update throttle tracking
   recentEvents.set(eventKey, now);
 
-  // Clean up old entries (keep map from growing indefinitely)
-  if (recentEvents.size > 100) {
+  if (recentEvents.size > 200) {
     const cutoff = now - THROTTLE_WINDOW_MS * 2;
-    for (const [key, timestamp] of recentEvents.entries()) {
-      if (timestamp < cutoff) {
-        recentEvents.delete(key);
-      }
+    for (const [key, timestamp] of recentEvents) {
+      if (timestamp < cutoff) recentEvents.delete(key);
     }
   }
 
-  try {
-    console.log("[Socket Emitter] Sending event to Socket.IO server:", {
-      url: SOCKET_SERVER_URL,
-      params,
-    });
+  const response = await fetch(SOCKET_SERVER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-emit-secret": SOCKET_EMIT_SECRET,
+    },
+    body: JSON.stringify(params),
+  });
 
-    const response = await fetch(SOCKET_SERVER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    console.log("[Socket Emitter] Socket.IO server response:", result);
-
-    return result;
-  } catch (error) {
-    console.error("[Socket Emitter] Error notifying socket server:", error);
-    console.error("[Socket Emitter] Failed to emit event:", params);
-    // In un'app di produzione, qui potresti aggiungere un logging più robusto
-    throw error; // Re-throw to allow calling code to handle the error
-  }
+  if (!response.ok) throw new Error(`Socket server returned HTTP ${response.status}`);
+  return response.json();
 }
