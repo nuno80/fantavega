@@ -1,6 +1,6 @@
 -- Historical migration retained for traceability.
 -- The current schema already defines UNIQUE(auction_id, user_id), with the
 -- supported statuses: pending, cancelled, abandoned, expired.
--- Do not run the old table-rebuild procedure: it referenced the removed
--- notified_at column and incompatible status values.
+-- Do not run the old table-rebuild procedure: it targeted an incompatible
+-- timer model and status set.
 -- Existing databases must use the current schema/migration path instead.
