@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import type { ResponseTimerStatus } from "@/lib/db/services/response-timer-status";
 import { activateTimersForUser, createResponseTimer } from "@/lib/db/services/response-timer.service";
-import { recordUserLogin } from "@/lib/db/services/session.service";
+import { updateHeartbeat } from "@/lib/db/services/session.service";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 // Stati possibili per un utente in un'asta
@@ -54,16 +54,15 @@ export const getUserAuctionStates = async (
     `[SERVICE] getUserAuctionStates called for user: ${userId}, league: ${leagueId}`
   );
 
-  // **FASE 0: Registra login utente**
+  // **FASE 0: aggiorna la liveness della sessione e attiva i timer pendenti**
+  // Allineato a auction-state/route.ts e user/auction-states/route.ts.
   try {
-    await recordUserLogin(userId);
+    const heartbeatAt = await updateHeartbeat(userId);
+    await activateTimersForUser(userId, heartbeatAt);
   } catch (error) {
-    console.error("[SERVICE] Error recording login:", error);
-    // Non bloccare la richiesta per errori di sessione
+    console.error("[SERVICE] Error refreshing session liveness:", error);
+    // Non bloccare la lettura per errori di sessione
   }
-
-  // **FASE 1: Attiva i timer pendenti per l'utente**
-  await activateTimersForUser(userId);
 
   // **FASE 2: Recupera lo stato di tutte le aste attive in cui l'utente è coinvolto**
   const now = Math.floor(Date.now() / 1000);
