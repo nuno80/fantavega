@@ -56,7 +56,7 @@ describe("ghost-session API flow", () => {
 
     expect(response.status).toBe(200);
     expect(updateHeartbeat).toHaveBeenCalledWith("user-a");
-    expect(activateTimersForUser).toHaveBeenCalledWith("user-a");
+    expect(activateTimersForUser).toHaveBeenCalledWith("user-a", 1000);
     expect(execute).toHaveBeenCalledWith(expect.objectContaining({
       args: ["user-a", "user-a", "user-a", expect.any(Number), "7"],
     }));
@@ -84,7 +84,7 @@ describe("ghost-session API flow", () => {
     expect(body.states).toHaveLength(1);
     expect(body.states[0].response_deadline).toBeNull();
     expect(body.states[0].time_remaining).toBeNull();
-    expect(activateTimersForUser).toHaveBeenCalledWith("user-a");
+    expect(activateTimersForUser).toHaveBeenCalledWith("user-a", 1000);
   });
 
   it("closes the session through the inactivity API", async () => {

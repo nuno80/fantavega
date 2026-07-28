@@ -43,16 +43,15 @@ export async function GET(request: Request) {
       `[USER_AUCTION_STATES] Processing for user: ${user.id}, league: ${leagueId}`
     );
 
-    // **FASE 0: Aggiorna heartbeat utente (fire-and-forget)**
-    updateHeartbeat(user.id).catch((error) => {
-      console.error("[USER_AUCTION_STATES] Error updating heartbeat:", error);
-    });
-
-    // **FASE 1: Attiva i timer pendenti per l'utente (fire-and-forget)**
-    // Questa è la logica chiave: il timer parte quando l'utente "vede" lo stato.
-    activateTimersForUser(user.id).catch((error) => {
-      console.error("[USER_AUCTION_STATES] Error activating timers:", error);
-    });
+    // **FASE 0: Aggiorna heartbeat utente e FASE 1: Attiva i timer pendenti**
+    // L'attivazione deve avvenire rigorosamente dopo l'heartbeat, per avere un timestamp liveness valido
+    let heartbeatAt: number | null = null;
+    try {
+      heartbeatAt = await updateHeartbeat(user.id);
+      await activateTimersForUser(user.id, heartbeatAt);
+    } catch (error) {
+      console.error("[USER_AUCTION_STATES] Error refreshing session or activating timers:", error);
+    }
 
     // **FASE 2: Recupera lo stato di tutte le aste attive in cui l'utente è coinvolto**
     const now = Math.floor(Date.now() / 1000);

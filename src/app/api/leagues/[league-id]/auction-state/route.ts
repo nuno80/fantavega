@@ -59,8 +59,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (!user?.id) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     const { "league-id": leagueId } = await params;
     if (!/^\d+$/.test(leagueId)) return NextResponse.json({ error: "League ID non valido" }, { status: 400 });
-    await updateHeartbeat(user.id);
-    await activateTimersForUser(user.id);
+    
+    let heartbeatAt: number | null = null;
+    try {
+      heartbeatAt = await updateHeartbeat(user.id);
+      await activateTimersForUser(user.id, heartbeatAt);
+    } catch (error) {
+      console.error("[AUCTION-STATE] Error refreshing session or activating timers:", error);
+    }
+    
     const [budgetResult, auctionResult, userStatesResult, managerStatesResult] = await Promise.allSettled([getBudgetDataLogic(user.id, leagueId), getCurrentAuctionLogic(leagueId), getUserAuctionStatesLogic(user.id, leagueId), getManagersDataLogic(leagueId)]);
     const response: ApiResponse = { success: true, timestamp: Math.floor(Date.now() / 1000), userBudget: budgetResult.status === "fulfilled" ? budgetResult.value : null, auction: auctionResult.status === "fulfilled" ? auctionResult.value : null, userStates: userStatesResult.status === "fulfilled" ? userStatesResult.value : [], managerStates: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.managers : [], leagueSlots: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.leagueSlots : null, activeAuctions: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.activeAuctions : [], autoBids: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.autoBids : [] };
     const errors: string[] = []; if (budgetResult.status === "rejected") errors.push("Budget data unavailable"); if (auctionResult.status === "rejected") errors.push("Auction data unavailable"); if (userStatesResult.status === "rejected") errors.push("User states unavailable"); if (managerStatesResult.status === "rejected") errors.push("Manager data unavailable"); if (errors.length) response.errors = errors;
