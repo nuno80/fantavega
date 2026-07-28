@@ -1,6 +1,7 @@
 // src/lib/db/services/auction-states.service.ts
 // Servizio per gestire gli stati dei giocatori nelle aste
 import { db } from "@/lib/db";
+import type { ResponseTimerStatus } from "@/lib/db/services/response-timer-status";
 import { activateTimersForUser, createResponseTimer } from "@/lib/db/services/response-timer.service";
 import { recordUserLogin } from "@/lib/db/services/session.service";
 import { notifySocketServer } from "@/lib/socket-emitter";
@@ -303,6 +304,8 @@ export const handleAuctionAbandon = async (
   auctionId: number,
   userId: string
 ): Promise<void> => {
+  const now = Math.floor(Date.now() / 1000);
+
   try {
     // Imposta stato abbandonato
     await setUserAuctionState(auctionId, userId, "asta_abbandonata");
@@ -336,14 +339,20 @@ export const handleAuctionAbandon = async (
       }
       : undefined;
 
-    // Rimuovi timer di risposta se esistente
+    // Chiude il timer di risposta. 'abandoned' e' l'unico valore terminale
+    // ammesso dal CHECK su user_auction_response_timers.status.
     await db.execute({
       sql: `
         UPDATE user_auction_response_timers
-        SET status = 'action_taken'
+        SET status = ?, processed_at = ?
         WHERE auction_id = ? AND user_id = ? AND status = 'pending'
       `,
-      args: [auctionId, userId],
+      args: [
+        "abandoned" satisfies ResponseTimerStatus,
+        now,
+        auctionId,
+        userId,
+      ],
     });
 
     // FIX: Rimosso sblocco crediti qui.
@@ -353,7 +362,6 @@ export const handleAuctionAbandon = async (
 
     // Crea cooldown 48 ore
     if (auction) {
-      const now = Math.floor(Date.now() / 1000);
       const cooldownEnd = now + 48 * 3600;
 
       // Usa INSERT OR REPLACE per gestire tentativi multipli di abbandono
