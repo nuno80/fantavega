@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { activateTimersForUser, processExpiredResponseTimers } from "./response-timer.service";
+import { activateTimersForUser } from "./response-timer.service";
 import { getGhostSessionEnd, isHeartbeatFresh, SESSION_STALENESS_SECONDS } from "./session-liveness";
 
 export const recordUserLogin = async (userId: string): Promise<void> => {
@@ -11,7 +11,8 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
     } else {
       await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
     }
-    await processExpiredResponseTimers();
+    // La scadenza dei timer e' responsabilita' esclusiva di startScheduler().
+    // Eseguirla qui trasformava ogni polling utente in uno sweep globale.
     await activateTimersForUser(userId, now);
   } catch (error) {
     console.error("[SESSION] Error recording login:", error);
