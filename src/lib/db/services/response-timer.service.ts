@@ -131,14 +131,19 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
     );
 
     for (const timer of pendingTimers) {
-      await db.execute({
+      const activation = await db.execute({
         sql: `
         UPDATE user_auction_response_timers
         SET response_deadline = ?, activated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'pending' AND response_deadline IS NULL
       `,
         args: [deadline, effectiveLoginTime, timer.id],
       });
+
+      if (activation.rowsAffected === 0) {
+        console.log(`[TIMER] Timer ID ${timer.id} already activated by another request, skipping`);
+        continue;
+      }
 
       // Invia notifica Socket.IO per ogni timer attivato
       await notifySocketServer({
@@ -164,45 +169,6 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
   }
 };
 
-/**
- * Attiva un singolo timer per un utente (quando è online al momento del rilancio)
- */
-const activateTimerForUser = async (
-  userId: string,
-  auctionId: number
-): Promise<void> => {
-  try {
-    const now = Math.floor(Date.now() / 1000);
-    const deadline = now + RESPONSE_TIME_HOURS * 3600;
-
-    await db.execute({
-      sql: `
-      UPDATE user_auction_response_timers
-      SET response_deadline = ?, activated_at = ?
-      WHERE user_id = ? AND auction_id = ? AND status = 'pending'
-    `,
-      args: [deadline, now, userId, auctionId],
-    });
-
-    console.log(
-      `[TIMER] Activated single timer for user ${userId}, auction ${auctionId}`
-    );
-
-    // Invia notifica immediata
-    await notifySocketServer({
-      room: `user-${userId}`,
-      event: "response-timer-started",
-      data: {
-        auctionId,
-        deadline,
-        timeRemaining: deadline - Math.floor(Date.now() / 1000),
-      },
-    });
-  } catch (error) {
-    console.error("[TIMER] Error activating single timer:", error);
-    throw error;
-  }
-};
 
 /**
  * Invia notifica all'utente dei timer attivati
@@ -354,15 +320,21 @@ export const processExpiredResponseTimers = async (): Promise<{
     for (const timer of expiredTimers) {
       const transaction = await db.transaction("write");
       try {
-        // Segna il timer come scaduto
-        await transaction.execute({
+        // Segna il timer come scaduto (ATOMICO)
+        const expiryResult = await transaction.execute({
           sql: `
           UPDATE user_auction_response_timers
           SET status = 'expired', processed_at = ?
-          WHERE id = ?
+          WHERE id = ? AND status = 'pending' AND response_deadline IS NOT NULL AND response_deadline <= ?
         `,
-          args: [now, timer.id],
+          args: [now, timer.id, now],
         });
+
+        if (expiryResult.rowsAffected === 0) {
+           transaction.rollback();
+           console.log(`[TIMER] Timer ID ${timer.id} already processed or no longer pending/expired. Skipping.`);
+           continue;
+        }
 
         // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
         // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
@@ -526,15 +498,19 @@ export const abandonAuction = async (
 
     console.log(`[TIMER] Found timer ${timer.id} for user ${userId}, proceeding with abandon`);
 
-    // Marca timer come abbandonato
-    await transaction.execute({
+    // Marca timer come abbandonato (ATOMICO)
+    const abandonResult = await transaction.execute({
       sql: `
       UPDATE user_auction_response_timers
       SET status = 'abandoned', processed_at = ?
-      WHERE id = ?
+      WHERE id = ? AND status = 'pending'
     `,
       args: [now, timer.id],
     });
+    
+    if (abandonResult.rowsAffected === 0) {
+       throw new Error("Impossibile abbandonare: il timer è già stato processato o non è più pendente");
+    }
 
     // Resetta il timer dell'asta alla durata configurata nella lega
     const newScheduledEndTime = now + (auction.timer_duration_minutes * 60);
