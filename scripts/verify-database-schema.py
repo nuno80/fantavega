@@ -44,11 +44,19 @@ fk_errors = list(conn.execute('PRAGMA foreign_key_check'))
 if fk_errors:
     raise SystemExit(f'foreign-key errors: {fk_errors}')
 
-# Static guards for the two migrations that previously targeted an obsolete schema.
-last_reset = (root / 'database/migrations/add_last_reset_at_to_response_timers.sql').read_text()
+# Static guards inspect executable SQL only, not explanatory comments.
+def executable_sql(path: pathlib.Path) -> str:
+    lines = []
+    for line in path.read_text().splitlines():
+        code = line.split('--', 1)[0].strip()
+        if code:
+            lines.append(code)
+    return '\n'.join(lines)
+
+last_reset = executable_sql(root / 'database/migrations/add_last_reset_at_to_response_timers.sql')
 if 'notified_at' in last_reset:
-    raise SystemExit('obsolete notified_at reference remains in add_last_reset migration')
-unique_fix = (root / 'database/migrations/fix_response_timers_unique_constraint.sql').read_text()
+    raise SystemExit('obsolete timer column reference remains in add_last_reset migration')
+unique_fix = executable_sql(root / 'database/migrations/fix_response_timers_unique_constraint.sql')
 if 'CREATE TABLE user_auction_response_timers_new' in unique_fix or 'notified_at' in unique_fix:
     raise SystemExit('obsolete timer table rebuild remains in unique-constraint migration')
 
