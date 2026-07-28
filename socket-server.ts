@@ -2,7 +2,7 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { clerkClient } from "@clerk/nextjs/server";
 
-let recordUserLogout: ((userId: string) => Promise<void>) | null = null;
+let recordUserLogout: ((userId: string, notAfter?: number) => Promise<void>) | null = null;
 let hasLeagueAccess: ((userId: string, leagueId: number, role?: string) => Promise<boolean>) | null = null;
 let startScheduler: (() => void) | null = null;
 
@@ -111,9 +111,10 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("disconnect", () => {
     const userId = socket.data.userId as string | undefined;
+    const disconnectedAt = Math.floor(Date.now() / 1000);
     if (!userId || !recordUserLogout) return;
     setTimeout(async () => {
-      if (!io.sockets.adapter.rooms.get(`user-${userId}`)?.size) await recordUserLogout?.(userId);
+      if (!io.sockets.adapter.rooms.get(`user-${userId}`)?.size) await recordUserLogout?.(userId, disconnectedAt);
     }, 10_000);
   });
 });

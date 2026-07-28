@@ -18,9 +18,14 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
   }
 };
 
-export const recordUserLogout = async (userId: string): Promise<void> => {
+export const recordUserLogout = async (userId: string, notAfter?: number): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
-  const result = await db.execute({ sql: "UPDATE user_sessions SET session_end = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
+  const result = await db.execute({
+    sql: notAfter === undefined
+      ? "UPDATE user_sessions SET session_end = ? WHERE user_id = ? AND session_end IS NULL"
+      : "UPDATE user_sessions SET session_end = ? WHERE user_id = ? AND session_end IS NULL AND (last_heartbeat IS NULL OR last_heartbeat <= ?)",
+    args: notAfter === undefined ? [now, userId] : [now, userId, notAfter],
+  });
   if (result.rowsAffected > 0) console.log(`[SESSION] Closed ${result.rowsAffected} session for ${userId}`);
 };
 
