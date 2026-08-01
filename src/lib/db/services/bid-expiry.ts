@@ -143,6 +143,8 @@ async function processAuctionWinner(
   }
 }
 
+const BATCH_SIZE = 50;
+
 export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
   processedCount: number;
   failedCount: number;
@@ -150,14 +152,20 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
 }> => {
   const now = Math.floor(Date.now() / 1000);
   const getExpiredAuctionsResult = await db.execute({
-    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0`,
-    args: [now],
+    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0 ORDER BY a.scheduled_end_time ASC LIMIT ?`,
+    args: [now, BATCH_SIZE],
   });
   const expiredAuctions =
     getExpiredAuctionsResult.rows as unknown as ExpiredAuctionData[];
 
   if (expiredAuctions.length === 0)
     return { processedCount: 0, failedCount: 0, errors: [] };
+
+  if (expiredAuctions.length === BATCH_SIZE) {
+    console.log(
+      `[BID_SERVICE] Batch pieno (${BATCH_SIZE} aste scadute): ci potrebbero essere altre aste da processare nella prossima invocazione.`
+    );
+  }
 
   let processedCount = 0,
     failedCount = 0;
