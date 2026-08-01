@@ -16,21 +16,21 @@ import {
 export type AppRole = "admin" | "manager";
 
 // Tipi per la simulazione della battaglia Auto-Bid
-interface AutoBidBattleParticipant {
+export interface AutoBidBattleParticipant {
   userId: string;
   maxAmount: number;
   createdAt: number; // Usato per la prioritÃ 
   isActive: boolean; // Per tracciare se l'auto-bid ha raggiunto il suo massimo
 }
 
-interface BattleStep {
+export interface BattleStep {
   bidAmount: number;
   bidderId: string;
   isAutoBid: boolean;
   step: number;
 }
 
-interface BattleResult {
+export interface BattleResult {
   finalAmount: number;
   finalBidderId: string;
   battleSteps: BattleStep[];
@@ -39,7 +39,7 @@ interface BattleResult {
 }
 
 // Funzione di simulazione battaglia Auto-Bid
-function simulateAutoBidBattle(
+export function simulateAutoBidBattle(
   initialBid: number,
   initialBidderId: string,
   autoBids: AutoBidBattleParticipant[]
