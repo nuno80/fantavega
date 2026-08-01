@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 import { getUserLastLogin } from "./session.service";
+import { recalculateLockedCreditsForUser } from "./locked-credits.service";
 
 interface ResponseTimer {
   id: number;
@@ -338,38 +339,11 @@ export const processExpiredResponseTimers = async (): Promise<{
 
         // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
         // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
-        const userLockedCreditsResult = await transaction.execute({
-          sql: `
-            SELECT
-              COALESCE(
-                (SELECT SUM(ab.max_amount)
-                 FROM auto_bids ab
-                 JOIN auctions a ON ab.auction_id = a.id
-                 WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-                0
-              ) +
-              COALESCE(
-                (SELECT SUM(a.current_highest_bid_amount)
-                 FROM auctions a
-                 LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-                 WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-                   AND ab.id IS NULL
-                   AND a.status IN ('active', 'closing')),
-                0
-              ) as total_locked
-          `,
-          args: [timer.league_id, timer.user_id, timer.user_id, timer.league_id, timer.user_id],
-        });
-        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
-
-        await transaction.execute({
-          sql: `
-          UPDATE league_participants
-          SET locked_credits = ?
-          WHERE user_id = ? AND league_id = ?
-        `,
-          args: [totalLocked, timer.user_id, timer.league_id],
-        });
+        await recalculateLockedCreditsForUser(
+          transaction,
+          timer.league_id,
+          timer.user_id
+        );
 
         // Applica cooldown 48h per questo giocatore
         const cooldownExpiry = now + ABANDON_COOLDOWN_HOURS * 3600;
@@ -526,38 +500,11 @@ export const abandonAuction = async (
 
     // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
     // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
-    const userLockedCreditsResult = await transaction.execute({
-      sql: `
-        SELECT
-          COALESCE(
-            (SELECT SUM(ab.max_amount)
-             FROM auto_bids ab
-             JOIN auctions a ON ab.auction_id = a.id
-             WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-            0
-          ) +
-          COALESCE(
-            (SELECT SUM(a.current_highest_bid_amount)
-             FROM auctions a
-             LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-             WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-               AND ab.id IS NULL
-               AND a.status IN ('active', 'closing')),
-            0
-          ) as total_locked
-      `,
-      args: [leagueId, userId, userId, leagueId, userId],
-    });
-    const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
-
-    await transaction.execute({
-      sql: `
-      UPDATE league_participants
-      SET locked_credits = ?
-      WHERE user_id = ? AND league_id = ?
-    `,
-      args: [totalLocked, userId, leagueId],
-    });
+    const totalLocked = await recalculateLockedCreditsForUser(
+      transaction,
+      leagueId,
+      userId
+    );
 
     // Applica cooldown 48h
     const cooldownExpiry = now + ABANDON_COOLDOWN_HOURS * 3600;
