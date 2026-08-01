@@ -2,21 +2,12 @@
 // Suite di caratterizzazione per simulateAutoBidBattle() — blocca il comportamento
 // attuale prima del refactor (issue 02). NON cambiare i test insieme all'algoritmo:
 // se il comportamento atteso cambia, aggiornare qui in modo esplicito e deliberato.
-import { describe, expect, it, vi } from "vitest";
-
-// Mock dei moduli con side-effect: il test esercita solo la funzione pura
-// simulateAutoBidBattle, non l'accesso al database.
-vi.mock("@/lib/db", () => ({
-  db: { execute: vi.fn() },
-}));
-vi.mock("@/lib/socket-emitter", () => ({
-  notifySocketServer: vi.fn().mockResolvedValue(undefined),
-}));
+import { describe, expect, it } from "vitest";
 
 import {
   simulateAutoBidBattle,
   type AutoBidBattleParticipant,
-} from "../bid.service";
+} from "../bid-battle";
 
 const makeParticipant = (
   userId: string,

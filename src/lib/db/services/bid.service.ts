@@ -12,176 +12,29 @@ import {
   createResponseTimer,
   getUserCooldownInfo,
 } from "./response-timer.service";
+import { simulateAutoBidBattle } from "./bid-battle";
+import type {
+  AutoBidBattleParticipant,
+  BattleStep,
+  BattleResult,
+} from "./bid-battle";
+import { checkSlotsAndBudgetOrThrow } from "./bid-validation";
+import type {
+  LeagueForBidding,
+  ParticipantForBidding,
+  PlayerForBidding,
+} from "./bid-validation";
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
 
-// Tipi per la simulazione della battaglia Auto-Bid
-export interface AutoBidBattleParticipant {
-  userId: string;
-  maxAmount: number;
-  createdAt: number; // Usato per la prioritÃ 
-  isActive: boolean; // Per tracciare se l'auto-bid ha raggiunto il suo massimo
-}
+// Re-export: logica battaglia auto-bid estratta in bid-battle.ts (pura, senza side-effect)
+export { simulateAutoBidBattle };
+export type { AutoBidBattleParticipant, BattleStep, BattleResult };
 
-export interface BattleStep {
-  bidAmount: number;
-  bidderId: string;
-  isAutoBid: boolean;
-  step: number;
-}
-
-export interface BattleResult {
-  finalAmount: number;
-  finalBidderId: string;
-  battleSteps: BattleStep[];
-  totalSteps: number;
-  initialBidderHadWinningManualBid: boolean;
-}
-
-// Funzione di simulazione battaglia Auto-Bid
-export function simulateAutoBidBattle(
-  initialBid: number,
-  initialBidderId: string,
-  autoBids: AutoBidBattleParticipant[]
-): BattleResult {
-  const currentBid = initialBid;
-  const currentBidderId = initialBidderId;
-  const battleSteps: BattleStep[] = [];
-  let step = 0;
-
-  // Aggiungi il bid manuale iniziale come primo step
-  battleSteps.push({
-    bidAmount: currentBid,
-    bidderId: currentBidderId,
-    isAutoBid: false,
-    step: step++,
-  });
-
-  // Rendi tutti i partecipanti attivi all'inizio
-  autoBids.forEach((ab) => (ab.isActive = true));
-
-  // CORREZIONE: Controlla se ci sono auto-bid che possono competere
-  // NOTA: Non escludere l'auto-bid dell'offerente - puÃ² competere con altri auto-bid
-  // FIX: Usare >= invece di > per includere paritÃ  - l'auto-bid vince in caso di paritÃ 
-  const competingAutoBids = autoBids.filter((ab) => ab.maxAmount >= currentBid);
-
-  if (competingAutoBids.length === 0) {
-    // Nessun auto-bid puÃ² competere, l'offerta manuale vince
-    console.log(
-      `[AUTO_BID] Nessun auto-bid puÃ² competere con l'offerta manuale di ${currentBid}`
-    );
-    return {
-      finalAmount: currentBid,
-      finalBidderId: currentBidderId,
-      battleSteps,
-      totalSteps: step,
-      initialBidderHadWinningManualBid: true,
-    };
-  }
-
-  // Trova l'auto-bid vincente (massimo importo, poi prioritÃ  temporale)
-  const winningAutoBid = competingAutoBids.sort((a, b) => {
-    // Prima ordina per max_amount (decrescente)
-    if (b.maxAmount !== a.maxAmount) {
-      return b.maxAmount - a.maxAmount;
-    }
-    // In caso di paritÃ , ordina per createdAt (crescente = primo vince)
-    return a.createdAt - b.createdAt;
-  })[0];
-
-  console.log(
-    `[AUTO_BID] Auto-bid vincente: ${winningAutoBid.userId} con max ${winningAutoBid.maxAmount}`
-  );
-
-  // CORREZIONE: Calcola il prezzo finale secondo la logica eBay
-  let finalAmount: number;
-
-  // Trova il secondo miglior auto-bid (se esiste)
-  const secondBestAutoBid = competingAutoBids
-    .filter((ab) => ab.userId !== winningAutoBid.userId)
-    .sort((a, b) => {
-      if (b.maxAmount !== a.maxAmount) {
-        return b.maxAmount - a.maxAmount;
-      }
-      return a.createdAt - b.createdAt;
-    })[0];
-
-  if (secondBestAutoBid) {
-    console.log(
-      `[AUTO_BID] Secondo miglior auto-bid: ${secondBestAutoBid.userId} con max ${secondBestAutoBid.maxAmount}`
-    );
-
-    if (secondBestAutoBid.maxAmount === winningAutoBid.maxAmount) {
-      // CASO PARITÃ€: il vincitore (primo per timestamp) paga il suo importo massimo
-      finalAmount = winningAutoBid.maxAmount;
-      console.log(
-        `[AUTO_BID] PARITÃ€ rilevata! Vincitore paga importo massimo: ${finalAmount}`
-      );
-    } else {
-      // Il vincitore paga 1 credito piÃ¹ del secondo migliore, ma non piÃ¹ del suo massimo
-      finalAmount = Math.min(
-        secondBestAutoBid.maxAmount + 1,
-        winningAutoBid.maxAmount
-      );
-      console.log(
-        `[AUTO_BID] Vincitore paga 1+ del secondo migliore: ${finalAmount}`
-      );
-    }
-  } else {
-    // Solo un auto-bid: paga 1 credito piÃ¹ dell'offerta manuale, ma non piÃ¹ del suo massimo
-    finalAmount = Math.min(currentBid + 1, winningAutoBid.maxAmount);
-    console.log(
-      `[AUTO_BID] Solo un auto-bid, paga 1+ dell'offerta manuale: ${finalAmount}`
-    );
-  }
-
-  // Aggiungi il bid finale dell'auto-bid vincente
-  battleSteps.push({
-    bidAmount: finalAmount,
-    bidderId: winningAutoBid.userId,
-    isAutoBid: true,
-    step: step++,
-  });
-
-  return {
-    finalAmount: finalAmount,
-    finalBidderId: winningAutoBid.userId,
-    battleSteps,
-    totalSteps: step,
-    initialBidderHadWinningManualBid: false,
-  };
-}
-
-export interface LeagueForBidding {
-  id: number;
-  status: string;
-  active_auction_roles: string | null;
-  min_bid: number;
-  timer_duration_minutes: number;
-  slots_P: number;
-  slots_D: number;
-  slots_C: number;
-  slots_A: number;
-}
-
-export interface PlayerForBidding {
-  id: number;
-  role: string;
-  name?: string;
-  team?: string;
-  photo_url?: string | null;
-}
-
-export interface ParticipantForBidding {
-  user_id: string;
-  current_budget: number;
-  locked_credits: number;
-  players_P_acquired?: number;
-  players_D_acquired?: number;
-  players_C_acquired?: number;
-  players_A_acquired?: number;
-}
+// Re-export: validazione slot/budget estratta in bid-validation.ts
+export { checkSlotsAndBudgetOrThrow };
+export type { LeagueForBidding, PlayerForBidding, ParticipantForBidding };
 
 export interface BidRecord {
   id: number;
@@ -307,152 +160,7 @@ interface ExpiredAuctionData {
   player_name?: string;
 }
 
-// 3. Funzione Helper Interna per Controllo Slot e Budget (ASYNC)
-// MODIFICA v3.1: Aggiunta validazione che riserva 1 credito per ogni slot vuoto rimanente
-// MODIFICA v3.2: Aggiunto parametro txClient per garantire isolamento transazionale
-const checkSlotsAndBudgetOrThrow = async (
-  txClient: { execute: typeof db.execute }, // Accetta sia db che una transazione
-  league: LeagueForBidding,
-  player: PlayerForBidding,
-  participant: ParticipantForBidding,
-  bidderUserIdForCheck: string,
-  bidAmountForCheck: number,
-  isNewAuctionAttempt: boolean,
-  currentAuctionTargetPlayerId?: number
-) => {
-  // 1. Calcola slot massimi totali dalla configurazione della lega
-  const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
-
-  // 2. Calcola giocatori giÃ  acquisiti (dai campi del participant)
-  const totalAcquired =
-    (participant.players_P_acquired || 0) +
-    (participant.players_D_acquired || 0) +
-    (participant.players_C_acquired || 0) +
-    (participant.players_A_acquired || 0);
-
-  // 3. Calcola offerte vincenti attive (aste dove l'utente Ã¨ miglior offerente) - esclude l'asta corrente se Ã¨ un rilancio
-  let activeWinningBidsSql = `
-    SELECT COUNT(*) as count FROM auctions
-    WHERE auction_league_id = ? AND current_highest_bidder_id = ?
-    AND status IN ('active', 'closing')
-  `;
-  const activeWinningBidsArgs: (string | number)[] = [league.id, bidderUserIdForCheck];
-
-  if (!isNewAuctionAttempt && currentAuctionTargetPlayerId !== undefined) {
-    // Se Ã¨ un rilancio su asta esistente, non contarla due volte
-    activeWinningBidsSql += ` AND player_id != ?`;
-    activeWinningBidsArgs.push(currentAuctionTargetPlayerId);
-  }
-
-  // Usa txClient invece di db per isolamento transazionale
-  const activeWinningBidsResult = await txClient.execute({
-    sql: activeWinningBidsSql,
-    args: activeWinningBidsArgs,
-  });
-  const activeWinningBids = Number(activeWinningBidsResult.rows[0].count);
-
-  // 4. Slot virtuali occupati (giÃ  acquisiti + offerte vincenti)
-  const slotsOccupied = totalAcquired + activeWinningBids;
-
-  // 5. Slot rimanenti da riempire DOPO questa offerta
-  // Se Ã¨ una nuova asta, questa offerta riempirÃ  uno slot aggiuntivo
-  const slotsRemainingAfterBid = isNewAuctionAttempt
-    ? totalMaxSlots - slotsOccupied - 1  // -1 perchÃ© questa offerta occuperÃ  uno slot
-    : totalMaxSlots - slotsOccupied;      // Rilancio su asta esistente: slot giÃ  contato
-
-  // 6. Crediti da riservare per slot vuoti futuri (1 credito per slot)
-  // Ogni slot vuoto deve avere 1 credito riservato per poter essere riempito
-  const creditsToReserve = Math.max(0, slotsRemainingAfterBid);
-
-  // 7. Calcola budget disponibile per questa offerta (sottraendo crediti riservati)
-  const baseBudget = participant.current_budget - participant.locked_credits;
-  const availableBudget = baseBudget - creditsToReserve;
-
-  console.log(
-    `[BUDGET_CHECK] User ${bidderUserIdForCheck}: budget=${participant.current_budget}, ` +
-    `locked=${participant.locked_credits}, slotsOccupied=${slotsOccupied}, ` +
-    `slotsRemaining=${slotsRemainingAfterBid}, reserve=${creditsToReserve}, ` +
-    `available=${availableBudget}, bid=${bidAmountForCheck}`
-  );
-
-  if (availableBudget < bidAmountForCheck) {
-    throw new Error(
-      `Budget insufficiente. Disponibile: ${availableBudget} crediti ` +
-      `(${participant.current_budget} totale - ${participant.locked_credits} bloccati ` +
-      `- ${creditsToReserve} riservati per ${slotsRemainingAfterBid} slot vuoti). ` +
-      `Offerta: ${bidAmountForCheck} crediti.`
-    );
-  }
-
-  // --- Controllo Slot per Ruolo (logica originale) ---
-  // Usa txClient invece di db per isolamento transazionale
-  const countAssignedPlayerForRoleResult = await txClient.execute({
-    sql: `SELECT COUNT(*) as count FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? AND pa.user_id = ? AND p.role = ?`,
-    args: [league.id, bidderUserIdForCheck, player.role],
-  });
-  const currentlyAssignedForRole = Number(
-    countAssignedPlayerForRoleResult.rows[0].count
-  );
-
-  let activeBidsAsWinnerSql = `SELECT COUNT(DISTINCT a.player_id) as count FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ? AND p.role = ? AND a.status IN ('active', 'closing')`;
-  const activeBidsQueryParams: (string | number)[] = [
-    league.id,
-    bidderUserIdForCheck,
-    player.role,
-  ];
-  if (!isNewAuctionAttempt && currentAuctionTargetPlayerId !== undefined) {
-    activeBidsAsWinnerSql += ` AND a.player_id != ?`;
-    activeBidsQueryParams.push(currentAuctionTargetPlayerId);
-  }
-  // Usa txClient invece di db per isolamento transazionale
-  const activeBidsResult = await txClient.execute({
-    sql: activeBidsAsWinnerSql,
-    args: activeBidsQueryParams,
-  });
-  const activeWinningBidsForRoleOnOtherPlayers = Number(
-    activeBidsResult.rows[0].count
-  );
-
-  const slotsVirtuallyOccupiedByOthers =
-    currentlyAssignedForRole + activeWinningBidsForRoleOnOtherPlayers;
-
-  let maxSlotsForRole: number;
-  switch (player.role) {
-    case "P":
-      maxSlotsForRole = league.slots_P;
-      break;
-    case "D":
-      maxSlotsForRole = league.slots_D;
-      break;
-    case "C":
-      maxSlotsForRole = league.slots_C;
-      break;
-    case "A":
-      maxSlotsForRole = league.slots_A;
-      break;
-    default:
-      throw new Error(
-        `Ruolo giocatore non valido (${player.role}) per il controllo degli slot.`
-      );
-  }
-
-  const slotErrorMessage =
-    "Slot pieni, non puoi offrire per altri giocatori di questo ruolo";
-  if (isNewAuctionAttempt) {
-    if (slotsVirtuallyOccupiedByOthers + 1 > maxSlotsForRole) {
-      throw new Error(
-        `${slotErrorMessage} (Ruolo: ${player.role}, Max: ${maxSlotsForRole}, Impegni attuali: ${slotsVirtuallyOccupiedByOthers})`
-      );
-    }
-  } else {
-    if (slotsVirtuallyOccupiedByOthers >= maxSlotsForRole) {
-      throw new Error(
-        `${slotErrorMessage} (Ruolo: ${player.role}, Max: ${maxSlotsForRole}, Impegni attuali: ${slotsVirtuallyOccupiedByOthers})`
-      );
-    }
-  }
-};
-
+// 3. Funzione Helper Interna per Controllo Slot e Budget estratta in bid-validation.ts
 // 4. Funzioni Esportate del Servizio per le Offerte
 
 
