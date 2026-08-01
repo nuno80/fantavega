@@ -170,7 +170,7 @@ export async function createLeague(
 
       await transaction.commit();
     } catch (error) {
-      transaction.rollback();
+      await transaction.rollback();
       throw error;
     }
 

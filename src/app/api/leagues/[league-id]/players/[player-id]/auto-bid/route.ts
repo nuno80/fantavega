@@ -176,7 +176,7 @@ export async function POST(
 
       await tx.commit();
     } catch (err) {
-      tx.rollback();
+      await tx.rollback();
       throw err;
     }
 
