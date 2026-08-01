@@ -430,13 +430,13 @@ export const abandonAuction = async (
 
   const transaction = await db.transaction("write");
   try {
-    // Trova asta attiva e durata timer dalla lega
+    // Trova asta target (active o closing) e durata timer dalla lega
     const auctionResult = await transaction.execute({
       sql: `
       SELECT a.id, a.current_highest_bid_amount, a.current_highest_bidder_id, al.timer_duration_minutes
       FROM auctions a
       JOIN auction_leagues al ON a.auction_league_id = al.id
-      WHERE a.player_id = ? AND a.auction_league_id = ? AND a.status = 'active'
+      WHERE a.player_id = ? AND a.auction_league_id = ? AND a.status IN ('active', 'closing')
     `,
       args: [playerId, leagueId],
     });
@@ -453,21 +453,32 @@ export const abandonAuction = async (
       throw new Error("Nessuna asta attiva trovata per questo giocatore");
     }
 
-    // Verifica che l'utente abbia un timer attivo
+    // Verifica che l'utente abbia un timer attivo per QUESTA asta
     const timerResult = await transaction.execute({
       sql: `
-      SELECT id FROM user_auction_response_timers
+      SELECT id, auction_id FROM user_auction_response_timers
       WHERE user_id = ? AND auction_id = ? AND status = 'pending'
     `,
       args: [userId, auction.id],
     });
     const timer = timerResult.rows[0]
-      ? { id: timerResult.rows[0].id as number }
+      ? {
+        id: timerResult.rows[0].id as number,
+        auction_id: timerResult.rows[0].auction_id as number,
+      }
       : undefined;
 
     if (!timer) {
       console.error(`[TIMER] abandonAuction failed: No active timer found for user ${userId}, auction ${auction.id}`);
       throw new Error("Nessun timer di risposta attivo per questo utente");
+    }
+
+    // Validazione identità: il timer deve riferirsi all'asta target reale
+    if (timer.auction_id !== auction.id) {
+      console.error(
+        `[TIMER] abandonAuction failed: timer ${timer.id} belongs to auction ${timer.auction_id}, but target auction is ${auction.id}`
+      );
+      throw new Error("Il timer di risposta non corrisponde all'asta target");
     }
 
     console.log(`[TIMER] Found timer ${timer.id} for user ${userId}, proceeding with abandon`);

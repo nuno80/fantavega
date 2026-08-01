@@ -43,7 +43,9 @@ export async function POST(
       error instanceof Error ? error.message : "Errore interno";
     const statusCode =
       errorMessage.includes("non trovata") ||
-      errorMessage.includes("Nessun timer")
+      errorMessage.includes("Nessuna asta") ||
+      errorMessage.includes("Nessun timer") ||
+      errorMessage.includes("non corrisponde")
         ? 404
         : 500;
 
