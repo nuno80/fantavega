@@ -331,7 +331,7 @@ export const processExpiredResponseTimers = async (): Promise<{
         });
 
         if (expiryResult.rowsAffected === 0) {
-           transaction.rollback();
+           await transaction.rollback();
            console.log(`[TIMER] Timer ID ${timer.id} already processed or no longer pending/expired. Skipping.`);
            continue;
         }
@@ -427,7 +427,7 @@ export const processExpiredResponseTimers = async (): Promise<{
         );
         processedCount++;
       } catch (error) {
-        transaction.rollback();
+        await transaction.rollback();
         const errorMsg =
           error instanceof Error ? error.message : "Unknown error";
         errors.push(`Timer ID ${timer.id}: ${errorMsg}`);
@@ -614,7 +614,7 @@ export const abandonAuction = async (
       `[TIMER] User ${userId} abandoned auction for player ${playerId}`
     );
   } catch (error) {
-    transaction.rollback();
+    await transaction.rollback();
     console.error("[TIMER] Error abandoning auction:", error);
     throw error;
   }
