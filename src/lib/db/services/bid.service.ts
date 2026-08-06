@@ -19,6 +19,19 @@ import type {
   BattleResult,
 } from "./bid-battle";
 import { checkSlotsAndBudgetOrThrow } from "./bid-validation";
+import {
+  mapCombinedAuction,
+  mapExistingAuction,
+  mapLeagueForBidding,
+  mapParticipant,
+  mapPlayerForBidding,
+  mapPlayerInfo,
+  mapRow,
+  optionalNumber,
+  requiredNumber,
+  requiredString,
+  type RowShape,
+} from "./db-mappers";
 import type {
   LeagueForBidding,
   ParticipantForBidding,
@@ -191,9 +204,7 @@ export const placeInitialBidAndCreateAuction = async (
       sql: "SELECT id, status, active_auction_roles, min_bid, timer_duration_minutes, slots_P, slots_D, slots_C, slots_A, config_json FROM auction_leagues WHERE id = ?",
       args: [leagueIdParam],
     });
-    const league = leagueResult.rows[0] as unknown as
-      | (LeagueForBidding & { config_json: string })
-      | undefined;
+    const league = mapLeagueForBidding(leagueResult.rows[0] as RowShape);
 
     if (!league) throw new Error(`Lega con ID ${leagueIdParam} non trovata.`);
     if (league.status !== "draft_active" && league.status !== "repair_active")
@@ -205,9 +216,7 @@ export const placeInitialBidAndCreateAuction = async (
       sql: "SELECT id, role, name, current_quotation FROM players WHERE id = ?",
       args: [playerIdParam],
     });
-    const player = playerResult.rows[0] as unknown as
-      | (PlayerForBidding & { current_quotation: number })
-      | undefined;
+    const player = mapPlayerForBidding(playerResult.rows[0] as RowShape);
     if (!player)
       throw new Error(`Giocatore con ID ${playerIdParam} non trovato.`);
 
@@ -252,9 +261,7 @@ export const placeInitialBidAndCreateAuction = async (
       sql: "SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?",
       args: [leagueIdParam, bidderUserIdParam],
     });
-    const participant = participantResult.rows[0] as unknown as
-      | ParticipantForBidding
-      | undefined;
+    const participant = mapParticipant(participantResult.rows[0] as RowShape);
     if (!participant)
       throw new Error(
         `Utente ${bidderUserIdParam} non partecipa alla lega ${leagueIdParam}.`
@@ -273,9 +280,9 @@ export const placeInitialBidAndCreateAuction = async (
       sql: "SELECT id, scheduled_end_time, status FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status IN ('active', 'closing')",
       args: [leagueIdParam, playerIdParam],
     });
-    const existingAuction = existingAuctionResult.rows[0] as unknown as
-      | { id: number; scheduled_end_time: number; status: string }
-      | undefined;
+    const existingAuction = mapExistingAuction(
+      existingAuctionResult.rows[0] as RowShape
+    );
 
     if (existingAuction) {
       // Check if existing auction has expired and should be processed
@@ -398,9 +405,7 @@ export const placeInitialBidAndCreateAuction = async (
       sql: "SELECT name, role, team FROM players WHERE id = ?",
       args: [playerIdParam],
     });
-    const playerInfo = playerInfoResult.rows[0] as unknown as
-      | { name: string; role: string; team: string }
-      | undefined;
+    const playerInfo = mapPlayerInfo(playerInfoResult.rows[0] as RowShape);
 
     console.log(
       "[BID_SERVICE] createAndStartAuction - Emitting auction-created event"
@@ -504,26 +509,7 @@ export async function placeBidOnExistingAuction({
       args: [leagueId, playerId],
     });
 
-    const combinedData = combinedDataResult.rows[0] as unknown as
-      | {
-        auction_id: number;
-        current_highest_bid_amount: number;
-        current_highest_bidder_id: string | null;
-        scheduled_end_time: number;
-        user_auction_states: string | null;
-        league_id: number;
-        league_status: string;
-        active_auction_roles: string | null;
-        min_bid: number;
-        timer_duration_minutes: number;
-        slots_P: number;
-        slots_D: number;
-        slots_C: number;
-        slots_A: number;
-        player_id: number;
-        player_role: string;
-      }
-      | undefined;
+    const combinedData = mapCombinedAuction(combinedDataResult.rows[0] as RowShape);
 
     if (!combinedData) {
       console.error(
@@ -637,9 +623,7 @@ export async function placeBidOnExistingAuction({
       sql: `SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?`,
       args: [leagueId, userId],
     });
-    const participant = participantResult.rows[0] as unknown as
-      | ParticipantForBidding
-      | undefined;
+    const participant = mapParticipant(participantResult.rows[0] as RowShape);
     if (!participant) {
       console.error(
         `[BID_SERVICE] Participant ${userId} not found for league ${leagueId}`
@@ -684,11 +668,10 @@ export async function placeBidOnExistingAuction({
           sql: "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE",
           args: [auction.id, userId],
         });
-        const oldAutoBid = oldAutoBidResult.rows[0] as unknown as
-          | { max_amount: number }
-          | undefined;
-
-        const oldMaxAmount = oldAutoBid?.max_amount || 0;
+        const oldAutoBidRow = mapRow(oldAutoBidResult.rows[0] as RowShape);
+        const oldMaxAmount = oldAutoBidRow
+          ? optionalNumber(oldAutoBidRow, "max_amount") ?? 0
+          : 0;
         const creditChange = autoBidMaxAmount - oldMaxAmount;
 
         console.log(
@@ -703,9 +686,19 @@ export async function placeBidOnExistingAuction({
             sql: "SELECT current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?",
             args: [leagueId, userId],
           });
-          const currentParticipant = currentParticipantResult.rows[0] as unknown as
-            | { current_budget: number; locked_credits: number; players_P_acquired: number; players_D_acquired: number; players_C_acquired: number; players_A_acquired: number }
-            | undefined;
+          const currentParticipantRow = mapRow(
+            currentParticipantResult.rows[0] as RowShape
+          );
+          const currentParticipant = currentParticipantRow
+            ? {
+              current_budget: requiredNumber(currentParticipantRow, "current_budget"),
+              locked_credits: requiredNumber(currentParticipantRow, "locked_credits"),
+              players_P_acquired: optionalNumber(currentParticipantRow, "players_P_acquired") ?? 0,
+              players_D_acquired: optionalNumber(currentParticipantRow, "players_D_acquired") ?? 0,
+              players_C_acquired: optionalNumber(currentParticipantRow, "players_C_acquired") ?? 0,
+              players_A_acquired: optionalNumber(currentParticipantRow, "players_A_acquired") ?? 0,
+            }
+            : undefined;
 
           if (currentParticipant) {
             // Calcola la riserva per slot vuoti (stesso pattern di checkSlotsAndBudgetOrThrow)
@@ -782,10 +775,13 @@ export async function placeBidOnExistingAuction({
          ORDER BY created_at ASC`,
       args: [auction.id],
     });
-    const allActiveAutoBids = allActiveAutoBidsResult.rows as unknown as Omit<
-      AutoBidBattleParticipant,
-      "isActive"
-    >[];
+    const allActiveAutoBids = (
+      allActiveAutoBidsResult.rows as RowShape[]
+    ).map((r) => ({
+      userId: requiredString(r, "user_id"),
+      maxAmount: requiredNumber(r, "max_amount"),
+      createdAt: requiredNumber(r, "created_at"),
+    }));
 
     console.log(
       `[BID_SERVICE] Trovati ${allActiveAutoBids.length} auto-bid attivi`
@@ -811,9 +807,9 @@ export async function placeBidOnExistingAuction({
       sql: `SELECT user_id, current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?`,
       args: [leagueId, finalBidderId],
     });
-    const finalWinnerParticipant = finalWinnerParticipantResult.rows[0] as unknown as
-      | ParticipantForBidding
-      | undefined;
+    const finalWinnerParticipant = mapParticipant(
+      finalWinnerParticipantResult.rows[0] as RowShape
+    );
 
     if (!finalWinnerParticipant) {
       throw new Error(`Partecipante vincitore ${finalBidderId} non trovato.`);
@@ -860,10 +856,12 @@ export async function placeBidOnExistingAuction({
          WHERE auction_id = ? AND is_active = TRUE AND max_amount < ?`,
       args: [auction.id, finalAmount],
     });
-    const outbidAutoBids = outbidAutoBidsResult.rows as unknown as {
-      user_id: string;
-      max_amount: number;
-    }[];
+    const outbidAutoBids = (
+      outbidAutoBidsResult.rows as RowShape[]
+    ).map((r) => ({
+      user_id: requiredString(r, "user_id"),
+      max_amount: requiredNumber(r, "max_amount"),
+    }));
 
     if (outbidAutoBids.length > 0) {
       const userIDsToDeactivate = outbidAutoBids.map((b) => b.user_id);
@@ -930,7 +928,10 @@ export async function placeBidOnExistingAuction({
       sql: "SELECT name FROM players WHERE id = ?",
       args: [playerId],
     });
-    const playerName = (playerNameResult.rows[0] as unknown as { name: string })?.name;
+    const playerNameRow = mapRow(playerNameResult.rows[0] as RowShape);
+    const playerName = playerNameRow
+      ? requiredString(playerNameRow, "name")
+      : undefined;
 
     let autoBidUsername;
     if (autoBidActivated) {
@@ -938,7 +939,10 @@ export async function placeBidOnExistingAuction({
         sql: "SELECT username FROM users WHERE id = ?",
         args: [finalBidderId],
       });
-      autoBidUsername = (uResult.rows[0] as unknown as { username: string })?.username;
+      const usernameRow = mapRow(uResult.rows[0] as RowShape);
+      autoBidUsername = usernameRow
+        ? requiredString(usernameRow, "username")
+        : undefined;
     }
 
     result = {
@@ -987,9 +991,10 @@ export async function placeBidOnExistingAuction({
           sql: "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'",
           args: [leagueId, playerId],
         });
-        const auctionInfoForCancel = auctionInfoResult.rows[0] as unknown as
-          | { id: number }
-          | undefined;
+        const auctionInfoRow = mapRow(auctionInfoResult.rows[0] as RowShape);
+        const auctionInfoForCancel = auctionInfoRow
+          ? { id: requiredNumber(auctionInfoRow, "id") }
+          : undefined;
         if (auctionInfoForCancel) {
           await cancelResponseTimer(auctionInfoForCancel.id, userId);
         }
@@ -1029,9 +1034,12 @@ export async function placeBidOnExistingAuction({
         sql: `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
         args: [leagueId, pUserId],
       });
-      return res.rows[0] as unknown as
-        | { current_budget: number; locked_credits: number }
-        | undefined;
+      const row = mapRow(res.rows[0] as RowShape);
+      if (!row) return undefined;
+      return {
+        current_budget: requiredNumber(row, "current_budget"),
+        locked_credits: requiredNumber(row, "locked_credits"),
+      };
     };
 
     // Aggiungi budget del vincitore finale e dell'offerente precedente in parallelo
@@ -1062,18 +1070,27 @@ export async function placeBidOnExistingAuction({
       sql: "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ?",
       args: [leagueId, playerId],
     });
-    const auctionInfoForBid = auctionInfoForBidResult.rows[0] as unknown as {
-      id: number;
-    };
+    const auctionInfoForBidRow = mapRow(
+      auctionInfoForBidResult.rows[0] as RowShape
+    );
+    const auctionInfoForBid = auctionInfoForBidRow
+      ? { id: requiredNumber(auctionInfoForBidRow, "id") }
+      : { id: 0 };
 
     // Recupera l'ultima offerta inserita
     const lastBidResult = await db.execute({
       sql: `SELECT id, user_id, amount, bid_time FROM bids WHERE auction_id = ? ORDER BY bid_time DESC LIMIT 1`,
       args: [auctionInfoForBid.id],
     });
-    const lastBid = lastBidResult.rows[0] as unknown as
-      | { id: number; user_id: string; amount: number; bid_time: string }
-      | undefined;
+    const lastBidRow = mapRow(lastBidResult.rows[0] as RowShape);
+    const lastBid = lastBidRow
+      ? {
+        id: requiredNumber(lastBidRow, "id"),
+        user_id: requiredString(lastBidRow, "user_id"),
+        amount: requiredNumber(lastBidRow, "amount"),
+        bid_time: requiredString(lastBidRow, "bid_time"),
+      }
+      : undefined;
 
     // 2. Costruisci il payload arricchito
     const richPayload = {

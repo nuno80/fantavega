@@ -4,11 +4,11 @@
 
 **Blocked by:** 06 — Estrazione `bid-expiry.ts`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `src/lib/db/services/db-mappers.ts` creato
-- [ ] Almeno 3 mapper: auction combinata, participant, league
-- [ ] Validazione runtime, no `value as T` generico
-- [ ] Cast `as unknown as` in flussi finanziari di bid sostituiti
-- [ ] `pnpm run type-check` passa
-- [ ] `pnpm run test:run` passa
+- [x] `src/lib/db/services/db-mappers.ts` creato
+- [x] Almeno 3 mapper: auction combinata, participant, league
+- [x] Validazione runtime, no `value as T` generico
+- [x] Cast `as unknown as` in flussi finanziari di bid sostituiti
+- [x] `pnpm run type-check` passa
+- [x] `pnpm run test:run` passa

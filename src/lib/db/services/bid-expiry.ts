@@ -5,6 +5,12 @@ import { db } from "@/lib/db";
 import { notifySocketServer } from "@/lib/socket-emitter";
 import { recalculateLockedCreditsForUsers } from "./locked-credits.service";
 import { checkAndRecordCompliance } from "./penalty.service";
+import {
+  mapRow,
+  requiredNumber,
+  requiredString,
+  type RowShape,
+} from "./db-mappers";
 
 export interface ExpiredAuctionData {
   id: number;
@@ -15,6 +21,18 @@ export interface ExpiredAuctionData {
   player_role: string;
   player_name?: string;
 }
+
+const mapExpiredAuctionData = (r: RowShape): ExpiredAuctionData => ({
+  id: requiredNumber(r, "id"),
+  auction_league_id: requiredNumber(r, "auction_league_id"),
+  player_id: requiredNumber(r, "player_id"),
+  current_highest_bid_amount: requiredNumber(r, "current_highest_bid_amount"),
+  current_highest_bidder_id: requiredString(r, "current_highest_bidder_id"),
+  player_role: requiredString(r, "player_role"),
+  player_name: r.player_name === null || r.player_name === undefined
+    ? undefined
+    : requiredString(r, "player_name"),
+});
 
 // Funzione helper per processare un vincitore d'asta
 async function processAuctionWinner(
@@ -27,10 +45,7 @@ async function processAuctionWinner(
       sql: "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE",
       args: [auction.id, auction.current_highest_bidder_id],
     });
-    const autoBid = autoBidResult.rows[0] as unknown as
-      | { max_amount: number }
-      | undefined;
-
+    const autoBidRow = mapRow(autoBidResult.rows[0] as RowShape);
     // const amountToUnlock = autoBid?.max_amount || auction.current_highest_bid_amount;
 
     const tx = await db.transaction("write");
@@ -51,10 +66,12 @@ async function processAuctionWinner(
         sql: "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ? AND is_active = TRUE",
         args: [auction.id, auction.current_highest_bidder_id],
       });
-      const allAutoBidsForAuction = allAutoBidsResult.rows as unknown as {
-        user_id: string;
-        max_amount: number;
-      }[];
+      const allAutoBidsForAuction = (
+        allAutoBidsResult.rows as RowShape[]
+      ).map((r) => ({
+        user_id: requiredString(r, "user_id"),
+        max_amount: requiredNumber(r, "max_amount"),
+      }));
 
       const affectedUsers = new Set<string>();
       for (const otherAutoBid of allAutoBidsForAuction) {
@@ -82,8 +99,14 @@ async function processAuctionWinner(
         sql: "SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?",
         args: [auction.auction_league_id, auction.current_highest_bidder_id],
       });
-      const newBalance = newBalanceResult.rows[0] as unknown as {
-        current_budget: number;
+      const newBalanceRow = mapRow(newBalanceResult.rows[0] as RowShape);
+      if (!newBalanceRow) {
+        throw new Error(
+          `Budget non trovato per l'utente ${auction.current_highest_bidder_id} nella lega ${auction.auction_league_id}`
+        );
+      }
+      const newBalance = {
+        current_budget: requiredNumber(newBalanceRow, "current_budget"),
       };
 
       await tx.execute({
@@ -155,8 +178,9 @@ export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
     sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0 ORDER BY a.scheduled_end_time ASC LIMIT ?`,
     args: [now, BATCH_SIZE],
   });
-  const expiredAuctions =
-    getExpiredAuctionsResult.rows as unknown as ExpiredAuctionData[];
+  const expiredAuctions = (
+    getExpiredAuctionsResult.rows as RowShape[]
+  ).map(mapExpiredAuctionData);
 
   if (expiredAuctions.length === 0)
     return { processedCount: 0, failedCount: 0, errors: [] };
@@ -205,7 +229,9 @@ export const closeAllActiveAuctionsForLeague = async (leagueId: number) => {
           WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing') AND a.current_highest_bidder_id IS NOT NULL`,
     args: [leagueId],
   });
-  const winningAuctions = winnersResult.rows as unknown as ExpiredAuctionData[];
+  const winningAuctions = (
+    winnersResult.rows as RowShape[]
+  ).map(mapExpiredAuctionData);
 
   console.log(
     `[BID_SERVICE] Processing ${winningAuctions.length} active auctions with winners...`
