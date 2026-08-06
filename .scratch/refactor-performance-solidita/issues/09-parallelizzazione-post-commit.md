@@ -4,10 +4,10 @@
 
 **Blocked by:** 06 — Estrazione `bid-expiry.ts`, 08 — Validazione timer di risposta
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `Promise.all()` per query budget post-commit
-- [ ] Nessuna query parallela dentro transazione
-- [ ] Payload Socket.IO identico (utenti, budget, locked_credits)
-- [ ] `pnpm run type-check` passa
-- [ ] `pnpm run test:run` passa
+- [x] `Promise.all()` per query budget post-commit
+- [x] Nessuna query parallela dentro transazione
+- [x] Payload Socket.IO identico (utenti, budget, locked_credits)
+- [x] `pnpm run type-check` passa
+- [x] `pnpm run test:run` passa
