@@ -4,14 +4,14 @@
 
 **Blocked by:** 07 — Batch aste scadute, 11 — Retry controllato
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `Promise.allSettled()` per i 4 task
-- [ ] Blocco contro esecuzioni sovrapposte
-- [ ] `startScheduler()` idempotente
-- [ ] `stopScheduler()` funzionante
-- [ ] Log durata e fallimenti per ogni task
-- [ ] `runManualProcessing()` esposto per test
-- [ ] Import da `bid-expiry.ts`
-- [ ] `pnpm run type-check` passa
-- [ ] `pnpm run test:run` passa
+- [x] `Promise.allSettled()` per i 4 task
+- [x] Blocco contro esecuzioni sovrapposte
+- [x] `startScheduler()` idempotente
+- [x] `stopScheduler()` funzionante
+- [x] Log durata e fallimenti per ogni task
+- [x] `runManualProcessing()` esposto per test
+- [x] Import da `bid-expiry.ts`
+- [x] `pnpm run type-check` passa
+- [x] `pnpm run test:run` passa
