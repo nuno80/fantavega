@@ -2,6 +2,8 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { clerkClient } from "@clerk/nextjs/server";
 
+import { createDedupCache, createDisconnectTracker } from "./src/lib/socket/server-logic";
+
 let recordUserLogout: ((userId: string, notAfter?: number) => Promise<void>) | null = null;
 let hasLeagueAccess: ((userId: string, leagueId: number, role?: string) => Promise<boolean>) | null = null;
 let startScheduler: (() => void) | null = null;
@@ -25,21 +27,18 @@ const EMIT_SECRET = process.env.SOCKET_EMIT_SECRET;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000"))
   .split(",").map((origin) => origin.trim()).filter(Boolean);
 
-const recentEmissions = new Map<string, number>();
 const EMISSION_DEDUP_WINDOW_MS = 2_000;
+const EMISSION_DEDUP_MAX_SIZE = 500;
+
+// Cache dedup con chiave business stabile (room:event:identità) e pulizia
+// deterministica (evict della voce più vecchia quando si supera maxSize).
+const emissionCache = createDedupCache({
+  windowMs: EMISSION_DEDUP_WINDOW_MS,
+  maxSize: EMISSION_DEDUP_MAX_SIZE,
+});
 
 function shouldEmit(room: string, event: string, data: unknown) {
-  const key = `${room}:${event}:${JSON.stringify(data ?? null)}`;
-  const now = Date.now();
-  const last = recentEmissions.get(key);
-  if (last && now - last < EMISSION_DEDUP_WINDOW_MS) return false;
-  recentEmissions.set(key, now);
-  if (recentEmissions.size > 500) {
-    for (const [oldKey, timestamp] of recentEmissions) {
-      if (timestamp < now - EMISSION_DEDUP_WINDOW_MS * 2) recentEmissions.delete(oldKey);
-    }
-  }
-  return true;
+  return emissionCache.shouldEmit(room, event, data);
 }
 
 const httpServer = createServer((req, res) => {
@@ -78,6 +77,16 @@ const io = new Server(httpServer, {
   cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST"], credentials: true },
 });
 
+// Timer di disconnect per utente: cancellati su reconnect, callback che
+// controlla i socket residui e chiama recordUserLogout in try/catch con
+// notAfter (il DB protegge le sessioni con heartbeat più recente).
+const disconnectTracker = createDisconnectTracker({
+  recordUserLogout: (userId, notAfter) => recordUserLogout?.(userId, notAfter) ?? Promise.resolve(),
+  hasUserSockets: (userId) => Boolean(io.sockets.adapter.rooms.get(`user-${userId}`)?.size),
+  now: () => Date.now(),
+  delayMs: 10_000,
+});
+
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token;
@@ -96,7 +105,11 @@ io.use(async (socket, next) => {
 io.on("connection", (socket: Socket) => {
   socket.on("join-user-room", () => {
     const userId = socket.data.userId as string | undefined;
-    if (userId) socket.join(`user-${userId}`);
+    if (userId) {
+      socket.join(`user-${userId}`);
+      // L'utente è rientrato nella sua room: cancella il timer di logout pendente.
+      disconnectTracker.onReconnect(userId);
+    }
   });
 
   socket.on("join-league-room", async (leagueId: string) => {
@@ -111,11 +124,8 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("disconnect", () => {
     const userId = socket.data.userId as string | undefined;
-    const disconnectedAt = Math.floor(Date.now() / 1000);
     if (!userId || !recordUserLogout) return;
-    setTimeout(async () => {
-      if (!io.sockets.adapter.rooms.get(`user-${userId}`)?.size) await recordUserLogout?.(userId, disconnectedAt);
-    }, 10_000);
+    disconnectTracker.onDisconnect(userId);
   });
 });
 
