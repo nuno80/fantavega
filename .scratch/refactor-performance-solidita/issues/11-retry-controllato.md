@@ -4,12 +4,12 @@
 
 **Blocked by:** 07 — Batch aste scadute
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `src/lib/db/services/retry-utils.ts` creato
-- [ ] Backoff esponenziale con limite massimo
-- [ ] Log finale su fallimento
-- [ ] Applicato solo a operazioni dichiaratamente idempotenti
-- [ ] `void` per fire-and-forget
-- [ ] `pnpm run type-check` passa
-- [ ] `pnpm run test:run` passa
+- [x] `src/lib/db/services/retry-utils.ts` creato
+- [x] Backoff esponenziale con limite massimo
+- [x] Log finale su fallimento
+- [x] Applicato solo a operazioni dichiaratamente idempotenti
+- [x] `void` per fire-and-forget
+- [x] `pnpm run type-check` passa
+- [x] `pnpm run test:run` passa

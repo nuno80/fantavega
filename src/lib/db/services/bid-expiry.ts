@@ -11,6 +11,7 @@ import {
   requiredString,
   type RowShape,
 } from "./db-mappers";
+import { withRetry } from "./retry-utils";
 
 export interface ExpiredAuctionData {
   id: number;
@@ -135,10 +136,13 @@ async function processAuctionWinner(
       await tx.commit();
 
       // Trigger compliance check (fire-and-forget inside this flow usually, but we await to ensure order in cron)
-      checkAndRecordCompliance(
-        auction.current_highest_bidder_id,
-        auction.auction_league_id,
-        false
+      // Retry sicuro: checkAndRecordCompliance è idempotente (SELECT + UPDATE guardato + PK (league,user,phase))
+      void withRetry(() =>
+        checkAndRecordCompliance(
+          auction.current_highest_bidder_id,
+          auction.auction_league_id,
+          false
+        )
       ).catch((err) => console.error("Compliance check error:", err));
 
       // Notifica fire-and-forget

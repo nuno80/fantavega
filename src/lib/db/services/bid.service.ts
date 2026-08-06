@@ -32,6 +32,7 @@ import {
   requiredString,
   type RowShape,
 } from "./db-mappers";
+import { withRetry } from "./retry-utils";
 import type {
   LeagueForBidding,
   ParticipantForBidding,
@@ -974,13 +975,16 @@ export async function placeBidOnExistingAuction({
     usersToCheck.add(result.finalBidderId);
 
     // Fire-and-forget: compliance check non blocca la risposta bid
+    // Retry sicuro: checkAndRecordCompliance è idempotente
     for (const user of usersToCheck) {
-      checkAndRecordCompliance(user, leagueId, false).catch((error) => {
-        console.error(
-          `[BID_SERVICE] Error checking compliance for user ${user}:`,
-          error
-        );
-      });
+      void withRetry(() => checkAndRecordCompliance(user, leagueId, false)).catch(
+        (error) => {
+          console.error(
+            `[BID_SERVICE] Error checking compliance for user ${user}:`,
+            error
+          );
+        }
+      );
     }
 
     // --- Gestione Timer di Risposta (Fire-and-forget) ---

@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
 import { checkAndRecordCompliance } from "@/lib/db/services/penalty.service";
+import { withRetry } from "@/lib/db/services/retry-utils";
 
 export async function POST(_req: Request) {
   try {
@@ -40,7 +41,7 @@ export async function POST(_req: Request) {
 
     if (leagues.length > 0) {
       for (const league of leagues) {
-        await checkAndRecordCompliance(userId, league.league_id);
+        await withRetry(() => checkAndRecordCompliance(userId, league.league_id));
       }
     }
 
