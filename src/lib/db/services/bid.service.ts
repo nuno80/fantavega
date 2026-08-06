@@ -1034,26 +1034,25 @@ export async function placeBidOnExistingAuction({
         | undefined;
     };
 
-    // Aggiungi budget del vincitore finale
-    const finalWinnerBudget = await getParticipantBudget(finalBidderId);
-    if (finalWinnerBudget) {
-      budgetUpdates.push({
-        userId: finalBidderId,
-        newBudget: finalWinnerBudget.current_budget,
-        newLockedCredits: finalWinnerBudget.locked_credits,
-      });
-    }
-
-    // Aggiungi budget dell'offerente precedente (se diverso dal vincitore)
+    // Aggiungi budget del vincitore finale e dell'offerente precedente in parallelo
+    // (query indipendenti, eseguite fuori dalla transazione)
+    const usersForBudget = new Set<string>();
+    usersForBudget.add(finalBidderId);
     if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
-      const previousBidderBudget = await getParticipantBudget(
-        previousHighestBidderId
-      );
-      if (previousBidderBudget) {
+      usersForBudget.add(previousHighestBidderId);
+    }
+    const budgetResults = await Promise.all(
+      [...usersForBudget].map(async (pUserId) => {
+        const budget = await getParticipantBudget(pUserId);
+        return budget ? { userId: pUserId, ...budget } : undefined;
+      })
+    );
+    for (const budgetResult of budgetResults) {
+      if (budgetResult) {
         budgetUpdates.push({
-          userId: previousHighestBidderId,
-          newBudget: previousBidderBudget.current_budget,
-          newLockedCredits: previousBidderBudget.locked_credits,
+          userId: budgetResult.userId,
+          newBudget: budgetResult.current_budget,
+          newLockedCredits: budgetResult.locked_credits,
         });
       }
     }
