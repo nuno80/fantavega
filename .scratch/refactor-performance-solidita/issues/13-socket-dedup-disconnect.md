@@ -4,13 +4,13 @@
 
 **Blocked by:** 09 — Parallelizzazione post-commit
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Cache dedup con dimensione massima e pulizia deterministica
-- [ ] Map timer disconnect per utente
-- [ ] Timer cancellato su reconnect nella stessa room
-- [ ] Callback disconnect controlla socket esistenti, try/catch su `recordUserLogout`
-- [ ] Non chiude sessione protetta da heartbeat recente
-- [ ] `io.use()`, `middleware.ts`, `league-guard.ts` non modificati
-- [ ] `pnpm run type-check` passa
-- [ ] `pnpm run test:run` passa
+- [x] Cache dedup con dimensione massima e pulizia deterministica
+- [x] Map timer disconnect per utente
+- [x] Timer cancellato su reconnect nella stessa room
+- [x] Callback disconnect controlla socket esistenti, try/catch su `recordUserLogout`
+- [x] Non chiude sessione protetta da heartbeat recente
+- [x] `io.use()`, `middleware.ts`, `league-guard.ts` non modificati
+- [x] `pnpm run type-check` passa
+- [x] `pnpm run test:run` passa
