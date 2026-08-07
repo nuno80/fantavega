@@ -12,7 +12,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,7 +25,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: TypeScript
         run: pnpm type-check
+      - name: ESLint
+        run: pnpm exec eslint src socket-server.ts --ext .ts,.tsx
       - name: Tests
         run: pnpm test:run
       - name: Database schema and migrations
         run: python3 scripts/verify-database-schema.py
+      - name: Real SQLite settlement invariants
+        run: python3 scripts/test-settlement-real-db.py
+      - name: Production build
+        run: pnpm build
