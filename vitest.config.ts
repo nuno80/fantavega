@@ -9,6 +9,14 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     exclude: ["tests/playwright/**", "**/node_modules/**", "**/dist/**"],
+    environmentMatchGlobs: [
+      // Socket integration tests need real Node APIs (async_hooks, http).
+      ["tests/socket/**", "node"],
+      // These tests read files from disk via node:path; jsdom externalizes
+      // Node core modules and breaks their named imports.
+      ["src/lib/sql-template-safety.test.ts", "node"],
+      ["src/lib/db/services/response-timer-status.test.ts", "node"],
+    ],
   },
   resolve: {
     alias: {
