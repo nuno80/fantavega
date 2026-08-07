@@ -1,6 +1,7 @@
 import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
 import { processExpiredComplianceTimers } from "./db/services/penalty.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
+import { reconcileLockedCreditsForActiveLeagues } from "./db/services/locked-credits.service";
 import { reapGhostSessions } from "./db/services/session.service";
 
 const TASK_CHECK_INTERVAL = 15 * 1000;
@@ -12,9 +13,12 @@ const runBackgroundTasks = async () => {
   isRunning = true;
   try {
     await reapGhostSessions();
-    await processExpiredAuctionsAndAssignPlayers();
+    const auctionResult = await processExpiredAuctionsAndAssignPlayers();
     await processExpiredResponseTimers();
     await processExpiredComplianceTimers();
+    if (auctionResult.processedCount > 0) {
+      await reconcileLockedCreditsForActiveLeagues();
+    }
   } catch (error) {
     console.error("[SCHEDULER] Background task failure:", error);
   } finally {
