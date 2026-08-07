@@ -30,4 +30,10 @@ jobs:
       - name: Database schema and migrations
         run: python3 scripts/verify-database-schema.py
       - name: Production build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
+          TURSO_DATABASE_URL: libsql://ci.invalid
+          TURSO_AUTH_TOKEN: ci-placeholder
         run: pnpm build
