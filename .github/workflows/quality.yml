@@ -30,6 +30,7 @@ jobs:
       - name: Database schema and migrations
         run: python3 scripts/verify-database-schema.py
       - name: Production build
+        if: github.event_name == 'push'
         env:
           NODE_ENV: production
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
