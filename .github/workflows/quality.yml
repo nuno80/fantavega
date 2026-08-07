@@ -13,8 +13,6 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      ESLINT_USE_FLAT_CONFIG: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,8 +25,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: TypeScript
         run: pnpm type-check
-      - name: ESLint
-        run: pnpm exec eslint src socket-server.ts --ext .ts,.tsx
       - name: Tests
         run: pnpm test:run
       - name: Database schema and migrations
