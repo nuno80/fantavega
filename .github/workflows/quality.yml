@@ -32,4 +32,10 @@ jobs:
       - name: Real SQLite settlement invariants
         run: python3 scripts/test-settlement-real-db.py
       - name: Production build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
+          TURSO_DATABASE_URL: libsql://ci.invalid
+          TURSO_AUTH_TOKEN: ci-placeholder
         run: pnpm build
