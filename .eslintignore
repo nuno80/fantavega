@@ -1,0 +1,6 @@
+# Legacy ignore file retained only for tools that still read it.
+.next
+node_modules
+coverage
+guide
+database/backups
