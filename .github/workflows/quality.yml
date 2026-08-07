@@ -32,6 +32,7 @@ jobs:
       - name: Real SQLite settlement invariants
         run: python3 scripts/test-settlement-real-db.py
       - name: Production build
+        if: github.event_name == 'push'
         env:
           NODE_ENV: production
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
