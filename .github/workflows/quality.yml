@@ -29,6 +29,9 @@ jobs:
         run: pnpm test:run
       - name: Database schema and migrations
         run: python3 scripts/verify-database-schema.py
+      # PR 47-specific gate: keep the real SQLite settlement invariant check on pull requests.
+      - name: Real SQLite settlement invariants
+        run: python3 scripts/test-settlement-real-db.py
       - name: Production build
         if: github.event_name == 'push'
         env:
