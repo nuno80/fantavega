@@ -12,7 +12,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,3 +29,12 @@ jobs:
         run: pnpm test:run
       - name: Database schema and migrations
         run: python3 scripts/verify-database-schema.py
+      - name: Production build
+        if: github.event_name == 'push'
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
+          TURSO_DATABASE_URL: libsql://ci.invalid
+          TURSO_AUTH_TOKEN: ci-placeholder
+        run: pnpm build
