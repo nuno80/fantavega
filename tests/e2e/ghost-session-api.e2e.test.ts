@@ -4,13 +4,11 @@ const currentUser = vi.fn();
 const auth = vi.fn();
 const execute = vi.fn();
 const updateHeartbeat = vi.fn();
-const activateTimersForUser = vi.fn();
 const recordUserLogout = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({ currentUser, auth }));
 vi.mock("@/lib/db", () => ({ db: { execute } }));
 vi.mock("@/lib/db/services/session.service", () => ({ updateHeartbeat, recordUserLogout }));
-vi.mock("@/lib/db/services/response-timer.service", () => ({ activateTimersForUser }));
 
 describe("ghost-session API flow", () => {
   beforeEach(() => {
@@ -18,7 +16,6 @@ describe("ghost-session API flow", () => {
     currentUser.mockResolvedValue({ id: "user-a" });
     auth.mockResolvedValue({ userId: "user-a" });
     updateHeartbeat.mockResolvedValue(1_000);
-    activateTimersForUser.mockResolvedValue(undefined);
     recordUserLogout.mockResolvedValue(undefined);
     execute.mockResolvedValue({ rows: [], rowsAffected: 1 });
   });
@@ -37,15 +34,12 @@ describe("ghost-session API flow", () => {
     expect(response.status).toBe(400);
   });
 
-  it("awaits heartbeat before activating timers", async () => {
-    const order: string[] = [];
-    updateHeartbeat.mockImplementation(async () => { order.push("heartbeat"); return 1_000; });
-    activateTimersForUser.mockImplementation(async () => { order.push("activate"); });
+  it("updates presence without activating response timers", async () => {
     const { GET } = await import("@/app/api/user/auction-states/route");
     const response = await GET(new Request("https://app.test/api/user/auction-states?leagueId=7"));
     expect(response.status).toBe(200);
-    expect(order).toEqual(["heartbeat", "activate"]);
-    expect(activateTimersForUser).toHaveBeenCalledWith("user-a", 1_000);
+    expect(updateHeartbeat).toHaveBeenCalledWith("user-a");
+    expect(execute).not.toHaveBeenCalledWith(expect.objectContaining({ sql: expect.stringContaining("response_deadline") }));
   });
 
   it("keeps pending timers without a fabricated deadline", async () => {
