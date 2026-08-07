@@ -15,7 +15,7 @@
     "test:run": "vitest run",
     "test:e2e": "vitest run tests/e2e",
     "test:ui": "vitest --ui",
-    "lint": "next lint",
+    "lint": "eslint .",
     "format": "prettier src/ --write",
     "type-check": "tsc --noEmit",
     "socket:dev": "tsx watch socket-server.ts",
@@ -86,12 +86,6 @@
     "vitest": "^3.2.4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "@clerk/shared",
-      "better-sqlite3",
-      "esbuild",
-      "sharp",
-      "unrs-resolver"
-    ]
+    "onlyBuiltDependencies": ["@clerk/shared", "better-sqlite3", "esbuild", "sharp", "unrs-resolver"]
   }
 }
