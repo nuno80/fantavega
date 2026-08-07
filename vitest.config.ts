@@ -8,6 +8,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
+    exclude: ["tests/playwright/**", "**/node_modules/**", "**/dist/**"],
   },
   resolve: {
     alias: {
