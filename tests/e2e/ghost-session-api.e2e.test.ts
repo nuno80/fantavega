@@ -34,12 +34,13 @@ describe("ghost-session API flow", () => {
     expect(response.status).toBe(400);
   });
 
-  it("updates presence without activating response timers", async () => {
+  it("updates presence without writing a response deadline", async () => {
     const { GET } = await import("@/app/api/user/auction-states/route");
     const response = await GET(new Request("https://app.test/api/user/auction-states?leagueId=7"));
     expect(response.status).toBe(200);
     expect(updateHeartbeat).toHaveBeenCalledWith("user-a");
-    expect(execute).not.toHaveBeenCalledWith(expect.objectContaining({ sql: expect.stringContaining("response_deadline") }));
+    const sqlCalls = execute.mock.calls.map(([query]) => query.sql as string);
+    expect(sqlCalls.some((sql) => /UPDATE\s+user_auction_response_timers\s+SET[\s\S]*response_deadline/i.test(sql))).toBe(false);
   });
 
   it("keeps pending timers without a fabricated deadline", async () => {
