@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { currentUser } from "@clerk/nextjs/server";
-
 import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { db } from "@/lib/db";
-import {
-  AuctionStatusDetails,
-  getAuctionStatusForPlayer,
-} from "@/lib/db/services/bid.service";
-import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
+import { AuctionStatusDetails, getAuctionStatusForPlayer } from "@/lib/db/services/bid.service";
 import { updateHeartbeat } from "@/lib/db/services/session.service";
 
 interface ActiveAuction { id: number; player_id: number; current_highest_bid_amount: number; current_highest_bidder_id: string | null; scheduled_end_time: number; status: string; player_name: string; player_role: string; }
@@ -22,68 +16,10 @@ interface LeagueSlots { slots_P: number; slots_D: number; slots_C: number; slots
 interface AutoBidIndicator { player_id: number; auto_bid_count: number; }
 interface ApiResponse { success: boolean; timestamp: number; userBudget: BudgetData | null; auction: AuctionStatusDetails | null; userStates: UserState[]; managerStates: ManagerWithRoster[]; leagueSlots: LeagueSlots | null; activeAuctions: ActiveAuction[]; autoBids: AutoBidIndicator[]; errors?: string[]; performance?: { duration_ms: number; timestamp: number; }; }
 
-async function getBudgetDataLogic(userId: string, leagueId: number): Promise<BudgetData | null> {
-  const result = await db.execute({ sql: `SELECT lp.current_budget, lp.locked_credits, lp.manager_team_name as team_name, al.initial_budget_per_manager as total_budget FROM league_participants lp JOIN auction_leagues al ON lp.league_id = al.id WHERE lp.league_id = ? AND lp.user_id = ?`, args: [leagueId, userId] });
-  return (result.rows[0] as unknown as BudgetData) || null;
-}
+async function getBudgetDataLogic(userId: string, leagueId: number): Promise<BudgetData | null> { const result = await db.execute({ sql: `SELECT lp.current_budget, lp.locked_credits, lp.manager_team_name as team_name, al.initial_budget_per_manager as total_budget FROM league_participants lp JOIN auction_leagues al ON lp.league_id = al.id WHERE lp.league_id = ? AND lp.user_id = ?`, args: [leagueId, userId] }); return (result.rows[0] as unknown as BudgetData) || null; }
+async function getCurrentAuctionLogic(leagueId: number): Promise<AuctionStatusDetails | null> { const result = await db.execute({ sql: `SELECT a.id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, a.scheduled_end_time, a.status, p.name as player_name, p.role as player_role FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing') ORDER BY a.created_at DESC LIMIT 1`, args: [leagueId] }); const active = result.rows[0] as unknown as ActiveAuction | undefined; return active ? getAuctionStatusForPlayer(leagueId, active.player_id) : null; }
+async function getUserAuctionStatesLogic(userId: string, leagueId: number): Promise<UserState[]> { const now = Math.floor(Date.now() / 1000); const result = await db.execute({ sql: `SELECT a.id as auction_id, a.player_id, p.name as player_name, a.current_highest_bidder_id, a.current_highest_bid_amount, urt.response_deadline, urt.activated_at, upp.expires_at as cooldown_ends_at FROM auctions a JOIN players p ON a.player_id = p.id JOIN bids b ON a.id = b.auction_id AND b.user_id = ? LEFT JOIN user_auction_response_timers urt ON a.id = urt.auction_id AND urt.user_id = ? AND urt.status = 'pending' LEFT JOIN user_player_preferences upp ON a.player_id = upp.player_id AND upp.user_id = ? AND upp.league_id = a.auction_league_id AND upp.preference_type = 'cooldown' AND upp.expires_at > ? WHERE a.auction_league_id = ? AND a.status = 'active' GROUP BY a.id`, args: [userId, userId, userId, now, leagueId] }); return (result.rows as unknown as InvolvedAuction[]).map((auction) => { const isHighestBidder = auction.current_highest_bidder_id === userId; const inCooldown = Boolean(auction.cooldown_ends_at && auction.cooldown_ends_at > now); return { auction_id: auction.auction_id, player_id: auction.player_id, player_name: auction.player_name, current_bid: auction.current_highest_bid_amount, user_state: inCooldown ? "asta_abbandonata" : isHighestBidder ? "miglior_offerta" : "rilancio_possibile", response_deadline: auction.response_deadline, time_remaining: auction.response_deadline ? Math.max(0, auction.response_deadline - now) : null, is_highest_bidder: isHighestBidder }; }); }
+async function getManagersDataLogic(leagueId: number) { const [leagueInfo, managersResult, activeAuctionsResult, autoBidsResult, allPlayersResult] = await Promise.all([db.execute({ sql: "SELECT slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?", args: [leagueId] }), db.execute({ sql: "SELECT lp.user_id, lp.manager_team_name, lp.current_budget, lp.locked_credits, al.initial_budget_per_manager as total_budget FROM league_participants lp JOIN auction_leagues al ON lp.league_id = al.id WHERE lp.league_id = ? ORDER BY lp.manager_team_name ASC, lp.user_id ASC", args: [leagueId] }), db.execute({ sql: "SELECT a.player_id, p.name as player_name, p.role as player_role, p.team as player_team, a.current_highest_bidder_id, a.current_highest_bid_amount, a.scheduled_end_time FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.status = 'active'", args: [leagueId] }), db.execute({ sql: "SELECT a.player_id, COUNT(ab.user_id) as auto_bid_count FROM auto_bids ab JOIN auctions a ON ab.auction_id = a.id WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1 GROUP BY a.player_id", args: [leagueId] }), db.execute({ sql: "SELECT p.id, p.name, p.role, p.team, pa.purchase_price as assignment_price, pa.user_id FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? ORDER BY p.role, p.name", args: [leagueId] })]); const playersByManager = new Map<string, PlayerWithAssignment[]>(); for (const player of allPlayersResult.rows as unknown as PlayerWithAssignment[]) { const list = playersByManager.get(player.user_id) || []; list.push(player); playersByManager.set(player.user_id, list); } return { managers: (managersResult.rows as unknown as Manager[]).map((manager) => ({ ...manager, players: playersByManager.get(manager.user_id) || [] })), leagueSlots: (leagueInfo.rows[0] as unknown as LeagueSlots) || null, activeAuctions: activeAuctionsResult.rows as unknown as ActiveAuction[], autoBids: autoBidsResult.rows as unknown as AutoBidIndicator[] }; }
 
-async function getCurrentAuctionLogic(leagueId: number): Promise<AuctionStatusDetails | null> {
-  const result = await db.execute({ sql: `SELECT a.id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, a.scheduled_end_time, a.status, p.name as player_name, p.role as player_role FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.status IN ('active', 'closing') ORDER BY a.created_at DESC LIMIT 1`, args: [leagueId] });
-  const active = result.rows[0] as unknown as ActiveAuction | undefined;
-  return active ? getAuctionStatusForPlayer(leagueId, active.player_id) : null;
-}
-
-async function getUserAuctionStatesLogic(userId: string, leagueId: number): Promise<UserState[]> {
-  const now = Math.floor(Date.now() / 1000);
-  const result = await db.execute({ sql: `SELECT a.id as auction_id, a.player_id, p.name as player_name, a.current_highest_bidder_id, a.current_highest_bid_amount, urt.response_deadline, urt.activated_at, upp.expires_at as cooldown_ends_at FROM auctions a JOIN players p ON a.player_id = p.id JOIN bids b ON a.id = b.auction_id AND b.user_id = ? LEFT JOIN user_auction_response_timers urt ON a.id = urt.auction_id AND urt.user_id = ? AND urt.status = 'pending' LEFT JOIN user_player_preferences upp ON a.player_id = upp.player_id AND upp.user_id = ? AND upp.league_id = a.auction_league_id AND upp.preference_type = 'cooldown' AND upp.expires_at > ? WHERE a.auction_league_id = ? AND a.status = 'active' GROUP BY a.id`, args: [userId, userId, userId, now, leagueId] });
-  return (result.rows as unknown as InvolvedAuction[]).map((auction) => { const isHighestBidder = auction.current_highest_bidder_id === userId; const inCooldown = Boolean(auction.cooldown_ends_at && auction.cooldown_ends_at > now); return { auction_id: auction.auction_id, player_id: auction.player_id, player_name: auction.player_name, current_bid: auction.current_highest_bid_amount, user_state: inCooldown ? "asta_abbandonata" : isHighestBidder ? "miglior_offerta" : "rilancio_possibile", response_deadline: auction.response_deadline, time_remaining: auction.response_deadline ? Math.max(0, auction.response_deadline - now) : null, is_highest_bidder: isHighestBidder }; });
-}
-
-async function getManagersDataLogic(leagueId: number) {
-  const [leagueInfo, managersResult, activeAuctionsResult, autoBidsResult, allPlayersResult] = await Promise.all([
-    db.execute({ sql: "SELECT slots_P, slots_D, slots_C, slots_A FROM auction_leagues WHERE id = ?", args: [leagueId] }),
-    db.execute({ sql: "SELECT lp.user_id, lp.manager_team_name, lp.current_budget, lp.locked_credits, al.initial_budget_per_manager as total_budget FROM league_participants lp JOIN auction_leagues al ON lp.league_id = al.id WHERE lp.league_id = ? ORDER BY lp.manager_team_name ASC, lp.user_id ASC", args: [leagueId] }),
-    db.execute({ sql: "SELECT a.player_id, p.name as player_name, p.role as player_role, p.team as player_team, a.current_highest_bidder_id, a.current_highest_bid_amount, a.scheduled_end_time FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.auction_league_id = ? AND a.status = 'active'", args: [leagueId] }),
-    db.execute({ sql: "SELECT a.player_id, COUNT(ab.user_id) as auto_bid_count FROM auto_bids ab JOIN auctions a ON ab.auction_id = a.id WHERE a.auction_league_id = ? AND a.status = 'active' AND ab.is_active = 1 GROUP BY a.player_id", args: [leagueId] }),
-    db.execute({ sql: "SELECT p.id, p.name, p.role, p.team, pa.purchase_price as assignment_price, pa.user_id FROM player_assignments pa JOIN players p ON pa.player_id = p.id WHERE pa.auction_league_id = ? ORDER BY p.role, p.name", args: [leagueId] }),
-  ]);
-  const playersByManager = new Map<string, PlayerWithAssignment[]>();
-  for (const player of allPlayersResult.rows as unknown as PlayerWithAssignment[]) { const list = playersByManager.get(player.user_id) || []; list.push(player); playersByManager.set(player.user_id, list); }
-  return { managers: (managersResult.rows as unknown as Manager[]).map((manager) => ({ ...manager, players: playersByManager.get(manager.user_id) || [] })), leagueSlots: (leagueInfo.rows[0] as unknown as LeagueSlots) || null, activeAuctions: activeAuctionsResult.rows as unknown as ActiveAuction[], autoBids: autoBidsResult.rows as unknown as AutoBidIndicator[] };
-}
-
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ "league-id": string }> }) {
-  try {
-    const startTime = Date.now();
-    const user = await currentUser();
-    if (!user?.id) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
-    const { "league-id": rawLeagueId } = await params;
-    if (!/^\d+$/.test(rawLeagueId)) return NextResponse.json({ error: "League ID non valido" }, { status: 400 });
-    const leagueId = Number(rawLeagueId);
-    const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined;
-    if (!(await hasLeagueAccess(user.id, leagueId, role))) return NextResponse.json({ error: "Accesso alla lega negato" }, { status: 403 });
-
-    try {
-      const heartbeatAt = await updateHeartbeat(user.id);
-      await activateTimersForUser(user.id, heartbeatAt);
-    } catch (error) {
-      console.error("[AUCTION-STATE] Session refresh failed", error);
-    }
-
-    const [budgetResult, auctionResult, userStatesResult, managerStatesResult] = await Promise.allSettled([getBudgetDataLogic(user.id, leagueId), getCurrentAuctionLogic(leagueId), getUserAuctionStatesLogic(user.id, leagueId), getManagersDataLogic(leagueId)]);
-    const response: ApiResponse = { success: true, timestamp: Math.floor(Date.now() / 1000), userBudget: budgetResult.status === "fulfilled" ? budgetResult.value : null, auction: auctionResult.status === "fulfilled" ? auctionResult.value : null, userStates: userStatesResult.status === "fulfilled" ? userStatesResult.value : [], managerStates: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.managers : [], leagueSlots: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.leagueSlots : null, activeAuctions: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.activeAuctions : [], autoBids: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.autoBids : [] };
-    const errors: string[] = [];
-    if (budgetResult.status === "rejected") errors.push("Budget data unavailable");
-    if (auctionResult.status === "rejected") errors.push("Auction data unavailable");
-    if (userStatesResult.status === "rejected") errors.push("User states unavailable");
-    if (managerStatesResult.status === "rejected") errors.push("Manager data unavailable");
-    if (errors.length) response.errors = errors;
-    response.performance = { duration_ms: Date.now() - startTime, timestamp: Date.now() };
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error("[AUCTION-REALTIME] Unexpected error", error);
-    return NextResponse.json({ success: false, error: "Errore interno del server", timestamp: Math.floor(Date.now() / 1000) }, { status: 500 });
-  }
-}
-
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ "league-id": string }> }) { try { const startTime = Date.now(); const user = await currentUser(); if (!user?.id) return NextResponse.json({ error: "Non autenticato" }, { status: 401 }); const { "league-id": rawLeagueId } = await params; if (!/^\d+$/.test(rawLeagueId)) return NextResponse.json({ error: "League ID non valido" }, { status: 400 }); const leagueId = Number(rawLeagueId); const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined; if (!(await hasLeagueAccess(user.id, leagueId, role))) return NextResponse.json({ error: "Accesso alla lega negato" }, { status: 403 }); try { await updateHeartbeat(user.id); } catch (error) { console.error("[AUCTION-STATE] Heartbeat update failed", error); } const [budgetResult, auctionResult, userStatesResult, managerStatesResult] = await Promise.allSettled([getBudgetDataLogic(user.id, leagueId), getCurrentAuctionLogic(leagueId), getUserAuctionStatesLogic(user.id, leagueId), getManagersDataLogic(leagueId)]); const response: ApiResponse = { success: true, timestamp: Math.floor(Date.now() / 1000), userBudget: budgetResult.status === "fulfilled" ? budgetResult.value : null, auction: auctionResult.status === "fulfilled" ? auctionResult.value : null, userStates: userStatesResult.status === "fulfilled" ? userStatesResult.value : [], managerStates: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.managers : [], leagueSlots: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.leagueSlots : null, activeAuctions: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.activeAuctions : [], autoBids: managerStatesResult.status === "fulfilled" ? managerStatesResult.value.autoBids : [] }; const errors: string[] = []; if (budgetResult.status === "rejected") errors.push("Budget data unavailable"); if (auctionResult.status === "rejected") errors.push("Auction data unavailable"); if (userStatesResult.status === "rejected") errors.push("User states unavailable"); if (managerStatesResult.status === "rejected") errors.push("Manager data unavailable"); if (errors.length) response.errors = errors; response.performance = { duration_ms: Date.now() - startTime, timestamp: Date.now() }; return NextResponse.json(response); } catch (error) { console.error("[AUCTION-REALTIME] Unexpected error", error); return NextResponse.json({ success: false, error: "Errore interno del server", timestamp: Math.floor(Date.now() / 1000) }, { status: 500 }); } }
 export const dynamic = "force-dynamic";
