@@ -1,0 +1,35 @@
+name: Playwright multi-league timer tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/playwright/**"
+      - "playwright.config.ts"
+      - ".github/workflows/playwright.yml"
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: node scripts/assert-no-legacy-timer-activation.mjs
+      - run: pnpm exec playwright test
+        env:
+          E2E_DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          E2E_DATABASE_TOKEN: ${{ secrets.E2E_DATABASE_TOKEN }}
+          E2E_STORAGE_STATE: tests/playwright/.auth/manager.json
+          E2E_LEAGUE_A: ${{ vars.E2E_LEAGUE_A }}
+          E2E_LEAGUE_B: ${{ vars.E2E_LEAGUE_B }}
+          E2E_AUCTION_ID: ${{ vars.E2E_AUCTION_ID }}
