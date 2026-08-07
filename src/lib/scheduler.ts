@@ -1,6 +1,10 @@
 import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
 import { processExpiredComplianceTimers } from "./db/services/penalty.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
+import {
+  acquireSchedulerLease,
+  releaseSchedulerLease,
+} from "./db/services/scheduler-lease.service";
 import { reconcileLockedCreditsForActiveLeagues } from "./db/services/locked-credits.service";
 import { reapGhostSessions } from "./db/services/session.service";
 
@@ -11,7 +15,11 @@ let isRunning = false;
 const runBackgroundTasks = async () => {
   if (isRunning) return;
   isRunning = true;
+  let lease: Awaited<ReturnType<typeof acquireSchedulerLease>> = null;
   try {
+    lease = await acquireSchedulerLease();
+    if (!lease) return;
+
     await reapGhostSessions();
     const auctionResult = await processExpiredAuctionsAndAssignPlayers();
     await processExpiredResponseTimers();
@@ -22,6 +30,7 @@ const runBackgroundTasks = async () => {
   } catch (error) {
     console.error("[SCHEDULER] Background task failure:", error);
   } finally {
+    if (lease) await releaseSchedulerLease(lease.ownerToken);
     isRunning = false;
   }
 };
