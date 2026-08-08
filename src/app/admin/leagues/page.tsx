@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/table";
 import { getLeaguesForAdminList } from "@/lib/db/services/auction-league.service";
 
+// La pagina legge lo stato delle leghe dal DB e deve mostrare sempre
+// dati freschi: senza questo marker Next la prerenderizza come HTML statico
+// alla build (○), e su Vercel resta servita da cache CDN con lo stato
+// vecchio anche dopo un cambio stato dal dashboard.
+export const dynamic = "force-dynamic";
+
 // 2. Componente Pagina (Server Component)
 export default async function AdminLeaguesPage() {
   // 2.1. Recupero dati diretto

@@ -304,6 +304,7 @@ export async function updateLeagueStatusAction(
       return { success: false, message: result.message || "Service error." };
     }
     revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
+    revalidatePath("/admin/leagues");
     return { success: true, message: "Stato della lega aggiornato!" };
   } catch (error) {
     let errorMessage = "Errore sconosciuto.";
