@@ -159,6 +159,10 @@ export function SocketDebugger({ leagueId }: { leagueId: number }) {
         {isConnected ? "Connected" : "Disconnected"}
       </div>
 
+      <div className="mb-2 text-xs break-all text-gray-600">
+        URL: {socket?.io?.uri || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001 (fallback)"}
+      </div>
+
       {events.length === 0 ? (
         <p className="text-sm text-gray-500">No events yet...</p>
       ) : (
