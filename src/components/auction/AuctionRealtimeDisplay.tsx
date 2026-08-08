@@ -67,6 +67,7 @@ export function AuctionRealtimeDisplay({
       playerId: number;
       newPrice: number;
       highestBidderId: string;
+      highestBidderName?: string;
       scheduledEndTime: number;
     }) => {
       if (data.playerId === playerId) {
@@ -79,6 +80,10 @@ export function AuctionRealtimeDisplay({
           ...prev,
           current_highest_bid_amount: data.newPrice,
           current_highest_bidder_id: data.highestBidderId,
+          current_highest_bidder_username:
+            data.highestBidderName ||
+            prev.current_highest_bidder_username ||
+            undefined,
           scheduled_end_time: data.scheduledEndTime,
         }));
 
@@ -223,7 +228,9 @@ export function AuctionRealtimeDisplay({
           <div className="flex items-center justify-between rounded-md bg-muted/30 p-3">
             <span className="text-sm font-medium text-muted-foreground">Miglior Offerente</span>
             <span className="font-semibold text-primary">
-              {auctionData.current_highest_bidder_id || "Nessuna offerta"}
+              {auctionData.current_highest_bidder_username ||
+                auctionData.current_highest_bidder_id ||
+                "Nessuna offerta"}
             </span>
           </div>
 
@@ -253,7 +260,10 @@ export function AuctionRealtimeDisplay({
             Asta Conclusa
           </h3>
           <p className="text-muted-foreground">
-            Venduto a <span className="font-semibold text-foreground">{auctionData.current_highest_bidder_id}</span>
+            Venduto a <span className="font-semibold text-foreground">
+              {auctionData.current_highest_bidder_username ||
+                auctionData.current_highest_bidder_id}
+            </span>
           </p>
           <p className="mt-2 text-3xl font-bold text-foreground">
             {auctionData.current_highest_bid_amount} <span className="text-sm font-normal text-muted-foreground">crediti</span>

@@ -1424,14 +1424,51 @@ export async function placeBidOnExistingAuction({
       | { id: number; user_id: string; amount: number; bid_time: string }
       | undefined;
 
+    // Risolve il nome squadra del miglior offerente (pattern usato in auction-league.service)
+    const highestBidderNameResult = await db.execute({
+      sql: `SELECT COALESCE(lp.manager_team_name, u.username, u.id) AS team_name
+            FROM league_participants lp
+            JOIN users u ON lp.user_id = u.id
+            WHERE lp.league_id = ? AND lp.user_id = ?`,
+      args: [leagueId, finalBidderId],
+    });
+    const highestBidderName = (
+      highestBidderNameResult.rows[0] as unknown as { team_name?: string } | undefined
+    )?.team_name;
+
+    // Recupera gli auto-bid attivi per l'asta con username (per il payload real-time)
+    const activeAutoBidsPayloadResult = await db.execute({
+      sql: `SELECT ab.user_id as userId, ab.max_amount as maxAmount, ab.is_active as isActive, u.username
+            FROM auto_bids ab
+            JOIN users u ON ab.user_id = u.id
+            WHERE ab.auction_id = ? AND ab.is_active = TRUE
+            ORDER BY ab.created_at ASC`,
+      args: [auctionInfoForBid.id],
+    });
+    const activeAutoBidsPayload = (
+      activeAutoBidsPayloadResult.rows as unknown as Array<{
+        userId: string;
+        username: string;
+        maxAmount: number;
+        isActive: boolean;
+      }>
+    ).map((ab) => ({
+      userId: ab.userId,
+      username: ab.username,
+      maxAmount: ab.maxAmount,
+      isActive: !!ab.isActive,
+    }));
+
     // 2. Costruisci il payload arricchito
     const richPayload = {
       playerId,
       newPrice: finalBidAmount,
       highestBidderId: finalBidderId,
+      highestBidderName,
       scheduledEndTime: newScheduledEndTime,
       autoBidActivated: result.autoBidActivated,
       budgetUpdates,
+      autoBids: activeAutoBidsPayload,
       newBid: lastBid
         ? {
           ...lastBid,

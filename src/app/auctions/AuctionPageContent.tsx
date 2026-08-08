@@ -166,12 +166,6 @@ export function AuctionPageContent({
           (m: ManagerWithRoster) => m.user_id === userId
         );
         if (currentUser) {
-          console.log('[BUDGET_UPDATE] Updating budget after data fetch:', {
-            current_budget: currentUser.current_budget,
-            locked_credits: currentUser.locked_credits,
-            total_budget: currentUser.total_budget,
-            available: currentUser.current_budget - currentUser.locked_credits
-          });
           setCurrentUserBudget({
             current_budget: currentUser.current_budget,
             locked_credits: currentUser.locked_credits,
@@ -323,23 +317,27 @@ export function AuctionPageContent({
 
     socket.emit("join-league-room", selectedLeagueId.toString());
 
+    // Fallback di sincronizzazione: alla (ri)connessione del socket, ricarica i dati
+    // per recuperare eventi persi durante la disconnessione
+    fetchManagersData(selectedLeagueId);
+    fetchCurrentAuction(selectedLeagueId);
+    fetchUserAuctionStates(selectedLeagueId);
+
     const handleAuctionUpdate = (data: {
       playerId: number;
       newPrice: number;
       highestBidderId: string;
+      highestBidderName?: string;
       scheduledEndTime: number;
       action?: string; // Added to handle abandon events
       budgetUpdates?: Array<{ userId: string; newLockedCredits: number }>; // Real-time budget updates
     }) => {
       // Se l'asta è stata abbandonata, aggiorniamo immediatamente con i dati ricevuti
       if (data.action === "abandoned") {
-        console.log("[SOCKET DEBUG] Auction abandoned, updating UI with complete data...");
-
         // Aggiorna istantaneamente locked_credits se presente nel payload
         if (data.budgetUpdates) {
           const myBudgetUpdate = data.budgetUpdates.find(u => u.userId === userId);
           if (myBudgetUpdate) {
-            console.log("[BUDGET_UPDATE] Instant locked_credits update:", myBudgetUpdate.newLockedCredits);
             setCurrentUserBudget(prev => prev ? {
               ...prev,
               locked_credits: myBudgetUpdate.newLockedCredits,
@@ -361,6 +359,8 @@ export function AuctionPageContent({
                 ...prev,
                 current_highest_bid_amount: data.newPrice,
                 current_highest_bidder_id: data.highestBidderId,
+                current_highest_bidder_username:
+                  data.highestBidderName || prev.current_highest_bidder_username,
                 scheduled_end_time: data.scheduledEndTime,
               };
             }
@@ -395,6 +395,8 @@ export function AuctionPageContent({
             ...prev,
             current_highest_bid_amount: data.newPrice,
             current_highest_bidder_id: data.highestBidderId,
+            current_highest_bidder_username:
+              data.highestBidderName || prev.current_highest_bidder_username,
             scheduled_end_time: data.scheduledEndTime,
           };
         }
@@ -482,43 +484,36 @@ export function AuctionPageContent({
       amount: number;
       reason: string;
     }) => {
-      console.log("[SOCKET DEBUG] Received penalty-applied-notification:", data);
       toast.error(`Penalità applicata: ${data.amount} crediti`, {
         description: data.reason,
       });
       refreshComplianceData();
     };
 
-    const handleRoomJoined = (data: { room: string }) => {
-      console.log(`✅ Joined room: ${data.room}`);
+    const handleRoomJoined = () => {
+      // Room join confermato dal server
     };
 
-    const handleAuctionClosed = (data: {
+    const handleAuctionClosed = (_data: {
       playerName: string;
       finalPrice: number;
       winnerId: string;
     }) => {
-      console.log("[SOCKET DEBUG] Received auction-closed-notification:", data);
       // Toast rimosso - la UI si aggiorna già mostrando il risultato
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
     };
 
-    const handleUserAbandoned = (data: {
-      playerName: string;
-      userId: string;
-    }) => {
-      console.log("[SOCKET DEBUG] Received user-abandoned-auction:", data);
+    const handleUserAbandoned = () => {
       // Toast rimosso - il modale si chiude e la UI si aggiorna
       fetchUserAuctionStates(selectedLeagueId);
     };
 
-    const handleAutoBidActivated = (data: {
+    const handleAutoBidActivated = (_data: {
       playerName: string;
       newBidAmount: number;
     }) => {
-      console.log("[SOCKET DEBUG] Received auto-bid-activated-notification:", data);
       // Toast rimosso - il prezzo si aggiorna già nella UI
       fetchCurrentAuction(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
@@ -528,7 +523,6 @@ export function AuctionPageContent({
       leagueId: number;
       newStatus: string;
     }) => {
-      console.log("[SOCKET DEBUG] Received league-status-changed:", data);
       if (data.leagueId === selectedLeagueId) {
         setLeagueStatus(data.newStatus);
         // Toast rimosso - le icone cambiano già nella UI
