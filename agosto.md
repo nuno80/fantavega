@@ -29,11 +29,11 @@ File: `src/lib/db/services/session.service.ts`
 
 ## Fase C — Migrazione sanante indice univoco
 
-- [ ] **C1. File SQL** `database/migrations/add_unique_active_session_index.sql` (solo SQL, transazione gestita dal runner):
+- [x] **C1. File SQL** `database/migrations/add_unique_active_session_index.sql` (solo SQL, transazione gestita dal runner):
   - UPDATE duplicati aperti: `ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY COALESCE(last_heartbeat, session_start) DESC, id DESC)` → chiudi i `rn > 1` con `session_end = COALESCE(last_heartbeat, session_start)` (storico conservato, niente DELETE).
   - `CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_unique_active ON user_sessions(user_id) WHERE session_end IS NULL`.
-- [ ] **C2. `applyMigrationFile(client, filePath)`** in `src/lib/db/utils.ts`: transazione esplicita `BEGIN` → `client.executeMultiple(sql)` → `COMMIT`; su errore `ROLLBACK` + rethrow.
-- [ ] **C3. Tracking migrazioni**: tabella `schema_migrations` (id, file_name, applied_at); se `file_name` già presente → skip; altrimenti esegui migrazione + registrazione nella stessa transazione (tracking atomico).
+- [x] **C2. `applyMigrationFile(client, filePath)`** in `src/lib/db/utils.ts`: transazione atomica con `client.batch([...statements, INSERT tracking], "write")` (NON `BEGIN`/`COMMIT` manuali: su Turso HTTP ogni `execute()` è una richiesta separata, lo stato non è garantito; `batch` è l'API ufficiale portabile file+remoto). Su errore il batch fa rollback + rethrow.
+- [x] **C3. Tracking migrazioni**: tabella `schema_migrations` (id, file_name UNIQUE, applied_at); se `file_name` già presente → skip; altrimenti esegui migrazione + registrazione nello stesso batch (tracking atomico). Runner `runMigrations(client)` in `utils.ts` applica tutti i file di `database/migrations/` in ordine alfabetico; chiamato da `src/lib/db/migrate.ts` dopo lo schema full.
 
 ## Fase D — Test
 
@@ -51,9 +51,9 @@ File: `src/lib/db/services/session.service.ts`
 
 - [x] **D2.1. Heartbeat concorrente** → N `updateHeartbeat` paralleli sullo stesso user → tutti completano, una sola sessione aperta, nessun errore (verifica il retry).
 - [x] **D2.2. Guardia `last_heartbeat <= disconnectedAt`** → heartbeat recente → 0 righe, sessione aperta; heartbeat vecchio → sessione chiusa.
-- [ ] **D2.3. Migrazione sanante** → duplicati aperti → esegui migrazione → una sola aperta, le altre chiuse con `COALESCE(last_heartbeat, session_start)`, indice creato.
-- [ ] **D2.4. Indice univoco** → dopo la migrazione, secondo INSERT aperto fallisce con unique conflict.
-- [ ] **D2.5. Tracking migrazione** → seconda esecuzione della stessa migrazione → skip (nessun UPDATE ripetuto).
+- [x] **D2.3. Migrazione sanante** → duplicati aperti → esegui migrazione → una sola aperta, le altre chiuse con `COALESCE(last_heartbeat, session_start)`, indice creato.
+- [x] **D2.4. Indice univoco** → dopo la migrazione, secondo INSERT aperto fallisce con unique conflict.
+- [x] **D2.5. Tracking migrazione** → seconda esecuzione della stessa migrazione → skip (nessun UPDATE ripetuto).
 
 ## Fase E — PR atomica
 

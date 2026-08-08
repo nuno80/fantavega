@@ -14,6 +14,7 @@ import {
   updateHeartbeat,
   isUniqueConflictError,
 } from "@/lib/db/services/session.service";
+import { applyMigrationFile } from "@/lib/db/utils";
 
 // Recupera il client reale iniettato dal mock (stesso oggetto usato dal servizio).
 const client: Client = (await import("@/lib/db")).db as Client;
@@ -24,6 +25,14 @@ describe("session integration (libSQL :memory:)", () => {
     const schemaPath = path.join(process.cwd(), "database", "schema.sql");
     const schema = fs.readFileSync(schemaPath, "utf8");
     await client.executeMultiple(schema);
+    // Tabella di tracking migrazioni (come la creerebbe applyMigrationFile).
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_name TEXT NOT NULL UNIQUE,
+        applied_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      )
+    `);
   });
 
   afterAll(async () => {
@@ -39,7 +48,10 @@ describe("session integration (libSQL :memory:)", () => {
         ('user-concurrent', 'c@test.dev', 'c', 'manager', 'active'),
         ('user-race', 'r@test.dev', 'r', 'manager', 'active'),
         ('user-login', 'l@test.dev', 'l', 'manager', 'active'),
-        ('user-guard', 'g@test.dev', 'g', 'manager', 'active');
+        ('user-guard', 'g@test.dev', 'g', 'manager', 'active'),
+        ('user-migrate', 'm@test.dev', 'm', 'manager', 'active'),
+        ('user-unique', 'u@test.dev', 'u', 'manager', 'active'),
+        ('user-skip', 's@test.dev', 's', 'manager', 'active');
     `);
   });
 
@@ -128,5 +140,120 @@ describe("session integration (libSQL :memory:)", () => {
     });
     expect(rows.rows).toHaveLength(1);
     expect(rows.rows[0].session_end).not.toBeNull();
+  });
+
+  it("D2.3: migration closes duplicate open sessions keeping the newest, then creates the unique index", async () => {
+    const userId = "user-migrate";
+    // Simula un DB "vecchio" senza indice univoco (come i DB pre-migrazione).
+    await client.execute("DROP INDEX IF EXISTS idx_user_sessions_unique_active");
+    await client.execute(
+      "DELETE FROM schema_migrations WHERE file_name = 'add_unique_active_session_index.sql'"
+    );
+    await client.executeMultiple(`
+      INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES
+        ('${userId}', 1000, NULL, 1000),
+        ('${userId}', 2000, NULL, 2000),
+        ('${userId}', 3000, NULL, 3000);
+    `);
+
+    const migrationPath = path.join(
+      process.cwd(),
+      "database",
+      "migrations",
+      "add_unique_active_session_index.sql"
+    );
+    await applyMigrationFile(client, migrationPath);
+
+    // Una sola sessione aperta, le altre chiuse con COALESCE(last_heartbeat, session_start).
+    const rows = await client.execute({
+      sql: "SELECT session_start, session_end FROM user_sessions WHERE user_id = ? ORDER BY session_start",
+      args: [userId],
+    });
+    expect(rows.rows).toHaveLength(3);
+    expect(rows.rows.filter((r) => r.session_end === null)).toHaveLength(1);
+    // La più recente resta aperta
+    expect(rows.rows[2].session_end).toBeNull();
+    // Le altre due chiuse con il loro heartbeat/start
+    expect(Number(rows.rows[0].session_end)).toBe(1000);
+    expect(Number(rows.rows[1].session_end)).toBe(2000);
+
+    // Indice univoco creato (verifica tramite sqlite_master)
+    const idx = await client.execute({
+      sql: "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_user_sessions_unique_active'",
+    });
+    expect(idx.rows).toHaveLength(1);
+  });
+
+  it("D2.4: after migration, a second open insert fails with a unique conflict", async () => {
+    const userId = "user-unique";
+    // Simula un DB "vecchio" senza indice univoco.
+    await client.execute("DROP INDEX IF EXISTS idx_user_sessions_unique_active");
+    await client.execute(
+      "DELETE FROM schema_migrations WHERE file_name = 'add_unique_active_session_index.sql'"
+    );
+    await client.execute({
+      sql: "INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES (?, ?, NULL, ?)",
+      args: [userId, 1000, 1000],
+    });
+    const migrationPath = path.join(
+      process.cwd(),
+      "database",
+      "migrations",
+      "add_unique_active_session_index.sql"
+    );
+    await applyMigrationFile(client, migrationPath);
+
+    // Secondo INSERT aperto → unique conflict.
+    await expect(
+      client.execute({
+        sql: "INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES (?, ?, NULL, ?)",
+        args: [userId, 2000, 2000],
+      })
+    ).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT_UNIQUE" });
+  });
+
+  it("D2.5: re-running the same migration is skipped (tracked in schema_migrations)", async () => {
+    const userId = "user-skip";
+    // Simula un DB "vecchio" senza indice univoco.
+    await client.execute("DROP INDEX IF EXISTS idx_user_sessions_unique_active");
+    await client.execute(
+      "DELETE FROM schema_migrations WHERE file_name = 'add_unique_active_session_index.sql'"
+    );
+    // Duplicati aperti che la PRIMA esecuzione deve sanare.
+    await client.executeMultiple(`
+      INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES
+        ('${userId}', 1000, NULL, 1000),
+        ('${userId}', 2000, NULL, 2000);
+    `);
+    const migrationPath = path.join(
+      process.cwd(),
+      "database",
+      "migrations",
+      "add_unique_active_session_index.sql"
+    );
+
+    await applyMigrationFile(client, migrationPath);
+    const afterFirst = await client.execute({
+      sql: "SELECT session_end FROM user_sessions WHERE user_id = ?",
+      args: [userId],
+    });
+    // Una chiusa, una aperta.
+    expect(afterFirst.rows).toHaveLength(2);
+    expect(afterFirst.rows.filter((r) => r.session_end === null)).toHaveLength(1);
+
+    // Seconda esecuzione: skip. Se NON skippasse, il secondo INSERT in
+    // schema_migrations fallirebbe per unique conflict e qui lancerebbe.
+    await expect(applyMigrationFile(client, migrationPath)).resolves.toBeUndefined();
+    const afterSecond = await client.execute({
+      sql: "SELECT session_end FROM user_sessions WHERE user_id = ?",
+      args: [userId],
+    });
+    expect(afterSecond.rows).toHaveLength(2);
+    expect(afterSecond.rows.filter((r) => r.session_end === null)).toHaveLength(1);
+    // Registrata una sola volta.
+    const tracked = await client.execute({
+      sql: "SELECT COUNT(*) AS n FROM schema_migrations WHERE file_name = 'add_unique_active_session_index.sql'",
+    });
+    expect(Number(tracked.rows[0].n)).toBe(1);
   });
 });
