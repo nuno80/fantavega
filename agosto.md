@@ -58,7 +58,7 @@ File: `src/lib/db/services/session.service.ts`
 ## Fase E — PR atomica
 
 - [x] **E1. Branch dedicato** (es. `fix/socket-issue13`) e commit: `fix(socket): harden disconnect timers, race-safe heartbeat upsert, unique active session index migration`.
-- [ ] **E2. PR verso `main`** contenente: `socket-server.ts`, `session.service.ts`, `utils.ts`, migrazione SQL, test (socket + session), estensione dello stub di test.
+- [x] **E2. PR verso `main`** contenente: `socket-server.ts`, `session.service.ts`, `utils.ts`, migrazione SQL, test (socket + session), estensione dello stub di test. → [PR #49](https://github.com/nuno80/fantavega/pull/49)
 
 ## Verifica finale (prima della PR)
 
