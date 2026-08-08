@@ -12,6 +12,8 @@ export default defineConfig({
     environmentMatchGlobs: [
       // Socket integration tests need real Node APIs (async_hooks, http).
       ["tests/socket/**", "node"],
+      // Session integration tests need real libSQL in-memory engine.
+      ["tests/session/**", "node"],
       // These tests read files from disk via node:path; jsdom externalizes
       // Node core modules and breaks their named imports.
       ["src/lib/sql-template-safety.test.ts", "node"],

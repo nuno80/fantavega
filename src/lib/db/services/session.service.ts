@@ -2,12 +2,24 @@ import { db } from "@/lib/db";
 import { activateTimersForUser, processExpiredResponseTimers } from "./response-timer.service";
 import { getGhostSessionEnd, isHeartbeatFresh, SESSION_STALENESS_SECONDS } from "./session-liveness";
 
+export const isUniqueConflictError = (error: unknown): boolean => {
+  if (error && typeof error === "object" && "code" in error) {
+    return (error as { code?: unknown }).code === "SQLITE_CONSTRAINT_UNIQUE";
+  }
+  if (error instanceof Error && /UNIQUE constraint failed/.test(error.message)) {
+    return true;
+  }
+  return false;
+};
+
+const INSERT_SESSION_SQL = "INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES (?, ?, NULL, ?)";
+
 export const recordUserLogin = async (userId: string): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
   try {
     const active = await db.execute({ sql: "SELECT id FROM user_sessions WHERE user_id = ? AND session_end IS NULL LIMIT 1", args: [userId] });
     if (active.rows.length === 0) {
-      await db.execute({ sql: "INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES (?, ?, NULL, ?)", args: [userId, now, now] });
+      await db.execute({ sql: INSERT_SESSION_SQL, args: [userId, now, now] });
     } else {
       await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
     }
@@ -51,7 +63,16 @@ export const updateHeartbeat = async (userId: string): Promise<number> => {
   const now = Math.floor(Date.now() / 1000);
   const result = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
   if (result.rowsAffected === 0) {
-    await db.execute({ sql: "INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES (?, ?, NULL, ?)", args: [userId, now, now] });
+    try {
+      await db.execute({ sql: INSERT_SESSION_SQL, args: [userId, now, now] });
+    } catch (error) {
+      if (!isUniqueConflictError(error)) throw error;
+      // Un altro concorrente ha già inserito la sessione: riprova l'UPDATE una volta.
+      const retry = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
+      if (retry.rowsAffected === 0) {
+        console.warn(`[SESSION] Heartbeat upsert raced: no active session after retry for ${userId}`);
+      }
+    }
   }
   return now;
 };
