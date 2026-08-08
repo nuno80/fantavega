@@ -160,7 +160,15 @@ export function SocketDebugger({ leagueId }: { leagueId: number }) {
       </div>
 
       <div className="mb-2 text-xs break-all text-gray-600">
-        URL: {socket?.io?.uri || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001 (fallback)"}
+        URL: {(() => {
+          const opts = socket?.io?.opts as { hostname?: string; port?: number; path?: string; secure?: boolean } | undefined;
+          if (opts?.hostname) {
+            const proto = opts.secure ? "https" : "http";
+            const port = opts.port && opts.port !== (opts.secure ? 443 : 80) ? `:${opts.port}` : "";
+            return `${proto}://${opts.hostname}${port}${opts.path || "/socket.io"}`;
+          }
+          return process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001 (fallback)";
+        })()}
       </div>
 
       {events.length === 0 ? (
