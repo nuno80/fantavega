@@ -42,6 +42,17 @@ export function LeagueStatusManager({
     initialState
   );
   const [selectedStatus, setSelectedStatus] = useState(currentStatus);
+  // Sincronizza il select se lo stato corrente cambia dall'esterno (es. dopo submit)
+  useEffect(() => {
+    setSelectedStatus(currentStatus);
+  }, [currentStatus]);
+
+  // Al submit scrive SEMPRE il valore selezionato nell'hidden input, così
+  // anche se lo stato React fosse desincronizzato il FormData è corretto.
+  const handleFormAction = (formData: FormData) => {
+    formData.set("newStatus", selectedStatus);
+    formAction(formData);
+  };
 
   const possibleStates = [
     { value: "participants_joining", label: "Iscrizioni Aperte" },
@@ -73,7 +84,7 @@ export function LeagueStatusManager({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex items-center gap-4">
+        <form action={handleFormAction} className="flex items-center gap-4">
           <input type="hidden" name="leagueId" value={leagueId} />
           <div className="flex-grow">
             {/* Nota: il Select di Radix non serializza il valore nel FormData,
