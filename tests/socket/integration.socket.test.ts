@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 import type { SocketServerHandle } from "../../socket-server";
 import { startSocketServerForTest } from "./socket-server-stub";
@@ -28,11 +28,25 @@ const recordUserLogoutMock = vi.mocked(await import("@/lib/db/services/session.s
 let handle: SocketServerHandle;
 let baseUrl: string;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 beforeAll(async () => {
   process.env.SOCKET_EMIT_SECRET = "test-secret";
   process.env.ALLOWED_ORIGINS = "http://localhost:9999";
-  handle = await startSocketServerForTest();
+  handle = await startSocketServerForTest({ disconnectTimeoutMs: 50 });
   baseUrl = `http://localhost:${handle.port}`;
+});
+
+beforeEach(() => {
+  recordUserLogoutMock.mockClear();
+});
+
+// Each test may leave a pending disconnect timer (e.g. a user whose last socket
+// closed but whose window did not fully elapse inside the test). Wait it out and
+// clear the mock so the next test starts from a clean slate.
+afterEach(async () => {
+  await sleep(250); // > disconnectTimeoutMs (50) + server-side close latency
+  recordUserLogoutMock.mockClear();
 });
 
 afterAll(async () => {
@@ -50,6 +64,23 @@ function connect(token?: string): Promise<ClientSocket> {
     client.on("connect", () => resolve(client));
     client.on("connect_error", (err) => reject(err));
   });
+}
+
+// Close a client and wait until the server has actually dropped it, so no
+// phantom socket from a previous test leaks into the next one's userSockets set.
+// `expectedRemaining` is the number of sockets we expect to still be connected
+// after this close (used when other sockets of the same user stay alive).
+async function closeAndWait(client: ClientSocket, expectedRemaining = 0): Promise<void> {
+  client.close();
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const connected = handle.io.sockets.sockets.size;
+    if (connected === expectedRemaining) return;
+    await sleep(20);
+  }
+  throw new Error(
+    `server has ${handle.io.sockets.sockets.size} connected sockets, expected ${expectedRemaining}`,
+  );
 }
 
 describe("socket server integration", () => {
@@ -78,11 +109,83 @@ describe("socket server integration", () => {
   it("records logout on disconnect", async () => {
     const client = await connect("valid-token");
     client.emit("join-user-room");
-    await new Promise((r) => setTimeout(r, 50));
-    client.close();
-    await new Promise((r) => setTimeout(r, 11_000));
+    await sleep(50);
+    await closeAndWait(client);
+    await sleep(200); // > disconnectTimeoutMs (50)
     expect(recordUserLogoutMock).toHaveBeenCalledWith("user-1", expect.any(Number));
-  }, 15_000);
+  }, 5_000);
+
+  it("does not log out when the user reconnects within the disconnect window", async () => {
+    const first = await connect("valid-token");
+    first.emit("join-user-room");
+    await sleep(20);
+
+    // Second socket joins while the first is still connected.
+    const second = await connect("valid-token");
+    second.emit("join-user-room");
+    await sleep(20);
+
+    // First socket disconnects, but the second keeps the session alive.
+    await closeAndWait(first, 1);
+    await sleep(200); // > disconnectTimeoutMs: no timer fires for the user.
+    expect(recordUserLogoutMock).not.toHaveBeenCalled();
+
+    await closeAndWait(second);
+    await sleep(200); // Last socket gone: timer fires once.
+    expect(recordUserLogoutMock).toHaveBeenCalledTimes(1);
+  }, 5_000);
+
+  it("logs out with the first disconnect timestamp when reconnect happens after the window", async () => {
+    const first = await connect("valid-token");
+    first.emit("join-user-room");
+    await sleep(20);
+    await closeAndWait(first);
+    await sleep(200); // Timer fires: logout with the first disconnect's timestamp.
+
+    // Reconnect after the first disconnect window already fired.
+    const second = await connect("valid-token");
+    second.emit("join-user-room");
+    await sleep(20);
+    await closeAndWait(second);
+    await sleep(200); // Timer fires again with the second disconnect's timestamp.
+
+    expect(recordUserLogoutMock).toHaveBeenCalledTimes(2);
+    expect(recordUserLogoutMock).toHaveBeenNthCalledWith(1, "user-1", expect.any(Number));
+    expect(recordUserLogoutMock).toHaveBeenNthCalledWith(2, "user-1", expect.any(Number));
+  }, 5_000);
+
+  it("logs out only when the last socket for the user disconnects", async () => {
+    const first = await connect("valid-token");
+    first.emit("join-user-room");
+    const second = await connect("valid-token");
+    second.emit("join-user-room");
+    await sleep(20);
+
+    await closeAndWait(first, 1);
+    await sleep(200);
+    expect(recordUserLogoutMock).not.toHaveBeenCalled();
+
+    await closeAndWait(second);
+    await sleep(200);
+    expect(recordUserLogoutMock).toHaveBeenCalledTimes(1);
+    expect(recordUserLogoutMock).toHaveBeenCalledWith("user-1", expect.any(Number));
+  }, 5_000);
+
+  it("a stale disconnect callback does not clear a newer timer", async () => {
+    const first = await connect("valid-token");
+    first.emit("join-user-room");
+    await sleep(20);
+    await closeAndWait(first);
+    await sleep(200); // First timer fired: logout recorded.
+
+    const second = await connect("valid-token");
+    second.emit("join-user-room");
+    await sleep(20);
+    await closeAndWait(second);
+    await sleep(200); // Second timer fires: logout recorded again.
+
+    expect(recordUserLogoutMock).toHaveBeenCalledTimes(2);
+  }, 5_000);
 
   it("POST /api/emit requires the secret and returns client count", async () => {
     const client = await connect("valid-token");
@@ -122,4 +225,16 @@ describe("socket server integration", () => {
     expect(firstBody.deduplicated).toBe(false);
     expect(secondBody.deduplicated).toBe(true);
   });
+
+  it("close() clears pending timers so no logout fires afterwards", async () => {
+    const client = await connect("valid-token");
+    client.emit("join-user-room");
+    await sleep(20);
+    await closeAndWait(client);
+
+    await handle.close();
+    await sleep(100);
+
+    expect(recordUserLogoutMock).not.toHaveBeenCalled();
+  }, 5_000);
 });

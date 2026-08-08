@@ -9,7 +9,7 @@ let startScheduler: (() => void) | null = null;
 
 (async () => {
   try {
-    const sessionModule = await import("./src/lib/db/services/session.service.js");
+    const sessionModule = await import("@/lib/db/services/session.service");
     recordUserLogout = sessionModule.recordUserLogout;
     const guardModule = await import("./src/lib/auth/league-guard.js");
     hasLeagueAccess = guardModule.hasLeagueAccess;
@@ -28,12 +28,19 @@ export interface SocketServerHandle {
   close: () => Promise<void>;
 }
 
+export interface SocketServerOptions {
+  emitSecret?: string;
+  allowedOrigins?: string[];
+  disconnectTimeoutMs?: number;
+}
+
 export async function createSocketServer(
   port: number,
-  opts: { emitSecret?: string; allowedOrigins?: string[] } = {},
+  opts: SocketServerOptions = {},
 ): Promise<SocketServerHandle> {
   const SOCKET_PORT = port;
   const EMIT_SECRET = opts.emitSecret ?? process.env.SOCKET_EMIT_SECRET;
+  const disconnectTimeoutMs = opts.disconnectTimeoutMs ?? 10_000;
   const ALLOWED_ORIGINS =
     opts.allowedOrigins ??
     (process.env.ALLOWED_ORIGINS || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000"))
@@ -73,6 +80,9 @@ export async function createSocketServer(
     });
   });
 
+  const userSockets = new Map<string, Set<string>>();
+  const disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   const io = new Server(httpServer, {
     cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST"], credentials: true },
   });
@@ -93,15 +103,29 @@ export async function createSocketServer(
   });
 
   io.on("connection", (socket: Socket) => {
+    const userId = socket.data.userId as string | undefined;
+    if (userId) {
+      const sockets = userSockets.get(userId) ?? new Set<string>();
+      sockets.add(socket.id);
+      userSockets.set(userId, sockets);
+
+      // A reconnect cancels the pending logout.
+      const timer = disconnectTimers.get(userId);
+      if (timer) {
+        clearTimeout(timer);
+        disconnectTimers.delete(userId);
+      }
+    }
+
     socket.on("join-user-room", () => {
-      const userId = socket.data.userId as string | undefined;
-      if (userId) socket.join(`user-${userId}`);
+      const uid = socket.data.userId as string | undefined;
+      if (uid) socket.join(`user-${uid}`);
     });
 
     socket.on("join-league-room", async (leagueId: string) => {
-      const userId = socket.data.userId as string | undefined;
-      if (!userId || !/^\d+$/.test(leagueId) || !hasLeagueAccess) return;
-      if (await hasLeagueAccess(userId, Number(leagueId))) socket.join(`league-${leagueId}`);
+      const uid = socket.data.userId as string | undefined;
+      if (!uid || !/^\d+$/.test(leagueId) || !hasLeagueAccess) return;
+      if (await hasLeagueAccess(uid, Number(leagueId))) socket.join(`league-${leagueId}`);
     });
 
     socket.on("leave-league-room", (leagueId: string) => {
@@ -109,12 +133,28 @@ export async function createSocketServer(
     });
 
     socket.on("disconnect", () => {
-      const userId = socket.data.userId as string | undefined;
+      const uid = socket.data.userId as string | undefined;
       const disconnectedAt = Math.floor(Date.now() / 1000);
-      if (!userId || !recordUserLogout) return;
-      setTimeout(async () => {
-        if (!io.sockets.adapter.rooms.get(`user-${userId}`)?.size) await recordUserLogout?.(userId, disconnectedAt);
-      }, 10_000);
+      if (!uid) return;
+
+      const sockets = userSockets.get(uid);
+      if (!sockets) return;
+      sockets.delete(socket.id);
+      if (sockets.size === 0) userSockets.delete(uid);
+      if (sockets.size > 0) return;
+
+      // Last socket for this user is gone: schedule the logout.
+      const timer = setTimeout(async () => {
+        try {
+          if (!userSockets.get(uid)?.size) await recordUserLogout?.(uid, disconnectedAt);
+        } catch (error) {
+          console.error("[SOCKET] disconnect logout failed", error);
+        } finally {
+          // Guard against a stale callback clearing a newer timer.
+          if (disconnectTimers.get(uid) === timer) disconnectTimers.delete(uid);
+        }
+      }, disconnectTimeoutMs);
+      disconnectTimers.set(uid, timer);
     });
   });
 
@@ -128,6 +168,8 @@ export async function createSocketServer(
     port: boundPort,
     close: () =>
       new Promise<void>((resolve) => {
+        for (const timer of disconnectTimers.values()) clearTimeout(timer);
+        disconnectTimers.clear();
         io.close(() => httpServer.close(() => resolve()));
       }),
   };
