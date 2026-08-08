@@ -116,10 +116,12 @@ export function PlayerImportForm() {
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
-        <CardTitle>Importazione Giocatori da File</CardTitle>
+        <CardTitle>Update Players DB</CardTitle>
         <CardDescription>
-          Carica un file Excel (.xlsx, .xls, .csv) per creare o aggiornare la
-          lista dei giocatori.
+          Carica un file Excel (.xlsx, .xls, .csv) per aggiornare la lista dei
+          giocatori a metà stagione: aggiorna quotazioni e squadre, aggiunge i
+          nuovi arrivati e rimuove solo i giocatori non più presenti che non
+          sono in nessuna rosa. Le rose delle leghe attive vengono preservate.
         </CardDescription>
       </CardHeader>
       <CardContent>

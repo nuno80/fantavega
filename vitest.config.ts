@@ -14,6 +14,8 @@ export default defineConfig({
       ["tests/socket/**", "node"],
       // Session integration tests need real libSQL in-memory engine.
       ["tests/session/**", "node"],
+      // Player import integration tests need real libSQL + fs/path for schema.
+      ["tests/db/**", "node"],
       // These tests read files from disk via node:path; jsdom externalizes
       // Node core modules and breaks their named imports.
       ["src/lib/sql-template-safety.test.ts", "node"],

@@ -5,7 +5,7 @@
 
 // 1. Importazioni
 // <-- NUOVA IMPORTAZIONE
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { PlusCircle } from "lucide-react";
 import { useFormStatus } from "react-dom";
@@ -113,6 +113,7 @@ export function AddParticipantForm({
     initialState
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
 
   useEffect(() => {
     if (state && state.message) {
@@ -147,7 +148,11 @@ export function AddParticipantForm({
           <div>
             <Label htmlFor="userIdToAdd">Utente</Label>
             {eligibleUsers.length > 0 ? (
-              <Select name="userIdToAdd" required>
+              <>
+                {/* Nota: il Select di Radix non serializza il valore nel FormData,
+                    quindi serve un hidden input che segue lo stato selezionato. */}
+                <input type="hidden" name="userIdToAdd" value={selectedUserId} />
+                <Select value={selectedUserId} onValueChange={setSelectedUserId} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona un utente..." />
                 </SelectTrigger>
@@ -180,7 +185,8 @@ export function AddParticipantForm({
                     );
                   })}
                 </SelectContent>
-              </Select>
+                </Select>
+              </>
             ) : (
               <p className="pt-2 text-sm text-muted-foreground">
                 Nessun altro utente idoneo da aggiungere.

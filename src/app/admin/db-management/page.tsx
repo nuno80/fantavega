@@ -1,8 +1,11 @@
-// src/app/admin/db-management/page.tsx v.1.0
-// Pagina per la gestione del database, che renderizza il form di importazione giocatori.
+// src/app/admin/db-management/page.tsx v.1.1
+// Pagina per la gestione del database: import aggiornamento (in stagione)
+// e reset catalogo (inizio stagione).
+
 // 1. Importazioni
 import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 import { PlayerImportForm } from "@/components/admin/PlayerImportForm";
+import { PlayerResetForm } from "@/components/admin/PlayerResetForm";
 import { Navbar } from "@/components/navbar";
 
 // 2. Componente Pagina (Server Component)
@@ -20,8 +23,11 @@ export default function DbManagementPage() {
         </div>
 
         <div className="mx-auto grid w-full max-w-6xl items-start gap-6">
-          {/* Renderizziamo il nostro componente form client-side */}
+          {/* Update in stagione (logica attuale: upsert + orfani) */}
           <PlayerImportForm />
+
+          {/* Reset inizio stagione (svuota catalogo + rose, poi importa) */}
+          <PlayerResetForm />
         </div>
       </main>
     </div>

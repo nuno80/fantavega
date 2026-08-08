@@ -46,13 +46,18 @@ export interface PlayerImportResult {
   failedValidationRows: number;
   failedDbOperationsRows: number;
   deletedOrphanPlayers: number; // Giocatori rimossi perché non nel file e non assegnati
+  clearedPlayers?: number; // (replaceMode) Giocatori rimossi dallo svuotamento iniziale
   errors: string[];
 }
 
 export const processPlayersExcel = async (
-  fileBuffer: Buffer
+  fileBuffer: Buffer,
+  options: { replaceMode?: boolean } = {}
 ): Promise<PlayerImportResult> => {
-  console.log("[SERVICE PLAYER_IMPORT] Starting Excel processing.");
+  const { replaceMode = false } = options;
+  console.log(
+    `[SERVICE PLAYER_IMPORT] Starting Excel processing (replaceMode: ${replaceMode}).`
+  );
   const result: PlayerImportResult = {
     success: false,
     message: "",
@@ -153,6 +158,39 @@ export const processPlayersExcel = async (
     console.log(
       `[SERVICE PLAYER_IMPORT] Successfully parsed ${jsonDataObjects.length} data rows into objects.`
     );
+
+    // In replace mode lo svuotamento avviene PRIMA dell'import, così il
+    // catalogo viene ricostruito da zero. Niente transazione esplicita:
+    // su libsql una transaction('write') apre una connessione separata che
+    // su DB file:memory non vede i dati della connessione principale
+    // (e su Turso remoto l'isolamento non garantisce visibilità fuori dal
+    // commit). Ogni DELETE è atomica di per sé.
+    if (replaceMode) {
+      try {
+        console.log(
+          `[SERVICE PLAYER_IMPORT] Replace mode: clearing all players and roster assignments before import.`
+        );
+        await db.execute({
+          sql: `DELETE FROM player_assignments`,
+          args: [],
+        });
+        const clearResult = await db.execute({
+          sql: `DELETE FROM players`,
+          args: [],
+        });
+        result.deletedOrphanPlayers = Number(clearResult.rowsAffected) || 0;
+        result.clearedPlayers = result.deletedOrphanPlayers;
+        console.log(
+          `[SERVICE PLAYER_IMPORT] Replace mode: cleared ${result.clearedPlayers} players and all roster assignments.`
+        );
+      } catch (cleanupError) {
+        console.error('[SERVICE PLAYER_IMPORT] Error during replace cleanup:', cleanupError);
+        result.errors.push(
+          `Replace cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : 'Unknown error'}`
+        );
+        return result;
+      }
+    }
 
     // Process all players in batches
     const BATCH_SIZE = 50;
@@ -328,8 +366,11 @@ export const processPlayersExcel = async (
       }
     }
 
-    // Eliminazione dei giocatori "orfani" (non nel file importato e non assegnati a rose)
-    if (importedPlayerIds.length > 0) {
+    // Eliminazione dei giocatori "orfani" (update mode, mercato invernale):
+    // elimina solo i giocatori non nel file che non sono assegnati a nessuna
+    // rosa e non hanno aste attive (preserva le rose delle leghe attive).
+    // In replace mode lo svuotamento è già avvenuto PRIMA dell'import.
+    if (!replaceMode && importedPlayerIds.length > 0) {
       try {
         console.log(`[SERVICE PLAYER_IMPORT] Starting orphan cleanup. Imported ${importedPlayerIds.length} player IDs.`);
 
@@ -365,7 +406,9 @@ export const processPlayersExcel = async (
       result.failedDbOperationsRows === 0
     ) {
       result.success = true;
-      result.message = `Successfully processed ${result.successfullyUpsertedRows} players from Excel. Deleted ${result.deletedOrphanPlayers} orphan players.`;
+      result.message = replaceMode
+        ? `Successfully replaced the player database with ${result.successfullyUpsertedRows} players from Excel (catalog cleared first).`
+        : `Successfully processed ${result.successfullyUpsertedRows} players from Excel. Deleted ${result.deletedOrphanPlayers} orphan players.`;
     } else {
       result.success = false;
       result.message = `Processed ${jsonDataObjects.length} rows. Upserts: ${result.successfullyUpsertedRows}, Validation Failures: ${result.failedValidationRows}, DB Failures: ${result.failedDbOperationsRows}, Orphans Deleted: ${result.deletedOrphanPlayers}. Check errors.`;
@@ -385,7 +428,7 @@ export const processPlayersExcel = async (
   }
 
   console.log(
-    `[SERVICE PLAYER_IMPORT] Processing finished. Success: ${result.success}, Message: ${result.message}`
+    `[SERVICE PLAYER_IMPORT] Processing finished (replaceMode: ${replaceMode}). Success: ${result.success}, Message: ${result.message}`
   );
   return result;
 };

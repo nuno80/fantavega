@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     // 2.2. Gestione del File Upload (multipart/form-data)
     const formData = await request.formData();
     const file = formData.get("file") as File | null; // "file" è il nome del campo atteso
+    const replaceMode = formData.get("replaceMode") === "true"; // modalità reset inizio stagione
 
     if (!file) {
       console.warn("[API PLAYER_UPLOAD POST] No file provided in the request.");
@@ -73,9 +74,13 @@ export async function POST(request: Request) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     // 2.3. Chiamata al Servizio di Importazione
-    console.log("[API PLAYER_UPLOAD POST] Calling player import service...");
-    const importResult: PlayerImportResult =
-      await processPlayersExcel(fileBuffer);
+    console.log(
+      `[API PLAYER_UPLOAD POST] Calling player import service (replaceMode: ${replaceMode})...`
+    );
+    const importResult: PlayerImportResult = await processPlayersExcel(
+      fileBuffer,
+      { replaceMode }
+    );
 
     // 2.4. Gestione della Risposta del Servizio
     if (importResult.success) {

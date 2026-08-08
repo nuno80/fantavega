@@ -1,8 +1,9 @@
-// src/components/admin/LeagueStatusManager.tsx v.1.2
-// FIX: Usa isPending da useActionState invece di useFormStatus separato
+// src/components/admin/LeagueStatusManager.tsx v.1.3
+// FIX: Select Radix non serializza il valore nel FormData → hidden input + stato locale.
+// FIX: usa isPending da useActionState invece di useFormStatus separato
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export function LeagueStatusManager({
     updateLeagueStatusAction,
     initialState
   );
+  const [selectedStatus, setSelectedStatus] = useState(currentStatus);
 
   const possibleStates = [
     { value: "participants_joining", label: "Iscrizioni Aperte" },
@@ -74,7 +76,10 @@ export function LeagueStatusManager({
         <form action={formAction} className="flex items-center gap-4">
           <input type="hidden" name="leagueId" value={leagueId} />
           <div className="flex-grow">
-            <Select name="newStatus" defaultValue={currentStatus} required>
+            {/* Nota: il Select di Radix non serializza il valore nel FormData,
+                quindi serve un hidden input che segue lo stato selezionato. */}
+            <input type="hidden" name="newStatus" value={selectedStatus} />
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un nuovo stato..." />
               </SelectTrigger>

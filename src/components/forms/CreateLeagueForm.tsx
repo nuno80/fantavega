@@ -113,6 +113,7 @@ export function CreateLeagueForm() {
   const [state, formAction] = useActionState(createLeague, initialState);
 
   const [minBidRule, setMinBidRule] = useState<"fixed" | "percentage">("fixed");
+  const [leagueType, setLeagueType] = useState<"classic" | "mantra">("classic");
 
   useEffect(() => {
     if (state && state.message) {
@@ -147,7 +148,15 @@ export function CreateLeagueForm() {
             </div>
             <div>
               <Label htmlFor="league_type">Tipo Lega</Label>
-              <Select name="league_type" defaultValue="classic">
+              {/* Nota: il Select di Radix non serializza il valore nel FormData,
+                  quindi serve un hidden input che segue lo stato selezionato. */}
+              <input type="hidden" name="league_type" value={leagueType} />
+              <Select
+                value={leagueType}
+                onValueChange={(value) =>
+                  setLeagueType(value as "classic" | "mantra")
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -201,9 +210,11 @@ export function CreateLeagueForm() {
           <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="min_bid_rule">Regola Offerta Minima</Label>
+              {/* Nota: il Select di Radix non serializza il valore nel FormData,
+                  quindi serve un hidden input che segue lo stato selezionato. */}
+              <input type="hidden" name="min_bid_rule" value={minBidRule} />
               <Select
-                name="min_bid_rule"
-                defaultValue="fixed"
+                value={minBidRule}
                 onValueChange={(value) =>
                   setMinBidRule(value as "fixed" | "percentage")
                 }
