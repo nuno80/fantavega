@@ -1,6 +1,6 @@
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
-import { clerkClient } from "@clerk/nextjs/server";
+import { verifyToken } from "@clerk/nextjs/server";
 import { shouldEmit } from "./src/lib/socket/dedup.js";
 
 let recordUserLogout: ((userId: string, notAfter?: number) => Promise<void>) | null = null;
@@ -91,21 +91,40 @@ export async function createSocketServer(
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
+
+      console.log("[DEBUG-SOCKET-SRV] auth:", {
+        hasToken: typeof token === "string" && token.length > 0,
+        tokenLength: typeof token === "string" ? token.length : 0,
+        origin: socket.handshake.headers.origin,
+        allowedOrigins: ALLOWED_ORIGINS,
+      });
+
       if (typeof token !== "string" || !token) {
         console.log("[DEBUG-SOCKET-SRV] auth: missing token");
         return next(new Error("unauthorized"));
       }
-      const client = await clerkClient();
-      const request = new Request("http://socket.local", { headers: { Authorization: `Bearer ${token}` } });
-      const state = await client.authenticateRequest(request, { authorizedParties: ALLOWED_ORIGINS });
-      if (!state.isAuthenticated) {
-        console.log("[DEBUG-SOCKET-SRV] auth: not authenticated, reason:", state.status);
+
+      // Verifica diretta del JWT Clerk: usa il claim `azp` del token per
+      // authorizedParties (nessuna Request artificiale da costruire) e
+      // richiede solo CLERK_SECRET_KEY (niente publishable key).
+      const payload = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+        authorizedParties: ALLOWED_ORIGINS,
+      });
+
+      if (!payload.sub) {
+        console.log("[DEBUG-SOCKET-SRV] auth: no user id in token");
         return next(new Error("unauthorized"));
       }
-      socket.data.userId = state.toAuth().userId;
+
+      console.log(`[DEBUG-SOCKET-SRV] auth: success user=${payload.sub}`);
+      socket.data.userId = payload.sub;
       next();
     } catch (error) {
-      console.error("[DEBUG-SOCKET-SRV] auth error:", error instanceof Error ? error.message : error);
+      console.error(
+        "[DEBUG-SOCKET-SRV] auth error:",
+        error instanceof Error ? error.message : error
+      );
       next(new Error("unauthorized"));
     }
   });

@@ -13,13 +13,12 @@ vi.mock("@/lib/auth/league-guard", () => ({
 }));
 vi.mock("@/lib/scheduler", () => ({ startScheduler: vi.fn() }));
 
-// Mock Clerk so authenticateRequest succeeds for tokens we control.
-const authenticateRequest = vi.fn(async () => ({
-  isAuthenticated: true,
-  toAuth: () => ({ userId: "user-1" }),
+// Mock Clerk so verifyToken succeeds for tokens we control.
+const { verifyToken } = vi.hoisted(() => ({
+  verifyToken: vi.fn(async () => ({ sub: "user-1" })),
 }));
 vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: vi.fn(() => ({ authenticateRequest })),
+  verifyToken,
 }));
 
 const hasLeagueAccessMock = vi.mocked(await import("@/lib/auth/league-guard")).hasLeagueAccess;
