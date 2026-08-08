@@ -14,7 +14,7 @@ async function runFullSchemaMigration() {
   try {
     // Dynamic import to ensure env vars are loaded first
     const { db, closeDbConnection } = await import("@/lib/db");
-    const { applySchemaToDb } = await import("./utils");
+    const { applySchemaToDb, runMigrations } = await import("./utils");
 
     if (!db) {
       console.error(
@@ -27,6 +27,7 @@ async function runFullSchemaMigration() {
     console.log(
       "[Migrate Script] Schema application script finished successfully."
     );
+    await runMigrations(db);
 
     closeDbConnection();
   } catch (e: unknown) {
