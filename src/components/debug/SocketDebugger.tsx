@@ -78,6 +78,19 @@ export function SocketDebugger({ leagueId }: { leagueId: number }) {
   const { socket, isConnected } = useSocket();
   const [events, setEvents] = useState<SocketEvent[]>([]);
   const [isVisible, setIsVisible] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onError = (err: Error) => setConnectError(err.message);
+    const onConnect = () => setConnectError(null);
+    socket.on("connect_error", onError);
+    socket.on("connect", onConnect);
+    return () => {
+      socket.off("connect_error", onError);
+      socket.off("connect", onConnect);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (!socket || !isConnected) return;
@@ -170,6 +183,12 @@ export function SocketDebugger({ leagueId }: { leagueId: number }) {
           return process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001 (fallback)";
         })()}
       </div>
+
+      {connectError && (
+        <div className="mb-2 text-xs break-all rounded bg-red-50 p-2 font-mono text-red-600 dark:bg-red-900/20 dark:text-red-400">
+          Connect error: {connectError}
+        </div>
+      )}
 
       {events.length === 0 ? (
         <p className="text-sm text-gray-500">No events yet...</p>

@@ -91,14 +91,21 @@ export async function createSocketServer(
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
-      if (typeof token !== "string" || !token) return next(new Error("unauthorized"));
+      if (typeof token !== "string" || !token) {
+        console.log("[DEBUG-SOCKET-SRV] auth: missing token");
+        return next(new Error("unauthorized"));
+      }
       const client = await clerkClient();
       const request = new Request("http://socket.local", { headers: { Authorization: `Bearer ${token}` } });
       const state = await client.authenticateRequest(request, { authorizedParties: ALLOWED_ORIGINS });
-      if (!state.isAuthenticated) return next(new Error("unauthorized"));
+      if (!state.isAuthenticated) {
+        console.log("[DEBUG-SOCKET-SRV] auth: not authenticated, reason:", state.status);
+        return next(new Error("unauthorized"));
+      }
       socket.data.userId = state.toAuth().userId;
       next();
-    } catch {
+    } catch (error) {
+      console.error("[DEBUG-SOCKET-SRV] auth error:", error instanceof Error ? error.message : error);
       next(new Error("unauthorized"));
     }
   });
