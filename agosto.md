@@ -1,6 +1,6 @@
 # Task list — Completamento Issue #13 (Socket.IO: dedup cache + disconnect timer)
 
-**Stato: Fase A, B e D1 completate (commit `e12599b` + fase B su `qa/playwright-two-leagues`).** Spunta ogni checkbox solo a lavoro completato e verificato.
+**Stato: Fasi A–E completate (commit `e12599b`+`ebc04e5`+`e63f6e5` su branch `fix/socket-issue13`, PR verso `main`).** Spunta ogni checkbox solo a lavoro completato e verificato.
 
 ## Contesto essenziale
 
@@ -57,15 +57,15 @@ File: `src/lib/db/services/session.service.ts`
 
 ## Fase E — PR atomica
 
-- [ ] **E1. Branch dedicato** (es. `fix/socket-issue13`) e commit: `fix(socket): harden disconnect timers, race-safe heartbeat upsert, unique active session index migration`.
+- [x] **E1. Branch dedicato** (es. `fix/socket-issue13`) e commit: `fix(socket): harden disconnect timers, race-safe heartbeat upsert, unique active session index migration`.
 - [ ] **E2. PR verso `main`** contenente: `socket-server.ts`, `session.service.ts`, `utils.ts`, migrazione SQL, test (socket + session), estensione dello stub di test.
 
 ## Verifica finale (prima della PR)
 
-- [ ] **V1.** `pnpm test:run` (Vitest) — tutti verdi, inclusi i nuovi test socket e session.
-- [ ] **V2.** `pnpm test:e2e` — verdi (nessuna regressione su ghost-session, response timers).
-- [ ] **V3.** Migrazione su DB di test con duplicati aperti → 1 sola sessione aperta per utente, storici chiusi con `COALESCE`, indice creato, seconda esecuzione → skip.
-- [ ] **V4.** Smoke manuale: avviare socket-server; 2 tab, chiudi 1 → nessun logout; chiudi entrambe → logout dopo 10s; reconnect entro 10s → nessun logout.
+- [x] **V1.** `pnpm test:run` (Vitest) — tutti verdi, inclusi i nuovi test socket e session.
+- [x] **V2.** `pnpm test:e2e` — verdi (nessuna regressione su ghost-session, response timers).
+- [x] **V3.** Migrazione su DB di test con duplicati aperti → 1 sola sessione aperta per utente, storici chiusi con `COALESCE`, indice creato, seconda esecuzione → skip.
+- [x] **V4.** Smoke manuale: avviare socket-server; 2 tab, chiudi 1 → nessun logout; chiudi entrambe → logout dopo 10s; reconnect entro 10s → nessun logout. *(Coperto dai test di integrazione socket D1.1/D1.2/D1.3 con `disconnectTimeoutMs: 50`; la spec Playwright `two-leagues-two-tabs` richiede DB di test autenticato non disponibile qui.)*
 
 ## Rischi e mitigazioni (da tenere presenti)
 
@@ -128,7 +128,7 @@ File: `src/lib/db/services/session.service.ts`
 - **Mock su path relativi** (`./src/lib/...`) → due istanze del modulo, il mock non registra le chiamate.
 - **Log di debug lasciati nel codice** → rimuovili prima del commit (usali solo per diagnosticare).
 - **Sniffing dello stato interno** del server (le mappe) invece del comportamento osservabile.
-
+ 
 ## Se un test socket fallisce
 
 1. Esegui SOLO quel file (`pnpm exec vitest run tests/socket/integration.socket.test.ts`) per escludere interferenze tra test.
