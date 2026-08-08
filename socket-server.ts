@@ -70,6 +70,7 @@ export async function createSocketServer(
           res.end(JSON.stringify({ success: true, deduplicated: true })); return;
         }
         const roomClients = io.sockets.adapter.rooms.get(payload.room);
+        console.log(`[DEBUG-SOCKET-SRV] /api/emit room=${payload.room} event=${payload.event} clients=${roomClients?.size ?? 0}`);
         io.to(payload.room).emit(payload.event, payload.data);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: true, clientCount: roomClients?.size ?? 0, deduplicated: false }));
@@ -104,6 +105,7 @@ export async function createSocketServer(
 
   io.on("connection", (socket: Socket) => {
     const userId = socket.data.userId as string | undefined;
+    console.log(`[DEBUG-SOCKET-SRV] connection socketId=${socket.id} userId=${userId}`);
     if (userId) {
       const sockets = userSockets.get(userId) ?? new Set<string>();
       sockets.add(socket.id);
@@ -124,8 +126,11 @@ export async function createSocketServer(
 
     socket.on("join-league-room", async (leagueId: string) => {
       const uid = socket.data.userId as string | undefined;
+      console.log(`[DEBUG-SOCKET-SRV] join-league-room user=${uid} league=${leagueId}`);
       if (!uid || !/^\d+$/.test(leagueId) || !hasLeagueAccess) return;
-      if (await hasLeagueAccess(uid, Number(leagueId))) socket.join(`league-${leagueId}`);
+      const hasAccess = await hasLeagueAccess(uid, Number(leagueId));
+      console.log(`[DEBUG-SOCKET-SRV] join-league-room user=${uid} league=${leagueId} access=${hasAccess}`);
+      if (hasAccess) socket.join(`league-${leagueId}`);
     });
 
     socket.on("leave-league-room", (leagueId: string) => {

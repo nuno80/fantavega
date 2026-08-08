@@ -22,14 +22,16 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       const token = await getToken();
       if (disposed || !token) return;
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+      console.log("[DEBUG-SOCKET] Connecting to socket URL:", socketUrl);
       const newSocket = io(socketUrl, { transports: ["websocket", "polling"], auth: { token } });
       activeSocket = newSocket;
       setSocket(newSocket);
-      const onConnect = () => { setIsConnected(true); newSocket.emit("join-user-room"); };
-      const onDisconnect = () => setIsConnected(false);
+      const onConnect = () => { console.log("[DEBUG-SOCKET] Connected, socket id:", newSocket.id); setIsConnected(true); newSocket.emit("join-user-room"); };
+      const onDisconnect = (reason: string) => { console.log("[DEBUG-SOCKET] Disconnected, reason:", reason); setIsConnected(false); };
+      const onConnectError = (err: Error) => { console.error("[DEBUG-SOCKET] Connect error:", err.message); setIsConnected(false); };
       newSocket.on("connect", onConnect);
       newSocket.on("disconnect", onDisconnect);
-      newSocket.on("connect_error", onDisconnect);
+      newSocket.on("connect_error", onConnectError);
       newSocket.on("connect", () => { void getToken().then((freshToken) => { if (freshToken) newSocket.auth = { token: freshToken }; }); });
     })();
 

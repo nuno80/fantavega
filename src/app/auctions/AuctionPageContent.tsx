@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
-// import { SocketDebugger } from "@/components/debug/SocketDebugger";
+import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { useSocket } from "@/contexts/SocketContext";
 import { useMobile } from "@/hooks/use-mobile";
 import { useInactivityRedirect } from "@/hooks/useInactivityRedirect";
@@ -316,6 +316,7 @@ export function AuctionPageContent({
     if (!isConnected || !socket || !selectedLeagueId) return;
 
     socket.emit("join-league-room", selectedLeagueId.toString());
+    console.log("[DEBUG-AUCTION] Joined socket, isConnected:", isConnected, "leagueId:", selectedLeagueId, "socketId:", socket.id);
 
     // Fallback di sincronizzazione: alla (ri)connessione del socket, ricarica i dati
     // per recuperare eventi persi durante la disconnessione
@@ -332,6 +333,7 @@ export function AuctionPageContent({
       action?: string; // Added to handle abandon events
       budgetUpdates?: Array<{ userId: string; newLockedCredits: number }>; // Real-time budget updates
     }) => {
+      console.log("[DEBUG-AUCTION] Received auction-update:", data);
       // Se l'asta è stata abbandonata, aggiorniamo immediatamente con i dati ricevuti
       if (data.action === "abandoned") {
         // Aggiorna istantaneamente locked_credits se presente nel payload
@@ -423,6 +425,7 @@ export function AuctionPageContent({
     };
 
     const handleAuctionCreated = (data: { playerName: string }) => {
+      console.log("[DEBUG-AUCTION] Received auction-created:", data);
       // Toast rimosso - la UI si aggiorna già mostrando la nuova asta
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
@@ -770,6 +773,7 @@ export function AuctionPageContent({
           </div>
         )}
       </div>
+
       {/* Global Bid Modal */}
       {isBidModalOpen && bidModalProps && (
         <StandardBidModal
@@ -791,6 +795,8 @@ export function AuctionPageContent({
           }}
         />
       )}
+
+      {selectedLeagueId && <SocketDebugger leagueId={selectedLeagueId} />}
     </div>
   );
 }
