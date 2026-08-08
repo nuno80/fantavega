@@ -694,6 +694,18 @@ export const placeInitialBidAndCreateAuction = async (
       | { name: string; role: string; team: string }
       | undefined;
 
+    // Risolve il nome squadra del miglior offerente (pattern usato in auction-update)
+    const bidderTeamNameResult = await db.execute({
+      sql: `SELECT COALESCE(lp.manager_team_name, u.username, u.id) AS team_name
+            FROM league_participants lp
+            JOIN users u ON lp.user_id = u.id
+            WHERE lp.league_id = ? AND lp.user_id = ?`,
+      args: [leagueIdParam, bidderUserIdParam],
+    });
+    const bidderTeamName = (
+      bidderTeamNameResult.rows[0] as unknown as { team_name?: string } | undefined
+    )?.team_name;
+
     console.log(
       "[BID_SERVICE] createAndStartAuction - Emitting auction-created event"
     );
@@ -707,6 +719,7 @@ export const placeInitialBidAndCreateAuction = async (
           auctionId: newAuctionId,
           newPrice: bidAmountParam,
           highestBidderId: bidderUserIdParam,
+          highestBidderName: bidderTeamName,
           scheduledEndTime: scheduledEndTime,
           playerName: playerInfo?.name || `Player ${playerIdParam}`,
           playerRole: playerInfo?.role || "",
