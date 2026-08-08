@@ -358,9 +358,21 @@ export async function deleteLeagueAction(
   prevState: DeleteLeagueFormState,
   formData: FormData
 ): Promise<DeleteLeagueFormState> {
-  const { userId: adminUserId } = await auth();
+  const { userId: adminUserId, sessionClaims } = await auth();
   if (!adminUserId) {
     return { success: false, message: "Azione non autorizzata." };
+  }
+
+  // Verifica che l'utente sia admin
+  const isAdmin = await checkIsAdmin(
+    adminUserId,
+    sessionClaims as Record<string, unknown> | null
+  );
+  if (!isAdmin) {
+    return {
+      success: false,
+      message: "Solo gli admin possono eliminare le leghe.",
+    };
   }
 
   const leagueId = Number(formData.get("leagueId"));
@@ -379,43 +391,104 @@ export async function deleteLeagueAction(
   }
 
   try {
-    // Verifica che l'admin sia il creatore della lega
+    // Verifica che la lega esista
     const leagueCheckResult = await db.execute({
-      sql: `SELECT admin_creator_id, name FROM auction_leagues WHERE id = ?`,
+      sql: `SELECT name FROM auction_leagues WHERE id = ?`,
       args: [leagueId],
     });
-    const leagueCheck = leagueCheckResult.rows[0]
-      ? {
-        admin_creator_id: leagueCheckResult.rows[0].admin_creator_id as string,
-        name: leagueCheckResult.rows[0].name as string
-      }
-      : undefined;
+    const leagueName = leagueCheckResult.rows[0]?.name as string | undefined;
 
-    if (!leagueCheck) {
+    if (!leagueName) {
       return { success: false, message: "Lega non trovata." };
     }
 
-    if (leagueCheck.admin_creator_id !== adminUserId) {
-      return {
-        success: false,
-        message: "Solo il creatore della lega può eliminarla.",
-      };
-    }
+    // Elimina esplicitamente i dati collegati PRIMA della lega, in una singola
+    // transazione. Non ci affidiamo al CASCADE delle foreign key perché la
+    // connessione Turso non attiva PRAGMA foreign_keys=ON: un semplice DELETE
+    // della lega lascerebbe dati orfani (partecipanti, aste, offerte, ecc.).
+    const transaction = await db.transaction("write");
+    try {
+      await transaction.execute({
+        sql: `DELETE FROM user_league_compliance_status WHERE league_id = ?`,
+        args: [leagueId],
+      });
+      await transaction.execute({
+        sql: `DELETE FROM user_player_preferences WHERE league_id = ?`,
+        args: [leagueId],
+      });
+      await transaction.execute({
+        sql: `DELETE FROM budget_transactions WHERE auction_league_id = ? OR league_id = ?`,
+        args: [leagueId, leagueId],
+      });
+      await transaction.execute({
+        sql: `DELETE FROM player_discard_requests WHERE auction_league_id = ?`,
+        args: [leagueId],
+      });
+      await transaction.execute({
+        sql: `DELETE FROM player_assignments WHERE auction_league_id = ?`,
+        args: [leagueId],
+      });
 
-    // Elimina la lega (le foreign key CASCADE elimineranno automaticamente i dati correlati)
-    const deleteResult = await db.execute({
-      sql: `DELETE FROM auction_leagues WHERE id = ?`,
-      args: [leagueId],
-    });
+      // Le offerte, le auto-bid e i timer/cooldown si riferiscono alle aste:
+      // vanno eliminate prima di cancellare le aste stesse.
+      const auctionsResult = await transaction.execute({
+        sql: `SELECT id FROM auctions WHERE auction_league_id = ?`,
+        args: [leagueId],
+      });
+      const auctionIds = auctionsResult.rows.map(
+        (row) => row.id as number
+      );
 
-    if (deleteResult.rowsAffected === 0) {
-      return { success: false, message: "Errore durante l'eliminazione." };
+      if (auctionIds.length > 0) {
+        await transaction.execute({
+          sql: `DELETE FROM bids WHERE auction_id IN (${auctionIds
+            .map(() => "?")
+            .join(", ")})`,
+          args: auctionIds,
+        });
+        await transaction.execute({
+          sql: `DELETE FROM auto_bids WHERE auction_id IN (${auctionIds
+            .map(() => "?")
+            .join(", ")})`,
+          args: auctionIds,
+        });
+        await transaction.execute({
+          sql: `DELETE FROM user_auction_cooldowns WHERE auction_id IN (${auctionIds
+            .map(() => "?")
+            .join(", ")})`,
+          args: auctionIds,
+        });
+        await transaction.execute({
+          sql: `DELETE FROM user_auction_response_timers WHERE auction_id IN (${auctionIds
+            .map(() => "?")
+            .join(", ")})`,
+          args: auctionIds,
+        });
+      }
+
+      await transaction.execute({
+        sql: `DELETE FROM auctions WHERE auction_league_id = ?`,
+        args: [leagueId],
+      });
+      await transaction.execute({
+        sql: `DELETE FROM league_participants WHERE league_id = ?`,
+        args: [leagueId],
+      });
+      await transaction.execute({
+        sql: `DELETE FROM auction_leagues WHERE id = ?`,
+        args: [leagueId],
+      });
+
+      await transaction.commit();
+    } catch (error) {
+      transaction.rollback();
+      throw error;
     }
 
     revalidatePath("/admin/leagues");
     return {
       success: true,
-      message: `Lega "${leagueCheck.name}" eliminata con successo.`,
+      message: `Lega "${leagueName}" eliminata con successo.`,
     };
   } catch (error) {
     const errorMessage =

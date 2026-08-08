@@ -75,7 +75,6 @@ interface DeleteLeagueProps {
   leagueId: number;
   leagueName: string;
   participantCount: number;
-  isCreator: boolean;
 }
 
 function SubmitButton({ isPending }: { isPending: boolean }) {
@@ -90,7 +89,6 @@ export function DeleteLeague({
   leagueId,
   leagueName,
   participantCount,
-  isCreator,
 }: DeleteLeagueProps) {
   const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -121,10 +119,7 @@ export function DeleteLeague({
     });
   };
 
-  // Solo il creatore può eliminare la lega
-  if (!isCreator) {
-    return null;
-  }
+  // Solo gli admin possono eliminare una lega (verificato nella server action)
 
   const handleFirstConfirm = () => {
     setShowFinalConfirm(true);

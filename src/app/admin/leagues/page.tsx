@@ -6,8 +6,8 @@ import Link from "next/link";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
+import { DeleteLeague } from "@/components/admin/DeleteLeague";
 import { Navbar } from "@/components/navbar";
-// import { DeleteLeagueButton } from "@/components/admin/DeleteLeagueButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,6 +113,11 @@ export default async function AdminLeaguesPage() {
                               Gestisci
                             </Button>
                           </Link>
+                          <DeleteLeague
+                            leagueId={league.id}
+                            leagueName={league.name}
+                            participantCount={league.participantCount}
+                          />
                           <code className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">
                             ID: {league.id}
                           </code>
