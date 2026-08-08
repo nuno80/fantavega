@@ -70,7 +70,7 @@ export async function createSocketServer(
           res.end(JSON.stringify({ success: true, deduplicated: true })); return;
         }
         const roomClients = io.sockets.adapter.rooms.get(payload.room);
-        console.log(`[DEBUG-SOCKET-SRV] /api/emit room=${payload.room} event=${payload.event} clients=${roomClients?.size ?? 0}`);
+        // console.log(`[DEBUG-SOCKET-SRV] /api/emit room=${payload.room} event=${payload.event} clients=${roomClients?.size ?? 0}`);
         io.to(payload.room).emit(payload.event, payload.data);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: true, clientCount: roomClients?.size ?? 0, deduplicated: false }));
@@ -92,15 +92,14 @@ export async function createSocketServer(
     try {
       const token = socket.handshake.auth?.token;
 
-      console.log("[DEBUG-SOCKET-SRV] auth:", {
-        hasToken: typeof token === "string" && token.length > 0,
-        tokenLength: typeof token === "string" ? token.length : 0,
-        origin: socket.handshake.headers.origin,
-        allowedOrigins: ALLOWED_ORIGINS,
-      });
+      // console.log("[DEBUG-SOCKET-SRV] auth:", {
+      //   hasToken: typeof token === "string" && token.length > 0,
+      //   tokenLength: typeof token === "string" ? token.length : 0,
+      //   origin: socket.handshake.headers.origin,
+      //   allowedOrigins: ALLOWED_ORIGINS,
+      // });
 
       if (typeof token !== "string" || !token) {
-        console.log("[DEBUG-SOCKET-SRV] auth: missing token");
         return next(new Error("unauthorized"));
       }
 
@@ -113,11 +112,9 @@ export async function createSocketServer(
       });
 
       if (!payload.sub) {
-        console.log("[DEBUG-SOCKET-SRV] auth: no user id in token");
         return next(new Error("unauthorized"));
       }
 
-      console.log(`[DEBUG-SOCKET-SRV] auth: success user=${payload.sub}`);
       socket.data.userId = payload.sub;
       next();
     } catch (error) {
@@ -131,7 +128,7 @@ export async function createSocketServer(
 
   io.on("connection", (socket: Socket) => {
     const userId = socket.data.userId as string | undefined;
-    console.log(`[DEBUG-SOCKET-SRV] connection socketId=${socket.id} userId=${userId}`);
+    // console.log(`[DEBUG-SOCKET-SRV] connection socketId=${socket.id} userId=${userId}`);
     if (userId) {
       const sockets = userSockets.get(userId) ?? new Set<string>();
       sockets.add(socket.id);
@@ -152,10 +149,10 @@ export async function createSocketServer(
 
     socket.on("join-league-room", async (leagueId: string) => {
       const uid = socket.data.userId as string | undefined;
-      console.log(`[DEBUG-SOCKET-SRV] join-league-room user=${uid} league=${leagueId}`);
+      // console.log(`[DEBUG-SOCKET-SRV] join-league-room user=${uid} league=${leagueId}`);
       if (!uid || !/^\d+$/.test(leagueId) || !hasLeagueAccess) return;
       const hasAccess = await hasLeagueAccess(uid, Number(leagueId));
-      console.log(`[DEBUG-SOCKET-SRV] join-league-room user=${uid} league=${leagueId} access=${hasAccess}`);
+      // console.log(`[DEBUG-SOCKET-SRV] join-league-room user=${uid} league=${leagueId} access=${hasAccess}`);
       if (hasAccess) socket.join(`league-${leagueId}`);
     });
 
