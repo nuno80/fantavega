@@ -1,6 +1,6 @@
 # Task list — Completamento Issue #13 (Socket.IO: dedup cache + disconnect timer)
 
-**Stato: Fasi A–E completate (commit `e12599b`+`ebc04e5`+`e63f6e5` su branch `fix/socket-issue13`, PR verso `main`).** Spunta ogni checkbox solo a lavoro completato e verificato.
+**Stato: Issue #13 COMPLETATA — PR #49 mergiata in `main` (commit `912f878`, squash, branch eliminata).** Spunta ogni checkbox solo a lavoro completato e verificato.
 
 ## Contesto essenziale
 
@@ -58,7 +58,7 @@ File: `src/lib/db/services/session.service.ts`
 ## Fase E — PR atomica
 
 - [x] **E1. Branch dedicato** (es. `fix/socket-issue13`) e commit: `fix(socket): harden disconnect timers, race-safe heartbeat upsert, unique active session index migration`.
-- [x] **E2. PR verso `main`** contenente: `socket-server.ts`, `session.service.ts`, `utils.ts`, migrazione SQL, test (socket + session), estensione dello stub di test. → [PR #49](https://github.com/nuno80/fantavega/pull/49)
+- [x] **E2. PR verso `main`** contenente: `socket-server.ts`, `session.service.ts`, `utils.ts`, migrazione SQL, test (socket + session), estensione dello stub di test. → [PR #49](https://github.com/nuno80/fantavega/pull/49) **mergiata** (commit `912f878`)
 
 ## Verifica finale (prima della PR)
 

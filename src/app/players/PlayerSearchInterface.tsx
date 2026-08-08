@@ -412,13 +412,15 @@ export function PlayerSearchInterface({
       );
     };
 
-    // Register event listeners - Only handle auction closures, not creation/updates
-    // AuctionPageContent handles auction-created and auction-update events centrally
     socket.on("auction-closed-notification", handleAuctionClosed);
+    socket.on("auction-created", handleAuctionCreated);
+    socket.on("auction-update", handleAuctionUpdate);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
       socket.off("auction-closed-notification", handleAuctionClosed);
+      socket.off("auction-created", handleAuctionCreated);
+      socket.off("auction-update", handleAuctionUpdate);
       clearInterval(expiredAuctionsInterval);
     };
   }, [socket, isConnected, selectedLeagueId, refreshPlayersData, userId]);
