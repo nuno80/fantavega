@@ -321,8 +321,7 @@ export function AuctionPageContent({
   useEffect(() => {
     if (!isConnected || !socket || !selectedLeagueId) return;
 
-    socket.emit("join-room", `league-${selectedLeagueId}`);
-    socket.emit("join-room", `user-${userId}`);
+    socket.emit("join-league-room", selectedLeagueId.toString());
 
     const handleAuctionUpdate = (data: {
       playerId: number;
@@ -560,8 +559,8 @@ export function AuctionPageContent({
       socket.off("penalty-applied-notification", handlePenaltyApplied);
       socket.off("room-joined", handleRoomJoined);
       socket.off("league-status-changed", handleLeagueStatusChanged);
-      socket.emit("leave-room", `league-${selectedLeagueId}`);
-      socket.emit("leave-room", `user-${userId}`);
+      socket.emit("leave-league-room", selectedLeagueId.toString());
+      socket.emit("leave-user-room");
     };
   }, [
     socket,
