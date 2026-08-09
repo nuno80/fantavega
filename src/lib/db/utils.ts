@@ -35,6 +35,24 @@ export async function applySchemaToDb(
     // @libsql/client supporta executeMultiple per eseguire script SQL completi
     await client.executeMultiple(schemaSql);
 
+    // CREATE TABLE IF NOT EXISTS non aggiunge colonne nuove a una tabella
+    // esistente: guardia idempotente per DB creati prima che
+    // user_player_preferences avesse preference_type/expires_at.
+    const preferenceColumns = await client.execute(
+      "PRAGMA table_info(user_player_preferences)"
+    );
+    const names = new Set(preferenceColumns.rows.map((row) => String(row.name)));
+    if (!names.has("preference_type")) {
+      await client.execute(
+        "ALTER TABLE user_player_preferences ADD COLUMN preference_type TEXT DEFAULT 'preference'"
+      );
+    }
+    if (!names.has("expires_at")) {
+      await client.execute(
+        "ALTER TABLE user_player_preferences ADD COLUMN expires_at INTEGER"
+      );
+    }
+
     console.log("[Schema Apply Util] Schema SQL applied successfully.");
   } catch (error) {
     console.error(

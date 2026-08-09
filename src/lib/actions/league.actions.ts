@@ -253,9 +253,12 @@ export async function updateTeamNameAction(
   prevState: UpdateTeamNameFormState,
   formData: FormData
 ): Promise<UpdateTeamNameFormState> {
-  const { userId: adminUserId } = await auth();
+  const { userId: adminUserId, sessionClaims } = await auth();
   if (!adminUserId) {
     return { success: false, message: "Azione non autorizzata." };
+  }
+  if (!(await checkIsAdmin(adminUserId, sessionClaims as Record<string, unknown> | null))) {
+    return { success: false, message: "Solo gli admin possono eseguire questa operazione." };
   }
   const leagueId = Number(formData.get("leagueId"));
   const participantUserId = formData.get("participantUserId") as string;
@@ -289,9 +292,12 @@ export async function updateLeagueStatusAction(
   prevState: UpdateStatusFormState,
   formData: FormData
 ): Promise<UpdateStatusFormState> {
-  const { userId: adminUserId } = await auth();
+  const { userId: adminUserId, sessionClaims } = await auth();
   if (!adminUserId) {
     return { success: false, message: "Azione non autorizzata." };
+  }
+  if (!(await checkIsAdmin(adminUserId, sessionClaims as Record<string, unknown> | null))) {
+    return { success: false, message: "Solo gli admin possono eseguire questa operazione." };
   }
   const leagueId = Number(formData.get("leagueId"));
   const newStatus = formData.get("newStatus") as string;
@@ -507,9 +513,12 @@ export async function updateActiveRolesAction(
   formData: FormData
 ): Promise<UpdateActiveRolesFormState> {
   // 7.1. Autenticazione
-  const { userId: adminUserId } = await auth();
+  const { userId: adminUserId, sessionClaims } = await auth();
   if (!adminUserId) {
     return { success: false, message: "Azione non autorizzata." };
+  }
+  if (!(await checkIsAdmin(adminUserId, sessionClaims as Record<string, unknown> | null))) {
+    return { success: false, message: "Solo gli admin possono eseguire questa operazione." };
   }
 
   // 7.2. Estrazione dati

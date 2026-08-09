@@ -40,13 +40,14 @@ describe("ghost-session API flow", () => {
     expect(response.status).toBe(400);
   });
 
-  it("updates presence and activates timers only after a persisted heartbeat", async () => {
+  it("persists presence without activating timers (viewed-only invariant)", async () => {
     const { GET } = await import("@/app/api/user/auction-states/route");
     const response = await GET(new Request("https://app.test/api/user/auction-states?leagueId=7"));
     expect(response.status).toBe(200);
     expect(updateHeartbeat).toHaveBeenCalledWith("user-a");
-    // Deferred activation is anchored to the persisted heartbeat timestamp.
-    expect(activateTimersForUser).toHaveBeenCalledWith("user-a", 1_000);
+    // PR A (re-audit 2026-08-09): il poll NON deve più attivare i timer.
+    // L'attivazione avviene solo via response-timer/viewed dopo la view reale.
+    expect(activateTimersForUser).not.toHaveBeenCalled();
     const sqlCalls = execute.mock.calls.map(([query]) => query.sql as string);
     expect(sqlCalls.some((sql) => /UPDATE\s+user_auction_response_timers\s+SET[\s\S]*response_deadline/i.test(sql))).toBe(false);
   });

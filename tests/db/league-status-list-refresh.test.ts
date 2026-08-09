@@ -9,9 +9,14 @@ import path from "path";
 import { createClient, type Client } from "@libsql/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-// Mock solo dell'autenticazione Clerk; il DB è reale (in-memory).
+// Mock dell'autenticazione Clerk: utente autenticato con ruolo admin
+// nei sessionClaims (checkIsAdmin li legge; senza, il fallback Clerk API
+// non è disponibile in test).
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn().mockResolvedValue({ userId: "admin-test" }),
+  auth: vi.fn().mockResolvedValue({
+    userId: "admin-test",
+    sessionClaims: { metadata: { role: "admin" } },
+  }),
 }));
 // revalidatePath non esiste fuori dal runtime Next: mock innocuo.
 vi.mock("next/cache", () => ({

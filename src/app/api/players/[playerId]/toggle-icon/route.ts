@@ -21,13 +21,14 @@ export async function POST(
       );
     }
 
-    const playerId = parseInt(playerIdParam);
-    if (isNaN(playerId)) {
+    // Valida con regex: parseInt("7junk") restituirebbe 7 (accettato prima).
+    if (!/^\d+$/.test(playerIdParam)) {
       return NextResponse.json(
         { error: "ID giocatore non valido" },
         { status: 400 }
       );
     }
+    const playerId = Number(playerIdParam);
 
     const body = await req.json();
     const { iconType, value, leagueId } = body;
@@ -40,13 +41,14 @@ export async function POST(
       );
     }
 
-    const leagueIdNum = parseInt(leagueId, 10);
-    if (isNaN(leagueIdNum)) {
+    // Valida con regex: parseInt("7junk") restituirebbe 7 (accettato prima).
+    if (typeof leagueId !== "string" || !/^\d+$/.test(leagueId)) {
       return NextResponse.json(
         { error: "ID lega non valido" },
         { status: 400 }
       );
     }
+    const leagueIdNum = Number(leagueId);
 
     // Verifica che l'utente appartenga alla lega (le preferenze sono per-utente
     // e per-lega: ognuno salva le proprie, non si scrivono colonne globali su players)
@@ -84,6 +86,13 @@ export async function POST(
     if (typeof value === "boolean") {
       sqliteValue = value ? 1 : 0;
     } else {
+      // Per integrity_value accetta solo numeri finiti (non stringhe "7junk").
+      if (iconType === "integrityValue" && (typeof value !== "number" || !Number.isFinite(value))) {
+        return NextResponse.json(
+          { error: "Valore di integrità non valido" },
+          { status: 400 }
+        );
+      }
       sqliteValue = value as number;
     }
 

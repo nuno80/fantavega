@@ -1,8 +1,9 @@
 # Fantavega: Security, Performance and Ghost-Session Audit
 
-**Audit date:** 8 August 2026  
-**Reviewed revision:** `f6c04f0eecacaf1527562caab4c223b3181f648e`  
-**Repository:** https://github.com/nuno80/fantavega
+**Audit date:** 8 August 2026
+**Reviewed revision:** `f6c04f0eecacaf1527562caab4c223b3181f648e`
+**Implemented in commit:** `31829a7` ("fix(audit): apply 2026-08-08 audit fixes — timer liveness, authz boundaries, cooldown batching")
+**Repository:** <https://github.com/nuno80/fantavega>
 
 ## Executive summary
 
@@ -12,17 +13,24 @@ No direct SQL injection was confirmed in the reviewed hot paths; database inputs
 
 ## Severity table
 
-| Severity | Finding | Consequence | Patch |
-|---|---|---|---|
-| High | Deferred timers are not activated by auction-state reads | Response window can remain pending indefinitely | PR 1 |
-| High | User auction-state endpoint lacks league authorization | Authenticated cross-league data access | PR 2 |
-| High | Participant can invoke a globally scoped expiry processor | Cross-league side effects and avoidable load | PR 2 |
-| Medium | Socket connection does not maintain DB heartbeat | False offline state during polling failure | PR 1 |
-| Medium | Manager can mutate global player attributes | Unauthorized global data modification | PR 2 |
-| Medium | One cooldown query per returned player | Hundreds of DB round trips per request | PR 3 |
-| Medium | Scheduler lease expires after 45 seconds without renewal | Duplicate workers if a run is slow | Follow-up |
-| Medium | In-memory rate limiting is instance-local | Limits are bypassable across replicas | Follow-up |
-| Low | Debug APIs rely heavily on middleware | Future matcher changes could expose diagnostics | Follow-up |
+| Severity | Finding | Consequence | Patch | Status |
+| --- | --- | --- | --- | --- |
+| High | Deferred timers are not activated by auction-state reads | Response window can remain pending indefinitely | PR 1 | Fixed (Fix 1) |
+| High | User auction-state endpoint lacks league authorization | Authenticated cross-league data access | PR 2 | Fixed (Fix 2) |
+| High | Participant can invoke a globally scoped expiry processor | Cross-league side effects and avoidable load | PR 2 | Fixed (Fix 2, league-scoped) |
+| Medium | Socket connection does not maintain DB heartbeat | False offline state during polling failure | PR 1 | Not applied (product decision, see Fix 1) |
+| Medium | Manager can mutate global player attributes | Unauthorized global data modification | PR 2 | Fixed (Fix 2, per-user) |
+| Medium | One cooldown query per returned player | Hundreds of DB round trips per request | PR 3 | Fixed (Fix 3) |
+| Medium | Scheduler lease expires after 45 seconds without renewal | Duplicate workers if a run is slow | Follow-up | Open (see Open follow-ups) |
+| Medium | In-memory rate limiting is instance-local | Limits are bypassable across replicas | Follow-up | Open (see Open follow-ups) |
+| Low | Debug APIs rely heavily on middleware | Future matcher changes could expose diagnostics | Follow-up | Open (see Open follow-ups) |
+
+Note: "PR 1 / PR 2 / PR 3" in this table map to the patch files
+`0001-fix-deferred-timer-liveness.patch`,
+`0002-fix-api-authorization-boundaries.patch`,
+`0003-perf-batch-player-cooldowns.patch`. "Fix 1 / Fix 2 / Fix 3" refer to the
+sections in Implementation status below, which describe the final applied
+changes (including deviations from the original patches).
 
 ## Ghost sessions and heartbeat analysis
 
@@ -58,9 +66,34 @@ A response timer may be activated only after an authenticated request or socket 
 
 ## Performance findings
 
-`src/app/api/players/route.ts` calls `getUserCooldownInfo` once per player. A page of 100 players causes approximately 101 database calls. PR 3 replaces this with one bulk query and caps page size at 100, reducing database round trips to a constant number.
+`src/app/api/players/route.ts` calls `getUserCooldownInfo` once per player. A page of 100 players causes approximately 101 database calls. PR 3 replaces this with one bulk query and caps page size at 1000 (see Fix 3 for why 1000 instead of the originally suggested 100), reducing database round trips to a constant number.
 
 The scheduler lease lasts 45 seconds and is not renewed. Add owner-token renewal every 15 seconds or enforce a hard job timeout below the lease duration. The in-memory rate limiter and Socket.IO emission deduplication are not shared across replicas and should move to a shared store before horizontal scaling.
+
+## Open follow-ups (not yet addressed)
+
+These findings from the audit remain OPEN — no code was changed for them:
+
+1. **Scheduler lease renewal.** The lease lasts 45 seconds and is not
+   renewed. If a job run is slow, a second worker can acquire a duplicate
+   lease. Options: renew the owner token every 15 seconds, or enforce a
+   hard job timeout below the lease duration.
+2. **Shared rate limiting / Socket.IO dedup.** The in-memory rate limiter
+   and the Socket.IO emission deduplication are instance-local and are
+   bypassable across replicas. They should move to a shared store before
+   horizontal scaling.
+3. **Debug APIs rely on middleware.** Debug endpoints depend heavily on
+   middleware matcher config; a future matcher change could expose them.
+   Worth an explicit check, not urgent.
+4. **"Timer starts immediately when online" (product request).** Planned
+   as a follow-up: when a user is surpassed while viewing the auction
+   page, the server should notify the page via socket and the page should
+   call `activateResponseTimerForViewedAuction` (response-timer-view.service.ts)
+   so the countdown starts in real time without a refresh. This keeps the
+   invariant "the timer starts only when the user has actually seen the
+   raise". It is deliberately NOT in the current fix because it touches
+   the client (auction page UI) and must not be mixed into the
+   server-only change.
 
 ## Implementation status (updated after review)
 
@@ -75,6 +108,7 @@ pre-existing baseline failures (environment issues: `execFileSync` /
 ### Fix 1 — Deferred timer activation (applied, scoped)
 
 **Applied:**
+
 - `user/auction-states` and `leagues/[league-id]/auction-state` now call
   `activateTimersForUser(user.id, heartbeatAt)` after a successfully
   persisted heartbeat, so a pending response timer starts when the user
@@ -83,6 +117,7 @@ pre-existing baseline failures (environment issues: `execFileSync` /
   callers never start a business timer from an unpersisted timestamp.
 
 **Not applied (by product decision) and why:**
+
 - **No socket heartbeat (45s interval).** The audit suggested a periodic
   DB heartbeat from the socket server so a connected user is not marked
   offline when HTTP polling fails. The product owner rejected it: if the
@@ -106,6 +141,7 @@ pre-existing baseline failures (environment issues: `execFileSync` /
 ### Fix 2 — Authorization boundaries (applied, reworked)
 
 **Applied:**
+
 - `user/auction-states` now validates `leagueId` numerically and enforces
   `hasLeagueAccess` before heartbeat/read. Comment added explaining that
   this endpoint is the user's *own* auction states and that watching
@@ -131,6 +167,7 @@ pre-existing baseline failures (environment issues: `execFileSync` /
   process their own league.
 
 **Not applied (by product decision) and why:**
+
 - **Admin-only on `toggle-icon` and `process-expired-auctions`** (as the
   original patch proposed) was rejected. The toggles are personal filters,
   not global attributes; and the expiry endpoint is now league-scoped, so
@@ -159,6 +196,16 @@ pre-existing baseline failures (environment issues: `execFileSync` /
   test now asserts the timer is activated only with the persisted
   heartbeat timestamp, and that the route itself never writes a response
   deadline.
+
+> **Updated 2026-08-09 (re-audit)**: Fix 1's server-side activation was
+> reverted by `fix(audit): apply 2026-08-09 re-audit fixes`. The 2026-08-09
+> re-audit found that calling `activateTimersForUser` from the polling
+> routes reintroduced the legacy behavior PR #38 removed: any poll (or
+> reconnect, or viewing another league) started every pending timer for the
+> user, contradicting the viewed-only invariant. Timers are now activated
+> exclusively by the scoped `response-timer/viewed` endpoint after the
+> client confirms the raise is visible; the polling routes only persist the
+> heartbeat. See `docs/PR2/fantavega-reaudit-2026-08-09.md`.
 
 ## Patch application
 

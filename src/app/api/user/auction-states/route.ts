@@ -4,7 +4,6 @@ import { currentUser } from "@clerk/nextjs/server";
 
 import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { db } from "@/lib/db";
-import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
 import { updateHeartbeat } from "@/lib/db/services/session.service";
 
 interface AuctionStateRow {
@@ -35,11 +34,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     try {
-      const heartbeatAt = await updateHeartbeat(user.id);
-      // Deferred activation is anchored to a heartbeat that was persisted successfully.
-      await activateTimersForUser(user.id, heartbeatAt);
+      await updateHeartbeat(user.id);
     } catch (error) {
-      console.error("[USER_AUCTION_STATES] Session refresh failed:", error);
+      console.error("[USER_AUCTION_STATES] Heartbeat update failed:", error);
     }
 
     const now = Math.floor(Date.now() / 1000);

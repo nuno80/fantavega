@@ -375,9 +375,13 @@ export const processExpiredResponseTimers = async (): Promise<{
         const cooldownExpiry = now + ABANDON_COOLDOWN_HOURS * 3600;
         await transaction.execute({
           sql: `
-          INSERT OR REPLACE INTO user_player_preferences
+          INSERT INTO user_player_preferences
           (user_id, player_id, league_id, preference_type, expires_at)
           VALUES (?, ?, ?, 'cooldown', ?)
+          ON CONFLICT(user_id, player_id, league_id) DO UPDATE SET
+            preference_type = 'cooldown',
+            expires_at = excluded.expires_at,
+            updated_at = excluded.updated_at
         `,
           args: [timer.user_id, timer.player_id, timer.league_id, cooldownExpiry],
         });
@@ -563,9 +567,13 @@ export const abandonAuction = async (
     const cooldownExpiry = now + ABANDON_COOLDOWN_HOURS * 3600;
     await transaction.execute({
       sql: `
-      INSERT OR REPLACE INTO user_player_preferences
+      INSERT INTO user_player_preferences
       (user_id, player_id, league_id, preference_type, expires_at)
       VALUES (?, ?, ?, 'cooldown', ?)
+      ON CONFLICT(user_id, player_id, league_id) DO UPDATE SET
+        preference_type = 'cooldown',
+        expires_at = excluded.expires_at,
+        updated_at = excluded.updated_at
     `,
       args: [userId, playerId, leagueId, cooldownExpiry],
     });

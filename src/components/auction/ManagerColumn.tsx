@@ -358,6 +358,29 @@ function ResponseNeededSlot({
   const isMounted = useIsMounted();
   const roleColor = getRoleColor(role);
 
+  // Conferma la view quando la card response-needed è montata per il suo
+  // owner. L'endpoint è idempotente e 404-safe: remount e multi-tab non
+  // causano side effect. Il countdown parte SOLO quando l'utente ha visto
+  // il rilancio, non a ogni poll (invariante viewed-only del re-audit).
+  useEffect(() => {
+    if (!isCurrentUser || state.response_deadline !== null) return;
+    const controller = new AbortController();
+    void fetch(
+      `/api/leagues/${leagueId}/players/${state.player_id}/response-timer/viewed`,
+      { method: "POST", signal: controller.signal }
+    )
+      .then((response) => {
+        if (response.status === 404) return; // asta non più attiva: silenzioso
+        if (!response.ok) throw new Error(`View confirmation failed: ${response.status}`);
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.error("[RESPONSE-TIMER] Could not confirm mounted response state", error);
+        }
+      });
+    return () => controller.abort();
+  }, [isCurrentUser, leagueId, state.player_id, state.response_deadline]);
+
   // Response timer countdown effect
   useEffect(() => {
     // If null or undefined, treat as active/infinity
