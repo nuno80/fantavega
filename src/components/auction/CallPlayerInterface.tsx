@@ -546,48 +546,47 @@ export function CallPlayerInterface({
   return (
     <div className="rounded-xl border border-border bg-card">
       {/* Tab Navigation */}
-      <div className="flex flex-wrap items-center border-b border-border">
+      <div className="flex items-center overflow-x-auto border-b border-border hide-scrollbar">
         <button
           onClick={() => setActiveTab("chiama")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${activeTab === "chiama"
+          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === "chiama"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <Gavel className="h-4 w-4" />
-          <span className="hidden xs:inline sm:inline">CHIAMA</span>
-          <span className="inline xs:hidden sm:hidden">CHIAMA</span>
+          <span>CHIAMA</span>
         </button>
         <button
           onClick={() => setActiveTab("stats")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${activeTab === "stats"
+          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === "stats"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <TrendingUp className="h-4 w-4" />
-          STATS
+          <span>STATS</span>
         </button>
         <button
           onClick={() => setActiveTab("filtri")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${activeTab === "filtri"
+          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === "filtri"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
           <Search className="h-4 w-4" />
-          FILTRI
+          <span>FILTRI</span>
         </button>
         <Link
           href={`/activity-log?league=${leagueId}&myBiddedPlayers=true`}
-          className="flex flex-1 items-center justify-center gap-2 border-b-2 border-transparent px-2 py-3 text-sm font-medium text-amber-500 transition-colors hover:bg-muted hover:text-amber-400 sm:flex-none sm:px-4"
+          className="flex flex-none items-center justify-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-amber-500 transition-colors hover:bg-muted hover:text-amber-400"
         >
           <ListOrdered className="h-4 w-4" />
-          RILANCI
+          <span>RILANCI</span>
         </Link>
 
         {/* Results counter and active filters indicator in tab bar */}
-        <div className="ml-auto w-full flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-4 py-2 text-xs sm:w-auto sm:border-t-0 sm:bg-transparent sm:py-3">
+        <div className="ml-auto flex flex-none items-center gap-3 px-3 py-2 text-xs">
           {/* Active filters indicator */}
           {(() => {
             const activeFiltersCount =
@@ -640,13 +639,14 @@ export function CallPlayerInterface({
       {/* Tab Content */}
       <div className="p-2">
         {activeTab === "chiama" && (
-          <div className="flex flex-col items-center gap-3 md:flex-row">
-            {/* Search Bar */}
-            <div className="relative w-full flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-              <Input
-                placeholder="Cerca giocatore o squadra..."
-                value={searchTerm}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-row items-center gap-2">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+                <Input
+                  placeholder="Cerca giocatore o squadra..."
+                  value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
                 className={`h-10 border-input bg-background pl-10 text-foreground placeholder-muted-foreground ${(() => {
@@ -748,8 +748,8 @@ export function CallPlayerInterface({
 
             {/* Player Selection */}
             <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
-              <SelectTrigger className="h-10 w-full border-input bg-background text-foreground md:w-64">
-                <SelectValue placeholder="Seleziona Giocatore" />
+              <SelectTrigger className="h-10 w-[160px] md:w-[220px] shrink-0 border-input bg-background text-foreground">
+                <SelectValue placeholder="Seleziona..." />
               </SelectTrigger>
               <SelectContent className="max-h-60 border-border bg-card">
                 {filteredPlayers.slice(0, visibleCount).map((player) => (
@@ -789,7 +789,7 @@ export function CallPlayerInterface({
             {/* Action Button */}
             <Button
               size="sm"
-              className="h-10 w-full bg-blue-500 px-6 text-white hover:bg-blue-600 md:w-auto"
+              className="h-10 w-10 shrink-0 bg-blue-500 p-0 text-white hover:bg-blue-600"
               onClick={handleMainAction}
               disabled={
                 !selectedPlayer ||
@@ -803,17 +803,15 @@ export function CallPlayerInterface({
                   : "Avvia Asta"
               }
             >
-              <Gavel className="mr-2 h-4 w-4" />
-              {selectedPlayerDetails?.auctionStatus === "active_auction"
-                ? "Rilancia"
-                : "Avvia"}
+              <Gavel className="h-5 w-5" />
             </Button>
+          </div>
 
-            {/* Player Info Inline */}
-            {selectedPlayerDetails && (
-              <div className="mt-3 flex flex-col items-center gap-3 text-sm md:mt-0 md:flex-row md:border-l md:border-gray-600 md:pl-3">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-purple-400" />
+          {/* Player Info Inline */}
+          {selectedPlayerDetails && (
+            <div className="flex flex-wrap items-center gap-3 text-sm px-1">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-purple-400" />
                   <span className="font-medium text-white">
                     {selectedPlayerDetails.name}
                   </span>
