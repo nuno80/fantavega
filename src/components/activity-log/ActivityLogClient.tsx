@@ -5,6 +5,8 @@
 // 1. Importazioni
 import { useCallback, useEffect, useState } from "react";
 
+import { useInactivityRedirect } from "@/hooks/useInactivityRedirect";
+
 import {
   AlertTriangle,
   ChevronLeft,
@@ -170,6 +172,8 @@ function dateInputToTimestamp(dateStr: string, endOfDay = false): number | null 
 
 // 5. Componente Principale
 export function ActivityLogClient({ leagueId, initialMyBiddedPlayers = false }: ActivityLogClientProps) {
+  useInactivityRedirect({ timeoutSeconds: 30 });
+
   // State
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [leagueUsers, setLeagueUsers] = useState<LeagueUser[]>([]);
