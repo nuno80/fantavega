@@ -5,10 +5,14 @@ const auth = vi.fn();
 const execute = vi.fn();
 const updateHeartbeat = vi.fn();
 const recordUserLogout = vi.fn();
+const activateTimersForUser = vi.fn();
+const hasLeagueAccess = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({ currentUser, auth }));
+vi.mock("@/lib/auth/league-guard", () => ({ hasLeagueAccess }));
 vi.mock("@/lib/db", () => ({ db: { execute } }));
 vi.mock("@/lib/db/services/session.service", () => ({ updateHeartbeat, recordUserLogout }));
+vi.mock("@/lib/db/services/response-timer.service", () => ({ activateTimersForUser }));
 
 describe("ghost-session API flow", () => {
   beforeEach(() => {
@@ -17,6 +21,8 @@ describe("ghost-session API flow", () => {
     auth.mockResolvedValue({ userId: "user-a" });
     updateHeartbeat.mockResolvedValue(1_000);
     recordUserLogout.mockResolvedValue(undefined);
+    activateTimersForUser.mockResolvedValue(undefined);
+    hasLeagueAccess.mockResolvedValue(true);
     execute.mockResolvedValue({ rows: [], rowsAffected: 1 });
   });
 
@@ -34,11 +40,13 @@ describe("ghost-session API flow", () => {
     expect(response.status).toBe(400);
   });
 
-  it("updates presence without writing a response deadline", async () => {
+  it("updates presence and activates timers only after a persisted heartbeat", async () => {
     const { GET } = await import("@/app/api/user/auction-states/route");
     const response = await GET(new Request("https://app.test/api/user/auction-states?leagueId=7"));
     expect(response.status).toBe(200);
     expect(updateHeartbeat).toHaveBeenCalledWith("user-a");
+    // Deferred activation is anchored to the persisted heartbeat timestamp.
+    expect(activateTimersForUser).toHaveBeenCalledWith("user-a", 1_000);
     const sqlCalls = execute.mock.calls.map(([query]) => query.sql as string);
     expect(sqlCalls.some((sql) => /UPDATE\s+user_auction_response_timers\s+SET[\s\S]*response_deadline/i.test(sql))).toBe(false);
   });

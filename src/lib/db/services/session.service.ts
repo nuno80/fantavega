@@ -69,7 +69,8 @@ export const updateHeartbeat = async (userId: string): Promise<number> => {
       // Un altro concorrente ha già inserito la sessione: riprova l'UPDATE una volta.
       const retry = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
       if (retry.rowsAffected === 0) {
-        console.warn(`[SESSION] Heartbeat upsert raced: no active session after retry for ${userId}`);
+        // Never return a timestamp that was not persisted: callers use it to start timers.
+        throw new Error(`Heartbeat upsert failed after retry for ${userId}`);
       }
     }
   }

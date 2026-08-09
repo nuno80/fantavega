@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000002 Mon Sep 17 00:00:00 2001
+Subject: [PATCH 2/3] fix(authz): enforce league and admin boundaries
+
+Apply from repository root:
+  git apply --check 0002-fix-api-authorization-boundaries.patch
+  git apply 0002-fix-api-authorization-boundaries.patch
+
+diff --git a/src/app/api/user/auction-states/route.ts b/src/app/api/user/auction-states/route.ts
+--- a/src/app/api/user/auction-states/route.ts
++++ b/src/app/api/user/auction-states/route.ts
+@@
+ import { currentUser } from "@clerk/nextjs/server";
+ 
++import { hasLeagueAccess } from "@/lib/auth/league-guard";
+ import { db } from "@/lib/db";
+@@
+  const leagueId = new URL(request.url).searchParams.get("leagueId");
+  if (!leagueId) return NextResponse.json({ error: "leagueId is required" }, { status: 400 });
++ if (!/^\d+$/.test(leagueId)) return NextResponse.json({ error: "Invalid leagueId" }, { status: 400 });
++ const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined;
++ if (!(await hasLeagueAccess(user.id, Number(leagueId), role))) {
++ return NextResponse.json({ error: "Forbidden" }, { status: 403 });
++ }
+
+diff --git a/src/app/api/players/[playerId]/toggle-icon/route.ts b/src/app/api/players/[playerId]/toggle-icon/route.ts
+--- a/src/app/api/players/[playerId]/toggle-icon/route.ts
++++ b/src/app/api/players/[playerId]/toggle-icon/route.ts
+@@
+- // Verifica che l'utente abbia il ruolo di manager o admin
++ // These columns are global player attributes, not league-scoped preferences.
++ // Until they move to a user+league preference table, only admins may mutate them.
+  const userRole = user.publicMetadata?.role as string;
+- if (userRole !== "manager" && userRole !== "admin") {
++ if (userRole !== "admin") {
+@@
+- const updatedPlayer = updatePlayer(playerId, updateData);
++ const updatedPlayer = await updatePlayer(playerId, updateData);
+
+diff --git a/src/app/api/leagues/[league-id]/process-expired-auctions/route.ts b/src/app/api/leagues/[league-id]/process-expired-auctions/route.ts
+--- a/src/app/api/leagues/[league-id]/process-expired-auctions/route.ts
++++ b/src/app/api/leagues/[league-id]/process-expired-auctions/route.ts
+@@
+-import { db } from "@/lib/db";
+ import { processExpiredAuctionsAndAssignPlayers } from "@/lib/db/services/bid.service";
+@@
+- // Verify user is participant in this league (or admin)
+- const participantCheckResult = await db.execute({
+- sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
+- args: [leagueIdNum, user.id],
+- });
+- const participantCheck = participantCheckResult.rows.length > 0;
+-
+  const userRole = user.publicMetadata?.role as string | undefined;
+-
+- if (!participantCheck && userRole !== "admin") {
++ // The service currently processes every league, so participant access is unsafe.
++ // Keep this endpoint admin-only until the service accepts and enforces leagueId.
++ if (userRole !== "admin") {
+  return NextResponse.json(
+- { error: "Non autorizzato per questa lega" },
++ { error: "Operazione riservata agli amministratori" },
+  { status: 403 }
+  );
+  }

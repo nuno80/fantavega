@@ -10,7 +10,7 @@ import {
   type GetPlayersResult,
   getPlayers,
 } from "@/lib/db/services/player.service";
-import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
+import { getUserActiveCooldowns } from "@/lib/db/services/response-timer.service";
 
 // 2. Funzione GET per Recuperare i Giocatori
 export async function GET(request: NextRequest) {
@@ -48,6 +48,13 @@ export async function GET(request: NextRequest) {
     if (limitStr && (isNaN(limit!) || limit! <= 0)) {
       return NextResponse.json(
         { error: "Invalid 'limit' parameter. Must be a positive number." },
+        { status: 400 }
+      );
+    }
+    // Cap at 1000 to bound per-request work; the CallPlayerInterface uses limit=1000.
+    if (limit !== undefined && limit > 1000) {
+      return NextResponse.json(
+        { error: "Invalid 'limit' parameter. Maximum is 1000." },
         { status: 400 }
       );
     }
@@ -116,20 +123,20 @@ export async function GET(request: NextRequest) {
     // 2.3. Aggiungere informazioni sui cooldown per l'utente corrente
     // user variable is already fetched above
     if (user?.id) {
-      const playersWithCooldown = await Promise.all(
-        result.players.map(async (player) => {
-          const cooldownInfo = await getUserCooldownInfo(user.id, player.id);
-          return {
-            ...player,
-            cooldownInfo: cooldownInfo.canBid
-              ? null
-              : {
-                timeRemaining: cooldownInfo.timeRemaining,
-                message: cooldownInfo.message,
-              },
-          };
-        })
-      );
+      // One bulk query instead of one cooldown query per player (N+1).
+      const cooldowns = await getUserActiveCooldowns(user.id, leagueId);
+      const playersWithCooldown = result.players.map((player) => {
+        const cooldownInfo = cooldowns.get(player.id);
+        return {
+          ...player,
+          cooldownInfo: cooldownInfo
+            ? {
+              timeRemaining: cooldownInfo.timeRemaining,
+              message: cooldownInfo.message,
+            }
+            : null,
+        };
+      });
 
       return NextResponse.json(
         {

@@ -1813,15 +1813,15 @@ async function processAuctionWinner(auction: ExpiredAuctionData, now: number): P
   }
 }
 
-export const processExpiredAuctionsAndAssignPlayers = async (): Promise<{
+export const processExpiredAuctionsAndAssignPlayers = async (leagueId?: number): Promise<{
   processedCount: number;
   failedCount: number;
   errors: string[];
 }> => {
   const now = Math.floor(Date.now() / 1000);
   const getExpiredAuctionsResult = await db.execute({
-    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0`,
-    args: [now],
+    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0${leagueId !== undefined ? " AND a.auction_league_id = ?" : ""}`,
+    args: leagueId !== undefined ? [now, leagueId] : [now],
   });
   const expiredAuctions = getExpiredAuctionsResult.rows as unknown as ExpiredAuctionData[];
 

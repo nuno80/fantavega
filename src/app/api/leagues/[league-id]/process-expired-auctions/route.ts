@@ -32,7 +32,9 @@ export async function POST(_request: Request, context: RouteContext) {
       );
     }
 
-    // Verify user is participant in this league (or admin)
+    // Verify user is participant in this league (or admin). The service is
+    // scoped to the league from the URL, so participants may process only
+    // their own league's expired auctions.
     const participantCheckResult = await db.execute({
       sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
       args: [leagueIdNum, user.id],
@@ -52,8 +54,8 @@ export async function POST(_request: Request, context: RouteContext) {
       `[API PROCESS_EXPIRED_AUCTIONS] Processing expired auctions for league ${leagueIdNum}`
     );
 
-    // Process expired auctions
-    const result = await processExpiredAuctionsAndAssignPlayers();
+    // Process expired auctions scoped to this league
+    const result = await processExpiredAuctionsAndAssignPlayers(leagueIdNum);
 
     console.log(
       `[API PROCESS_EXPIRED_AUCTIONS] Processed ${result.processedCount} auctions, ${result.failedCount} failed`

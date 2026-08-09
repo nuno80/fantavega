@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000003 Mon Sep 17 00:00:00 2001
+Subject: [PATCH 3/3] perf(players): batch cooldown lookup
+
+Apply from repository root:
+  git apply --check 0003-perf-batch-player-cooldowns.patch
+  git apply 0003-perf-batch-player-cooldowns.patch
+
+diff --git a/src/lib/db/services/response-timer.service.ts b/src/lib/db/services/response-timer.service.ts
+--- a/src/lib/db/services/response-timer.service.ts
++++ b/src/lib/db/services/response-timer.service.ts
+@@
+ export const canUserBidOnPlayer = async (
+@@
+ };
++
++export interface PlayerCooldownSummary {
++ playerId: number;
++ expiresAt: number;
++ timeRemaining: number;
++ message: string;
++}
++
++/**
++ * Loads every active cooldown for one user in one round trip.
++ * The caller maps the result onto the current page of players, avoiding N+1 queries.
++ */
++export const getUserActiveCooldowns = async (
++ userId: string,
++ leagueId?: number,
++): Promise<Map<number, PlayerCooldownSummary>> => {
++ const now = Math.floor(Date.now() / 1000);
++ const result = await db.execute({
++ sql: `
++ SELECT player_id, expires_at
++ FROM user_player_preferences
++ WHERE user_id = ?
++ AND preference_type = 'cooldown'
++ AND expires_at > ?
++ ${leagueId === undefined ? "" : "AND league_id = ?"}
++ `,
++ args: leagueId === undefined ? [userId, now] : [userId, now, leagueId],
++ });
++
++ const cooldowns = new Map<number, PlayerCooldownSummary>();
++ for (const row of result.rows) {
++ const playerId = Number(row.player_id);
++ const expiresAt = Number(row.expires_at);
++ cooldowns.set(playerId, {
++ playerId,
++ expiresAt,
++ timeRemaining: Math.max(0, expiresAt - now),
++ message: "Giocatore in cooldown",
++ });
++ }
++ return cooldowns;
++};
+
+diff --git a/src/app/api/players/route.ts b/src/app/api/players/route.ts
+--- a/src/app/api/players/route.ts
++++ b/src/app/api/players/route.ts
+@@
+-import { getUserCooldownInfo } from "@/lib/db/services/response-timer.service";
++import { getUserActiveCooldowns } from "@/lib/db/services/response-timer.service";
+@@
+  if (limitStr && (isNaN(limit!) || limit! <= 0)) {
+@@
+  }
++ if (limit !== undefined && limit > 100) {
++ return NextResponse.json(
++ { error: "Invalid 'limit' parameter. Maximum is 100." },
++ { status: 400 }
++ );
++ }
+@@
+  if (user?.id) {
+- const playersWithCooldown = await Promise.all(
+- result.players.map(async (player) => {
+- const cooldownInfo = await getUserCooldownInfo(user.id, player.id);
++ const cooldowns = await getUserActiveCooldowns(user.id, leagueId);
++ const playersWithCooldown = result.players.map((player) => {
++ const cooldownInfo = cooldowns.get(player.id);
+  return {
+  ...player,
+- cooldownInfo: cooldownInfo.canBid
+- ? null
+- : {
++ cooldownInfo: cooldownInfo
++ ? {
+  timeRemaining: cooldownInfo.timeRemaining,
+  message: cooldownInfo.message,
+- },
++ }
++ : null,
+  };
+- })
+- );
++ });

@@ -674,6 +674,41 @@ export const canUserBidOnPlayer = async (
 };
 
 /**
+ * Carica tutti i cooldown attivi di un utente in UNA query.
+ * Il chiamante mappa il risultato sulla pagina corrente di giocatori, evitando N+1.
+ * Il cooldown è per-lega: quando leagueId è noto, filtra per lega; altrimenti li prende tutti.
+ */
+export const getUserActiveCooldowns = async (
+  userId: string,
+  leagueId?: number,
+): Promise<Map<number, { expiresAt: number; timeRemaining: number; message: string }>> => {
+  const now = Math.floor(Date.now() / 1000);
+  const result = await db.execute({
+    sql: `
+      SELECT player_id, expires_at
+      FROM user_player_preferences
+      WHERE user_id = ?
+        AND preference_type = 'cooldown'
+        AND expires_at > ?
+        ${leagueId === undefined ? "" : "AND league_id = ?"}
+    `,
+    args: leagueId === undefined ? [userId, now] : [userId, now, leagueId],
+  });
+
+  const cooldowns = new Map<number, { expiresAt: number; timeRemaining: number; message: string }>();
+  for (const row of result.rows) {
+    const playerId = Number(row.player_id);
+    const expiresAt = Number(row.expires_at);
+    cooldowns.set(playerId, {
+      expiresAt,
+      timeRemaining: Math.max(0, expiresAt - now),
+      message: "Giocatore in cooldown",
+    });
+  }
+  return cooldowns;
+};
+
+/**
  * Ottieni informazioni dettagliate sul cooldown di un utente per un giocatore
  */
 export const getUserCooldownInfo = async (
