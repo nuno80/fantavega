@@ -748,8 +748,10 @@ export function CallPlayerInterface({
 
             {/* Player Selection */}
             <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
-              <SelectTrigger className="h-10 flex-1 min-w-[120px] max-w-[180px] border-input bg-background text-foreground">
-                <SelectValue placeholder="Seleziona..." />
+              <SelectTrigger className="h-10 flex-1 min-w-[120px] max-w-[180px] border-input bg-background text-foreground [&>span]:truncate">
+                <SelectValue placeholder="Seleziona...">
+                  {selectedPlayerDetails ? selectedPlayerDetails.name : "Seleziona..."}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-60 border-border bg-card">
                 {filteredPlayers.slice(0, visibleCount).map((player) => (
