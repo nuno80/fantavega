@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
 
+import { currentUser } from "@clerk/nextjs/server";
+
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
+    const user = await currentUser();
+    if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const url = new URL(request.url);
     const leagueId = url.searchParams.get("leagueId");
 
-    if (!leagueId) {
+    if (!leagueId || !/^\d+$/.test(leagueId)) {
       return NextResponse.json({ error: "leagueId required" }, { status: 400 });
+    }
+
+    const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined;
+    if (!(await hasLeagueAccess(user.id, Number(leagueId), role))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Fetch all active auctions in the league
@@ -66,6 +77,9 @@ export async function GET(request: Request) {
       status: string;
     }>;
 
+    // ponytail: Map lookup instead of .find() per iteration — O(1) vs O(n)
+    const timerMap = new Map(allResponseTimers.map(t => [`${t.auction_id}:${t.user_id}`, t]));
+
     const now = Math.floor(Date.now() / 1000);
     const states: Array<{
       auction_id: number;
@@ -99,10 +113,7 @@ export async function GET(request: Request) {
           user_state = "miglior_offerta";
         }
 
-        // Find response timer for this specific user and auction
-        const timer = allResponseTimers.find(
-          (t) => t.auction_id === auction.auction_id && t.user_id === user_id
-        );
+        const timer = timerMap.get(`${auction.auction_id}:${user_id}`);
 
         if (timer) {
           response_deadline = timer.response_deadline;
@@ -130,10 +141,10 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      states: states,
-      count: states.length,
-    });
+    return NextResponse.json(
+      { states, count: states.length },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("[ALL_AUCTION_STATES] Error:", error);
     return NextResponse.json(
