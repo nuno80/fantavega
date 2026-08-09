@@ -1,0 +1,53 @@
+Subject: [PATCH] fix(auction): restore viewed-only response timer activation
+
+The public main still activates every pending timer from polling. Remove those
+calls and confirm the view from the mounted response card only.
+
+--- a/src/app/api/user/auction-states/route.ts
++++ b/src/app/api/user/auction-states/route.ts
+@@
+-import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
+ import { updateHeartbeat } from "@/lib/db/services/session.service";
+@@
+- updateHeartbeat(user.id).catch((error) => {
+- console.error("[USER_AUCTION_STATES] Error updating heartbeat:", error);
+- });
+-
+- activateTimersForUser(user.id).catch((error) => {
+- console.error("[USER_AUCTION_STATES] Error activating timers:", error);
+- });
++ try {
++   await updateHeartbeat(user.id);
++ } catch (error) {
++   console.error("[USER_AUCTION_STATES] Heartbeat update failed:", error);
++ }
+--- a/src/app/api/leagues/[league-id]/auction-state/route.ts
++++ b/src/app/api/leagues/[league-id]/auction-state/route.ts
+@@
+-import { activateTimersForUser } from "@/lib/db/services/response-timer.service";
+ import { updateHeartbeat } from "@/lib/db/services/session.service";
+@@
+- const heartbeatAt = await updateHeartbeat(user.id);
+- await activateTimersForUser(user.id, heartbeatAt);
++ await updateHeartbeat(user.id);
+--- a/src/components/auction/ManagerColumn.tsx
++++ b/src/components/auction/ManagerColumn.tsx
+@@
+ function ResponseNeededSlot({
+@@
+  const isMounted = useIsMounted();
++
++ useEffect(() => {
++   if (!isCurrentUser || state.response_deadline !== null) return;
++   const controller = new AbortController();
++   void fetch(`/api/leagues/${leagueId}/players/${state.player_id}/response-timer/viewed`, {
++     method: "POST",
++     signal: controller.signal,
++   }).catch((error: unknown) => {
++     if (!(error instanceof DOMException && error.name === "AbortError")) {
++       console.error("[RESPONSE-TIMER] View confirmation failed", error);
++     }
++   });
++   return () => controller.abort();
++ }, [isCurrentUser, leagueId, state.player_id, state.response_deadline]);
+*** End Patch

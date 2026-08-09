@@ -1,0 +1,30 @@
+Subject: [PATCH] fix(auction): confirm visible response cards and sync countdown
+
+Optional hardening after the viewed-only fix. The server claim remains the
+source of truth; this only prevents off-screen cards from starting the timer
+and makes the UI reflect the successful claim immediately.
+
+--- a/src/components/auction/ManagerColumn.tsx
++++ b/src/components/auction/ManagerColumn.tsx
+@@
+  const isMounted = useIsMounted();
+@@
+- useEffect(() => {
+- if (!isCurrentUser || state.response_deadline !== null) return;
++ useEffect(() => {
++ if (!isCurrentUser || state.response_deadline !== null) return;
++ const element = document.querySelector(`[data-response-auction-id="${state.auction_id}"]`);
++ if (!(element instanceof HTMLElement)) return;
++ const observer = new IntersectionObserver(async ([entry]) => {
++   if (!entry.isIntersecting || entry.intersectionRatio < 0.5) return;
++   observer.disconnect();
++   const response = await fetch(`/api/leagues/${leagueId}/players/${state.player_id}/response-timer/viewed`, { method: "POST" });
++   if (!response.ok) return;
++   const result = await response.json() as { deadline?: number };
++   // Feed result.deadline into the parent state/store so the countdown starts
++   // immediately instead of waiting for the next polling response.
++ }, { threshold: [0.5] });
++ observer.observe(element);
++ return () => observer.disconnect();
++ }, [isCurrentUser, leagueId, state.auction_id, state.player_id, state.response_deadline]);
+*** End Patch

@@ -7,10 +7,7 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    typedRoutes: true,
-    // reactCompiler: true, // Disabilitato: causa hydration mismatch con next-themes + Clerk
-  },
+  typedRoutes: true,
   allowedDevOrigins: [
     'local-origin.dev',
     '*.local-origin.dev',
