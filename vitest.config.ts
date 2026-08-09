@@ -16,6 +16,9 @@ export default defineConfig({
       ["tests/session/**", "node"],
       // Player import integration tests need real libSQL + fs/path for schema.
       ["tests/db/**", "node"],
+      // E2E tests exercise Node APIs (node:crypto randomUUID, node:child_process
+      // execFileSync for the no-legacy guard) that jsdom externalizes.
+      ["tests/e2e/**", "node"],
       // These tests read files from disk via node:path; jsdom externalizes
       // Node core modules and breaks their named imports.
       ["src/lib/sql-template-safety.test.ts", "node"],

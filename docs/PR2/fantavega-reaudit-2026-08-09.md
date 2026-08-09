@@ -1,8 +1,8 @@
 # Fantavega Re-audit: Security, Performance and Ghost Sessions
 
-**Audit date:** 9 August 2026  
-**Reviewed revision:** `31829a7dd12f69ff57822f1c67c41447e3ac21f8`  
-**Repository:** https://github.com/nuno80/fantavega
+**Audit date:** 9 August 2026
+**Reviewed revision:** `31829a7dd12f69ff57822f1c67c41447e3ac21f8`
+**Repository:** <https://github.com/nuno80/fantavega>
 
 ## Executive verdict
 
@@ -15,7 +15,7 @@ Three corrective PRs are recommended. The attached patch appliers are fail-close
 ## Finding summary
 
 | Severity | Finding | Impact | Corrective PR |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | High | Legacy timer activation was reintroduced in both polling routes | Polling/reconnect or opening League A can start unseen timers in League B | PR A |
 | High | Cooldown writes use `INSERT OR REPLACE` on the shared preference row | Applying a cooldown silently resets favorites, starter flags, integrity and FMV preferences | PR B |
 | High | Three admin server actions check authentication but not admin role | A signed-in caller can mutate team names, league status or active roles | PR C |
@@ -155,9 +155,10 @@ were therefore implemented directly, with these deviations:
 
 ### Tests
 
-New regression tests (all passing, `pnpm test:run` 76/79, remaining 3 are the
-documented pre-existing environment failures on `main`):
-`execFileSync`/`randomUUID` unavailable under vitest):
+New regression tests (all passing, `pnpm test:run` 79/79 green). The two
+e2e suites that used to fail (`execFileSync`/`randomUUID` unavailable under
+vitest's jsdom environment) now run in the node environment via
+`vitest.config.ts` `environmentMatchGlobs` (`tests/e2e/**` → `node`):
 
 - `tests/db/cooldown-preserves-preferences.test.ts` — cooldown via
   `handleAuctionAbandon` keeps `is_favorite`/`is_starter`/`integrity_value`/
@@ -173,3 +174,135 @@ documented pre-existing environment failures on `main`):
 
 Validation: `node scripts/assert-no-legacy-timer-activation.mjs` exits 0,
 `pnpm type-check` clean, `pnpm build` passes.
+
+Ecco cosa è stato fatto:
+
+Problema 1 — Il timer di risposta partiva al momento
+   sbagliato
+
+  Come funziona il gioco: quando sei superato in
+  un'asta, il sistema ti dà 1 ora per rispondere
+  (rilanciare o abbandonare). Il timer però deve
+  partire solo quando tu vedi davvero il rilancio — è
+  giusto così, altrimenti ti scadrebbe mentre sei
+  offline.
+
+  Cosa era successo: in un commit precedente qualcuno
+  aveva rimesso una chiamata ("attiva tutti i timer
+  dell'utente") dentro le due API che il gioco chiama
+  in continuazione per aggiornare la pagina. Il
+  problema: quella funzione attivava tutti i timer
+  pendenti dell'utente, di qualunque lega, appena la
+  pagina faceva un refresh. Quindi:
+
+- apri la lega A per guardare un'asta → si attivano
+  anche i timer della lega B che non hai mai visto;
+- ti riconnetti dopo un attimo di rete instabile →
+  parte il conto alla rovescia anche se non hai visto
+  niente;
+- l'ora poteva scadere mentre tu non eri nemmeno
+  davanti allo schermo.
+
+  C'era anche un test automatico ("guard") che vieta
+  esplicitamente quella chiamata nelle API — il nostro
+   fix ha rimesso le cose in regola con quella regola.
+
+  Cosa ho fatto: ho tolto l'attivazione automatica
+  dalle due API (il "battito cardiaco" che dice
+  "l'utente è online" resta). Poi ho fatto sì che il
+  timer parta quando la card "devi rispondere" appare
+  davvero a schermo per il proprietario: la pagina
+  chiama un'apposita API (response-timer/viewed) che è
+   sicura — attiva il timer una volta sola, solo per
+  quella asta, solo per quella lega. Se un altro
+  utente vede la tua card, non succede niente.
+
+  Senza il fix: il timer poteva partire mentre non
+  guardavi lo schermo e scadere, facendoti perdere
+  l'asta (o il giocatore) senza che tu potessi fare
+  nulla. Un'esperienza ingiusta e fonte di lamentele.
+
+  Problema 2 — Il cooldown cancellava i tuoi preferiti
+
+  Come funziona: quando abbandoni un'asta (o ti scade
+  il timer), quel giocatore resta "in cooldown" 48
+  ore. Il sistema salva questa cosa in una tabella che
+   contiene anche i tuoi filtri personali: preferito,
+  titolare, valore di integrità, FMV.
+
+  Cosa era successo: per salvare il cooldown si usava
+  INSERT OR REPLACE, che in SQLite significa "cancella
+   la riga e riscrivine una nuova". Ma la riga nuova
+  conteneva solo il cooldown — i tuoi preferiti
+  sparivano, tornavano ai valori di default.
+
+  Cosa ho fatto: ho cambiato la scrittura in "aggiorna
+   solo le colonne del cooldown, lascia stare il
+  resto" (ON CONFLICT DO UPDATE). L'ho fatto in tutti
+  e tre i punti che scrivono cooldown (la patch
+  originale ne aveva dimenticato uno). In più ho
+  aggiunto una piccola verifica all'avvio che aggiunge
+   le due colonne mancanti (preference_type,
+  expires_at) ai database creati prima che esistessero
+   — altrimenti su quei database l'app sarebbe andata
+  in errore.
+
+  Senza il fix: ogni volta che abbandonavi un'asta,
+  sparivano i tuoi preferiti e filtri su quel
+  giocatore — e tornavano i valori di default.
+  Fastidioso e invisibile (non c'era nessun errore a
+  schermo, solo dati persi).
+
+  Problema 3 — Chiunque poteva fare azioni da
+  amministratore
+
+  Cosa era successo: tre funzioni del pannello
+  (cambiare il nome di una squadra, cambiare lo stato
+  di una lega, cambiare i ruoli attivi dell'asta)
+  controllavano solo che fossi autenticato, non che
+  fossi admin. Le altre funzioni dello stesso file
+  facevano il controllo giusto. Il pulsante era
+  nascosto agli utenti normali nell'interfaccia, ma
+  nascondere un pulsante non è sicurezza: bastava
+  inviare la richiesta direttamente.
+
+  Cosa ho fatto: ho aggiunto lo stesso controllo "sei
+  admin?" già usato altrove (checkIsAdmin) a tutte e
+  tre le funzioni. Un utente normale riceve "Solo gli
+  admin possono eseguire questa operazione" e nessuna
+  modifica viene scritta nel database.
+
+  Senza il fix: qualsiasi utente registrato poteva
+  ribattezzare le squadre, chiudere/aprire le leghe o
+  cambiare i ruoli dell'asta di chiunque — modifiche
+  visibili a tutti e difficili da ripristinare.
+
+  Extra — Validazione degli ID
+
+  L'API delle icone/filtri accettava parseInt("7junk")
+   come fosse 7. Ho reso la validazione severa
+  (/^\d+$/): stringhe strane → errore. Minore, ma era
+  un comportamento incoerente segnalato dall'audit.
+
+  Come ho lavorato
+
+  Prima i test (TDD): tre nuovi test che riproducono i
+   problemi (il cooldown che cancella i preferiti, il
+  non-admin respinto, l'attivazione una-sola-volta) —
+  fallivano con il vecchio codice, passano con il
+  nuovo. Poi ho verificato: type-check pulito, build
+  ok, tutti i 79 test passano (i 3 che prima
+  fallivano erano rotti dall'ambiente di test, non
+  dal codice: girando in jsdom, vitest non esponeva
+  node:crypto e node:child_process. Ho mappato
+  tests/e2e/** sull'ambiente node in vitest.config.ts
+  e ora la suite è completamente verde). Tutto su un
+  branch dedicato con un commit unico, e la
+  documentazione aggiornata per spiegare le
+  deviazioni dalle patch originali (che tra l'altro
+  non erano nemmeno applicabili al codice attuale —
+  le ho riscritte di fatto).
+
+  In sintesi: senza il fix perdevi aste senza vederle,
+   perdevi i preferiti di nascosto, e chiunque poteva
+  fare l'admin. Ora tutto questo/new è chiuso.
