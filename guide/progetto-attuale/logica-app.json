@@ -1,28 +1,25 @@
 {
-  "last_update": "2026-08-24T16:07:00Z",
-  "task_completed": "Production readiness - lotto fix semplici",
+  "last_update": "2026-08-24T16:22:00Z",
+  "task_completed": "SEC-001 - aggiornamento autenticazione e framework",
   "feature_logic": {
-    "feature_name": "Hardening route amministrative e limiti input",
-    "summary": "Introduce difese interne uniformi per task e diagnostica, corregge il cambio ruolo Clerk, limita paginazione e upload Excel, minimizza i DTO debug e rende ESLint una quality gate di CI.",
-    "architectural_pattern": "Le route sensibili applicano autorizzazione Clerk a livello handler senza dipendere soltanto dal middleware. Le route debug aggiungono un gate production centralizzato. Le task timer condividono un handler POST admin-only. I confini HTTP validano ruoli, paginazione e metadati upload prima della logica di servizio.",
+    "feature_name": "Upgrade sicuro Clerk e Next con difesa route-level",
+    "summary": "Aggiorna Clerk e Next alle versioni sicure compatibili, allinea React ed ESLint Config e chiude le ultime route admin che dipendevano soltanto dal middleware.",
+    "architectural_pattern": "Il middleware Clerk resta il primo confine, mentre ogni handler amministrativo o debug applica anche una decisione route-level basata su publicMetadata.role. Le risposte di diniego admin sono centralizzate e la matrice anonimo/manager/admin è verificata chiamando direttamente gli handler.",
     "user_flow": [
-      "1. Una richiesta admin viene autenticata e autorizzata direttamente dalla route tramite publicMetadata.role.",
-      "2. Una route debug restituisce 404 in produzione salvo ENABLE_DEBUG_API=true e non espone massimali individuali di auto-bid.",
-      "3. Le task mutanti accettano POST soltanto e rifiutano anonimi e manager prima di invocare il processor.",
-      "4. Il cambio ruolo accetta solo admin, manager o rimozione del ruolo e usa la factory asincrona clerkClient().",
-      "5. La lista giocatori rifiuta pagine o limiti invalidi e impone un massimo di 100 righe.",
-      "6. Upload diversi da .xls/.xlsx, MIME non consentiti o superiori a 10 MiB vengono rifiutati prima del parser.",
-      "7. La CI esegue ESLint, type-check, test e build con un placeholder Clerk fittizio ma sintatticamente valido."
+      "1. Il middleware Clerk protegge le route amministrative e reindirizza le pagine in base allo stato auth.",
+      "2. L'handler ripete la verifica admin prima di leggere dati o avviare logica applicativa.",
+      "3. Un anonimo riceve 401, un manager riceve 403 e un admin prosegue.",
+      "4. Le route debug applicano anche il gate production e le task mutanti restano POST-only.",
+      "5. I test invocano direttamente gli handler sensibili per dimostrare che un bypass middleware non concede accesso."
     ],
     "core_components_interaction": {
-      "src/lib/auth/admin-route.ts": "Fonte condivisa della decisione admin route-level.",
+      "src/middleware.tsx": "Primo confine Clerk per route pubbliche, autenticate e amministrative.",
+      "src/lib/auth/admin-route.ts": "Fonte condivisa della decisione admin route-level e della risposta HTTP 401/403.",
       "src/lib/auth/debug-route.ts": "Combina autorizzazione admin e gate ENABLE_DEBUG_API.",
       "src/lib/http/admin-task.ts": "Factory condivisa per task timer POST admin-only e GET 405.",
-      "src/lib/http/pagination.ts": "Parsing centralizzato di pagina, limite e offset con bounds.",
-      "src/lib/import/excel-upload-policy.ts": "Policy metadati upload Excel con soglia 10 MiB.",
-      "src/app/api/admin/set-user-role/route.ts": "Valida ruolo e usa await clerkClient().",
-      "src/app/api/debug/*": "Applicano la policy condivisa e restituiscono DTO ridotti.",
-      ".github/workflows/quality.yml": "Aggiunge ESLint alla pipeline e usa un publishable key Clerk CI valido nel formato."
+      "src/app/api/admin/dashboard-stats/route.ts": "Protegge le statistiche prima della query amministrativa.",
+      "src/app/api/admin/leagues/[league-id]/route.ts": "Protegge entrambi gli handler GET/POST prima di elaborare la richiesta.",
+      "package.json": "Fissa Clerk 6.39.6, Next ed ESLint Config 15.5.23 e React 19.1.4 compatibile."
     },
     "database_interactions": []
   }

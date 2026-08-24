@@ -1,6 +1,11 @@
 // src/app/api/admin/leagues/[league-id]/participants/route.ts
 import { NextResponse } from "next/server";
 
+import {
+  adminAuthorizationErrorResponse,
+  authorizeAdminRequest,
+} from "@/lib/auth/admin-route";
+
 interface RouteContext {
   params: Promise<{
     "league-id": string;
@@ -8,6 +13,11 @@ interface RouteContext {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const authorization = await authorizeAdminRequest();
+  if (!authorization.authorized) {
+    return adminAuthorizationErrorResponse(authorization);
+  }
+
   try {
     const routeParams = await context.params;
     const leagueId = routeParams["league-id"];
@@ -32,6 +42,11 @@ export async function POST(request: Request, context: RouteContext) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const authorization = await authorizeAdminRequest();
+  if (!authorization.authorized) {
+    return adminAuthorizationErrorResponse(authorization);
+  }
+
   try {
     const routeParams = await context.params;
     const leagueId = routeParams["league-id"];

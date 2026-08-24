@@ -1,69 +1,37 @@
 {
-  "last_update": "2026-08-24T16:07:00Z",
+  "last_update": "2026-08-24T16:22:00Z",
   "files": [
     {
       "path": "src/lib/auth/admin-route.ts",
-      "description": "Guardia route-level Clerk condivisa per richieste amministrative."
+      "description": "Guardia route-level Clerk e risposta HTTP di diniego condivise per richieste amministrative."
     },
     {
-      "path": "src/lib/auth/debug-route.ts",
-      "description": "Policy centralizzata admin più gate production per endpoint debug."
+      "path": "src/app/api/admin/dashboard-stats/route.ts",
+      "description": "Aggiunge il guard admin prima di leggere le statistiche."
     },
     {
-      "path": "src/lib/http/admin-task.ts",
-      "description": "Handler condiviso per task timer POST admin-only e GET non consentito."
+      "path": "src/app/api/admin/leagues/[league-id]/route.ts",
+      "description": "Aggiunge il guard admin agli handler GET e POST."
     },
     {
-      "path": "src/lib/http/pagination.ts",
-      "description": "Parser paginazione con interi positivi, cap e offset sicuro."
+      "path": "tests/api/admin-route.test.ts",
+      "description": "Matrice diretta anonimo, manager e admin per dashboard e dettaglio lega."
     },
     {
-      "path": "src/lib/import/excel-upload-policy.ts",
-      "description": "Allowlist estensione/MIME e limite upload Excel di 10 MiB."
+      "path": "tests/api/debug-and-task-guards.test.ts",
+      "description": "Matrice diretta anonimo, manager e admin per route debug e task amministrativi."
     },
     {
-      "path": "src/app/api/admin/tasks/*/route.ts",
-      "description": "Guardia admin uniforme, mutazioni solo POST e risposte errore minimizzate."
+      "path": "docs/security-performance-rollout.md",
+      "description": "Registra la matrice di accesso per route admin, task, debug e pagine amministrative."
     },
     {
-      "path": "src/app/api/admin/set-user-role/route.ts",
-      "description": "Corretto uso asincrono Clerk, allowlist ruoli e policy admin condivisa."
+      "path": "package.json",
+      "description": "Versioni sicure compatibili di Clerk, Next, React ed eslint-config-next."
     },
     {
-      "path": "src/app/api/admin/players/upload-excel/route.ts",
-      "description": "Applica la policy upload prima di bufferizzare il contenuto del file."
-    },
-    {
-      "path": "src/app/api/debug/*/route.ts",
-      "description": "Guardia debug uniforme, 404 production, scope lega e DTO senza massimali individuali."
-    },
-    {
-      "path": "src/app/api/leagues/[league-id]/players-with-status/route.ts",
-      "description": "Valida page/limit e impone massimo 100 risultati."
-    },
-    {
-      "path": "tests/api/*.test.ts",
-      "description": "Copertura route-level per admin, debug, task e cambio ruolo."
-    },
-    {
-      "path": "tests/lib/*.test.ts",
-      "description": "Boundary test per paginazione e policy upload Excel."
-    },
-    {
-      "path": ".github/workflows/quality.yml",
-      "description": "ESLint aggiunto alla CI e placeholder Clerk build reso sintatticamente valido."
-    },
-    {
-      "path": "README.md",
-      "description": "Documenta SOCKET_EMIT_SECRET condiviso tra Vercel e Railway."
-    },
-    {
-      "path": "scripts/analyze-credits.ts",
-      "description": "Corretti gli errori prefer-template che bloccavano ESLint."
-    },
-    {
-      "path": "scripts/monitor-memory.js",
-      "description": "Corretto errore prefer-template che bloccava ESLint."
+      "path": "pnpm-lock.yaml",
+      "description": "Risoluzioni rigenerate per l'upgrade security senza modifiche allo schema dati."
     }
   ]
 }

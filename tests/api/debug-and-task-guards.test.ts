@@ -34,15 +34,35 @@ describe("debug and scheduled-task route guards", () => {
     vi.unstubAllEnvs();
   });
 
-  it("blocks anonymous access before the Addai debug query", async () => {
-    currentUser.mockResolvedValue(null);
-    const { GET } = await import("@/app/api/debug/addai/route");
+  const callers = [
+    { label: "anonymous", user: null, expectedStatus: 401 },
+    {
+      label: "manager",
+      user: { id: "manager-1", publicMetadata: { role: "manager" } },
+      expectedStatus: 403,
+    },
+    {
+      label: "admin",
+      user: { id: "admin-1", publicMetadata: { role: "admin" } },
+      expectedStatus: 200,
+    },
+  ] as const;
 
-    const response = await GET();
+  it.each(callers)(
+    "enforces the $label matrix before the Addai debug query",
+    async ({ user, expectedStatus }) => {
+      currentUser.mockResolvedValue(user);
+      dbExecute
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+        .mockResolvedValue({ rows: [] });
+      const { GET } = await import("@/app/api/debug/addai/route");
 
-    expect(response.status).toBe(401);
-    expect(dbExecute).not.toHaveBeenCalled();
-  });
+      const response = await GET();
+
+      expect(response.status).toBe(expectedStatus);
+      expect(dbExecute).toHaveBeenCalledTimes(expectedStatus === 200 ? 4 : 0);
+    },
+  );
 
   it("returns not found for debug APIs disabled in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
@@ -82,11 +102,21 @@ describe("debug and scheduled-task route guards", () => {
     expect(processExpiredResponseTimers).not.toHaveBeenCalled();
   });
 
-  it("blocks non-admin access to manual auction processing", async () => {
-    currentUser.mockResolvedValue({ id: "manager-1", publicMetadata: { role: "manager" } });
-    const { POST } = await import("@/app/api/admin/tasks/process-auctions/route");
+  it.each(callers)(
+    "enforces the $label matrix on manual auction processing",
+    async ({ user, expectedStatus }) => {
+      currentUser.mockResolvedValue(user);
+      processExpiredAuctionsAndAssignPlayers.mockResolvedValue({
+        processedCount: 0,
+        failedCount: 0,
+        errors: [],
+      });
+      const { POST } = await import("@/app/api/admin/tasks/process-auctions/route");
 
-    expect((await POST()).status).toBe(403);
-    expect(processExpiredAuctionsAndAssignPlayers).not.toHaveBeenCalled();
-  });
+      expect((await POST()).status).toBe(expectedStatus);
+      expect(processExpiredAuctionsAndAssignPlayers).toHaveBeenCalledTimes(
+        expectedStatus === 200 ? 1 : 0,
+      );
+    },
+  );
 });

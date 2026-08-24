@@ -19,6 +19,18 @@
 3. Expect HTTP 403 and no budget, roster, auto-bid, or activity data.
 4. Repeat as admin and expect access.
 
+### Sensitive route matrix
+
+| Route class | Anonymous | Authenticated manager | Admin | Defense |
+| --- | --- | --- | --- | --- |
+| `/api/admin/**` | 401 | 401/403 denied | allowed | Route-level Clerk role guard plus middleware |
+| `/api/admin/tasks/**` | 401 on POST | 403 on POST | allowed on POST | Shared task guard; GET returns 405 |
+| `/api/debug/**` | 401 | 403 | allowed outside production | Route-level admin guard, production 404 unless explicitly enabled |
+| `/admin/**`, `/dashboard/**` | sign-in redirect | no-access redirect | allowed | Clerk middleware |
+
+Direct-handler tests cover the shared admin decision and representative admin, debug,
+and task handlers so authorization remains effective when middleware is bypassed.
+
 ## Socket tests
 1. POST to `/api/emit` without `x-emit-secret`: expect 401.
 2. POST with the wrong secret: expect 401.
