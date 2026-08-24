@@ -1,45 +1,25 @@
 {
-  "last_update": "2026-08-24T16:52:00Z",
+  "last_update": "2026-08-24T17:10:00Z",
   "files": [
     {
-      "path": "src/lib/security/admin-audit.ts",
-      "description": "Nuovo logger strutturato per letture debug e task amministrative."
+      "path": "src/lib/db/services/bid.service.ts",
+      "description": "Settlement con claim condizionale, riconciliazione transazionale e retry/no-op sicuro."
     },
     {
-      "path": "src/lib/http/debug-response.ts",
-      "description": "Nuovo proiettore di righe DB su allowlist esplicite."
+      "path": "src/lib/db/services/locked-credits.service.ts",
+      "description": "Espressione canonica dell'esposizione, validazione esplicita, mismatch read-only e safety-net idempotente a batch con metriche."
     },
     {
-      "path": "src/lib/http/admin-task.ts",
-      "description": "Aggiunge audit success/failure alla factory delle task timer."
+      "path": "src/lib/scheduler.ts",
+      "description": "Safety-net crediti eseguito a ogni ciclo protetto da lease."
     },
     {
-      "path": "src/app/api/debug/addai/route.ts",
-      "description": "Endpoint diagnostico hard-coded rimosso."
+      "path": "tests/e2e/locked-credits-settlement.e2e.test.ts",
+      "description": "Test runtime su ultima asta, perdenti, inattivi, concorrenza, retry e invariante."
     },
     {
-      "path": "src/app/api/debug/all-autobids/route.ts",
-      "description": "Allowlist dei campi, gate esistente e audit della lettura."
-    },
-    {
-      "path": "src/app/api/debug/autobid-check/route.ts",
-      "description": "Allowlist di partecipante e auto-bid, più audit della lettura."
-    },
-    {
-      "path": "src/app/api/debug/budget-verification/route.ts",
-      "description": "Allowlist separate per i dataset di budget e audit della lettura."
-    },
-    {
-      "path": "src/app/api/admin/tasks/process-auctions/route.ts",
-      "description": "GET 405 esplicito e audit success/failure del POST."
-    },
-    {
-      "path": "tests/api/debug-and-task-guards.test.ts",
-      "description": "Matrice auth/environment, snapshot DTO, 405 e audit log diretti sugli handler."
-    },
-    {
-      "path": "docs/security-performance-rollout.md",
-      "description": "Inventario endpoint, policy production e documentazione del feature flag non segreto."
+      "path": "tests/e2e/locked-credits-scheduler.e2e.test.ts",
+      "description": "Test del reconciler scheduler anche con zero settlement."
     }
   ]
 }

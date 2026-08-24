@@ -21,12 +21,10 @@ const runBackgroundTasks = async () => {
     if (!lease) return;
 
     await reapGhostSessions();
-    const auctionResult = await processExpiredAuctionsAndAssignPlayers();
+    await processExpiredAuctionsAndAssignPlayers();
     await processExpiredResponseTimers();
     await processExpiredComplianceTimers();
-    if (auctionResult.processedCount > 0) {
-      await reconcileLockedCreditsForActiveLeagues();
-    }
+    await reconcileLockedCreditsForActiveLeagues();
   } catch (error) {
     console.error("[SCHEDULER] Background task failure:", error);
   } finally {

@@ -1,25 +1,26 @@
 {
-  "last_update": "2026-08-24T16:52:00Z",
-  "task_completed": "SEC-002 - hardening endpoint debug e task",
+  "last_update": "2026-08-24T17:10:00Z",
+  "task_completed": "REL-003 - rilascio crediti bloccati nel settlement",
   "feature_logic": {
-    "feature_name": "Superficie diagnostica production chiusa e auditabile",
-    "summary": "Rimuove la diagnostica Addai obsoleta, applica allowlist ai DTO debug mantenuti, rende esplicito POST-only per tutte le task e registra audit strutturati delle operazioni amministrative autorizzate.",
-    "architectural_pattern": "Le route debug combinano guard Clerk route-level, gate production deny-by-default e proiezione esplicita dei campi prima della serializzazione. Le task condividono un contratto GET 405/POST admin-only. Letture debug e mutazioni task emettono eventi ADMIN_AUDIT con attore, risorsa ed esito senza includere payload diagnostici.",
+    "feature_name": "Invariante transazionale dei crediti bloccati",
+    "summary": "Riconcilia locked_credits con l'esposizione attiva durante il settlement, copre perdenti e ultima asta, rende retry/concorrenza idempotenti e mantiene un safety-net scheduler a batch con metriche sui mismatch reali.",
+    "architectural_pattern": "Una singola espressione SQL definisce l'esposizione attiva. Il settlement reclama l'asta, disattiva le offerte e riconcilia l'intera lega nella stessa transazione prima di addebitare e assegnare il vincitore. Il reconciler periodico seleziona un batch limitato di leghe incoerenti, incluse quelle senza aste attive, ed emette conteggi strutturati delle correzioni.",
     "user_flow": [
-      "1. Anonimi e manager vengono respinti dal guard locale prima di query o mutazioni.",
-      "2. In production anche un admin riceve 404 dalle route debug, salvo ENABLE_DEBUG_API=true.",
-      "3. Una risposta debug include soltanto i campi dichiarati nell'allowlist e non propaga email, massimali o stack inattesi.",
-      "4. Le task amministrative mutano soltanto via POST; GET restituisce 405 con Allow: POST.",
-      "5. Ogni lettura debug o task autorizzata registra un evento strutturato di successo o fallimento."
+      "1. Il processor reclama atomicamente un'asta scaduta active/closing.",
+      "2. Offerte e auto-bid vengono disattivate e tutti i partecipanti della lega vengono riconciliati nella stessa transazione.",
+      "3. Il vincitore viene addebitato e assegnato una sola volta; retry o claim concorrenti diventano no-op.",
+      "4. Il scheduler esegue sempre il safety-net sotto lease, corregge al massimo 25 leghe incoerenti per ciclo ed emette la metrica delle correzioni.",
+      "5. Una query read-only espone storedLockedCredits e activeExposure per verificare l'invariante."
     ],
     "core_components_interaction": {
-      "src/lib/auth/debug-route.ts": "Combina autorizzazione admin e gate production ENABLE_DEBUG_API.",
-      "src/lib/http/debug-response.ts": "Proietta righe diagnostiche sulle allowlist dichiarate dalle route.",
-      "src/lib/security/admin-audit.ts": "Emette eventi strutturati per letture debug e task amministrative.",
-      "src/lib/http/admin-task.ts": "Applica POST-only, guard admin e audit alle task timer condivise.",
-      "src/app/api/debug/*/route.ts": "Route diagnostiche mantenute con gate, allowlist e audit; addai rimosso.",
-      "src/app/api/admin/tasks/process-auctions/route.ts": "Espone POST admin-only, GET 405 e audit dell'esecuzione."
+      "src/lib/db/services/bid.service.ts": "Claim e settlement transazionale con riconciliazione della lega e retry sicuro.",
+      "src/lib/db/services/locked-credits.service.ts": "Fonte canonica dell'esposizione, validazione input/righe, diagnostica mismatch e reconciler idempotente a batch.",
+      "src/lib/scheduler.ts": "Esegue il safety-net a ogni ciclo leased, anche senza settlement appena processati.",
+      "tests/e2e/locked-credits-settlement.e2e.test.ts": "Copre ultima asta, più perdenti, retry, concorrenza e invariante.",
+      "tests/e2e/locked-credits-scheduler.e2e.test.ts": "Verifica l'esecuzione del safety-net scheduler senza aste processate."
     },
-    "database_interactions": []
+    "database_interactions": [
+      "Nessuna migrazione: aggiornamenti transazionali a auctions, auto_bids, league_participants, budget_transactions e player_assignments."
+    ]
   }
 }

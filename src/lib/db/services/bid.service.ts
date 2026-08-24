@@ -6,6 +6,7 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 
 import { handleBidderChange } from "./auction-states.service";
 import { checkAndRecordCompliance } from "./penalty.service";
+import { reconcileLockedCreditsForLeague } from "./locked-credits.service";
 import {
   cancelResponseTimer,
   createResponseTimer,
@@ -1664,22 +1665,37 @@ export const getAuctionStatusForPlayer = async (
   return null;
 };
 
+type SettlementOutcome = "processed" | "skipped" | "failed";
+
+function isSettlementContention(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "SQLITE_BUSY"
+  );
+}
+
 // Funzione helper per processare un vincitore d'asta
-async function processAuctionWinner(auction: ExpiredAuctionData, now: number): Promise<boolean> {
+async function processAuctionWinner(
+  auction: ExpiredAuctionData,
+  now: number,
+): Promise<SettlementOutcome> {
   try {
-    // Determina l'importo corretto da sbloccare
-    const autoBidResult = await db.execute({
-      sql: "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE",
-      args: [auction.id, auction.current_highest_bidder_id],
-    });
-    const autoBid = autoBidResult.rows[0] as unknown as
-      | { max_amount: number }
-      | undefined;
-
-    // const amountToUnlock = autoBid?.max_amount || auction.current_highest_bid_amount;
-
     const tx = await db.transaction("write");
     try {
+      const claimResult = await tx.execute({
+        sql: `UPDATE auctions
+              SET status = 'closing', updated_at = ?
+              WHERE id = ? AND status IN ('active', 'closing')
+              RETURNING id`,
+        args: [now, auction.id],
+      });
+      if (claimResult.rows.length === 0) {
+        await tx.rollback();
+        return "skipped";
+      }
+
       await tx.execute({
         sql: "UPDATE auctions SET status = 'sold', updated_at = ? WHERE id = ?",
         args: [now, auction.id],
@@ -1691,52 +1707,9 @@ async function processAuctionWinner(auction: ExpiredAuctionData, now: number): P
         args: [now, auction.id],
       });
 
-      // Sblocca i crediti per tutti gli utenti che avevano auto-bid attivi (eccetto il vincitore)
-      const allAutoBidsResult = await tx.execute({
-        sql: "SELECT user_id, max_amount FROM auto_bids WHERE auction_id = ? AND user_id != ? AND is_active = TRUE",
-        args: [auction.id, auction.current_highest_bidder_id],
-      });
-      const allAutoBidsForAuction = allAutoBidsResult.rows as unknown as {
-        user_id: string;
-        max_amount: number;
-      }[];
-
-      const affectedUsers = new Set<string>();
-      for (const otherAutoBid of allAutoBidsForAuction) {
-        affectedUsers.add(otherAutoBid.user_id);
-      }
-      affectedUsers.add(auction.current_highest_bidder_id);
-
-      for (const userId of affectedUsers) {
-        const userLockedCreditsResult = await tx.execute({
-          sql: `
-              SELECT
-                COALESCE(
-                  (SELECT SUM(ab.max_amount)
-                   FROM auto_bids ab
-                   JOIN auctions a ON ab.auction_id = a.id
-                   WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-                  0
-                ) +
-                COALESCE(
-                  (SELECT SUM(a.current_highest_bid_amount)
-                   FROM auctions a
-                   LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-                   WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-                     AND ab.id IS NULL
-                     AND a.status IN ('active', 'closing')),
-                  0
-                ) as total_locked
-            `,
-          args: [auction.auction_league_id, userId, userId, auction.auction_league_id, userId],
-        });
-        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
-
-        await tx.execute({
-          sql: "UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?",
-          args: [totalLocked, auction.auction_league_id, userId],
-        });
-      }
+      // Ricalcola l'intera lega nella stessa transazione: comprende vincitore,
+      // tutti i perdenti e qualsiasi esposizione ancora attiva su altre aste.
+      await reconcileLockedCreditsForLeague(auction.auction_league_id, tx);
 
       // Deduce il prezzo di acquisto dal budget del vincitore
       await tx.execute({
@@ -1802,14 +1775,15 @@ async function processAuctionWinner(auction: ExpiredAuctionData, now: number): P
         },
       }).catch(err => console.error("Error sending socket notification:", err));
 
-      return true;
+      return "processed";
     } catch (error) {
       await tx.rollback();
       throw error;
     }
   } catch (err) {
+    if (isSettlementContention(err)) return "skipped";
     console.error(`Error processing auction ${auction.id}:`, err);
-    return false;
+    return "failed";
   }
 }
 
@@ -1820,7 +1794,7 @@ export const processExpiredAuctionsAndAssignPlayers = async (leagueId?: number):
 }> => {
   const now = Math.floor(Date.now() / 1000);
   const getExpiredAuctionsResult = await db.execute({
-    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status = 'active' AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0${leagueId !== undefined ? " AND a.auction_league_id = ?" : ""}`,
+    sql: `SELECT a.id, a.auction_league_id, a.player_id, a.current_highest_bid_amount, a.current_highest_bidder_id, p.role as player_role, p.name as player_name FROM auctions a JOIN players p ON a.player_id = p.id WHERE a.status IN ('active', 'closing') AND a.scheduled_end_time <= ? AND a.current_highest_bidder_id IS NOT NULL AND a.current_highest_bid_amount > 0${leagueId !== undefined ? " AND a.auction_league_id = ?" : ""}`,
     args: leagueId !== undefined ? [now, leagueId] : [now],
   });
   const expiredAuctions = getExpiredAuctionsResult.rows as unknown as ExpiredAuctionData[];
@@ -1833,10 +1807,10 @@ export const processExpiredAuctionsAndAssignPlayers = async (leagueId?: number):
   const errors: string[] = [];
 
   for (const auction of expiredAuctions) {
-    const success = await processAuctionWinner(auction, now);
-    if (success) {
+    const outcome = await processAuctionWinner(auction, now);
+    if (outcome === "processed") {
       processedCount++;
-    } else {
+    } else if (outcome === "failed") {
       failedCount++;
       errors.push(`Failed to process auction ${auction.id}`);
     }
