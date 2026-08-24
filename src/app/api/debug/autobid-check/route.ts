@@ -1,71 +1,53 @@
-import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Debug endpoint per verificare auto-bid attivi e locked_credits
- * GET /api/debug/autobid-check?userId=xxx&leagueId=xxx
- */
+import { authorizeDebugRequest } from "@/lib/auth/debug-route";
+import { db } from "@/lib/db";
+
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeDebugRequest();
+  if (!authorization.authorized) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const targetUserId = request.nextUrl.searchParams.get("userId") || authorization.userId;
+  const leagueId = request.nextUrl.searchParams.get("leagueId");
+  if (!leagueId || !/^\d+$/.test(leagueId)) {
+    return NextResponse.json({ error: "Invalid leagueId" }, { status: 400 });
+  }
+
   try {
-    const { userId: clerkUserId } = await auth();
-
-    // Solo per utenti autenticati
-    if (!clerkUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const targetUserId = searchParams.get("userId") || clerkUserId;
-    const leagueId = searchParams.get("leagueId");
-
-    // 1. Verifica locked_credits per l'utente
-    const participantQuery = leagueId
-      ? `SELECT user_id, league_id, locked_credits, current_budget
-         FROM league_participants
-         WHERE user_id = ? AND league_id = ?`
-      : `SELECT user_id, league_id, locked_credits, current_budget
-         FROM league_participants
-         WHERE user_id = ?`;
-
-    const participantResult = await db.execute({
-      sql: participantQuery,
-      args: leagueId ? [targetUserId, leagueId] : [targetUserId],
-    });
+    const [participantResult, autoBidsResult, totalAutoBidResult] = await Promise.all([
+      db.execute({
+        sql: `SELECT user_id, league_id, locked_credits, current_budget
+              FROM league_participants WHERE user_id = ? AND league_id = ?`,
+        args: [targetUserId, leagueId],
+      }),
+      db.execute({
+        sql: `SELECT ab.auction_id, ab.is_active, ab.created_at,
+                     a.player_id, p.name AS player_name, a.status AS auction_status,
+                     a.current_highest_bid_amount, a.auction_league_id
+              FROM auto_bids ab
+              JOIN auctions a ON ab.auction_id = a.id
+              JOIN players p ON a.player_id = p.id
+              WHERE ab.user_id = ? AND a.auction_league_id = ? AND ab.is_active = 1
+              ORDER BY ab.created_at DESC`,
+        args: [targetUserId, leagueId],
+      }),
+      db.execute({
+        sql: `SELECT COALESCE(SUM(ab.max_amount), 0) AS total_auto_bid
+              FROM auto_bids ab
+              JOIN auctions a ON ab.auction_id = a.id
+              WHERE ab.user_id = ? AND a.auction_league_id = ? AND ab.is_active = 1`,
+        args: [targetUserId, leagueId],
+      }),
+    ]);
     const participant = participantResult.rows[0];
-
-    // 2. Tutti gli auto-bid attivi per l'utente
-    const autoBidsResult = await db.execute({
-      sql: `SELECT
-          ab.auction_id,
-          ab.max_amount,
-          ab.is_active,
-          ab.created_at,
-          a.player_id,
-          p.name as player_name,
-          a.status as auction_status,
-          a.current_highest_bid_amount,
-          a.auction_league_id
-        FROM auto_bids ab
-        JOIN auctions a ON ab.auction_id = a.id
-        JOIN players p ON a.player_id = p.id
-        WHERE ab.user_id = ?
-          AND ab.is_active = 1
-        ORDER BY ab.created_at DESC`,
-      args: [targetUserId],
-    });
     const autoBids = autoBidsResult.rows;
-
-    // 3. Somma auto-bid attivi
-    const totalAutoBid = autoBids.reduce(
-      (sum: number, bid: Record<string, unknown>) => sum + (Number(bid.max_amount) || 0),
-      0
-    );
-
-    // 4. Auto-bid "fantasma" (attivi ma asta non attiva)
-    const ghostAutoBids = autoBids.filter(
-      (bid: Record<string, unknown>) => bid.auction_status !== "active"
-    );
+    const totalAutoBid = Number(totalAutoBidResult.rows[0]?.total_auto_bid) || 0;
+    const ghostAutoBids = autoBids.filter((bid) => bid.auction_status !== "active");
 
     return NextResponse.json({
       status: "success",
@@ -83,13 +65,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[DEBUG] Auto-bid check error:", error);
-    return NextResponse.json(
-      {
-        status: "error",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    console.error("[DEBUG] Auto-bid inspection failed", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

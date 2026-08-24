@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { parsePagination } from "@/lib/http/pagination";
 
 // Define interfaces for DB results to avoid 'any'
 interface PlayerDBResult {
@@ -57,10 +58,19 @@ export async function GET(
     const resolvedParams = await params;
     const searchParams = request.nextUrl.searchParams;
 
-    // Pagination params
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const offset = (page - 1) * limit;
+    let pagination;
+    try {
+      pagination = parsePagination(searchParams, {
+        defaultLimit: 20,
+        maxLimit: 100,
+      });
+    } catch {
+      return NextResponse.json(
+        { error: "Parametri di paginazione non validi" },
+        { status: 400 }
+      );
+    }
+    const { page, limit, offset } = pagination;
 
     // Filter params
     const search = searchParams.get("search") || "";

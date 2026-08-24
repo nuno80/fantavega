@@ -1,29 +1,69 @@
 {
-  "last_update": "2026-02-18T14:35:00Z",
+  "last_update": "2026-08-24T16:07:00Z",
   "files": [
     {
-      "path": "database/schema.sql",
-      "description": "Aggiunta colonna last_heartbeat a tabella user_sessions per rilevare sessioni fantasma."
+      "path": "src/lib/auth/admin-route.ts",
+      "description": "Guardia route-level Clerk condivisa per richieste amministrative."
     },
     {
-      "path": "database/adhoc_changes.sql",
-      "description": "Migration SQL per aggiungere last_heartbeat alla produzione. Svuotare dopo applicazione."
+      "path": "src/lib/auth/debug-route.ts",
+      "description": "Policy centralizzata admin più gate production per endpoint debug."
     },
     {
-      "path": "src/lib/db/services/session.service.ts",
-      "description": "Aggiunta funzione updateHeartbeat(). isUserCurrentlyOnline ora usa soglia di staleness di 2 minuti."
+      "path": "src/lib/http/admin-task.ts",
+      "description": "Handler condiviso per task timer POST admin-only e GET non consentito."
     },
     {
-      "path": "src/lib/db/services/response-timer.service.ts",
-      "description": "createResponseTimer ora crea timer sempre come pendenti, senza attivazione immediata."
+      "path": "src/lib/http/pagination.ts",
+      "description": "Parser paginazione con interi positivi, cap e offset sicuro."
     },
     {
-      "path": "src/app/api/leagues/[league-id]/auction-state/route.ts",
-      "description": "Sostituito recordUserLogin con updateHeartbeat per le chiamate di polling."
+      "path": "src/lib/import/excel-upload-policy.ts",
+      "description": "Allowlist estensione/MIME e limite upload Excel di 10 MiB."
     },
     {
-      "path": "src/app/api/user/auction-states/route.ts",
-      "description": "Sostituito recordUserLogin con updateHeartbeat per le chiamate di polling."
+      "path": "src/app/api/admin/tasks/*/route.ts",
+      "description": "Guardia admin uniforme, mutazioni solo POST e risposte errore minimizzate."
+    },
+    {
+      "path": "src/app/api/admin/set-user-role/route.ts",
+      "description": "Corretto uso asincrono Clerk, allowlist ruoli e policy admin condivisa."
+    },
+    {
+      "path": "src/app/api/admin/players/upload-excel/route.ts",
+      "description": "Applica la policy upload prima di bufferizzare il contenuto del file."
+    },
+    {
+      "path": "src/app/api/debug/*/route.ts",
+      "description": "Guardia debug uniforme, 404 production, scope lega e DTO senza massimali individuali."
+    },
+    {
+      "path": "src/app/api/leagues/[league-id]/players-with-status/route.ts",
+      "description": "Valida page/limit e impone massimo 100 risultati."
+    },
+    {
+      "path": "tests/api/*.test.ts",
+      "description": "Copertura route-level per admin, debug, task e cambio ruolo."
+    },
+    {
+      "path": "tests/lib/*.test.ts",
+      "description": "Boundary test per paginazione e policy upload Excel."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "description": "ESLint aggiunto alla CI e placeholder Clerk build reso sintatticamente valido."
+    },
+    {
+      "path": "README.md",
+      "description": "Documenta SOCKET_EMIT_SECRET condiviso tra Vercel e Railway."
+    },
+    {
+      "path": "scripts/analyze-credits.ts",
+      "description": "Corretti gli errori prefer-template che bloccavano ESLint."
+    },
+    {
+      "path": "scripts/monitor-memory.js",
+      "description": "Corretto errore prefer-template che bloccava ESLint."
     }
   ]
 }

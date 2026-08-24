@@ -12,9 +12,9 @@ const db = createClient({
 });
 
 async function analyzeCredits() {
-  console.log("\n" + "=".repeat(80));
+  console.log("\n%s", "=".repeat(80));
   console.log("📊 ANALISI COMPLETA CREDITI - Lega 'Test Fantavega'");
-  console.log("=".repeat(80) + "\n");
+  console.log("%s\n", "=".repeat(80));
 
   // 1. Trova la lega 'Test Fantavega'
   console.log("1️⃣ INFORMAZIONI LEGA\n");
@@ -39,7 +39,7 @@ async function analyzeCredits() {
   const initialBudget = Number(league.initial_budget_per_manager);
 
   // 2. Stato attuale partecipanti
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("2️⃣ STATO PARTECIPANTI (current_budget, locked_credits)\n");
 
   const participantsResult = await db.execute({
@@ -63,7 +63,7 @@ async function analyzeCredits() {
   console.table(participantsResult.rows);
 
   // 3. Auto-bid attivi
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("3️⃣ AUTO-BID ATTIVI\n");
 
   const autoBidsResult = await db.execute({
@@ -93,7 +93,7 @@ async function analyzeCredits() {
   console.table(autoBidsResult.rows);
 
   // 4. Calcolo locked_credits atteso vs reale
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("4️⃣ VERIFICA LOCKED_CREDITS (Atteso vs Reale)\n");
 
   const expectedLockedResult = await db.execute({
@@ -132,7 +132,7 @@ async function analyzeCredits() {
   }
 
   // 5. Giocatori assegnati (spesi)
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("5️⃣ GIOCATORI ASSEGNATI (CREDITI SPESI)\n");
 
   const assignedPlayersResult = await db.execute({
@@ -175,7 +175,7 @@ async function analyzeCredits() {
   console.table(spentByManagerResult.rows);
 
   // 6. Tutte le transazioni budget
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("6️⃣ TUTTE LE TRANSAZIONI BUDGET\n");
 
   const transactionsResult = await db.execute({
@@ -216,7 +216,7 @@ async function analyzeCredits() {
   console.table(transactionsByTypeResult.rows);
 
   // 7. Penalità
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("7️⃣ PENALITÀ APPLICATE\n");
 
   const penaltiesResult = await db.execute({
@@ -242,7 +242,7 @@ async function analyzeCredits() {
   }
 
   // 8. Stato compliance
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("8️⃣ STATO COMPLIANCE\n");
 
   const complianceResult = await db.execute({
@@ -268,7 +268,7 @@ async function analyzeCredits() {
   }
 
   // 9. Aste attive
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("9️⃣ ASTE ATTIVE/CLOSING\n");
 
   const activeAuctionsResult = await db.execute({
@@ -298,7 +298,7 @@ async function analyzeCredits() {
   }
 
   // 10. VERIFICA FORMULA BUDGET
-  console.log("\n" + "=".repeat(80));
+  console.log("\n%s", "=".repeat(80));
   console.log("🧮 VERIFICA FORMULA BUDGET");
   console.log("=".repeat(80));
   console.log("\n   Formula attesa: current_budget = INIZIALE - SPESO_GIOCATORI - PENALITÀ");
@@ -343,12 +343,13 @@ async function analyzeCredits() {
     console.log(`      • Budget Atteso: ${expectedBudget}`);
     console.log(`      • Budget Reale (current_budget): ${currentBudget}`);
     console.log(`      • Locked Credits: ${lockedCredits}`);
-    console.log(`      • Differenza: ${difference !== 0 ? '⚠️ ' + difference : '✅ 0'}`);
+    const differenceLabel = difference !== 0 ? `⚠️ ${difference}` : "✅ 0";
+    console.log(`      • Differenza: ${differenceLabel}`);
     console.log("");
   }
 
   // 11. Storico offerte (bids)
-  console.log("\n" + "-".repeat(80));
+  console.log("\n%s", "-".repeat(80));
   console.log("🔟 STORICO OFFERTE (ultime 30)\n");
 
   const bidsResult = await db.execute({
@@ -375,9 +376,9 @@ async function analyzeCredits() {
 
   console.table(bidsResult.rows);
 
-  console.log("\n" + "=".repeat(80));
+  console.log("\n%s", "=".repeat(80));
   console.log("✅ ANALISI COMPLETATA");
-  console.log("=".repeat(80) + "\n");
+  console.log("%s\n", "=".repeat(80));
 }
 
 analyzeCredits()

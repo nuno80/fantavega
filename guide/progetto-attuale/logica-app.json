@@ -1,36 +1,29 @@
 {
-  "last_update": "2026-02-18T14:35:00Z",
-  "task_completed": "FIX - Timer Rilanci Session Ghost",
+  "last_update": "2026-08-24T16:07:00Z",
+  "task_completed": "Production readiness - lotto fix semplici",
   "feature_logic": {
-    "feature_name": "Fix Timer Rilanci - Session Ghost Detection",
-    "summary": "Risolve il bug dove il timer di risposta si attivava automaticamente per utenti offline a causa di sessioni fantasma (browser chiuso senza logout). Implementa un sistema di heartbeat per validare lo stato online e rimuove l'attivazione immediata del timer alla creazione.",
-    "architectural_pattern": "Heartbeat-based session validation. Le API di polling aggiornano un timestamp (last_heartbeat) ad ogni richiesta. isUserCurrentlyOnline verifica che il heartbeat sia recente (< 2 min). I timer sono sempre creati come pendenti e attivati solo quando l'utente effettivamente visita la pagina.",
+    "feature_name": "Hardening route amministrative e limiti input",
+    "summary": "Introduce difese interne uniformi per task e diagnostica, corregge il cambio ruolo Clerk, limita paginazione e upload Excel, minimizza i DTO debug e rende ESLint una quality gate di CI.",
+    "architectural_pattern": "Le route sensibili applicano autorizzazione Clerk a livello handler senza dipendere soltanto dal middleware. Le route debug aggiungono un gate production centralizzato. Le task timer condividono un handler POST admin-only. I confini HTTP validano ruoli, paginazione e metadati upload prima della logica di servizio.",
     "user_flow": [
-      "1. Utente A apre la pagina asta → recordUserLogin crea sessione con last_heartbeat.",
-      "2. Ogni fetch API (socket events) aggiorna last_heartbeat via updateHeartbeat.",
-      "3. Utente B supera Utente A → createResponseTimer crea timer PENDENTE (mai attivato subito).",
-      "4. Se Utente A è offline: timer resta pendente. isUserCurrentlyOnline ritorna false (heartbeat scaduto).",
-      "5. Utente A ritorna → API chiama activateTimersForUser → timer si attiva con deadline 1 ora.",
-      "6. Se Utente A non risponde entro 1 ora → scheduler processa timer → asta abbandonata."
+      "1. Una richiesta admin viene autenticata e autorizzata direttamente dalla route tramite publicMetadata.role.",
+      "2. Una route debug restituisce 404 in produzione salvo ENABLE_DEBUG_API=true e non espone massimali individuali di auto-bid.",
+      "3. Le task mutanti accettano POST soltanto e rifiutano anonimi e manager prima di invocare il processor.",
+      "4. Il cambio ruolo accetta solo admin, manager o rimozione del ruolo e usa la factory asincrona clerkClient().",
+      "5. La lista giocatori rifiuta pagine o limiti invalidi e impone un massimo di 100 righe.",
+      "6. Upload diversi da .xls/.xlsx, MIME non consentiti o superiori a 10 MiB vengono rifiutati prima del parser.",
+      "7. La CI esegue ESLint, type-check, test e build con un placeholder Clerk fittizio ma sintatticamente valido."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/session.service.ts": "Aggiunta updateHeartbeat(). isUserCurrentlyOnline ora verifica last_heartbeat > (now - 120s).",
-      "src/lib/db/services/response-timer.service.ts": "createResponseTimer non chiama più isUserCurrentlyOnline/activateTimerForUser. Timer sempre pendente.",
-      "src/app/api/leagues/[league-id]/auction-state/route.ts": "Usa updateHeartbeat() invece di recordUserLogin().",
-      "src/app/api/user/auction-states/route.ts": "Usa updateHeartbeat() invece di recordUserLogin().",
-      "database/schema.sql": "Aggiunta colonna last_heartbeat a user_sessions."
+      "src/lib/auth/admin-route.ts": "Fonte condivisa della decisione admin route-level.",
+      "src/lib/auth/debug-route.ts": "Combina autorizzazione admin e gate ENABLE_DEBUG_API.",
+      "src/lib/http/admin-task.ts": "Factory condivisa per task timer POST admin-only e GET 405.",
+      "src/lib/http/pagination.ts": "Parsing centralizzato di pagina, limite e offset con bounds.",
+      "src/lib/import/excel-upload-policy.ts": "Policy metadati upload Excel con soglia 10 MiB.",
+      "src/app/api/admin/set-user-role/route.ts": "Valida ruolo e usa await clerkClient().",
+      "src/app/api/debug/*": "Applicano la policy condivisa e restituiscono DTO ridotti.",
+      ".github/workflows/quality.yml": "Aggiunge ESLint alla pipeline e usa un publishable key Clerk CI valido nel formato."
     },
-    "database_interactions": [
-      {
-        "table": "user_sessions",
-        "operation": "ALTER TABLE (ADD COLUMN)",
-        "description": "Aggiunta colonna last_heartbeat INTEGER per tracciare l'ultimo heartbeat."
-      },
-      {
-        "table": "user_sessions",
-        "operation": "UPDATE",
-        "description": "updateHeartbeat aggiorna last_heartbeat ad ogni chiamata API di polling."
-      }
-    ]
+    "database_interactions": []
   }
 }

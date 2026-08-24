@@ -1,30 +1,25 @@
-import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
+import { authorizeDebugRequest } from "@/lib/auth/debug-route";
+import { db } from "@/lib/db";
+
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeDebugRequest();
+  if (!authorization.authorized) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const { clerkClient } = await import("@clerk/nextjs/server");
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId);
-    if (user.publicMetadata?.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEBUG_API !== "true") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
     const leagueId = request.nextUrl.searchParams.get("leagueId");
     if (!leagueId || !/^\d+$/.test(leagueId)) {
       return NextResponse.json({ error: "Invalid leagueId" }, { status: 400 });
     }
 
     const autoBidsResult = await db.execute({
-      sql: `SELECT ab.id, ab.auction_id, ab.user_id, ab.max_amount, ab.is_active,
+      sql: `SELECT ab.id, ab.auction_id, ab.user_id, ab.is_active,
           ab.created_at, a.player_id, p.name as player_name,
           a.status as auction_status, a.current_highest_bid_amount,
           a.auction_league_id

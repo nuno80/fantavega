@@ -55,6 +55,7 @@ Configure these variables in the **Variables** tab of your service:
 ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-app-git-main.vercel.app
 TURSO_DATABASE_URL=your_turso_url
 TURSO_AUTH_TOKEN=your_turso_token
+SOCKET_EMIT_SECRET=generate-a-long-random-secret
 ```
 
 > ⚠️ **Important**: Include ALL Vercel URLs (production and preview) separated by commas without spaces.
@@ -89,6 +90,7 @@ TURSO_AUTH_TOKEN=your_turso_token
 
    # Socket.IO Server (Railway URL from Step 1)
    NEXT_PUBLIC_SOCKET_URL=https://fantavega-production.up.railway.app
+   SOCKET_EMIT_SECRET=the-same-long-random-secret-used-on-railway
 
    # Database (Turso)
    TURSO_DATABASE_URL=libsql://your-db.turso.io
@@ -153,6 +155,7 @@ After both services are deployed:
 |----------|---------|-------------|
 | `NEXT_PUBLIC_SOCKET_URL` | Vercel | Railway public URL for Socket.IO |
 | `ALLOWED_ORIGINS` | Railway | Comma-separated list of Vercel URLs |
+| `SOCKET_EMIT_SECRET` | Both | Shared secret used to authenticate server-to-server socket events; use the same long random value on Railway and Vercel |
 | `TURSO_DATABASE_URL` | Both | Turso database connection URL |
 | `TURSO_AUTH_TOKEN` | Both | Turso authentication token |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Vercel | Clerk public key |

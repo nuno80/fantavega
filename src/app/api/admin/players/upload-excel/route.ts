@@ -10,6 +10,7 @@ import {
   PlayerImportResult,
   processPlayersExcel,
 } from "@/lib/db/services/player-import.service";
+import { validateExcelUpload } from "@/lib/import/excel-upload-policy";
 
 // 2. Funzione POST per Gestire l'Upload del File
 export async function POST(request: Request) {
@@ -51,19 +52,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
-    // Validazione base del tipo di file (meno stringente, affidandosi al parser)
-    const allowedMimeTypesForLogging = [
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/CDFV2", // Office Compound Document File V2 (a volte per .xls)
-    ];
-    if (!allowedMimeTypesForLogging.includes(file.type)) {
-      console.warn(
-        `[API PLAYER_UPLOAD POST] Received file with potentially unexpected MIME type: ${file.type}. File: ${file.name}. Attempting to parse anyway.`
-      );
-    } else {
-      console.log(
-        `[API PLAYER_UPLOAD POST] Received file with MIME type: ${file.type}.`
+    const uploadError = validateExcelUpload(file);
+    if (uploadError) {
+      return NextResponse.json(
+        { error: uploadError.error },
+        { status: uploadError.status }
       );
     }
 

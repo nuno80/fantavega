@@ -2,7 +2,7 @@
 // Script per monitorare l'uso di memoria del server Socket.IO
 
 const formatBytes = (bytes) => {
-  return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  return [(bytes / 1024 / 1024).toFixed(2), "MB"].join(" ");
 };
 
 const logMemoryUsage = () => {

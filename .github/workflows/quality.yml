@@ -23,6 +23,8 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: ESLint
+        run: pnpm lint
       - name: TypeScript
         run: pnpm type-check
       - name: Tests
@@ -36,7 +38,8 @@ jobs:
         if: github.event_name == 'push'
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          # Decodes to the non-routable test frontend identifier "clerk.accounts.dev$".
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuYWNjb3VudHMuZGV2JA==
           CLERK_SECRET_KEY: sk_test_ci_placeholder
           TURSO_DATABASE_URL: libsql://ci.invalid
           TURSO_AUTH_TOKEN: ci-placeholder
