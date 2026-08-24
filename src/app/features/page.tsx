@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Banknote, DollarSign, Gavel, HandCoins, Info, ShieldCheck, Star, Trash2, X, Zap } from "lucide-react";
+import { AlertTriangle, Banknote, Clock3, DollarSign, Gavel, HandCoins, Info, ShieldCheck, Star, Trash2, X, Zap } from "lucide-react";
 
 export default function FeaturesPage() {
   return (
@@ -17,8 +17,9 @@ export default function FeaturesPage() {
 
         <Tabs defaultValue="autobid" className="mx-auto w-full max-w-5xl">
           <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full max-w-md grid-cols-4">
+            <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2 sm:grid-cols-5">
               <TabsTrigger value="auction">Asta</TabsTrigger>
+              <TabsTrigger value="response">Rilanci</TabsTrigger>
               <TabsTrigger value="autobid">Auto-Bid</TabsTrigger>
               <TabsTrigger value="penalties">Penalità</TabsTrigger>
               <TabsTrigger value="credits">Crediti</TabsTrigger>
@@ -139,6 +140,76 @@ export default function FeaturesPage() {
                       Il sistema ti bloccherà automaticamente se non rispetti i requisiti.
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* RESPONSE WINDOW SECTION */}
+          <TabsContent value="response" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card className="h-full border-orange-200 dark:border-orange-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock3 className="h-5 w-5 text-orange-500" />
+                    Rilancio entro 48 ore
+                  </CardTitle>
+                  <CardDescription>
+                    Un rilancio deve essere fatto entro 48h, pena l&apos;abbandono dell&apos;asta.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20">
+                    Quando vieni superato, hai fino a <strong>48 ore</strong> per tornare e prendere in carico la richiesta di rilancio.
+                  </div>
+                  <p className="text-muted-foreground">
+                    Se non torni entro questo limite, il sistema considera l&apos;asta abbandonata e applica il cooldown previsto per quel giocatore.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gavel className="h-5 w-5 text-green-500" />
+                    Un&apos;ora garantita
+                  </CardTitle>
+                  <CardDescription>
+                    La finestra di risposta parte quando la card viene mostrata.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <p>
+                    Quando la card del rilancio viene montata, parte un timer personale di <strong>1 ora completa</strong> per decidere se rilanciare o abbandonare.
+                  </p>
+                  <p className="text-muted-foreground">
+                    L&apos;ora è sempre garantita: anche se apri la card vicino alla scadenza delle 48 ore, avrai comunque tutti i 60 minuti a disposizione.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5 text-blue-500" />
+                    In breve
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ol className="grid gap-4 text-sm md:grid-cols-3">
+                    <li className="rounded-lg bg-muted p-4">
+                      <strong>1. Vieni superato</strong>
+                      <p className="mt-1 text-muted-foreground">Inizia il periodo massimo di attesa di 48 ore.</p>
+                    </li>
+                    <li className="rounded-lg bg-muted p-4">
+                      <strong>2. Apri la card</strong>
+                      <p className="mt-1 text-muted-foreground">Parte l&apos;ora garantita per prendere una decisione.</p>
+                    </li>
+                    <li className="rounded-lg bg-muted p-4">
+                      <strong>3. Decidi</strong>
+                      <p className="mt-1 text-muted-foreground">Rilancia oppure abbandona; senza risposta l&apos;abbandono è automatico.</p>
+                    </li>
+                  </ol>
                 </CardContent>
               </Card>
             </div>
