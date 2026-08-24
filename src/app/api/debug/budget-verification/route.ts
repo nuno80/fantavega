@@ -2,6 +2,28 @@ import { NextResponse } from "next/server";
 
 import { authorizeDebugRequest } from "@/lib/auth/debug-route";
 import { db } from "@/lib/db";
+import { projectDebugRows } from "@/lib/http/debug-response";
+import { createAdminAuditRecorder } from "@/lib/security/admin-audit";
+
+const PARTICIPANT_FIELDS = [
+  "user_id",
+  "manager_team_name",
+  "disponibili",
+  "bloccati",
+  "iniziale",
+  "spesi_calcolati",
+] as const;
+const TRANSACTION_FIELDS = [
+  "user_id",
+  "transaction_type",
+  "amount",
+  "description",
+  "created_at",
+  "balance_after_in_league",
+] as const;
+const ASSIGNMENT_FIELDS = ["user_id", "num_players", "total_spent"] as const;
+const ACTIVE_AUCTION_FIELDS = ["user_id", "active_auctions", "locked_amount"] as const;
+const PENALTY_FIELDS = ["user_id", "num_penalties", "total_penalties"] as const;
 
 export async function GET(request: Request) {
   const authorization = await authorizeDebugRequest();
@@ -12,8 +34,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const audit = createAdminAuditRecorder({
+    actorUserId: authorization.userId,
+    action: "debug.read",
+    resource: "debug/budget-verification",
+  });
+
   const leagueId = new URL(request.url).searchParams.get("leagueId");
   if (!leagueId || !/^\d+$/.test(leagueId)) {
+    audit("failure");
     return NextResponse.json({ error: "Invalid leagueId" }, { status: 400 });
   }
 
@@ -53,18 +82,21 @@ export async function GET(request: Request) {
       args: [leagueId],
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       status: "success",
       leagueId,
       data: {
-        participants: participantsResult.rows,
-        transactions: transactionsResult.rows,
-        assignments: assignmentsResult.rows,
-        activeAuctions: activeAuctionsResult.rows,
-        penalties: penaltiesResult.rows,
+        participants: projectDebugRows(participantsResult.rows, PARTICIPANT_FIELDS),
+        transactions: projectDebugRows(transactionsResult.rows, TRANSACTION_FIELDS),
+        assignments: projectDebugRows(assignmentsResult.rows, ASSIGNMENT_FIELDS),
+        activeAuctions: projectDebugRows(activeAuctionsResult.rows, ACTIVE_AUCTION_FIELDS),
+        penalties: projectDebugRows(penaltiesResult.rows, PENALTY_FIELDS),
       },
     });
+    audit("success");
+    return response;
   } catch (error) {
+    audit("failure");
     console.error("[DEBUG] Budget verification failed", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

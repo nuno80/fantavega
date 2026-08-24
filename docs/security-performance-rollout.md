@@ -31,6 +31,21 @@
 Direct-handler tests cover the shared admin decision and representative admin, debug,
 and task handlers so authorization remains effective when middleware is bypassed.
 
+### Debug and task endpoint inventory
+
+| Endpoint | Method | Production policy | Response policy |
+| --- | --- | --- | --- |
+| `/api/debug/all-autobids` | GET | 404 by default | Explicit auction and participant field allowlists |
+| `/api/debug/autobid-check` | GET | 404 by default | Explicit participant, auction and summary DTO |
+| `/api/debug/budget-verification` | GET | 404 by default | Explicit allowlists for each diagnostic dataset |
+| `/api/admin/tasks/process-auctions` | POST | Admin only | Aggregate counts only; GET returns 405 |
+| `/api/admin/tasks/*-timers` | POST | Admin only | Aggregate counts only; GET returns 405 |
+
+The obsolete player-specific `/api/debug/addai` endpoint was removed. Debug APIs may be
+enabled in production only by setting the boolean feature flag `ENABLE_DEBUG_API=true`;
+the flag is not a secret and does not replace the route-level admin guard. Successful
+and failed authorized debug/task operations emit structured `[ADMIN_AUDIT]` events.
+
 ## Socket tests
 1. POST to `/api/emit` without `x-emit-secret`: expect 401.
 2. POST with the wrong secret: expect 401.

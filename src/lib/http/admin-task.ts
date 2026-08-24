@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authorizeAdminRequest } from "@/lib/auth/admin-route";
+import { createAdminAuditRecorder } from "@/lib/security/admin-audit";
 
 interface AdminTimerTaskResult {
   processedCount: number;
@@ -29,15 +30,24 @@ export function createAdminTimerTaskHandlers(
       );
     }
 
+    const audit = createAdminAuditRecorder({
+      actorUserId: authorization.userId,
+      action: "admin-task.run",
+      resource: taskName,
+    });
+
     try {
       const result = await processor();
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         processedCount: result.processedCount,
         errorCount: result.errors.length,
         timestamp: new Date().toISOString(),
       });
+      audit("success");
+      return response;
     } catch (error) {
+      audit("failure");
       console.error(`[${taskName}] Processing failed`, error);
       return NextResponse.json({ error: "Task processing failed" }, { status: 500 });
     }

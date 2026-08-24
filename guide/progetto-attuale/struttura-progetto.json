@@ -1,37 +1,45 @@
 {
-  "last_update": "2026-08-24T16:22:00Z",
+  "last_update": "2026-08-24T16:52:00Z",
   "files": [
     {
-      "path": "src/lib/auth/admin-route.ts",
-      "description": "Guardia route-level Clerk e risposta HTTP di diniego condivise per richieste amministrative."
+      "path": "src/lib/security/admin-audit.ts",
+      "description": "Nuovo logger strutturato per letture debug e task amministrative."
     },
     {
-      "path": "src/app/api/admin/dashboard-stats/route.ts",
-      "description": "Aggiunge il guard admin prima di leggere le statistiche."
+      "path": "src/lib/http/debug-response.ts",
+      "description": "Nuovo proiettore di righe DB su allowlist esplicite."
     },
     {
-      "path": "src/app/api/admin/leagues/[league-id]/route.ts",
-      "description": "Aggiunge il guard admin agli handler GET e POST."
+      "path": "src/lib/http/admin-task.ts",
+      "description": "Aggiunge audit success/failure alla factory delle task timer."
     },
     {
-      "path": "tests/api/admin-route.test.ts",
-      "description": "Matrice diretta anonimo, manager e admin per dashboard e dettaglio lega."
+      "path": "src/app/api/debug/addai/route.ts",
+      "description": "Endpoint diagnostico hard-coded rimosso."
+    },
+    {
+      "path": "src/app/api/debug/all-autobids/route.ts",
+      "description": "Allowlist dei campi, gate esistente e audit della lettura."
+    },
+    {
+      "path": "src/app/api/debug/autobid-check/route.ts",
+      "description": "Allowlist di partecipante e auto-bid, più audit della lettura."
+    },
+    {
+      "path": "src/app/api/debug/budget-verification/route.ts",
+      "description": "Allowlist separate per i dataset di budget e audit della lettura."
+    },
+    {
+      "path": "src/app/api/admin/tasks/process-auctions/route.ts",
+      "description": "GET 405 esplicito e audit success/failure del POST."
     },
     {
       "path": "tests/api/debug-and-task-guards.test.ts",
-      "description": "Matrice diretta anonimo, manager e admin per route debug e task amministrativi."
+      "description": "Matrice auth/environment, snapshot DTO, 405 e audit log diretti sugli handler."
     },
     {
       "path": "docs/security-performance-rollout.md",
-      "description": "Registra la matrice di accesso per route admin, task, debug e pagine amministrative."
-    },
-    {
-      "path": "package.json",
-      "description": "Versioni sicure compatibili di Clerk, Next, React ed eslint-config-next."
-    },
-    {
-      "path": "pnpm-lock.yaml",
-      "description": "Risoluzioni rigenerate per l'upgrade security senza modifiche allo schema dati."
+      "description": "Inventario endpoint, policy production e documentazione del feature flag non segreto."
     }
   ]
 }

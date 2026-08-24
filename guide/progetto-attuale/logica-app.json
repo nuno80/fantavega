@@ -1,25 +1,24 @@
 {
-  "last_update": "2026-08-24T16:22:00Z",
-  "task_completed": "SEC-001 - aggiornamento autenticazione e framework",
+  "last_update": "2026-08-24T16:52:00Z",
+  "task_completed": "SEC-002 - hardening endpoint debug e task",
   "feature_logic": {
-    "feature_name": "Upgrade sicuro Clerk e Next con difesa route-level",
-    "summary": "Aggiorna Clerk e Next alle versioni sicure compatibili, allinea React ed ESLint Config e chiude le ultime route admin che dipendevano soltanto dal middleware.",
-    "architectural_pattern": "Il middleware Clerk resta il primo confine, mentre ogni handler amministrativo o debug applica anche una decisione route-level basata su publicMetadata.role. Le risposte di diniego admin sono centralizzate e la matrice anonimo/manager/admin è verificata chiamando direttamente gli handler.",
+    "feature_name": "Superficie diagnostica production chiusa e auditabile",
+    "summary": "Rimuove la diagnostica Addai obsoleta, applica allowlist ai DTO debug mantenuti, rende esplicito POST-only per tutte le task e registra audit strutturati delle operazioni amministrative autorizzate.",
+    "architectural_pattern": "Le route debug combinano guard Clerk route-level, gate production deny-by-default e proiezione esplicita dei campi prima della serializzazione. Le task condividono un contratto GET 405/POST admin-only. Letture debug e mutazioni task emettono eventi ADMIN_AUDIT con attore, risorsa ed esito senza includere payload diagnostici.",
     "user_flow": [
-      "1. Il middleware Clerk protegge le route amministrative e reindirizza le pagine in base allo stato auth.",
-      "2. L'handler ripete la verifica admin prima di leggere dati o avviare logica applicativa.",
-      "3. Un anonimo riceve 401, un manager riceve 403 e un admin prosegue.",
-      "4. Le route debug applicano anche il gate production e le task mutanti restano POST-only.",
-      "5. I test invocano direttamente gli handler sensibili per dimostrare che un bypass middleware non concede accesso."
+      "1. Anonimi e manager vengono respinti dal guard locale prima di query o mutazioni.",
+      "2. In production anche un admin riceve 404 dalle route debug, salvo ENABLE_DEBUG_API=true.",
+      "3. Una risposta debug include soltanto i campi dichiarati nell'allowlist e non propaga email, massimali o stack inattesi.",
+      "4. Le task amministrative mutano soltanto via POST; GET restituisce 405 con Allow: POST.",
+      "5. Ogni lettura debug o task autorizzata registra un evento strutturato di successo o fallimento."
     ],
     "core_components_interaction": {
-      "src/middleware.tsx": "Primo confine Clerk per route pubbliche, autenticate e amministrative.",
-      "src/lib/auth/admin-route.ts": "Fonte condivisa della decisione admin route-level e della risposta HTTP 401/403.",
-      "src/lib/auth/debug-route.ts": "Combina autorizzazione admin e gate ENABLE_DEBUG_API.",
-      "src/lib/http/admin-task.ts": "Factory condivisa per task timer POST admin-only e GET 405.",
-      "src/app/api/admin/dashboard-stats/route.ts": "Protegge le statistiche prima della query amministrativa.",
-      "src/app/api/admin/leagues/[league-id]/route.ts": "Protegge entrambi gli handler GET/POST prima di elaborare la richiesta.",
-      "package.json": "Fissa Clerk 6.39.6, Next ed ESLint Config 15.5.23 e React 19.1.4 compatibile."
+      "src/lib/auth/debug-route.ts": "Combina autorizzazione admin e gate production ENABLE_DEBUG_API.",
+      "src/lib/http/debug-response.ts": "Proietta righe diagnostiche sulle allowlist dichiarate dalle route.",
+      "src/lib/security/admin-audit.ts": "Emette eventi strutturati per letture debug e task amministrative.",
+      "src/lib/http/admin-task.ts": "Applica POST-only, guard admin e audit alle task timer condivise.",
+      "src/app/api/debug/*/route.ts": "Route diagnostiche mantenute con gate, allowlist e audit; addai rimosso.",
+      "src/app/api/admin/tasks/process-auctions/route.ts": "Espone POST admin-only, GET 405 e audit dell'esecuzione."
     },
     "database_interactions": []
   }

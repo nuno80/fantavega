@@ -32,6 +32,7 @@ describe("debug and scheduled-task route guards", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   const callers = [
@@ -49,31 +50,294 @@ describe("debug and scheduled-task route guards", () => {
   ] as const;
 
   it.each(callers)(
-    "enforces the $label matrix before the Addai debug query",
+    "enforces the $label matrix before the all-autobids debug query",
     async ({ user, expectedStatus }) => {
       currentUser.mockResolvedValue(user);
-      dbExecute
-        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-        .mockResolvedValue({ rows: [] });
-      const { GET } = await import("@/app/api/debug/addai/route");
+      dbExecute.mockResolvedValue({ rows: [] });
+      const { NextRequest } = await import("next/server");
+      const { GET } = await import("@/app/api/debug/all-autobids/route");
 
-      const response = await GET();
+      const response = await GET(
+        new NextRequest("http://localhost/api/debug/all-autobids?leagueId=2"),
+      );
 
       expect(response.status).toBe(expectedStatus);
-      expect(dbExecute).toHaveBeenCalledTimes(expectedStatus === 200 ? 4 : 0);
+      expect(dbExecute).toHaveBeenCalledTimes(expectedStatus === 200 ? 2 : 0);
     },
   );
 
-  it("returns not found for debug APIs disabled in production", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("ENABLE_DEBUG_API", "false");
+  const productionDebugRoutes = [
+    {
+      label: "all-autobids",
+      invoke: async () => {
+        const { NextRequest } = await import("next/server");
+        const { GET } = await import("@/app/api/debug/all-autobids/route");
+        return GET(new NextRequest("http://localhost/api/debug/all-autobids?leagueId=2"));
+      },
+    },
+    {
+      label: "autobid-check",
+      invoke: async () => {
+        const { NextRequest } = await import("next/server");
+        const { GET } = await import("@/app/api/debug/autobid-check/route");
+        return GET(new NextRequest("http://localhost/api/debug/autobid-check?leagueId=2"));
+      },
+    },
+    {
+      label: "budget-verification",
+      invoke: async () => {
+        const { GET } = await import("@/app/api/debug/budget-verification/route");
+        return GET(new Request("http://localhost/api/debug/budget-verification?leagueId=2"));
+      },
+    },
+  ] as const;
+
+  it.each(productionDebugRoutes)(
+    "returns not found for $label when debug APIs are disabled in production",
+    async ({ invoke }) => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("ENABLE_DEBUG_API", "false");
+      currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
+
+      const response = await invoke();
+
+      expect(response.status).toBe(404);
+      expect(dbExecute).not.toHaveBeenCalled();
+    },
+  );
+
+  const productionCallers = [
+    { label: "anonymous", user: null, debugEnabled: false, expectedStatus: 401 },
+    {
+      label: "manager",
+      user: { id: "manager-1", publicMetadata: { role: "manager" } },
+      debugEnabled: false,
+      expectedStatus: 403,
+    },
+    {
+      label: "admin with debug disabled",
+      user: { id: "admin-1", publicMetadata: { role: "admin" } },
+      debugEnabled: false,
+      expectedStatus: 404,
+    },
+    {
+      label: "admin with debug enabled",
+      user: { id: "admin-1", publicMetadata: { role: "admin" } },
+      debugEnabled: true,
+      expectedStatus: 200,
+    },
+  ] as const;
+
+  it.each(productionCallers)(
+    "enforces the $label matrix in production",
+    async ({ user, debugEnabled, expectedStatus }) => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("ENABLE_DEBUG_API", debugEnabled ? "true" : "false");
+      currentUser.mockResolvedValue(user);
+      dbExecute.mockResolvedValue({ rows: [] });
+      const { NextRequest } = await import("next/server");
+      const { GET } = await import("@/app/api/debug/all-autobids/route");
+
+      const response = await GET(
+        new NextRequest("http://localhost/api/debug/all-autobids?leagueId=2"),
+      );
+
+      expect(response.status).toBe(expectedStatus);
+      expect(dbExecute).toHaveBeenCalledTimes(expectedStatus === 200 ? 2 : 0);
+    },
+  );
+
+  it("allowlists debug response fields and records the admin access", async () => {
     currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
-    const { GET } = await import("@/app/api/debug/addai/route");
+    dbExecute
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 7,
+            auction_id: 8,
+            user_id: "user-1",
+            is_active: 1,
+            created_at: 10,
+            player_id: 11,
+            player_name: "Player",
+            auction_status: "active",
+            current_highest_bid_amount: 20,
+            auction_league_id: 2,
+            max_amount: 999,
+            email: "private@example.com",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            user_id: "user-1",
+            league_id: 2,
+            locked_credits: 20,
+            current_budget: 480,
+            stack: "internal trace",
+          },
+        ],
+      });
+    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { NextRequest } = await import("next/server");
+    const { GET } = await import("@/app/api/debug/all-autobids/route");
 
-    const response = await GET();
+    const response = await GET(
+      new NextRequest("http://localhost/api/debug/all-autobids?leagueId=2"),
+    );
 
-    expect(response.status).toBe(404);
-    expect(dbExecute).not.toHaveBeenCalled();
+    expect(await response.json()).toEqual({
+      status: "success",
+      data: {
+        leagueId: "2",
+        autoBids: [
+          {
+            id: 7,
+            auction_id: 8,
+            user_id: "user-1",
+            is_active: 1,
+            created_at: 10,
+            player_id: 11,
+            player_name: "Player",
+            auction_status: "active",
+            current_highest_bid_amount: 20,
+            auction_league_id: 2,
+          },
+        ],
+        participants: [
+          {
+            user_id: "user-1",
+            league_id: 2,
+            locked_credits: 20,
+            current_budget: 480,
+          },
+        ],
+      },
+    });
+    expect(auditLog).toHaveBeenCalledWith(
+      "[ADMIN_AUDIT]",
+      expect.objectContaining({
+        actorUserId: "admin-1",
+        action: "debug.read",
+        resource: "debug/all-autobids",
+        outcome: "success",
+      }),
+    );
+  });
+
+  it("allowlists autobid-check fields and audits the read", async () => {
+    currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
+    dbExecute
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            user_id: "user-1",
+            league_id: 2,
+            locked_credits: 40,
+            current_budget: 460,
+            email: "private@example.com",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            auction_id: 8,
+            is_active: 1,
+            created_at: 10,
+            player_id: 11,
+            player_name: "Player",
+            auction_status: "active",
+            current_highest_bid_amount: 20,
+            auction_league_id: 2,
+            max_amount: 999,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_auto_bid: 25 }] });
+    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { NextRequest } = await import("next/server");
+    const { GET } = await import("@/app/api/debug/autobid-check/route");
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/debug/autobid-check?leagueId=2&userId=user-1"),
+    );
+    const payload = await response.json();
+
+    expect(payload.data.participant).toEqual({
+      user_id: "user-1",
+      league_id: 2,
+      locked_credits: 40,
+      current_budget: 460,
+    });
+    expect(payload.data.autoBids).toEqual([
+      {
+        auction_id: 8,
+        is_active: 1,
+        created_at: 10,
+        player_id: 11,
+        player_name: "Player",
+        auction_status: "active",
+        current_highest_bid_amount: 20,
+        auction_league_id: 2,
+      },
+    ]);
+    expect(auditLog).toHaveBeenCalledWith(
+      "[ADMIN_AUDIT]",
+      expect.objectContaining({ resource: "debug/autobid-check", outcome: "success" }),
+    );
+  });
+
+  it("allowlists budget-verification fields and audits the read", async () => {
+    currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
+    dbExecute
+      .mockResolvedValueOnce({ rows: [{ user_id: "user-1", disponibili: 400, email: "x@y.z" }] })
+      .mockResolvedValueOnce({ rows: [{ user_id: "user-1", amount: 10, stack: "trace" }] })
+      .mockResolvedValueOnce({ rows: [{ user_id: "user-1", num_players: 1, max_amount: 99 }] })
+      .mockResolvedValueOnce({ rows: [{ user_id: "user-1", active_auctions: 1, email: "x@y.z" }] })
+      .mockResolvedValueOnce({ rows: [{ user_id: "user-1", num_penalties: 0, stack: "trace" }] });
+    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { GET } = await import("@/app/api/debug/budget-verification/route");
+
+    const response = await GET(
+      new Request("http://localhost/api/debug/budget-verification?leagueId=2"),
+    );
+    const payload = await response.json();
+
+    expect(payload.data.participants).toEqual([
+      {
+        user_id: "user-1",
+        manager_team_name: null,
+        disponibili: 400,
+        bloccati: null,
+        iniziale: null,
+        spesi_calcolati: null,
+      },
+    ]);
+    expect(payload.data.transactions).toEqual([
+      {
+        user_id: "user-1",
+        transaction_type: null,
+        amount: 10,
+        description: null,
+        created_at: null,
+        balance_after_in_league: null,
+      },
+    ]);
+    expect(payload.data.assignments).toEqual([
+      { user_id: "user-1", num_players: 1, total_spent: null },
+    ]);
+    expect(payload.data.activeAuctions).toEqual([
+      { user_id: "user-1", active_auctions: 1, locked_amount: null },
+    ]);
+    expect(payload.data.penalties).toEqual([
+      { user_id: "user-1", num_penalties: 0, total_penalties: null },
+    ]);
+    expect(auditLog).toHaveBeenCalledWith(
+      "[ADMIN_AUDIT]",
+      expect.objectContaining({ resource: "debug/budget-verification", outcome: "success" }),
+    );
   });
 
   it("rejects GET and requires an admin for the compliance task POST", async () => {
@@ -85,6 +349,26 @@ describe("debug and scheduled-task route guards", () => {
     expect((await GET()).status).toBe(405);
     expect((await POST()).status).toBe(403);
     expect(processExpiredComplianceTimers).not.toHaveBeenCalled();
+  });
+
+  it("audits a successful timer task mutation", async () => {
+    currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
+    processExpiredComplianceTimers.mockResolvedValue({ processedCount: 1, errors: [] });
+    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { POST } = await import(
+      "@/app/api/admin/tasks/schedule-compliance-timers/route"
+    );
+
+    expect((await POST()).status).toBe(200);
+    expect(auditLog).toHaveBeenCalledWith(
+      "[ADMIN_AUDIT]",
+      expect.objectContaining({
+        actorUserId: "admin-1",
+        action: "admin-task.run",
+        resource: "SCHEDULE_COMPLIANCE_TIMERS",
+        outcome: "success",
+      }),
+    );
   });
 
   it("blocks anonymous access to both timer processor aliases", async () => {
@@ -119,4 +403,27 @@ describe("debug and scheduled-task route guards", () => {
       );
     },
   );
+
+  it("returns 405 for GET and audits successful manual auction processing", async () => {
+    currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
+    processExpiredAuctionsAndAssignPlayers.mockResolvedValue({
+      processedCount: 1,
+      failedCount: 0,
+      errors: [],
+    });
+    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { GET, POST } = await import("@/app/api/admin/tasks/process-auctions/route");
+
+    expect((await GET()).status).toBe(405);
+    expect((await POST()).status).toBe(200);
+    expect(auditLog).toHaveBeenCalledWith(
+      "[ADMIN_AUDIT]",
+      expect.objectContaining({
+        actorUserId: "admin-1",
+        action: "admin-task.run",
+        resource: "process-auctions",
+        outcome: "success",
+      }),
+    );
+  });
 });
