@@ -13,7 +13,7 @@ Ultimo aggiornamento: 2026-08-25
 
 ## Riepilogo
 
-| Fix | Stato | Commit | Complessità | Rischio | Note |
+| Fix |          Stato     | Commit | Complessità | Rischio | Note |
 | --- | --- | --- | --- | --- | --- |
 | SEC-001 | ✅ Completato | `6895a1a` | Media | Media | Upgrade Clerk/Next + guard admin route-level |
 | SEC-002 | ✅ Completato | `c0717bf` | Bassa | Bassa | Endpoint debug/task admin induriti |
@@ -130,4 +130,46 @@ Ultimo aggiornamento: 2026-08-25
 - **Complessità Alta**: heartbeat con owner token/fencing o claim atomico per batch.
 - **Rischio Alta**: lease zombie, clock skew, starvation; usare tempo DB, TTL prudente e claim limitati.
 
+## Connessioni tra fix e ordine di esecuzione
 
+### Fix connessi (vanno in sequenza, non in parallelo)
+
+**Gruppo A — percorso post-bid/realtime.** Ruotano attorno al momento in cui un'offerta viene committata e ai suoi side effect (notifica Socket.IO + timer). Condividono `bid.service.ts`, `response-timer.service.ts`, `penalty.service.ts`, `auction-states.service.ts`, `socket-emitter.ts` e lo scheduler che li esegue. Ordine obbligato:
+
+1. **REL-006** — definisce il contratto "commit → outbox → dispatcher" e la classificazione eventi essenziali/non essenziali. È il fondamento: TIME-001 e PERF-002 vi si appoggiano.
+2. **TIME-001** — riusa lo stesso meccanismo outbox/durable job di REL-006 per rendere durevoli gli effetti timer post-bid. **Un solo meccanismo condiviso**, non un secondo sistema.
+3. **PERF-002** — solo ora che commit e side effect sono strutturati, consolida le letture e restituisce i dati già noti dal commit. Ottimizzare prima = lavoro buttato.
+4. **TIME-002** — il lease scade (45 s) mentre i task sequenziali sopra vengono riscritti da REL-006/TIME-001; rinnovarlo **dopo** che la struttura dei task è stabile, altrimenti i test del runner vanno rifatti.
+
+### Fix quasi-indipendenti (fondamenta da fare prima del Gruppo A)
+
+- **CQ-002** — introduce logger strutturato + error mapper che il Gruppo A richiede ("backlog osservabile", "metriche", niente errori API ambigui). Tocca gli stessi servizi, quindi va fatto **prima** del Gruppo A così i fix successivi usano già il logger invece di nuovi `console.error`.
+
+### Fix indipendenti (possono andare in parallelo)
+
+| Fix | Perché è indipendente | Nota |
+| --- | --- | --- |
+| CQ-001 | solo script/config ESLint + CI | farlo **per primo**: alza la soglia così ogni fix successivo parte pulito |
+| REL-005 | solo `set-user-role/route.ts` + SDK Clerk | nessun file condiviso |
+| SEC-005 | route `api/leagues` + helper accesso | **bloccante**: serve decisione prodotto prima di toccare |
+| PERF-001 | solo `activity-log/route.ts` + indici | migration indici = rollout DB separato su Turso |
+| PERF-003 | solo `players-with-status` + schema input | banale, prima vittoria rapida |
+| REL-004 | `league.actions.ts` + servizio budget | coordina con `processExpiredAuctionsAndAssignPlayers` se quel path tocca saldo/ledger |
+| SEC-004 | limiter nel layer di ingresso (prima della mutazione) | può andare in parallelo al Gruppo A, ma attenzione al path bid condiviso |
+
+### Sequenza complessiva consigliata
+
+1. **CQ-001** (lint gate) — subito, indipendente.
+2. **CQ-002** (logger/error sanitizzati) — fondamenta per il Gruppo A.
+3. **Gruppo A in sequenza**: REL-006 → TIME-001 → PERF-002 → TIME-002.
+4. **Vittorie rapide in parallelo**: PERF-003, REL-005, PERF-001.
+5. **REL-004** e **SEC-004** quando c'è banda (indipendenti, ma non mischiarli col Gruppo A per evitare conflitti su `bid.service`/route bid).
+6. **SEC-005** — appena la decisione prodotto è disponibile.
+
+### Vincoli trasversali
+
+- **Un solo meccanismo outbox/durable job** condiviso tra REL-006 e TIME-001 (una tabella, un dispatcher/consumer idempotente, un retry/backoff/dead-letter).
+- **Consumer idempotente** obbligatorio prima di attivare l'outbox (eventi duplicati, timer doppi).
+- **Retention + alert** sull'outbox dal giorno uno.
+- **Payload/event name** dei client invariati tra un fix e l'altro.
+- Ogni **migration** (schema outbox, indici) va deployata in rollout DB dedicato su Turso, separato dal codice.
