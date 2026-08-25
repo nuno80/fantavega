@@ -329,4 +329,88 @@ describe("player-import.service (libSQL :memory:)", () => {
     expect(await countPlayers()).toBe(1);
     expect(await countAssignments()).toBe(1);
   });
+
+  it("replace mode: riga invalida nell'ultima riga non lascia stato parziale", async () => {
+    // Catalogo e rose esistenti da proteggere.
+    await insertPlayer(100, "Catalogo Esistente", "Torino");
+    await client.execute({
+      sql: `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price)
+            VALUES (16, 100, 'u1', 10)`,
+      args: [],
+    });
+
+    // Prima riga valida; ultima riga ha ruolo fuori dominio (solo P/D/C/A).
+    const buffer = buildExcelBuffer([
+      {
+        id: 700,
+        role: "P",
+        name: "Nuovo Portiere",
+        team: "Juventus",
+        qtA: 20,
+        qtI: 18,
+      },
+      {
+        id: 701,
+        role: "Z",
+        name: "Ruolo Invalido",
+        team: "Napoli",
+        qtA: 14,
+        qtI: 13,
+      },
+    ]);
+
+    const result = await processPlayersExcel(buffer, { replaceMode: true });
+
+    // La validazione riga è completa prima della scrittura: il ruolo Z viene
+    // rifiutato e nessuna DELETE/INSERT deve essere partita.
+    expect(result.success).toBe(false);
+    expect(result.failedValidationRows).toBe(1);
+    expect(result.successfullyUpsertedRows).toBe(0);
+    expect(await countPlayers()).toBe(1);
+    expect(await countAssignments()).toBe(1);
+    const catalog = await client.execute(
+      "SELECT id, name FROM players ORDER BY id"
+    );
+    expect(catalog.rows).toEqual([{ id: 100, name: "Catalogo Esistente" }]);
+  });
+
+  it("replace mode: tutte le mutazioni avvengono in UN solo batch atomico", async () => {
+    await insertPlayer(100, "Catalogo Esistente", "Torino");
+    const batchSpy = vi.spyOn(client, "batch");
+
+    const buffer = buildExcelBuffer([
+      { id: 700, role: "P", name: "Nuovo Portiere", team: "Juventus", qtA: 20, qtI: 18 },
+      { id: 701, role: "D", name: "Nuovo Difensore", team: "Napoli", qtA: 14, qtI: 13 },
+    ]);
+    const result = await processPlayersExcel(buffer, { replaceMode: true });
+
+    expect(result.success).toBe(true);
+    // Commit unico: un solo batch "write" con svuotamento + upsert, senza
+    // execute() intermedie fuori transazione.
+    expect(batchSpy).toHaveBeenCalledTimes(1);
+    const [statements, mode] = batchSpy.mock.calls[0];
+    expect(mode).toBe("write");
+    expect(statements.map((s) => (typeof s === "string" ? s : Array.isArray(s) ? s[0] : s.sql).trim().split(/\s+/)[0]))
+      .toEqual(["DELETE", "DELETE", "INSERT", "INSERT"]);
+
+    batchSpy.mockRestore();
+  });
+
+  it("replace mode: doppio retry della stessa riga è idempotente", async () => {
+    const buffer = buildExcelBuffer([
+      { id: 700, role: "P", name: "Nuovo Portiere", team: "Juventus", qtA: 20, qtI: 18 },
+    ]);
+
+    const first = await processPlayersExcel(buffer, { replaceMode: true });
+    const second = await processPlayersExcel(buffer, { replaceMode: true });
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    // Stesso risultato deterministico, nessun duplicato accumulato.
+    expect(await countPlayers()).toBe(1);
+    const catalog = await client.execute(
+      "SELECT id, name FROM players ORDER BY id"
+    );
+    expect(catalog.rows).toEqual([{ id: 700, name: "Nuovo Portiere" }]);
+  });
 });
