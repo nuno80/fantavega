@@ -27,6 +27,8 @@ jobs:
         run: pnpm lint
       - name: TypeScript
         run: pnpm type-check
+      - name: Database deployment migration paths
+        run: pnpm exec vitest run tests/db/migration-path.test.ts
       - name: Tests
         run: pnpm test:run
       - name: Database schema and migrations

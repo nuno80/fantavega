@@ -1,26 +1,34 @@
 {
-  "last_update": "2026-08-24T17:10:00Z",
-  "task_completed": "REL-003 - rilascio crediti bloccati nel settlement",
+  "last_update": "2026-08-24T18:14:57Z",
+  "task_completed": "REL-001 - bootstrap e migrazioni database ripetibili",
   "feature_logic": {
-    "feature_name": "Invariante transazionale dei crediti bloccati",
-    "summary": "Riconcilia locked_credits con l'esposizione attiva durante il settlement, copre perdenti e ultima asta, rende retry/concorrenza idempotenti e mantiene un safety-net scheduler a batch con metriche sui mismatch reali.",
-    "architectural_pattern": "Una singola espressione SQL definisce l'esposizione attiva. Il settlement reclama l'asta, disattiva le offerte e riconcilia l'intera lega nella stessa transazione prima di addebitare e assegnare il vincitore. Il reconciler periodico seleziona un batch limitato di leghe incoerenti, incluse quelle senza aste attive, ed emette conteggi strutturati delle correzioni.",
+    "feature_name": "Percorso versionato di bootstrap e migrazione database",
+    "summary": "Separa formalmente il bootstrap fresh dall'upgrade legacy: i database vuoti applicano lo snapshot canonico e registrano la baseline corrente, mentre solo una baseline legacy strutturalmente supportata può eseguire le migrazioni ordinate dal manifest. Sequenza, origine, baseline, checksum e preflight read-only rendono rerun e drift verificabili prima di ogni mutazione.",
+    "architectural_pattern": "Il seam pubblico deployDatabaseSchema è condiviso dal comando di deploy e dai test CI. Il runner costruisce in memoria la struttura canonica e confronta tabelle, colonne, foreign key, firme CHECK/generated/UNIQUE, SQL normalizzato degli indici e trigger. Baseline troppo vecchie, history incoerente, predicati parziali divergenti e aste active/closing duplicate falliscono prima di ensureMigrationTracking. Un subset esatto dello snapshot canonico, senza tracking né dati, è riconosciuto come bootstrap fresh interrotto; ADD COLUMN e CREATE INDEX già completati sono riprendibili in modo deterministico.",
     "user_flow": [
-      "1. Il processor reclama atomicamente un'asta scaduta active/closing.",
-      "2. Offerte e auto-bid vengono disattivate e tutti i partecipanti della lega vengono riconciliati nella stessa transazione.",
-      "3. Il vincitore viene addebitato e assegnato una sola volta; retry o claim concorrenti diventano no-op.",
-      "4. Il scheduler esegue sempre il safety-net sotto lease, corregge al massimo 25 leghe incoerenti per ciclo ed emette la metrica delle correzioni.",
-      "5. Una query read-only espone storedLockedCredits e activeExposure per verificare l'invariante."
+      "1. Il comando db:migrate carica la connessione e invoca deployDatabaseSchema senza applicare direttamente schema e migrazioni in sequenza cieca.",
+      "2. Su un database vuoto viene applicato database/schema.sql, quindi tutte le migrazioni storiche vengono marcate con source baseline, baseline 2026-08-24, sequenza e SHA-256 senza rieseguire gli ALTER sovrapposti.",
+      "3. Su un database legacy il preflight accetta solo lo schema current meno i delta coperti dalle migrazioni; baseline troppo vecchie, drift metadata e duplicati active/closing vengono rifiutati con diagnostica senza mutazioni.",
+      "4. Dopo un crash durante o dopo l'applicazione dello schema fresh, un retry completa lo snapshot e marca la baseline soltanto se la struttura esistente è un subset canonico esatto, senza dati e privo di tracking; subset con dati vengono rifiutati.",
+      "5. Su una baseline supportata schema_migrations viene evoluta compatibilmente e le migrazioni mancanti vengono eseguite nell'ordine del manifest, preservando i dati.",
+      "6. Rerun e interruzioni parziali saltano in sicurezza ADD COLUMN e CREATE INDEX già completati; il confronto finale richiede convergenza strutturale con il fresh bootstrap."
     ],
     "core_components_interaction": {
-      "src/lib/db/services/bid.service.ts": "Claim e settlement transazionale con riconciliazione della lega e retry sicuro.",
-      "src/lib/db/services/locked-credits.service.ts": "Fonte canonica dell'esposizione, validazione input/righe, diagnostica mismatch e reconciler idempotente a batch.",
-      "src/lib/scheduler.ts": "Esegue il safety-net a ogni ciclo leased, anche senza settlement appena processati.",
-      "tests/e2e/locked-credits-settlement.e2e.test.ts": "Copre ultima asta, più perdenti, retry, concorrenza e invariante.",
-      "tests/e2e/locked-credits-scheduler.e2e.test.ts": "Verifica l'esecuzione del safety-net scheduler senza aste processate."
+      "src/lib/db/migrate.ts": "Entry point di deploy che usa esclusivamente il seam versionato e chiude sempre la connessione.",
+      "src/lib/db/utils.ts": "Runner baseline/upgrade, confronto di colonne, vincoli e SQL indici, preflight zero-mutation anticipato, tracking compatibile, batch atomici, crash recovery parziale e rilevamento drift.",
+      "database/migrations/manifest.json": "Baseline 2026-08-24 e ordine deterministico delle undici migrazioni storiche.",
+      "database/schema.sql": "Snapshot canonico allineato agli effetti finali delle migrazioni, inclusi last_reset_at, scheduler_leases e indici hot path/univoci.",
+      "database/migrations/add_unique_active_auction_constraint.sql": "CREATE INDEX idempotenti per riprendere una migrazione interrotta dopo la creazione degli indici.",
+      "scripts/verify-database-schema.py": "Audit statico della baseline, del manifest, degli oggetti richiesti e della dipendenza heartbeat prima degli indici.",
+      ".github/workflows/quality.yml": "Gate CI esplicito che esegue il percorso di deployment su fixture locali.",
+      "tests/db/migration-path.test.ts": "Matrice del seam pubblico: fresh, crash a metà/fine schema, convergenza legacy, vincoli e predicati divergenti, tracking-only malformed/unknown, duplicati, rerun, DDL parziale e drift zero-mutation.",
+      "tests/fixtures/database/legacy-pre-migrations.sql": "Baseline legacy completa: schema current meno esclusivamente i delta coperti dalle migrazioni."
     },
     "database_interactions": [
-      "Nessuna migrazione: aggiornamenti transazionali a auctions, auto_bids, league_participants, budget_transactions e player_assignments."
+      "schema_migrations conserva file_name, sequence, checksum, source, baseline e applied_at; le tabelle legacy di tracking vengono estese senza perdita delle righe esistenti.",
+      "Il bootstrap fresh usa lo snapshot canonico e registra la baseline senza riprodurre migrazioni storiche sovrapposte.",
+      "Preflight strutturale, firme CHECK/generated/UNIQUE, predicati degli indici, history drift e duplicati active/closing sono verificati in sola lettura prima di creare o alterare schema_migrations.",
+      "L'upgrade legacy e i test operano solo su client temporanei/locali; nessun database live o production è stato interrogato o modificato durante REL-001."
     ]
   }
 }

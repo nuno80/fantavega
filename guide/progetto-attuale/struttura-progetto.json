@@ -1,25 +1,41 @@
 {
-  "last_update": "2026-08-24T17:10:00Z",
+  "last_update": "2026-08-24T17:51:07Z",
   "files": [
     {
-      "path": "src/lib/db/services/bid.service.ts",
-      "description": "Settlement con claim condizionale, riconciliazione transazionale e retry/no-op sicuro."
+      "path": "src/lib/db/migrate.ts",
+      "description": "Entry point db:migrate collegato al seam versionato baseline/upgrade con chiusura sicura della connessione."
     },
     {
-      "path": "src/lib/db/services/locked-credits.service.ts",
-      "description": "Espressione canonica dell'esposizione, validazione esplicita, mismatch read-only e safety-net idempotente a batch con metriche."
+      "path": "src/lib/db/utils.ts",
+      "description": "Runner deterministico con confronto strutturale, preflight zero-mutation, tracking compatibile, crash recovery, retry DDL e drift detection."
     },
     {
-      "path": "src/lib/scheduler.ts",
-      "description": "Safety-net crediti eseguito a ogni ciclo protetto da lease."
+      "path": "database/schema.sql",
+      "description": "Baseline canonica completa, allineata agli effetti finali di tabelle, colonne e indici delle migrazioni storiche."
     },
     {
-      "path": "tests/e2e/locked-credits-settlement.e2e.test.ts",
-      "description": "Test runtime su ultima asta, perdenti, inattivi, concorrenza, retry e invariante."
+      "path": "database/migrations/manifest.json",
+      "description": "Baseline 2026-08-24 e ordine esplicito delle undici migrazioni secondo dipendenze."
     },
     {
-      "path": "tests/e2e/locked-credits-scheduler.e2e.test.ts",
-      "description": "Test del reconciler scheduler anche con zero settlement."
+      "path": "database/migrations/add_unique_active_auction_constraint.sql",
+      "description": "Indici asta univoco e generale creati idempotentemente per retry dopo interruzione parziale."
+    },
+    {
+      "path": "scripts/verify-database-schema.py",
+      "description": "Audit CI di schema, manifest, oggetti richiesti e ordine delle dipendenze."
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "description": "Gate dedicato ai percorsi di deployment database prima della suite generale."
+    },
+    {
+      "path": "tests/db/migration-path.test.ts",
+      "description": "Test d'integrazione su fresh/crash, convergenza legacy, preflight zero-mutation, rerun, DDL interrotto e checksum drift."
+    },
+    {
+      "path": "tests/fixtures/database/legacy-pre-migrations.sql",
+      "description": "Baseline legacy completa derivata dal current schema meno i soli delta delle migrazioni, con dati da preservare."
     }
   ]
 }

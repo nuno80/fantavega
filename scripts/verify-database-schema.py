@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import pathlib
 import sqlite3
 
@@ -47,6 +48,9 @@ except sqlite3.IntegrityError:
 
 required_indexes = {
     "idx_auctions_status_scheduled_end",
+    "idx_auctions_league_player_active",
+    "idx_response_timers_status_deadline",
+    "idx_user_sessions_heartbeat",
     "idx_user_sessions_unique_active",
     "idx_budget_transactions_user_league",
 }
@@ -54,6 +58,14 @@ indexes = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE 
 missing_indexes = required_indexes - indexes
 if missing_indexes:
     raise SystemExit(f"missing indexes: {sorted(missing_indexes)}")
+
+timer_columns = {
+    row[1] for row in conn.execute("PRAGMA table_info(user_auction_response_timers)")
+}
+if "last_reset_at" not in timer_columns:
+    raise SystemExit("baseline is missing user_auction_response_timers.last_reset_at")
+if "scheduler_leases" not in actual:
+    raise SystemExit("baseline is missing scheduler_leases")
 
 fk_errors = list(conn.execute("PRAGMA foreign_key_check"))
 if fk_errors:
@@ -68,5 +80,23 @@ if "notified_at" in last_reset:
 unique_fix = executable_sql(root / "database/migrations/fix_response_timers_unique_constraint.sql")
 if "CREATE TABLE user_auction_response_timers_new" in unique_fix or "notified_at" in unique_fix:
     raise SystemExit("obsolete timer table rebuild remains in unique-constraint migration")
+
+manifest_path = root / "database/migrations/manifest.json"
+manifest = json.loads(manifest_path.read_text())
+ordered_migrations = manifest.get("migrations")
+if not isinstance(manifest.get("baseline"), str) or not isinstance(ordered_migrations, list):
+    raise SystemExit("invalid migration manifest")
+if len(ordered_migrations) != len(set(ordered_migrations)):
+    raise SystemExit("migration manifest contains duplicates")
+disk_migrations = sorted(path.name for path in manifest_path.parent.glob("*.sql"))
+if sorted(ordered_migrations) != disk_migrations:
+    missing = sorted(set(ordered_migrations) - set(disk_migrations))
+    unlisted = sorted(set(disk_migrations) - set(ordered_migrations))
+    raise SystemExit(f"migration manifest mismatch: missing={missing}, unlisted={unlisted}")
+
+session_position = ordered_migrations.index("add_session_liveness.sql")
+hot_index_position = ordered_migrations.index("add_hot_path_indexes.sql")
+if session_position > hot_index_position:
+    raise SystemExit("migration dependency invalid: heartbeat indexes precede heartbeat column")
 
 print("database schema and migration audit: PASS")

@@ -1,0 +1,16 @@
+{
+  "baseline": "2026-08-24",
+  "migrations": [
+    "add_player_icons_columns.sql",
+    "add_user_player_preferences.sql",
+    "add_user_auction_states_to_auctions.sql",
+    "fix_response_timers_unique_constraint.sql",
+    "add_last_reset_at_to_response_timers.sql",
+    "fix_compliance_updated_at_trigger.sql",
+    "add_session_liveness.sql",
+    "add_unique_active_session_index.sql",
+    "add_unique_active_auction_constraint.sql",
+    "add_scheduler_leases.sql",
+    "add_hot_path_indexes.sql"
+  ]
+}
