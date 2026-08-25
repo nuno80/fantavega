@@ -3,16 +3,24 @@
 // Verifica che:
 // - modalità update (default): upsert per ID + cleanup orfani protetta dalle rose
 // - modalità replace: svuota catalogo e rose, poi importa il nuovo listone
+import { type Client, createClient } from "@libsql/client";
 import fs from "fs";
 import path from "path";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { createClient, type Client } from "@libsql/client";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { processPlayersExcel } from "@/lib/db/services/player-import.service";
+import { PLAYER_WORKBOOK_LIMITS } from "@/lib/import/player-workbook-parser";
 
 // Client libSQL reale in-memory: nessun mock del comportamento DB.
 vi.mock("@/lib/db", () => ({ db: createClient({ url: "file::memory:" }) }));
-
-import { processPlayersExcel } from "@/lib/db/services/player-import.service";
 
 const client: Client = (await import("@/lib/db")).db as Client;
 
@@ -95,7 +103,12 @@ describe("player-import.service (libSQL :memory:)", () => {
     await client.execute("DELETE FROM players");
   });
 
-  const insertPlayer = async (id: number, name: string, team: string, role = "A") => {
+  const insertPlayer = async (
+    id: number,
+    name: string,
+    team: string,
+    role = "A"
+  ) => {
     await client.execute({
       sql: `INSERT INTO players (id, role, name, team, current_quotation, initial_quotation)
             VALUES (?, ?, ?, ?, 10, 10)`,
@@ -109,7 +122,9 @@ describe("player-import.service (libSQL :memory:)", () => {
   };
 
   const countAssignments = async (): Promise<number> => {
-    const r = await client.execute("SELECT COUNT(*) AS c FROM player_assignments");
+    const r = await client.execute(
+      "SELECT COUNT(*) AS c FROM player_assignments"
+    );
     return Number(r.rows[0].c);
   };
 
@@ -129,9 +144,30 @@ describe("player-import.service (libSQL :memory:)", () => {
     // Nuovo listone (stagione nuova): il 200 resta (in rosa), il 100 cambia squadra,
     // il 300 sparisce, il 400 è nuovo.
     const buf = buildExcelBuffer([
-      { id: 100, role: "D", name: "Vecchio Libero", team: "Inter", qtA: 12, qtI: 11 },
-      { id: 200, role: "A", name: "Vecchio Rosa", team: "Genoa", qtA: 9, qtI: 8 },
-      { id: 400, role: "C", name: "Nuovo Arrivato", team: "Milan", qtA: 15, qtI: 14 },
+      {
+        id: 100,
+        role: "D",
+        name: "Vecchio Libero",
+        team: "Inter",
+        qtA: 12,
+        qtI: 11,
+      },
+      {
+        id: 200,
+        role: "A",
+        name: "Vecchio Rosa",
+        team: "Genoa",
+        qtA: 9,
+        qtI: 8,
+      },
+      {
+        id: 400,
+        role: "C",
+        name: "Nuovo Arrivato",
+        team: "Milan",
+        qtA: 15,
+        qtI: 14,
+      },
     ]);
 
     const result = await processPlayersExcel(buf, { replaceMode: false });
@@ -147,7 +183,9 @@ describe("player-import.service (libSQL :memory:)", () => {
     );
     expect(players.rows.map((r) => r.id)).toEqual([100, 200, 400]);
     // Il 100 ha la squadra aggiornata (stesso ID, cambio squadra)
-    const p100 = await client.execute("SELECT team FROM players WHERE id = 100");
+    const p100 = await client.execute(
+      "SELECT team FROM players WHERE id = 100"
+    );
     expect(p100.rows[0].team).toBe("Inter");
   });
 
@@ -182,8 +220,22 @@ describe("player-import.service (libSQL :memory:)", () => {
     });
 
     const buf = buildExcelBuffer([
-      { id: 700, role: "P", name: "Nuovo Portiere", team: "Juventus", qtA: 20, qtI: 18 },
-      { id: 701, role: "D", name: "Nuovo Difensore", team: "Napoli", qtA: 14, qtI: 13 },
+      {
+        id: 700,
+        role: "P",
+        name: "Nuovo Portiere",
+        team: "Juventus",
+        qtA: 20,
+        qtI: 18,
+      },
+      {
+        id: 701,
+        role: "D",
+        name: "Nuovo Difensore",
+        team: "Napoli",
+        qtA: 14,
+        qtI: 13,
+      },
     ]);
     const result = await processPlayersExcel(buf, { replaceMode: true });
 
@@ -211,6 +263,69 @@ describe("player-import.service (libSQL :memory:)", () => {
 
     expect(result.success).toBe(false);
     // Nessuna cancellazione: il file non è valido
+    expect(await countPlayers()).toBe(1);
+    expect(await countAssignments()).toBe(1);
+  });
+  it("does not write when the workbook exceeds parser budgets", async () => {
+    await insertPlayer(100, "Catalogo Esistente", "Torino");
+    const players = Array.from(
+      { length: PLAYER_WORKBOOK_LIMITS.maxRowsPerSheet - 1 },
+      (_, index) => ({
+        id: index + 1_000,
+        role: "A",
+        name: `Giocatore ${index}`,
+        team: "Roma",
+        qtA: 10,
+        qtI: 10,
+      })
+    );
+
+    const result = await processPlayersExcel(buildExcelBuffer(players), {
+      replaceMode: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.successfullyUpsertedRows).toBe(0);
+    const catalog = await client.execute(
+      "SELECT id, name FROM players ORDER BY id"
+    );
+    expect(catalog.rows).toEqual([{ id: 100, name: "Catalogo Esistente" }]);
+  });
+
+  it("validates every row before replace mode performs any write", async () => {
+    await insertPlayer(100, "Catalogo Esistente", "Torino");
+    await client.execute({
+      sql: `INSERT INTO player_assignments (auction_league_id, player_id, user_id, purchase_price)
+            VALUES (16, 100, 'u1', 10)`,
+      args: [],
+    });
+    const buffer = buildExcelBuffer([
+      {
+        id: 200,
+        role: "A",
+        name: "Riga Valida",
+        team: "Roma",
+        qtA: 10,
+        qtI: 10,
+      },
+      {
+        id: 201,
+        role: "A",
+        name: "Riga Tardiva Invalida",
+        team: "Milan",
+        qtA: 10,
+        qtI: 10,
+        fvmM: "not-a-number",
+      },
+    ]);
+
+    const result = await processPlayersExcel(buffer, { replaceMode: true });
+
+    expect(result.success).toBe(false);
+    expect(result.successfullyUpsertedRows).toBe(0);
+    expect(result.errors).toContain(
+      "Row 4 (ID 201): Invalid numeric value for 'FVM M'"
+    );
     expect(await countPlayers()).toBe(1);
     expect(await countAssignments()).toBe(1);
   });

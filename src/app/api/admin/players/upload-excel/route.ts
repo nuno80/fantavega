@@ -1,37 +1,62 @@
-// src/app/api/admin/players/upload-excel/route.ts v.1.1
-// API Route per l'upload di file Excel contenenti dati dei giocatori da parte dell'admin.
-// 1. Importazioni
 import { NextResponse } from "next/server";
 
-// Assicurati che questo percorso sia corretto
 import { currentUser } from "@clerk/nextjs/server";
 
 import {
-  PlayerImportResult,
+  type PlayerImportResult,
   processPlayersExcel,
 } from "@/lib/db/services/player-import.service";
-import { validateExcelUpload } from "@/lib/import/excel-upload-policy";
+import {
+  validateExcelRequestLength,
+  validateExcelUpload,
+} from "@/lib/import/excel-upload-policy";
 
-// 2. Funzione POST per Gestire l'Upload del File
+interface UploadFileLike {
+  name: string;
+  type: string;
+  size: number;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+function isUploadFileLike(value: unknown): value is UploadFileLike {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<UploadFileLike>;
+  return (
+    typeof candidate.name === "string" &&
+    typeof candidate.type === "string" &&
+    typeof candidate.size === "number" &&
+    Number.isSafeInteger(candidate.size) &&
+    candidate.size >= 0 &&
+    typeof candidate.arrayBuffer === "function"
+  );
+}
+
+function auditUpload(
+  actorUserId: string,
+  uploadStartedAt: number,
+  details: Record<string, unknown>
+): void {
+  console.info("[AUDIT PLAYER_UPLOAD]", {
+    actorUserId,
+    durationMs: Math.round(performance.now() - uploadStartedAt),
+    ...details,
+  });
+}
+
 export async function POST(request: Request) {
   console.log(
     "[API PLAYER_UPLOAD POST] Received request to upload players Excel."
   );
 
+  let auditContext:
+    | { actorUserId: string; uploadStartedAt: number; sizeBytes: number | null }
+    | undefined;
   try {
-    // 2.1. Autenticazione e Autorizzazione Admin
     const user = await currentUser();
-    if (!user || !user.id) {
-      console.warn(
-        "[API PLAYER_UPLOAD POST] Unauthorized: No user session found."
-      );
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const isAdmin = user.publicMetadata?.role === "admin";
-    if (!isAdmin) {
-      console.warn(
-        `[API PLAYER_UPLOAD POST] Forbidden: User ${user.id} is not an admin.`
-      );
+    if (user.publicMetadata?.role !== "admin") {
       return NextResponse.json(
         {
           error:
@@ -40,47 +65,88 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
-    console.log(`[API PLAYER_UPLOAD POST] Admin user ${user.id} authorized.`);
 
-    // 2.2. Gestione del File Upload (multipart/form-data)
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null; // "file" è il nome del campo atteso
-    const replaceMode = formData.get("replaceMode") === "true"; // modalità reset inizio stagione
+    const uploadStartedAt = performance.now();
+    const contentLength = request.headers?.get("content-length") ?? null;
+    const declaredBytes =
+      contentLength !== null && /^\d+$/.test(contentLength)
+        ? Number(contentLength)
+        : null;
+    auditContext = {
+      actorUserId: user.id,
+      uploadStartedAt,
+      sizeBytes:
+        declaredBytes !== null && Number.isSafeInteger(declaredBytes)
+          ? declaredBytes
+          : null,
+    };
 
-    if (!file) {
-      console.warn("[API PLAYER_UPLOAD POST] No file provided in the request.");
-      return NextResponse.json({ error: "No file provided." }, { status: 400 });
+    const requestLengthError = validateExcelRequestLength(contentLength);
+    if (requestLengthError) {
+      auditUpload(user.id, uploadStartedAt, {
+        sizeBytes: auditContext.sizeBytes,
+        status: "rejected",
+        reason: "REQUEST_SIZE",
+      });
+      return NextResponse.json(
+        { error: requestLengthError.error },
+        { status: requestLengthError.status }
+      );
     }
 
-    const uploadError = validateExcelUpload(file);
+    const formData = await request.formData();
+    const fileValue = formData.get("file");
+    const replaceMode = formData.get("replaceMode") === "true";
+
+    if (fileValue === null) {
+      auditUpload(user.id, uploadStartedAt, {
+        sizeBytes: auditContext.sizeBytes,
+        status: "rejected",
+        reason: "MISSING_FILE",
+      });
+      return NextResponse.json({ error: "No file provided." }, { status: 400 });
+    }
+    if (!isUploadFileLike(fileValue)) {
+      auditUpload(user.id, uploadStartedAt, {
+        sizeBytes: auditContext.sizeBytes,
+        status: "rejected",
+        reason: "INVALID_FILE_FIELD",
+      });
+      return NextResponse.json(
+        { error: "The file field must contain a valid upload." },
+        { status: 400 }
+      );
+    }
+
+    auditContext.sizeBytes = fileValue.size;
+    const uploadError = validateExcelUpload(fileValue);
     if (uploadError) {
+      auditUpload(user.id, uploadStartedAt, {
+        sizeBytes: fileValue.size,
+        status: "rejected",
+        reason: uploadError.status === 413 ? "FILE_SIZE" : "FILE_TYPE",
+      });
       return NextResponse.json(
         { error: uploadError.error },
         { status: uploadError.status }
       );
     }
 
-    console.log(
-      `[API PLAYER_UPLOAD POST] File "${file.name}" received, size: ${file.size} bytes.`
-    );
-
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-    // 2.3. Chiamata al Servizio di Importazione
-    console.log(
-      `[API PLAYER_UPLOAD POST] Calling player import service (replaceMode: ${replaceMode})...`
-    );
+    const fileBuffer = Buffer.from(await fileValue.arrayBuffer());
     const importResult: PlayerImportResult = await processPlayersExcel(
       fileBuffer,
       { replaceMode }
     );
 
-    // 2.4. Gestione della Risposta del Servizio
+    auditUpload(user.id, uploadStartedAt, {
+      sizeBytes: fileValue.size,
+      status: importResult.success ? "accepted" : "rejected",
+      reason: importResult.success ? "IMPORTED" : "IMPORT_REJECTED",
+      replaceMode,
+      processedRows: importResult.processedRows,
+    });
+
     if (importResult.success) {
-      console.log(
-        "[API PLAYER_UPLOAD POST] Player import successful.",
-        importResult
-      );
       return NextResponse.json(
         {
           message: importResult.message,
@@ -88,52 +154,43 @@ export async function POST(request: Request) {
           parsedDataRows: importResult.processedRows,
           successfullyUpserted: importResult.successfullyUpsertedRows,
           deletedOrphans: importResult.deletedOrphanPlayers,
-          // Se success è true, failedValidationRows e failedDbOperationsRows dovrebbero essere 0
-          // e errors dovrebbe essere vuoto. Li includiamo per completezza se necessario,
-          // ma potrebbero essere omessi dalla risposta di successo.
-          // Per ora li lascio per debug, ma potresti volerli rimuovere dalla risposta 200.
           validationFailures: importResult.failedValidationRows,
           dbOperationFailures: importResult.failedDbOperationsRows,
           errors: importResult.errors,
         },
         { status: 200 }
       );
-    } else {
-      console.warn(
-        "[API PLAYER_UPLOAD POST] Player import failed.",
-        importResult
-      );
-      const limitedErrors = importResult.errors.slice(0, 10);
-      return NextResponse.json(
-        {
-          message: importResult.message,
-          totalRowsInSheet: importResult.totalRowsInSheet,
-          parsedDataRows: importResult.processedRows,
-          successfullyUpserted: importResult.successfullyUpsertedRows,
-          validationFailures: importResult.failedValidationRows,
-          dbOperationFailures: importResult.failedDbOperationsRows,
-          errors: limitedErrors,
-          hasMoreErrors: importResult.errors.length > 10,
-        },
-        { status: 400 }
-      );
     }
-  } catch (error) {
-    // 2.5. Gestione Errori Generali
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unknown error during file upload.";
-    console.error(
-      `[API PLAYER_UPLOAD POST] Critical error: ${errorMessage}`,
-      error
-    );
 
+    return NextResponse.json(
+      {
+        message: importResult.message,
+        totalRowsInSheet: importResult.totalRowsInSheet,
+        parsedDataRows: importResult.processedRows,
+        successfullyUpserted: importResult.successfullyUpsertedRows,
+        validationFailures: importResult.failedValidationRows,
+        dbOperationFailures: importResult.failedDbOperationsRows,
+        errors: importResult.errors.slice(0, 10),
+        hasMoreErrors: importResult.errors.length > 10,
+      },
+      { status: 400 }
+    );
+  } catch (error) {
+    if (auditContext) {
+      auditUpload(auditContext.actorUserId, auditContext.uploadStartedAt, {
+        sizeBytes: auditContext.sizeBytes,
+        status: "rejected",
+        reason: "INVALID_REQUEST",
+      });
+    }
+    console.error("[API PLAYER_UPLOAD POST] Critical error", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
+    const errorMessage = error instanceof Error ? error.message : "";
     if (
       errorMessage.includes("could not parse content-type") ||
       (error instanceof TypeError && error.message.includes("Failed to parse"))
     ) {
-      // Questo errore può verificarsi se il corpo non è multipart/form-data o il file è corrotto
       return NextResponse.json(
         {
           error:
@@ -142,7 +199,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
     return NextResponse.json(
       {
         error:
@@ -153,5 +209,4 @@ export async function POST(request: Request) {
   }
 }
 
-// 3. Configurazione della Route
 export const dynamic = "force-dynamic";

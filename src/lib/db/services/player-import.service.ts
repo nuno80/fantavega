@@ -1,40 +1,12 @@
 // src/lib/db/services/player-import.service.ts v.2.0 (Async Turso Migration)
 // Servizio per importare e processare dati dei giocatori da file Excel.
-// NOTA: xlsx viene importato dinamicamente per ridurre il bundle iniziale
-
+// Il parsing è isolato e validato dall'adapter in src/lib/import.
 import { db } from "@/lib/db";
-
-// Interfaccia per rappresentare una riga mappata dal file Excel
-interface PlayerExcelData {
-  id: number;
-  role: string;
-  role_mantra: string | null;
-  name: string;
-  team: string;
-  current_quotation: number;
-  initial_quotation: number;
-  current_quotation_mantra: number | null;
-  initial_quotation_mantra: number | null;
-  fvm: number | null;
-  fvm_mantra: number | null;
-  photo_url?: string;
-}
-
-// Funzione helper per sanificare i nomi dei giocatori
-const sanitizePlayerName = (name: string): string => {
-  if (!name) return "";
-  let sanitized = name.trim();
-  sanitized = sanitized
-    .replace(/[àáâãäå]/gi, "a")
-    .replace(/[èéêë]/gi, "e")
-    .replace(/[ìíîï]/gi, "i")
-    .replace(/[òóôõöø]/gi, "o")
-    .replace(/[ùúûü]/gi, "u")
-    .replace(/[ýÿ]/gi, "y")
-    .replace(/[ñ]/gi, "n")
-    .replace(/[ç]/gi, "c");
-  return sanitized;
-};
+import { validateAndNormalizePlayerImportRows } from "@/lib/import/player-row-validation";
+import {
+  WorkbookPolicyError,
+  parsePlayerWorkbook,
+} from "@/lib/import/player-workbook-parser";
 
 // Interfaccia per il risultato dell'importazione
 export interface PlayerImportResult {
@@ -74,26 +46,10 @@ export const processPlayersExcel = async (
   const importedPlayerIds: number[] = [];
 
   try {
-    // Dynamic import di xlsx - caricato solo quando serve
-    const XLSX = await import("xlsx");
-
-    const workbook = XLSX.read(fileBuffer, { type: "buffer" });
-    const sheetName = "Tutti";
-    const worksheet = workbook.Sheets[sheetName];
-
-    if (!worksheet) {
-      result.message = `Sheet "${sheetName}" not found in the Excel file.`;
-      result.errors.push(result.message);
-      console.error(`[SERVICE PLAYER_IMPORT] ${result.message}`);
-      return result;
-    }
-
+    const parsedWorkbook = await parsePlayerWorkbook(fileBuffer);
+    const { sheetName } = parsedWorkbook;
     console.log(`[SERVICE PLAYER_IMPORT] Parsing sheet "${sheetName}"...`);
-    const sheetDataAsArray: unknown[][] = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      raw: false,
-      defval: null,
-    });
+    const sheetDataAsArray = parsedWorkbook.rows;
 
     result.totalRowsInSheet = sheetDataAsArray.length;
 
@@ -147,7 +103,7 @@ export const processPlayersExcel = async (
         });
         return rowObject;
       })
-      .filter((row) => row !== null) as unknown as PlayerExcelData[];
+      .filter((row) => row !== null) as Array<Record<string, unknown>>;
 
     if (jsonDataObjects.length === 0) {
       result.message = `No valid data objects could be constructed from sheet "${sheetName}".`;
@@ -161,6 +117,19 @@ export const processPlayersExcel = async (
 
     // In replace mode lo svuotamento avviene PRIMA dell'import, così il
     // catalogo viene ricostruito da zero. Niente transazione esplicita:
+    const validation = validateAndNormalizePlayerImportRows(jsonDataObjects);
+    if (validation.errors.length > 0) {
+      result.processedRows = jsonDataObjects.length;
+      result.failedValidationRows = validation.errors.length;
+      result.errors.push(...validation.errors);
+      result.message =
+        `Rejected ${jsonDataObjects.length} rows before import: ` +
+        `${validation.errors.length} validation failure(s).`;
+      console.warn("[SERVICE PLAYER_IMPORT] Workbook rows rejected", {
+        validationFailures: validation.errors.length,
+      });
+      return result;
+    }
     // su libsql una transaction('write') apre una connessione separata che
     // su DB file:memory non vede i dati della connessione principale
     // (e su Turso remoto l'isolamento non garantisce visibilità fuori dal
@@ -184,9 +153,12 @@ export const processPlayersExcel = async (
           `[SERVICE PLAYER_IMPORT] Replace mode: cleared ${result.clearedPlayers} players and all roster assignments.`
         );
       } catch (cleanupError) {
-        console.error('[SERVICE PLAYER_IMPORT] Error during replace cleanup:', cleanupError);
+        console.error(
+          "[SERVICE PLAYER_IMPORT] Error during replace cleanup:",
+          cleanupError
+        );
         result.errors.push(
-          `Replace cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : 'Unknown error'}`
+          `Replace cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : "Unknown error"}`
         );
         return result;
       }
@@ -195,8 +167,8 @@ export const processPlayersExcel = async (
     // Process all players in batches
     const BATCH_SIZE = 50;
     const chunks = [];
-    for (let i = 0; i < jsonDataObjects.length; i += BATCH_SIZE) {
-      chunks.push(jsonDataObjects.slice(i, i + BATCH_SIZE));
+    for (let i = 0; i < validation.rows.length; i += BATCH_SIZE) {
+      chunks.push(validation.rows.slice(i, i + BATCH_SIZE));
     }
 
     console.log(
@@ -205,94 +177,9 @@ export const processPlayersExcel = async (
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
       const batchStatements = [];
-      const currentBatchRows: { row: PlayerExcelData; excelRowNumber: number }[] = [];
-
-      for (const row of chunk) {
+      for (const playerData of chunk) {
         result.processedRows++;
-        const excelRowNumber = result.processedRows + 2;
-
-        const rowRecord = row as unknown as Record<string, unknown>;
-        const idVal = rowRecord["Id"];
-        const roleVal = rowRecord["R"];
-        const nameVal = rowRecord["Nome"];
-        const teamVal = rowRecord["Squadra"];
-        const qtAVal = rowRecord["Qt.A"];
-        const qtIVal = rowRecord["Qt.I"];
-
-        const id = parseInt(String(idVal), 10);
-        if (isNaN(id) || id <= 0) {
-          result.errors.push(
-            `Row ${excelRowNumber}: Invalid or missing 'Id' ('${idVal}')`
-          );
-          result.failedValidationRows++;
-          continue;
-        }
-
-        // Aggiunge l'ID alla lista degli ID importati
-        importedPlayerIds.push(id);
-
-        const role = roleVal?.toString().toUpperCase();
-        if (!role || !["P", "D", "C", "A"].includes(role)) {
-          result.errors.push(
-            `Row ${excelRowNumber} (ID ${id}): Invalid or missing 'R' (role) ('${roleVal}')`
-          );
-          result.failedValidationRows++;
-          continue;
-        }
-
-        const name = nameVal?.toString();
-        if (!name || name.trim() === "") {
-          result.errors.push(`Row ${excelRowNumber} (ID ${id}): Missing 'Nome'`);
-          result.failedValidationRows++;
-          continue;
-        }
-
-        const team = teamVal?.toString();
-        if (!team || team.trim() === "") {
-          result.errors.push(
-            `Row ${excelRowNumber} (ID ${id}): Missing 'Squadra'`
-          );
-          result.failedValidationRows++;
-          continue;
-        }
-
-        const current_quotation = parseFloat(String(qtAVal));
-        const initial_quotation = parseFloat(String(qtIVal));
-        if (isNaN(current_quotation) || isNaN(initial_quotation)) {
-          result.errors.push(
-            `Row ${excelRowNumber} (ID ${id}): Invalid numeric value for 'Qt.A' ('${qtAVal}') or 'Qt.I' ('${qtIVal}')`
-          );
-          result.failedValidationRows++;
-          continue;
-        }
-
-        const parseOptionalFloat = (value: unknown): number | null => {
-          if (
-            value === null ||
-            value === undefined ||
-            String(value).trim() === ""
-          )
-            return null;
-          const num = parseFloat(String(value));
-          return isNaN(num) ? null : num;
-        };
-
-        const playerData: PlayerExcelData = {
-          id: id,
-          role: role,
-          role_mantra: rowRecord["RM"]?.toString().trim() || null,
-          name: sanitizePlayerName(name),
-          team: team.trim(),
-          current_quotation: current_quotation,
-          initial_quotation: initial_quotation,
-          current_quotation_mantra: parseOptionalFloat(rowRecord["Qt.A M"]),
-          initial_quotation_mantra: parseOptionalFloat(rowRecord["Qt.I M"]),
-          fvm: parseOptionalFloat(rowRecord["FVM"]),
-          fvm_mantra: parseOptionalFloat(rowRecord["FVM M"]),
-          // Auto-generate photo URL for Fantacalcio standards
-          photo_url: `https://content.fantacalcio.it/web/cfa/calciatori/large/${id}.png`
-        };
-
+        importedPlayerIds.push(playerData.id);
         const now = Math.floor(Date.now() / 1000);
 
         batchStatements.push({
@@ -344,15 +231,15 @@ export const processPlayersExcel = async (
             now, // Extra arg for updated_at in ON CONFLICT
           ],
         });
-
-        currentBatchRows.push({ row: playerData, excelRowNumber });
       }
 
       if (batchStatements.length > 0) {
         try {
           await db.batch(batchStatements, "write");
           result.successfullyUpsertedRows += batchStatements.length;
-          console.log(`[SERVICE PLAYER_IMPORT] Batch ${chunkIndex + 1}/${chunks.length} success. Upserted ${batchStatements.length} rows.`);
+          console.log(
+            `[SERVICE PLAYER_IMPORT] Batch ${chunkIndex + 1}/${chunks.length} success. Upserted ${batchStatements.length} rows.`
+          );
         } catch (batchError) {
           console.error(
             `[SERVICE PLAYER_IMPORT] Batch ${chunkIndex + 1}/${chunks.length} failed:`,
@@ -372,10 +259,12 @@ export const processPlayersExcel = async (
     // In replace mode lo svuotamento è già avvenuto PRIMA dell'import.
     if (!replaceMode && importedPlayerIds.length > 0) {
       try {
-        console.log(`[SERVICE PLAYER_IMPORT] Starting orphan cleanup. Imported ${importedPlayerIds.length} player IDs.`);
+        console.log(
+          `[SERVICE PLAYER_IMPORT] Starting orphan cleanup. Imported ${importedPlayerIds.length} player IDs.`
+        );
 
         // Crea placeholders per la query IN (...)
-        const placeholders = importedPlayerIds.map(() => '?').join(',');
+        const placeholders = importedPlayerIds.map(() => "?").join(",");
 
         // Query: elimina giocatori che:
         // 1. NON sono nella lista degli ID importati
@@ -391,12 +280,18 @@ export const processPlayersExcel = async (
           args: importedPlayerIds,
         });
 
-        result.deletedOrphanPlayers = Number(deleteOrphansResult.rowsAffected) || 0;
-        console.log(`[SERVICE PLAYER_IMPORT] Orphan cleanup completed. Deleted ${result.deletedOrphanPlayers} orphan players.`);
+        result.deletedOrphanPlayers =
+          Number(deleteOrphansResult.rowsAffected) || 0;
+        console.log(
+          `[SERVICE PLAYER_IMPORT] Orphan cleanup completed. Deleted ${result.deletedOrphanPlayers} orphan players.`
+        );
       } catch (cleanupError) {
-        console.error('[SERVICE PLAYER_IMPORT] Error during orphan cleanup:', cleanupError);
+        console.error(
+          "[SERVICE PLAYER_IMPORT] Error during orphan cleanup:",
+          cleanupError
+        );
         result.errors.push(
-          `Orphan cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : 'Unknown error'}`
+          `Orphan cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : "Unknown error"}`
         );
       }
     }
@@ -414,15 +309,15 @@ export const processPlayersExcel = async (
       result.message = `Processed ${jsonDataObjects.length} rows. Upserts: ${result.successfullyUpsertedRows}, Validation Failures: ${result.failedValidationRows}, DB Failures: ${result.failedDbOperationsRows}, Orphans Deleted: ${result.deletedOrphanPlayers}. Check errors.`;
     }
   } catch (error: unknown) {
-    console.error(
-      "[SERVICE PLAYER_IMPORT] General error processing Excel file:",
-      error
-    );
+    console.error("[SERVICE PLAYER_IMPORT] Workbook rejected", {
+      errorType: error instanceof Error ? error.name : "unknown",
+      policyCode: error instanceof WorkbookPolicyError ? error.code : undefined,
+    });
     result.message = "Failed to process Excel file due to a critical error.";
     result.errors.push(
-      error instanceof Error
+      error instanceof WorkbookPolicyError
         ? error.message
-        : "Unknown error during Excel processing."
+        : "Unexpected error during Excel processing."
     );
     result.success = false;
   }
