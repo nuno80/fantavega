@@ -155,7 +155,6 @@ export default async function AuctionsPage2(props: {
             initialUserAuctionStates={serializedData.userAuctionStates}
             initialLeagueStatus={serializedData.leagueStatus}
             isReadOnly={isReadOnly}
-            isAdmin={isAdmin}
           />
         </Suspense>
       </div>

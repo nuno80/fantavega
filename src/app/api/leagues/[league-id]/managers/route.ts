@@ -228,7 +228,6 @@ export async function GET(
       if (!playersByManager.has(player.user_id)) {
         playersByManager.set(player.user_id, []);
       }
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       playersByManager.get(player.user_id)!.push({
         id: player.id,
         name: player.name,

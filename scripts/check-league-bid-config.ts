@@ -28,7 +28,7 @@ async function checkLeagueBidConfig() {
           const config = JSON.parse(row.config_json as string);
           console.log("\nParsed config:");
           console.log(JSON.stringify(config, null, 2));
-        } catch (e) {
+        } catch {
           console.log("Could not parse config_json");
         }
       }

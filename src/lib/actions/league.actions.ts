@@ -106,7 +106,6 @@ export async function createLeague(
 
     const config_json = JSON.stringify({ min_bid_rule: min_bid_rule });
 
-    // eslint-disable-next-line prefer-const
     let newLeagueId: number;
 
     const transaction = await db.transaction("write");

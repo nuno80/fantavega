@@ -3,7 +3,6 @@ import path from "path";
 
 // Declare global variable for development singleton
 declare global {
-  // eslint-disable-next-line no-var
   var __db_client: Client | undefined;
 }
 

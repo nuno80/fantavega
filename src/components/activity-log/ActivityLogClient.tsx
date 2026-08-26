@@ -154,12 +154,6 @@ function formatTimestamp(ts: number): string {
   });
 }
 
-function formatDateForInput(ts: number | null): string {
-  if (!ts) return "";
-  const date = new Date(ts * 1000);
-  return date.toISOString().slice(0, 10); // YYYY-MM-DD
-}
-
 function dateInputToTimestamp(dateStr: string, endOfDay = false): number | null {
   if (!dateStr) return null;
   const date = new Date(dateStr);

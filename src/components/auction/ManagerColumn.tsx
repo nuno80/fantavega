@@ -82,24 +82,6 @@ interface ActiveAuction {
   scheduled_end_time: number;
 }
 
-interface UserAuctionState {
-  auction_id: number;
-  player_id: number;
-  player_name: string;
-  current_bid: number;
-  user_state: "miglior_offerta" | "rilancio_possibile" | "asta_abbandonata";
-  response_deadline: number | null;
-  time_remaining: number | null;
-  is_highest_bidder: boolean;
-}
-
-interface AutoBid {
-  player_id: number;
-  max_amount: number;
-  is_active: boolean;
-  user_id: string; // Added user_id to identify the owner of the auto-bid
-}
-
 // Discriminated union for Slot
 type Slot =
   | { type: "assigned"; player: PlayerInRoster }
@@ -133,7 +115,6 @@ interface ManagerColumnProps {
     amount: number,
     bidType: "manual" | "quick",
     targetPlayerId?: number,
-    bypassComplianceCheck?: boolean,
     maxAmount?: number
   ) => Promise<void>;
   complianceTimerStartAt?: number | null;
@@ -765,13 +746,9 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   position = 0,
   leagueSlots,
   activeAuctions = [],
-  autoBids = [], // Added autoBids prop
-  userAutoBid,
-  currentAuctionPlayerId,
   userAuctionStates = [],
   leagueId,
   leagueStatus,
-  handlePlaceBid,
   complianceTimerStartAt,
   onPenaltyApplied,
   onPlayerDiscarded,
@@ -847,9 +824,6 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
       // Use a stable timestamp for sorting relative to now (e.g. assume they are "current")
       // Using Date.now() during render causes hydration mismatch because server T != client T
       // We use a high stable number to represent "now/response phase"
-      const STABLE_NOW = 2000000000000; // Far future, or just max integer?
-      // Actually, we want them ordered by... creation?
-      // Let's use a stable value. Since we just sort, use MaxSafeInteger - 1000
       allItems.push({ slot: { type: "response_needed", state }, timestamp: Number.MAX_SAFE_INTEGER - 2000 });
     });
 
@@ -922,12 +896,6 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   // Mostra il budget effettivamente disponibile (senza rivelare auto-bid che rimangono privati)
   const residuo = Math.max(0, validCurrentBudget - currentWinningBidsAmount);
 
-  // Legacy: manteniamo per compatibilità
-  const spentCredits = spesi;
-  const availableBudget = disponibili;
-  const spentPercentage =
-    validTotalBudget > 0 ? (spesi / validTotalBudget) * 100 : 0;
-
   // Header Gradient based on status
   const headerGradient = isCurrentUser
     ? "bg-gradient-to-r from-green-100 to-transparent dark:from-green-600/30"
@@ -958,6 +926,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
     C: Math.max(0, (leagueSlots?.slots_C || 0) - roleCounts.C),
     A: Math.max(0, (leagueSlots?.slots_A || 0) - roleCounts.A),
   };
+  void missingRoles;
 
   return (
     <div

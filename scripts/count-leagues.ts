@@ -6,7 +6,6 @@ const client = createClient({
 });
 
 async function deleteLeagues() {
-  const leagueIds = [6, 7];
   console.log('=== CANCELLAZIONE LEGHE 6 e 7 ===\n');
 
   // Le foreign keys con ON DELETE CASCADE elimineranno automaticamente i dati correlati

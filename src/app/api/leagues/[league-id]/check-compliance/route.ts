@@ -63,7 +63,7 @@ export async function POST(
           `[API CHECK_COMPLIANCE POST] Authenticated user ${authenticatedUserId} is checking compliance for target user ${targetUserId}.`
         );
       }
-    } catch (_e) {
+    } catch {
       // Body non presente o non JSON, va bene, usiamo l'utente autenticato
       console.log(
         `[API CHECK_COMPLIANCE POST] No target user in body, checking for authenticated user ${authenticatedUserId}.`

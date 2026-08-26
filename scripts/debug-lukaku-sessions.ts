@@ -10,8 +10,6 @@ async function main() {
   });
 
   try {
-    const LEAGUE_ID = 9;
-
     // 1. Find the 3 users from Lukaku's auction timers
     const userIds = [
       'user_36naxV1BTI1KxszgGueVsOBc2Wq', // cancelled

@@ -111,7 +111,7 @@ export function DeleteLeague({
         } else {
           toast.error("Errore", { description: result.message });
         }
-      } catch (_error) {
+      } catch {
         toast.error("Errore", {
           description: "Si è verificato un errore durante l&apos;eliminazione",
         });

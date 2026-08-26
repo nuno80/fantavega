@@ -90,7 +90,6 @@ describe("session integration (libSQL :memory:)", () => {
   });
 
   it("B2: a non-unique DB error still propagates", async () => {
-    const userId = "user-other";
     // DELETE FROM user_sessions per pulire, poi viola FK: user inesistente con FK attivo
     // Nota: schema qui non ha FK, quindi uso un errore diverso: tabella mancante.
     // updateHeartbeat con user_sessions esistente non può fallire; uso isUniqueConflictError direttamente.

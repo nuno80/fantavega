@@ -379,7 +379,7 @@ export function CallPlayerInterface({
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("auction-created", handleAuctionCreated);
     };
-  }, [socket, isConnected, leagueId]);
+  }, [socket, isConnected, leagueId, refreshPlayersData]);
 
   // Handle search input change
   const handleSearchChange = (value: string) => {

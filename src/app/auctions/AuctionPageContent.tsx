@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { toast } from "sonner";
@@ -10,7 +9,6 @@ import { CallPlayerInterface } from "@/components/auction/CallPlayerInterface";
 import { MemoizedManagerColumn as ManagerColumn } from "@/components/auction/ManagerColumn";
 // import { SocketDebugger } from "@/components/debug/SocketDebugger";
 import { useSocket } from "@/contexts/SocketContext";
-import { useMobile } from "@/hooks/use-mobile";
 import { useInactivityRedirect } from "@/hooks/useInactivityRedirect";
 import { useLeague } from "@/hooks/useLeague";
 import { Info } from "lucide-react";
@@ -53,19 +51,6 @@ interface AuctionPageContentProps {
   initialUserAuctionStates?: UserAuctionStateDetail[];
   initialLeagueStatus?: string;
   isReadOnly?: boolean;
-  isAdmin?: boolean;
-}
-
-interface UserBudgetInfo {
-  current_budget: number;
-  locked_credits: number;
-  total_budget: number;
-}
-
-interface LeagueInfo {
-  id: number;
-  name: string;
-  status: string;
 }
 
 export function AuctionPageContent({
@@ -80,11 +65,8 @@ export function AuctionPageContent({
   initialUserAuctionStates,
   initialLeagueStatus,
   isReadOnly = false,
-  isAdmin = false,
 }: AuctionPageContentProps) {
-  const router = useRouter();
   const { socket, isConnected } = useSocket();
-  const isMobile = useMobile();
   const { selectedLeagueId, switchToLeague } = useLeague();
 
   // Redirect to home after 30 seconds of inactivity
@@ -102,17 +84,8 @@ export function AuctionPageContent({
   const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionStateDetail[]>(initialUserAuctionStates || []);
 
   const [isLoading, setIsLoading] = useState(!initialManagers); // Only load if no initial data
-  const [error, setError] = useState<string | null>(null);
-  const [currentUserBudget, setCurrentUserBudget] = useState<UserBudgetInfo | null>(null);
-  const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
+  const [, setCurrentUserBudget] = useState<{ current_budget: number; locked_credits: number; total_budget: number } | null>(null);
   const [leagueStatus, setLeagueStatus] = useState<string | undefined>(initialLeagueStatus);
-
-  const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
-  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
-  const [userComplianceStatus, setUserComplianceStatus] = useState({
-    isCompliant: true,
-    isInGracePeriod: true,
-  });
 
   // Bid Modal State
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
@@ -424,7 +397,7 @@ export function AuctionPageContent({
       fetchUserAuctionStates(selectedLeagueId);
     };
 
-    const handleAuctionCreated = (data: { playerName: string }) => {
+    const handleAuctionCreated = (_data: { playerName: string }) => {
       // console.log("[DEBUG-AUCTION] Received auction-created:", data);
       // Toast rimosso - la UI si aggiorna già mostrando la nuova asta
       fetchCurrentAuction(selectedLeagueId);
@@ -443,7 +416,7 @@ export function AuctionPageContent({
       fetchCurrentAuction(selectedLeagueId);
     };
 
-    const handleAuctionStateChanged = (data: unknown) => {
+    const handleAuctionStateChanged = (_data: unknown) => {
       fetchUserAuctionStates(selectedLeagueId);
     };
 
@@ -575,7 +548,6 @@ export function AuctionPageContent({
     amount: number,
     bidType: "manual" | "quick" = "manual",
     targetPlayerId?: number,
-    bypassComplianceCheck = false,
     maxAmount?: number
   ) => {
     const playerId = targetPlayerId || currentAuction?.player_id;
@@ -663,22 +635,6 @@ export function AuctionPageContent({
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="mt-2 text-muted-foreground">Caricamento dati...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center text-destructive">
-          <p>{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 rounded bg-primary px-4 py-2 text-primary-foreground"
-          >
-            Riprova
-          </button>
         </div>
       </div>
     );
@@ -789,7 +745,7 @@ export function AuctionPageContent({
           title="Rilancia Offerta"
           onBidSuccess={async (amount, bidType, maxAmount) => {
             if (bidModalProps) {
-              await handlePlaceBid(amount, bidType, bidModalProps.playerId, false, maxAmount);
+              await handlePlaceBid(amount, bidType, bidModalProps.playerId, maxAmount);
               setIsBidModalOpen(false);
             }
           }}
