@@ -223,6 +223,7 @@ function AssignedSlot({
           {/* Player Photo */}
           <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
             {(player.photo_url || player.id) && (
+              // eslint-disable-next-line @next/next/no-img-element -- fallback onError a catena (player → fantacalcio → logo); next/image non supporta il cambio src dinamico
               <img
                 src={getPlayerImageUrl(player.id, player.photo_url, player.name, player.team)}
                 alt={player.name}
@@ -436,6 +437,7 @@ function ResponseNeededSlot({
             {/* Player Avatar */}
             <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-gray-700">
               {(state.player_photo_url || state.player_id) && (
+                // eslint-disable-next-line @next/next/no-img-element -- fallback onError a catena (player → fantacalcio → logo); next/image non supporta il cambio src dinamico
                 <img
                   src={getPlayerImageUrl(
                     state.player_id,
@@ -646,6 +648,7 @@ function InAuctionSlot({
       <div className="flex min-w-0 items-center gap-2">
         <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-muted-foreground/20 bg-muted">
           {(auction.player_photo_url || auction.player_id) && (
+            // eslint-disable-next-line @next/next/no-img-element -- fallback onError a catena (player → fantacalcio → logo); next/image non supporta il cambio src dinamico
             <img
               src={getPlayerImageUrl(
                 auction.player_id,

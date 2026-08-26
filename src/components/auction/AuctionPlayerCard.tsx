@@ -69,6 +69,7 @@ export function AuctionPlayerCard({
           <div className="relative">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               {(playerImage || playerId) && (
+                // eslint-disable-next-line @next/next/no-img-element -- fallback onError a catena (player → fantacalcio → logo); next/image non supporta il cambio src dinamico
                 <img
                   src={getPlayerImageUrl(playerId, playerImage, playerName, playerTeam)}
                   alt={playerName}

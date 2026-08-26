@@ -138,6 +138,7 @@ export function AuctionRealtimeDisplay({
         <div className="flex items-center gap-6">
           {auctionData.player?.photo_url || auctionData.player?.id ? (
             <div className="relative h-40 w-40 overflow-hidden rounded-full border-4 border-primary/20 shadow-lg bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element -- fallback onError a catena (player → fantacalcio → logo); next/image non supporta il cambio src dinamico */}
               <img
                 src={getPlayerImageUrl(
                   auctionData.player?.id,

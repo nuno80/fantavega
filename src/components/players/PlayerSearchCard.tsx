@@ -230,6 +230,7 @@ export function PlayerSearchCard({
           <div className="ml-2 flex flex-col items-center gap-1">
             <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-muted bg-muted shadow-sm relative">
               {(player.photo_url || player.id || player.name) && (
+                // eslint-disable-next-line @next/next/no-img-element -- fallback onError a catena (player → fantacalcio → logo); next/image non supporta il cambio src dinamico
                 <img
                   src={getPlayerImageUrl(
                     player.id,
