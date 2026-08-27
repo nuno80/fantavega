@@ -21,7 +21,7 @@ Ultimo aggiornamento: 2026-08-25
 | REL-001 | ✅ Completato | `a632101` | Alta | Media | Bootstrap vuoto + upgrade legacy + drift detection |
 | SEC-003 | ✅ Completato | `781b875` | Media | Media | Parser Excel sicuro + budget upload |
 | REL-002 | ✅ Completato | `d35ee11` | Media | Media | Import replace atomico |
-| REL-004 | ⏸️ Aperto | — | Media | Media | Budget/ledger atomici |
+| REL-004 | ✅ Completato | `1c5bea6` | Media | Media | Budget/ledger atomici |
 | REL-005 | ⏸️ Aperto | — | Bassa | Media | Cambio ruolo Clerk |
 | REL-006 | ⏸️ Aperto | — | Alta | Alta | Delivery Socket.IO disaccoppiata |
 | SEC-004 | ⏸️ Aperto | — | Media | Media | Rate limit distribuito |
