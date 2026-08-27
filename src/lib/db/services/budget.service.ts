@@ -25,7 +25,66 @@ export interface BudgetTransactionFilters {
   transactionType?: string;
 }
 
-// 3. Funzione per Recuperare la Cronologia delle Transazioni di Budget
+// 3. Adjust budget + record ledger entry in one atomic transaction
+export interface AdjustBudgetResult {
+  success: boolean;
+  message: string;
+  newBudget?: number;
+}
+
+export async function adjustBudgetAtomically(
+  leagueId: number,
+  userId: string,
+  amount: number,
+  description: string,
+): Promise<AdjustBudgetResult> {
+  const tx = await db.transaction("write");
+  try {
+    // Conditional update: reject if result would be negative
+    const updateResult = await tx.execute({
+      sql: `UPDATE league_participants
+            SET current_budget = current_budget + ?
+            WHERE league_id = ? AND user_id = ? AND current_budget + ? >= 0`,
+      args: [amount, leagueId, userId, amount],
+    });
+
+    if (updateResult.rowsAffected === 0) {
+      // Distinguish "not found" from "would go negative"
+      const exists = await tx.execute({
+        sql: `SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?`,
+        args: [leagueId, userId],
+      });
+      await tx.rollback();
+      if (exists.rows.length === 0) {
+        return { success: false, message: "Partecipante non trovato nella lega." };
+      }
+      return { success: false, message: "Il budget non può diventare negativo." };
+    }
+
+    // Read the post-update balance inside the same transaction
+    const balanceResult = await tx.execute({
+      sql: `SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?`,
+      args: [leagueId, userId],
+    });
+    const newBudget = balanceResult.rows[0].current_budget as number;
+
+    const transactionType = amount > 0 ? "admin_budget_increase" : "admin_budget_decrease";
+    await tx.execute({
+      sql: `INSERT INTO budget_transactions
+            (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [leagueId, userId, transactionType, amount, description, newBudget],
+    });
+
+    await tx.commit();
+    return { success: true, message: `Budget aggiornato: ${amount > 0 ? "+" : ""}${amount} crediti.`, newBudget };
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
+}
+
+// 4. Funzione per Recuperare la Cronologia delle Transazioni di Budget
 /**
  * Recupera la cronologia delle transazioni di budget per un utente specifico in una lega.
  * @param leagueId L'ID della lega.

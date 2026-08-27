@@ -17,6 +17,7 @@ import {
   updateParticipantTeamName,
   type LeagueSettingName,
 } from "@/lib/db/services/auction-league.service";
+import { adjustBudgetAtomically } from "@/lib/db/services/budget.service";
 import { CreateLeagueSchema } from "@/lib/validators/league.validators";
 
 type AppRole = "admin" | "manager";
@@ -689,50 +690,15 @@ export async function addLeftoverCreditsAction(
   }
 
   try {
-    // Verifica che il partecipante esista nella lega
-    const participantResult = await db.execute({
-      sql: `SELECT current_budget FROM league_participants WHERE league_id = ? AND user_id = ?`,
-      args: [leagueId, userId],
-    });
+    const description = `Crediti residui: ${amount > 0 ? "+" : ""}${amount} crediti`;
+    const result = await adjustBudgetAtomically(leagueId, userId, amount, description);
 
-    if (participantResult.rows.length === 0) {
-      return { success: false, message: "Partecipante non trovato nella lega." };
+    if (!result.success) {
+      return { success: false, message: result.message };
     }
-
-    const currentBudget = participantResult.rows[0].current_budget as number;
-    const newBudget = currentBudget + amount;
-
-    if (newBudget < 0) {
-      return { success: false, message: "Il budget non può diventare negativo." };
-    }
-
-    // Aggiorna il budget del partecipante
-    await db.execute({
-      sql: `UPDATE league_participants SET current_budget = ? WHERE league_id = ? AND user_id = ?`,
-      args: [newBudget, leagueId, userId],
-    });
-
-    // Registra la transazione
-    const transactionType = amount > 0 ? "admin_budget_increase" : "admin_budget_decrease";
-    await db.execute({
-      sql: `INSERT INTO budget_transactions
-            (auction_league_id, user_id, transaction_type, amount, description, balance_after_in_league)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [
-        leagueId,
-        userId,
-        transactionType,
-        amount,
-        `Crediti residui: ${amount > 0 ? "+" : ""}${amount} crediti`,
-        newBudget,
-      ],
-    });
 
     revalidatePath(`/admin/leagues/${leagueId}/dashboard`);
-    return {
-      success: true,
-      message: `Budget aggiornato: ${amount > 0 ? "+" : ""}${amount} crediti.`,
-    };
+    return { success: true, message: result.message };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Errore sconosciuto.";
