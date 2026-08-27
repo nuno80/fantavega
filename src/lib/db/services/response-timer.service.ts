@@ -74,7 +74,7 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
     // Usa loginTime passato direttamente o query al DB come fallback
     const effectiveLoginTime = loginTime ?? await getUserLastLogin(userId);
     if (!effectiveLoginTime) {
-      console.log(`[TIMER] No active session found for user ${userId}`);
+      logger.debug("no active session found", { userId });
       return;
     }
 
@@ -97,9 +97,7 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
       return; // Nessun timer da attivare
     }
 
-    console.log(
-      `[TIMER] Activating ${pendingTimers.length} timers for user ${userId}, deadline: ${deadline}`
-    );
+    logger.debug("activating timers", { userId, count: pendingTimers.length, deadline });
 
     for (const timer of pendingTimers) {
       const activation = await db.execute({
@@ -112,7 +110,7 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
       });
 
       if (activation.rowsAffected === 0) {
-        console.log(`[TIMER] Timer ID ${timer.id} already activated by another request, skipping`);
+        logger.debug("timer already activated", { timerId: timer.id });
         continue;
       }
 
@@ -127,15 +125,13 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
         },
       });
 
-      console.log(
-        `[TIMER] Activated timer ID ${timer.id} for user ${userId}, auction ${timer.auction_id}`
-      );
+      logger.debug("activated timer", { timerId: timer.id, userId, auctionId: timer.auction_id });
     }
 
     // Invia notifica generale di timer attivati
     await notifyUserOfActiveTimers(userId);
   } catch (error) {
-    console.error(`[TIMER] Error activating timers for user ${userId}:`, error);
+    logger.error("error activating timers", { userId, error });
     // Non rilanciare l'errore per non bloccare il login
   }
 };
@@ -169,7 +165,7 @@ const notifyUserOfActiveTimers = async (userId: string): Promise<void> => {
       });
     }
   } catch (error) {
-    console.error("[TIMER] Error notifying user of active timers:", error);
+    logger.error("error notifying user of active timers", { error });
   }
 };
 
@@ -217,23 +213,14 @@ export const markTimerCompleted = async (auctionId: number, userId: string): Pro
     });
 
     if (result.rowsAffected > 0) {
-      console.log(
-        `[TIMER] Timer completed for user ${userId}, auction ${auctionId}`
-      );
+      logger.debug("timer completed", { userId, auctionId });
     } else {
-      console.log(
-        `[TIMER] No pending timer found for user ${userId}, auction ${auctionId} - this is normal if no timer was active`
-      );
+      logger.debug("no pending timer to complete", { userId, auctionId });
     }
   } catch (error) {
-    console.error(
-      `[TIMER] Error marking timer completed for user ${userId}, auction ${auctionId}:`,
-      error
-    );
+    logger.error("error marking timer completed", { userId, auctionId, error });
     // Non fare throw dell'errore - è normale che non ci sia sempre un timer da completare
-    console.log(
-      `[TIMER] Continuing despite timer completion error - this is not critical`
-    );
+    logger.debug("continuing despite timer completion error");
   }
 };
 
@@ -249,7 +236,7 @@ export const processExpiredResponseTimers = async (): Promise<{
   const errors: string[] = [];
 
   try {
-    console.log(`[TIMER] Processing expired timers at ${now}`);
+    logger.debug("processing expired timers", { now });
 
     // Trova tutti i timer scaduti
     const expiredTimersResult = await db.execute({
@@ -279,7 +266,7 @@ export const processExpiredResponseTimers = async (): Promise<{
       current_highest_bidder_id: string;
     }>;
 
-    console.log(`[TIMER] Found ${expiredTimers.length} expired timers`);
+    logger.debug("found expired timers", { count: expiredTimers.length });
 
     for (const timer of expiredTimers) {
       const transaction = await db.transaction("write");
@@ -296,7 +283,7 @@ export const processExpiredResponseTimers = async (): Promise<{
 
         if (expiryResult.rowsAffected === 0) {
            transaction.rollback();
-           console.log(`[TIMER] Timer ID ${timer.id} already processed or no longer pending/expired. Skipping.`);
+           logger.debug("timer already processed", { timerId: timer.id });
            continue;
         }
 
@@ -390,25 +377,21 @@ export const processExpiredResponseTimers = async (): Promise<{
           },
         });
 
-        console.log(
-          `[TIMER] Processed expired timer ${timer.id} for user ${timer.user_id}`
-        );
+        logger.debug("processed expired timer", { timerId: timer.id, userId: timer.user_id });
         processedCount++;
       } catch (error) {
         transaction.rollback();
         const errorMsg =
           error instanceof Error ? error.message : "Unknown error";
         errors.push(`Timer ID ${timer.id}: ${errorMsg}`);
-        console.error(`[TIMER] Error processing timer ${timer.id}:`, error);
+        logger.error("error processing timer", { timerId: timer.id, error });
       }
     }
 
-    console.log(
-      `[TIMER] Processed ${processedCount} expired timers, ${errors.length} errors`
-    );
+    logger.debug("processed expired timers summary", { processedCount, errorCount: errors.length });
     return { processedCount, errors };
   } catch (error) {
-    console.error("[TIMER] Error processing expired timers:", error);
+    logger.error("error processing expired timers", { error });
     throw error;
   }
 };
@@ -460,11 +443,11 @@ export const abandonAuction = async (
       : undefined;
 
     if (!timer) {
-      console.error(`[TIMER] abandonAuction failed: No active timer found for user ${userId}, auction ${auction.id}`);
+      logger.warn("abandon failed: no active timer", { userId, auctionId: auction.id });
       throw new Error("Nessun timer di risposta attivo per questo utente");
     }
 
-    console.log(`[TIMER] Found timer ${timer.id} for user ${userId}, proceeding with abandon`);
+    logger.debug("found timer, proceeding with abandon", { timerId: timer.id, userId });
 
     // Marca timer come abbandonato (ATOMICO)
     const abandonResult = await transaction.execute({
@@ -490,7 +473,7 @@ export const abandonAuction = async (
     `,
       args: [newScheduledEndTime, now, auction.id],
     });
-    console.log(`[TIMER] Reset auction ${auction.id} timer to ${auction.timer_duration_minutes} minutes`);
+    logger.debug("reset auction timer", { auctionId: auction.id, minutes: auction.timer_duration_minutes });
 
     // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
     // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
@@ -582,12 +565,10 @@ export const abandonAuction = async (
       },
     });
 
-    console.log(
-      `[TIMER] User ${userId} abandoned auction for player ${playerId}`
-    );
+    logger.debug("auction abandoned", { userId, playerId });
   } catch (error) {
     transaction.rollback();
-    console.error("[TIMER] Error abandoning auction:", error);
+    logger.error("error abandoning auction", { error });
     throw error;
   }
 };
@@ -612,7 +593,7 @@ export const getUserActiveResponseTimers = async (
     });
     return result.rows as unknown as Array<ResponseTimer & { player_name: string }>;
   } catch (error) {
-    console.error("[TIMER] Error getting active timers:", error);
+    logger.error("error getting active timers", { error });
     return [];
   }
 };
@@ -640,7 +621,7 @@ export const canUserBidOnPlayer = async (
 
     return !cooldownCheck;
   } catch (error) {
-    console.error("[TIMER] Error checking cooldown:", error);
+    logger.error("error checking cooldown", { error });
     return true; // In caso di errore, permetti l'offerta
   }
 };
@@ -721,7 +702,7 @@ export const getUserCooldownInfo = async (
       message,
     };
   } catch (error) {
-    console.error("[TIMER] Error getting cooldown info:", error);
+    logger.error("error getting cooldown info", { error });
     return { canBid: true };
   }
 };
@@ -757,7 +738,7 @@ export const processUserResponse = async (
 
     return { success: false, message: "Azione non valida" };
   } catch (error) {
-    console.error("[TIMER] Error processing user response:", error);
+    logger.error("error processing user response", { error });
     return {
       success: false,
       message: error instanceof Error ? error.message : "Unknown error"
