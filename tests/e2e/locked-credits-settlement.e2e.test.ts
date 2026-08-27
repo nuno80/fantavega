@@ -81,6 +81,22 @@ async function resetReconcilerFixture(db: Client) {
         assigned_at INTEGER NOT NULL,
         UNIQUE (auction_league_id, player_id)
       )`,
+      `CREATE TABLE event_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL UNIQUE,
+        event_type TEXT NOT NULL,
+        room TEXT NOT NULL,
+        event_name TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        essential INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'dead')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at INTEGER NOT NULL,
+        last_error TEXT,
+        created_at INTEGER NOT NULL,
+        claimed_at INTEGER,
+        owner_token TEXT
+      )`,
     ],
     "write",
   );

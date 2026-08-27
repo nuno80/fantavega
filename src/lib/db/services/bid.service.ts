@@ -2,9 +2,10 @@
 // Servizio completo per la logica delle offerte, con integrazione Socket.IO per notifiche in tempo reale.
 // 1. Importazioni
 import { db } from "@/lib/db";
-import { notifySocketServer } from "@/lib/socket-emitter";
+import { logger } from "@/lib/logger";
 
-import { handleBidderChange } from "./auction-states.service";
+import { setUserAuctionStateInTx } from "./auction-states.service";
+import { publishBestEffortEvent, publishEssentialEvent } from "./event-publisher";
 import { checkAndRecordCompliance } from "./penalty.service";
 import { reconcileLockedCreditsForLeague } from "./locked-credits.service";
 import {
@@ -683,11 +684,8 @@ export const placeInitialBidAndCreateAuction = async (
 
     if (!newBidId) throw new Error("Registrazione offerta fallita.");
 
-    await tx.commit();
-
-    // **NUOVO**: Notifica Socket.IO dopo che la transazione ha avuto successo
-    // Get player information for the new auction
-    const playerInfoResult = await db.execute({
+    // PERF-002: risolvi nome squadra e giocatore NELLA transazione (dati già noti).
+    const playerInfoResult = await tx.execute({
       sql: "SELECT name, role, team FROM players WHERE id = ?",
       args: [playerIdParam],
     });
@@ -695,8 +693,7 @@ export const placeInitialBidAndCreateAuction = async (
       | { name: string; role: string; team: string }
       | undefined;
 
-    // Risolve il nome squadra del miglior offerente (pattern usato in auction-update)
-    const bidderTeamNameResult = await db.execute({
+    const bidderTeamNameResult = await tx.execute({
       sql: `SELECT COALESCE(lp.manager_team_name, u.username, u.id) AS team_name
             FROM league_participants lp
             JOIN users u ON lp.user_id = u.id
@@ -707,36 +704,26 @@ export const placeInitialBidAndCreateAuction = async (
       bidderTeamNameResult.rows[0] as unknown as { team_name?: string } | undefined
     )?.team_name;
 
-    console.log(
-      "[BID_SERVICE] createAndStartAuction - Emitting auction-created event"
-    );
+    // REL-006: evento essenziale nell'outbox NELLA stessa transazione.
+    await publishEssentialEvent(tx, {
+      eventType: "auction-created",
+      room: `league-${leagueIdParam}`,
+      eventName: "auction-created",
+      payload: {
+        playerId: playerIdParam,
+        auctionId: newAuctionId,
+        newPrice: bidAmountParam,
+        highestBidderId: bidderUserIdParam,
+        highestBidderName: bidderTeamName,
+        scheduledEndTime: scheduledEndTime,
+        playerName: playerInfo?.name || `Player ${playerIdParam}`,
+        playerRole: playerInfo?.role || "",
+        playerTeam: playerInfo?.team || "",
+        isNewAuction: true, // Flag to distinguish from bid updates
+      },
+    });
 
-    try {
-      await notifySocketServer({
-        room: `league-${leagueIdParam}`,
-        event: "auction-created",
-        data: {
-          playerId: playerIdParam,
-          auctionId: newAuctionId,
-          newPrice: bidAmountParam,
-          highestBidderId: bidderUserIdParam,
-          highestBidderName: bidderTeamName,
-          scheduledEndTime: scheduledEndTime,
-          playerName: playerInfo?.name || `Player ${playerIdParam}`,
-          playerRole: playerInfo?.role || "",
-          playerTeam: playerInfo?.team || "",
-          isNewAuction: true, // Flag to distinguish from bid updates
-        },
-      });
-      console.log(
-        "[BID_SERVICE] createAndStartAuction - auction-created event emitted successfully"
-      );
-    } catch (error) {
-      console.error(
-        "[BID_SERVICE] createAndStartAuction - Failed to emit auction-created event:",
-        error
-      );
-    }
+    await tx.commit();
 
     return {
       auction_id: newAuctionId,
@@ -1278,14 +1265,25 @@ export async function placeBidOnExistingAuction({
     const finalBidType = battleResult.initialBidderHadWinningManualBid
       ? bidType
       : "auto";
-    await tx.execute({
-      sql: `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, ?, ?)`,
+    const insertBidResult = await tx.execute({
+      sql: `INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type) VALUES (?, ?, ?, ?, ?) RETURNING id`,
       args: [auction.id, finalBidderId, finalAmount, now, finalBidType],
     });
+    const newBidId = Number(insertBidResult.rows[0].id);
 
     const autoBidActivated =
       finalBidderId !== userId ||
       !battleResult.initialBidderHadWinningManualBid;
+
+    // --- TIME-001: effetti timer/stato duraturi NELLA stessa transazione ---
+    // Cancella il timer pendente del rilanciante (idempotente) e crea il
+    // timer per l'utente superato. Se il commit fallisce, anche questi effetti
+    // scompaiono: nessun timer doppio o perso.
+    await cancelResponseTimer(auction.id, userId, tx);
+    if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
+      await setUserAuctionStateInTx(tx, auction.id, previousHighestBidderId, "rilancio_possibile");
+      await createResponseTimer(auction.id, previousHighestBidderId, tx);
+    }
 
     // Recupera info aggiuntive per il return
     const playerNameResult = await tx.execute({
@@ -1294,13 +1292,51 @@ export async function placeBidOnExistingAuction({
     });
     const playerName = (playerNameResult.rows[0] as unknown as { name: string })?.name;
 
+    // Nome squadra e username del vincitore risolti NELLA transazione:
+    // dati già noti al commit, nessuna lettura post-commit per il payload.
+    const winnerTeamNameResult = await tx.execute({
+      sql: `SELECT COALESCE(lp.manager_team_name, u.username, u.id) AS team_name, u.username
+            FROM league_participants lp
+            JOIN users u ON lp.user_id = u.id
+            WHERE lp.league_id = ? AND lp.user_id = ?`,
+      args: [leagueId, finalBidderId],
+    });
+    const winnerRow = winnerTeamNameResult.rows[0] as unknown as
+      | { team_name: string; username: string }
+      | undefined;
+    const highestBidderName = winnerRow?.team_name;
+
     let autoBidUsername;
     if (autoBidActivated) {
-      const uResult = await tx.execute({
-        sql: "SELECT username FROM users WHERE id = ?",
-        args: [finalBidderId],
+      autoBidUsername = winnerRow?.username;
+    }
+
+    // Budget aggiornato del vincitore e del superato, letti nella transazione
+    // (coerenti col commit, non stale).
+    const budgetIds = new Set<string>([finalBidderId]);
+    if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
+      budgetIds.add(previousHighestBidderId);
+    }
+    const budgetUpdates: Array<{
+      userId: string;
+      newBudget: number;
+      newLockedCredits: number;
+    }> = [];
+    for (const budgetUserId of budgetIds) {
+      const bRes = await tx.execute({
+        sql: `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
+        args: [leagueId, budgetUserId],
       });
-      autoBidUsername = (uResult.rows[0] as unknown as { username: string })?.username;
+      const row = bRes.rows[0] as unknown as
+        | { current_budget: number; locked_credits: number }
+        | undefined;
+      if (row) {
+        budgetUpdates.push({
+          userId: budgetUserId,
+          newBudget: row.current_budget,
+          newLockedCredits: row.locked_credits,
+        });
+      }
     }
 
     result = {
@@ -1314,7 +1350,47 @@ export async function placeBidOnExistingAuction({
       autoBidAmount: finalAmount,
       finalBidAmount: finalAmount,
       finalBidderId: finalBidderId,
+      // Dati già noti per il payload realtime (PERF-002): nessun refetch.
+      highestBidderName,
+      budgetUpdates,
+      newBid: {
+        id: newBidId,
+        auction_id: auction.id,
+        user_id: finalBidderId,
+        amount: finalAmount,
+        bid_time: now,
+        bid_type: finalBidType,
+      },
     };
+
+    // --- REL-006: evento essenziale nell'outbox NELLA stessa transazione ---
+    // La delivery è disaccoppiata dal commit: il dispatcher consegna
+    // at-least-once dopo il commit; un fallimento socket non fa fallire l'API.
+    await publishEssentialEvent(tx, {
+      eventType: "auction-update",
+      room: `league-${leagueId}`,
+      eventName: "auction-update",
+      payload: {
+        playerId,
+        newPrice: finalAmount,
+        highestBidderId: finalBidderId,
+        highestBidderName,
+        scheduledEndTime: newScheduledEndTime,
+        autoBidActivated,
+        budgetUpdates,
+        autoBids: allActiveAutoBids.map((ab) => ({
+          userId: ab.userId,
+          maxAmount: ab.maxAmount,
+          isActive: true,
+        })),
+        newBid: {
+          id: newBidId,
+          user_id: finalBidderId,
+          amount: finalAmount,
+          bid_time: new Date(now * 1000).toISOString(),
+        },
+      },
+    });
 
     await tx.commit();
   } catch (error) {
@@ -1322,8 +1398,7 @@ export async function placeBidOnExistingAuction({
     throw error;
   }
 
-  // --- Gestione Compliance e Timer (FUORI DALLA TRANSAZIONE - FIRE AND FORGET) ---
-  // OPTIMIZATION: Queste operazioni non bloccano la risposta al client
+  // --- Best-effort post-commit: solo notifiche individuali non essenziali ---
   if (result.success) {
     const usersToCheck = new Set<string>();
     if (result.previousHighestBidderId) {
@@ -1331,182 +1406,13 @@ export async function placeBidOnExistingAuction({
     }
     usersToCheck.add(result.finalBidderId);
 
-    // Fire-and-forget: compliance check non blocca la risposta bid
+    // Compliance è un effetto non essenziale: best-effort, non blocca.
     for (const user of usersToCheck) {
       checkAndRecordCompliance(user, leagueId, false).catch((error) => {
-        console.error(
-          `[BID_SERVICE] Error checking compliance for user ${user}:`,
-          error
-        );
+        logger.warn("compliance check failed", { userId: user, error });
       });
     }
 
-    // --- Gestione Timer di Risposta (Fire-and-forget) ---
-    // OPTIMIZATION: Timer management non blocca risposta bid
-    (async () => {
-      try {
-        const auctionInfoResult = await db.execute({
-          sql: "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ? AND status = 'active'",
-          args: [leagueId, playerId],
-        });
-        const auctionInfoForCancel = auctionInfoResult.rows[0] as unknown as
-          | { id: number }
-          | undefined;
-        if (auctionInfoForCancel) {
-          await cancelResponseTimer(auctionInfoForCancel.id, userId);
-        }
-
-        // Crea timer pendente per l'utente superato
-        if (
-          result.previousHighestBidderId &&
-          result.previousHighestBidderId !== result.finalBidderId &&
-          auctionInfoForCancel
-        ) {
-          await createResponseTimer(
-            auctionInfoForCancel.id,
-            result.previousHighestBidderId
-          );
-        }
-      } catch (error) {
-        console.log(
-          `[BID_SERVICE] Timer management non-critical error: ${error}`
-        );
-      }
-    })();  // IIFE eseguita senza await
-  }
-
-  // --- Blocco 7: Invio Notifiche Socket.IO (OTTIMIZZATO) ---
-  if (result.success) {
-    const {
-      finalBidderId,
-      previousHighestBidderId,
-      finalBidAmount,
-      newScheduledEndTime,
-    } = result;
-
-    // 1. Recupera i dati aggiornati per il payload arricchito
-    const budgetUpdates = [];
-    const getParticipantBudget = async (pUserId: string) => {
-      const res = await db.execute({
-        sql: `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
-        args: [leagueId, pUserId],
-      });
-      return res.rows[0] as unknown as
-        | { current_budget: number; locked_credits: number }
-        | undefined;
-    };
-
-    // Aggiungi budget del vincitore finale
-    const finalWinnerBudget = await getParticipantBudget(finalBidderId);
-    if (finalWinnerBudget) {
-      budgetUpdates.push({
-        userId: finalBidderId,
-        newBudget: finalWinnerBudget.current_budget,
-        newLockedCredits: finalWinnerBudget.locked_credits,
-      });
-    }
-
-    // Aggiungi budget dell'offerente precedente (se diverso dal vincitore)
-    if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
-      const previousBidderBudget = await getParticipantBudget(
-        previousHighestBidderId
-      );
-      if (previousBidderBudget) {
-        budgetUpdates.push({
-          userId: previousHighestBidderId,
-          newBudget: previousBidderBudget.current_budget,
-          newLockedCredits: previousBidderBudget.locked_credits,
-        });
-      }
-    }
-
-    // Recupera l'ID dell'asta per trovare l'ultima offerta
-    const auctionInfoForBidResult = await db.execute({
-      sql: "SELECT id FROM auctions WHERE auction_league_id = ? AND player_id = ?",
-      args: [leagueId, playerId],
-    });
-    const auctionInfoForBid = auctionInfoForBidResult.rows[0] as unknown as {
-      id: number;
-    };
-
-    // Recupera l'ultima offerta inserita
-    const lastBidResult = await db.execute({
-      sql: `SELECT id, user_id, amount, bid_time FROM bids WHERE auction_id = ? ORDER BY bid_time DESC LIMIT 1`,
-      args: [auctionInfoForBid.id],
-    });
-    const lastBid = lastBidResult.rows[0] as unknown as
-      | { id: number; user_id: string; amount: number; bid_time: string }
-      | undefined;
-
-    // Risolve il nome squadra del miglior offerente (pattern usato in auction-league.service)
-    const highestBidderNameResult = await db.execute({
-      sql: `SELECT COALESCE(lp.manager_team_name, u.username, u.id) AS team_name
-            FROM league_participants lp
-            JOIN users u ON lp.user_id = u.id
-            WHERE lp.league_id = ? AND lp.user_id = ?`,
-      args: [leagueId, finalBidderId],
-    });
-    const highestBidderName = (
-      highestBidderNameResult.rows[0] as unknown as { team_name?: string } | undefined
-    )?.team_name;
-
-    // Recupera gli auto-bid attivi per l'asta con username (per il payload real-time)
-    const activeAutoBidsPayloadResult = await db.execute({
-      sql: `SELECT ab.user_id as userId, ab.max_amount as maxAmount, ab.is_active as isActive, u.username
-            FROM auto_bids ab
-            JOIN users u ON ab.user_id = u.id
-            WHERE ab.auction_id = ? AND ab.is_active = TRUE
-            ORDER BY ab.created_at ASC`,
-      args: [auctionInfoForBid.id],
-    });
-    const activeAutoBidsPayload = (
-      activeAutoBidsPayloadResult.rows as unknown as Array<{
-        userId: string;
-        username: string;
-        maxAmount: number;
-        isActive: boolean;
-      }>
-    ).map((ab) => ({
-      userId: ab.userId,
-      username: ab.username,
-      maxAmount: ab.maxAmount,
-      isActive: !!ab.isActive,
-    }));
-
-    // 2. Costruisci il payload arricchito
-    const richPayload = {
-      playerId,
-      newPrice: finalBidAmount,
-      highestBidderId: finalBidderId,
-      highestBidderName,
-      scheduledEndTime: newScheduledEndTime,
-      autoBidActivated: result.autoBidActivated,
-      budgetUpdates,
-      autoBids: activeAutoBidsPayload,
-      newBid: lastBid
-        ? {
-          ...lastBid,
-          bid_time: new Date(Number(lastBid.bid_time) * 1000).toISOString(),
-        }
-        : undefined,
-    };
-
-    console.log(
-      `[BID_SERVICE] Notifying socket server with rich payload for auction-update.`
-    );
-
-    // OPTIMIZATION: Parallelizza tutte le notifiche socket per ridurre latenza
-    // L'evento auction-update Ã¨ critico, lo attendiamo
-    // Le notifiche individuali sono fire-and-forget
-
-    // 3. Invia l'evento `auction-update` arricchito (CRITICO - lo attendiamo)
-    await notifySocketServer({
-      room: `league-${leagueId}`,
-      event: "auction-update",
-      data: richPayload,
-    });
-
-    // 4. Gestisci le notifiche individuali (FIRE-AND-FORGET - non bloccanti)
     const surpassedUsers = new Set<string>();
     if (
       result.previousHighestBidderId &&
@@ -1518,54 +1424,34 @@ export async function placeBidOnExistingAuction({
       surpassedUsers.add(userId);
     }
 
-    // Fire-and-forget per notifiche utente superato
     for (const surpassedUserId of surpassedUsers) {
-      console.log(
-        `[BID_SERVICE] Notifying user ${surpassedUserId} of being surpassed.`
-      );
-      notifySocketServer({
+      publishBestEffortEvent({
+        eventType: "bid-surpassed-notification",
         room: `user-${surpassedUserId}`,
-        event: "bid-surpassed-notification",
-        data: {
+        eventName: "bid-surpassed-notification",
+        payload: {
           playerName: result.playerName?.name || "Giocatore",
           newBidAmount: result.finalBidAmount,
           autoBidActivated: true,
           autoBidUsername: result.autoBidUsername,
         },
-      }).catch((err) => console.error(`[BID_SERVICE] Socket notification error:`, err));
+      });
     }
 
-    // Fire-and-forget per auto-bid notification
     if (
       result.autoBidActivated &&
       result.finalBidderId === result.autoBidUserId
     ) {
-      console.log(
-        `[BID_SERVICE] Notifying auto-bidder (${result.autoBidUserId}) of auto-bid activation.`
-      );
-      notifySocketServer({
+      publishBestEffortEvent({
+        eventType: "auto-bid-activated-notification",
         room: `user-${result.autoBidUserId}`,
-        event: "auto-bid-activated-notification",
-        data: {
+        eventName: "auto-bid-activated-notification",
+        payload: {
           playerName: result.playerName?.name || "Giocatore",
           bidAmount: result.finalBidAmount,
           triggeredBy: userId,
         },
-      }).catch((err) => console.error(`[BID_SERVICE] Socket notification error:`, err));
-    }
-
-    // 5. Gestisci cambio stato (Fire-and-forget)
-    if (auctionInfoForBid) {
-      for (const surpassedUserId of surpassedUsers) {
-        console.log(
-          `[BID_SERVICE] Handling state change for user ${surpassedUserId}, auction ${auctionInfoForBid.id}`
-        );
-        handleBidderChange(
-          auctionInfoForBid.id,
-          surpassedUserId,
-          result.finalBidderId!
-        ).catch((err) => console.error(`[BID_SERVICE] State change error:`, err));
-      }
+      });
     }
   }
 
@@ -1752,20 +1638,12 @@ async function processAuctionWinner(
         ],
       });
 
-      await tx.commit();
-
-      // Trigger compliance check (fire-and-forget inside this flow usually, but we await to ensure order in cron)
-      checkAndRecordCompliance(
-        auction.current_highest_bidder_id,
-        auction.auction_league_id,
-        false
-      ).catch(err => console.error("Compliance check error:", err));
-
-      // Notifica fire-and-forget
-      notifySocketServer({
+      // REL-006: evento essenziale nell'outbox NELLA stessa transazione.
+      await publishEssentialEvent(tx, {
+        eventType: "auction-closed",
         room: `league-${auction.auction_league_id}`,
-        event: "auction-closed",
-        data: {
+        eventName: "auction-closed",
+        payload: {
           auctionId: auction.id,
           playerId: auction.player_id,
           winnerId: auction.current_highest_bidder_id,
@@ -1773,7 +1651,16 @@ async function processAuctionWinner(
           playerName: auction.player_name,
           playerRole: auction.player_role,
         },
-      }).catch(err => console.error("Error sending socket notification:", err));
+      });
+
+      await tx.commit();
+
+      // Trigger compliance check (fire-and-forget inside this flow usually, but we await to ensure order in cron)
+      checkAndRecordCompliance(
+        auction.current_highest_bidder_id,
+        auction.auction_league_id,
+        false
+      ).catch(err => logger.warn("compliance check failed after settlement", { error: err }));
 
       return "processed";
     } catch (error) {
@@ -1782,7 +1669,7 @@ async function processAuctionWinner(
     }
   } catch (err) {
     if (isSettlementContention(err)) return "skipped";
-    console.error(`Error processing auction ${auction.id}:`, err);
+    logger.error("error processing auction winner", { auctionId: auction.id, error: err });
     return "failed";
   }
 }

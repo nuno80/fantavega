@@ -2,10 +2,15 @@
 // Servizio per la gestione dei timer di risposta degli utenti nelle aste
 // Gestisce i timer di 1 ora per il rilancio dopo essere stati superati
 // LOGICA CORRETTA: Timer parte solo quando utente torna online e vede il rilancio
+import { type Client } from "@libsql/client";
+
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 import { getUserLastLogin } from "./session.service";
+
+type Executor = Pick<Client, "execute">;
 
 interface ResponseTimer {
   id: number;
@@ -24,71 +29,37 @@ const ABANDON_COOLDOWN_HOURS = 48;
 
 /**
  * Crea un timer di risposta PENDENTE quando un utente viene superato.
- * Il timer non ha una scadenza finché l'utente non torna online.
+ * Idempotente: usa UNIQUE(auction_id, user_id) con upsert, quindi è sicuro
+ * eseguirla nella stessa transazione del bid.
  */
 export const createResponseTimer = async (
   auctionId: number,
-  userId: string
+  userId: string,
+  executor: Executor = db,
 ): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
 
   try {
-    console.log(
-      `[TIMER] Creating pending timer for user ${userId}, auction ${auctionId}`
-    );
-
-    // Verifica se esiste già un timer per questa combinazione (qualsiasi status)
-    const existingTimerResult = await db.execute({
+    // Upsert idempotente: se esiste un timer lo resetta a pending,
+    // altrimenti ne crea uno nuovo. UNIQUE(auction_id, user_id) garantisce
+    // un solo timer per coppia anche con retry/concorrenza.
+    await executor.execute({
       sql: `
-    SELECT id, status FROM user_auction_response_timers
-    WHERE auction_id = ? AND user_id = ?
-  `,
-      args: [auctionId, userId],
-    });
-    const existingTimer = existingTimerResult.rows[0]
-      ? {
-        id: existingTimerResult.rows[0].id as number,
-        status: existingTimerResult.rows[0].status as string
-      }
-      : undefined;
-
-    if (existingTimer) {
-      console.log(
-        `[TIMER] Found existing timer ${existingTimer.id} with status '${existingTimer.status}', resetting to pending`
-      );
-      // Resetta il timer esistente a pending
-      await db.execute({
-        sql: `
-        UPDATE user_auction_response_timers
-        SET created_at = ?, response_deadline = NULL, activated_at = NULL, processed_at = NULL, status = 'pending'
-        WHERE id = ?
-      `,
-        args: [now, existingTimer.id],
-      });
-    } else {
-      console.log(`[TIMER] Creating new pending timer`);
-      // Crea un nuovo timer PENDENTE senza deadline
-      const result = await db.execute({
-        sql: `
         INSERT INTO user_auction_response_timers
         (auction_id, user_id, created_at, response_deadline, status)
         VALUES (?, ?, ?, NULL, 'pending')
+        ON CONFLICT(auction_id, user_id) DO UPDATE SET
+          created_at = excluded.created_at,
+          response_deadline = NULL,
+          activated_at = NULL,
+          processed_at = NULL,
+          status = 'pending'
       `,
-        args: [auctionId, userId, now],
-      });
-      console.log(
-        `[TIMER] Created pending timer with ID: ${result.lastInsertRowid}`
-      );
-    }
-
-    // Timer resta SEMPRE pendente. Si attiva solo quando l'utente
-    // effettivamente visita la pagina asta (via activateTimersForUser chiamato dalle API).
-    console.log(`[TIMER] 💤 Timer stays PENDING until user views auction page`);
+      args: [auctionId, userId, now],
+    });
+    logger.debug("response timer upserted to pending", { auctionId, userId });
   } catch (error) {
-    console.error(
-      `[TIMER] Error creating pending timer for user ${userId}, auction ${auctionId}:`,
-      error
-    );
+    logger.error("error creating pending timer", { auctionId, userId, error });
     throw error;
   }
 };
@@ -203,16 +174,18 @@ const notifyUserOfActiveTimers = async (userId: string): Promise<void> => {
 };
 
 /**
- * Cancella un timer quando l'utente rilancia (non serve più)
+ * Cancella un timer quando l'utente rilancia (non serve più).
+ * Accetta un executor per essere chiamata nella stessa transazione del bid.
  */
 export const cancelResponseTimer = async (
   auctionId: number,
-  userId: string
+  userId: string,
+  executor: Executor = db,
 ): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
 
   try {
-    const result = await db.execute({
+    await executor.execute({
       sql: `
       UPDATE user_auction_response_timers
       SET status = 'cancelled', processed_at = ?
@@ -220,17 +193,8 @@ export const cancelResponseTimer = async (
     `,
       args: [now, auctionId, userId],
     });
-
-    if (result.rowsAffected > 0) {
-      console.log(
-        `[TIMER] Cancelled response timer for user ${userId}, auction ${auctionId}`
-      );
-    }
   } catch (error) {
-    console.error(
-      `[TIMER] Error cancelling timer for user ${userId}, auction ${auctionId}:`,
-      error
-    );
+    logger.error("error cancelling timer", { auctionId, userId, error });
     throw error;
   }
 };

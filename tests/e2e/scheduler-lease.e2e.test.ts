@@ -34,4 +34,28 @@ describe("distributed scheduler lease", () => {
       args: ["background-scheduler", "owner-token"],
     });
   });
+
+  it("renews only the owner's lease (fenced)", async () => {
+    const { renewSchedulerLease } = await import("@/lib/db/services/scheduler-lease.service");
+    execute.mockResolvedValueOnce({ rowsAffected: 1, rows: [] });
+    const renewal = await renewSchedulerLease("owner-token", 1_030);
+    expect(renewal).toEqual({ renewed: true, expiresAt: 1_075 });
+    expect(execute).toHaveBeenCalledWith({
+      sql: expect.stringContaining("UPDATE scheduler_leases SET expires_at"),
+      args: [1_075, "background-scheduler", "owner-token"],
+    });
+
+    // A renew by a stale owner token fails (fenced): no extension of a taken-over lease.
+    execute.mockResolvedValueOnce({ rowsAffected: 0, rows: [] });
+    const stale = await renewSchedulerLease("stale-token", 1_030);
+    expect(stale).toEqual({ renewed: false, expiresAt: 1_075 });
+  });
+
+  it("flags renewal when within the half-TTL threshold", async () => {
+    const { shouldRenewLease } = await import("@/lib/db/services/scheduler-lease.service");
+    // Threshold = 22s (half of 45s TTL): renew when now >= expiresAt - 22.
+    expect(shouldRenewLease(1_000, 977)).toBe(false); // 23s left, just above threshold
+    expect(shouldRenewLease(1_000, 978)).toBe(true);  // 22s left, at threshold
+    expect(shouldRenewLease(1_000, 1_000)).toBe(true);
+  });
 });

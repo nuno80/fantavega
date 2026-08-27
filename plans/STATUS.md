@@ -1,6 +1,6 @@
 # Stato avanzamento fix
 
-Ultimo aggiornamento: 2026-08-25
+Ultimo aggiornamento: 2026-08-27
 
 ## Legenda
 
@@ -23,16 +23,16 @@ Ultimo aggiornamento: 2026-08-25
 | REL-002 | ✅ Completato | `d35ee11` | Media | Media | Import replace atomico |
 | REL-004 | ✅ Completato | `1c5bea6` | Media | Media | Budget/ledger atomici |
 | REL-005 | ⏸️ Aperto | — | Bassa | Media | Cambio ruolo Clerk |
-| REL-006 | ⏸️ Aperto | — | Alta | Alta | Delivery Socket.IO disaccoppiata |
+| REL-006 | ✅ Completato | `5d643f2`+ | Alta | Alta | Delivery Socket.IO disaccoppiata |
 | SEC-004 | ✅ Completato | `3b011ad` | Media | Media | Rate limit distribuito |
 | SEC-005 | ⏸️ Aperto | — | Media | Media | Policy lettura leghe (richiede decisione prodotto) |
 | CQ-001 | ✅ Completato | `1a39567` | Bassa | Media | Quality gate lint (restano solo 6 warning `no-img-element`, budget CI rimandato) |
 | CQ-002 | ✅ Completato | `5d643f2` | Media | Bassa | Logger strutturato + redaction PII + error contract pubblico |
 | PERF-001 | ⏸️ Aperto | — | Alta | Media | Paginazione activity log |
-| PERF-002 | ⏸️ Aperto | — | Media | Media | Waterfall post-bid |
+| PERF-002 | ✅ Completato | — | Media | Media | Waterfall post-bid |
 | PERF-003 | ⏸️ Aperto | — | Bassa | Bassa | Cap players-with-status |
-| TIME-001 | ⏸️ Aperto | — | Alta | Alta | Effetti timer post-bid durabili |
-| TIME-002 | ⏸️ Aperto | — | Alta | Alta | Lease scheduler rinnovabile |
+| TIME-001 | ✅ Completato | — | Alta | Alta | Effetti timer post-bid durabili |
+| TIME-002 | ✅ Completato | — | Alta | Alta | Lease scheduler rinnovabile |
 
 ## Dettagli in corso
 

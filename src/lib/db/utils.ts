@@ -69,6 +69,7 @@ const LEGACY_MISSING_TABLES = new Set([
   "scheduler_leases",
   "user_player_preferences",
   "rate_limit_counters",
+  "event_outbox",
 ]);
 const LEGACY_MISSING_COLUMNS = new Map<string, Set<string>>([
   [
@@ -86,6 +87,7 @@ const LEGACY_MISSING_INDEXES = new Set([
   "idx_auctions_league_player_general",
   "idx_auto_bids_auction_user_active",
   "idx_bids_auction_user",
+  "idx_outbox_dispatch",
   "idx_participants_league_user",
   "idx_response_timers_status_deadline",
   "idx_response_timers_user_status",

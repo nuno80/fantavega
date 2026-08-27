@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/services/scheduler-lease.service", () => ({
   acquireSchedulerLease: mocks.acquireSchedulerLease,
   releaseSchedulerLease: mocks.releaseSchedulerLease,
+  renewSchedulerLease: vi.fn().mockResolvedValue({ renewed: true, expiresAt: 1 }),
+  shouldRenewLease: vi.fn().mockReturnValue(false),
 }));
 vi.mock("@/lib/db/services/bid.service", () => ({
   processExpiredAuctionsAndAssignPlayers:
@@ -30,6 +32,9 @@ vi.mock("@/lib/db/services/locked-credits.service", () => ({
 }));
 vi.mock("@/lib/db/services/session.service", () => ({
   reapGhostSessions: mocks.reapGhostSessions,
+}));
+vi.mock("@/lib/db/services/event-outbox.service", () => ({
+  dispatchOutboxEvents: vi.fn().mockResolvedValue(0),
 }));
 
 describe("locked-credit scheduler safety net", () => {
