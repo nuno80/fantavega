@@ -27,7 +27,7 @@ Ultimo aggiornamento: 2026-08-25
 | SEC-004 | ✅ Completato | `3b011ad` | Media | Media | Rate limit distribuito |
 | SEC-005 | ⏸️ Aperto | — | Media | Media | Policy lettura leghe (richiede decisione prodotto) |
 | CQ-001 | ✅ Completato | `1a39567` | Bassa | Media | Quality gate lint (restano solo 6 warning `no-img-element`, budget CI rimandato) |
-| CQ-002 | ⏸️ Aperto | — | Media | Bassa | Logging/errori production |
+| CQ-002 | ✅ Completato | `5d643f2` | Media | Bassa | Logger strutturato + redaction PII + error contract pubblico |
 | PERF-001 | ⏸️ Aperto | — | Alta | Media | Paginazione activity log |
 | PERF-002 | ⏸️ Aperto | — | Media | Media | Waterfall post-bid |
 | PERF-003 | ⏸️ Aperto | — | Bassa | Bassa | Cap players-with-status |
@@ -100,7 +100,7 @@ Ultimo aggiornamento: 2026-08-25
 - **Complessità Bassa**: correggere 16 errori + triage warning + job CI.
 - **Rischio Media**: correggere hook dependencies può introdurre loop/refetch; no autofix cieco, review mirata sui componenti con hook.
 
-### CQ-002 — Logging/errori production sanitizzati
+### CQ-002 — Logging/errori production sanitizzati ✅
 
 - **Complessità Media**: logger strutturato con redaction + error mapper pubblico.
 - **Rischio Bassa**: nessun dato persistente toccato; attenzione a non loggare env/stack e a non oscurare troppo (diagnosi).
@@ -143,7 +143,7 @@ Ultimo aggiornamento: 2026-08-25
 
 ### Fix quasi-indipendenti (fondamenta da fare prima del Gruppo A)
 
-- **CQ-002** — introduce logger strutturato + error mapper che il Gruppo A richiede ("backlog osservabile", "metriche", niente errori API ambigui). Tocca gli stessi servizi, quindi va fatto **prima** del Gruppo A così i fix successivi usano già il logger invece di nuovi `console.error`.
+> ✅ **CQ-002 completato** (`5d643f2`): `src/lib/logger.ts` (logger JSON strutturato con livelli, correlation ID via AsyncLocalStorage e redaction ricorsiva di PII/secret) + `src/lib/errors.ts` (contratto errori pubblici con code stabile). I fix del Gruppo A devono usare `logger`/`errorResponse` invece di `console.*` o messaggi upstream raw.
 
 ### Fix indipendenti (possono andare in parallelo)
 
@@ -160,7 +160,7 @@ Ultimo aggiornamento: 2026-08-25
 ### Sequenza complessiva consigliata
 
 1. **CQ-001** (lint gate) — subito, indipendente.
-2. **CQ-002** (logger/error sanitizzati) — fondamenta per il Gruppo A.
+2. **CQ-002** (logger/error sanitizzati) ✅ — completato, fondamenta pronte per il Gruppo A.
 3. **Gruppo A in sequenza**: REL-006 → TIME-001 → PERF-002 → TIME-002.
 4. **Vittorie rapide in parallelo**: PERF-003, REL-005, PERF-001.
 5. **REL-004** e **SEC-004** quando c'è banda (indipendenti, ma non mischiarli col Gruppo A per evitare conflitti su `bid.service`/route bid).
