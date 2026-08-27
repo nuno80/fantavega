@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { verifyToken } from "@clerk/nextjs/server";
+import { logger } from "./src/lib/logger.js";
 import { shouldEmit } from "./src/lib/socket/dedup.js";
 
 let recordUserLogout: ((userId: string, notAfter?: number) => Promise<void>) | null = null;
@@ -17,7 +18,7 @@ let startScheduler: (() => void) | null = null;
     startScheduler = schedulerModule.startScheduler;
     startScheduler?.();
   } catch (error) {
-    console.warn("[SOCKET] Could not import services", error);
+    logger.warn("could not import services", { error });
   }
 })();
 
@@ -118,10 +119,9 @@ export async function createSocketServer(
       socket.data.userId = payload.sub;
       next();
     } catch (error) {
-      console.error(
-        "[DEBUG-SOCKET-SRV] auth error:",
-        error instanceof Error ? error.message : error
-      );
+      logger.error("socket auth error", {
+        error: error instanceof Error ? error.message : error,
+      });
       next(new Error("unauthorized"));
     }
   });
@@ -176,7 +176,7 @@ export async function createSocketServer(
         try {
           if (!userSockets.get(uid)?.size) await recordUserLogout?.(uid, disconnectedAt);
         } catch (error) {
-          console.error("[SOCKET] disconnect logout failed", error);
+          logger.error("disconnect logout failed", { error });
         } finally {
           // Guard against a stale callback clearing a newer timer.
           if (disconnectTimers.get(uid) === timer) disconnectTimers.delete(uid);
@@ -209,6 +209,6 @@ const isMain = process.argv[1] && process.argv[1].endsWith("socket-server.ts");
 if (isMain) {
   const SOCKET_PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
   createSocketServer(SOCKET_PORT).then(() => {
-    console.log(`[SOCKET] Listening on ${SOCKET_PORT}`);
+    logger.info(`socket server listening on ${SOCKET_PORT}`);
   });
 }

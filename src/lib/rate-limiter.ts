@@ -1,6 +1,7 @@
 // src/lib/rate-limiter.ts — Distributed rate limiter backed by Turso
 // ponytail: uses the existing DB instead of adding Redis. Fail-open on DB errors.
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -53,7 +54,7 @@ export async function checkRateLimit(
     return { allowed: true, remaining: limit - count, resetTime };
   } catch (error) {
     // Fail-open: allow the request if the rate limit check itself fails
-    console.error("[RATE_LIMIT] DB error, failing open:", error);
+    logger.error("rate limiter DB error, failing open", { error });
     return { allowed: true, remaining: limit, resetTime: expiresAt };
   }
 }

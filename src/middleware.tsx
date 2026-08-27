@@ -16,7 +16,16 @@ const isAuthenticatedRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims } = await auth();
-  if (isPublicRoute(req)) return NextResponse.next();
+
+  // Attach a correlation id for tracing if the client didn't send one.
+  const requestHeaders = new Headers(req.headers);
+  if (!requestHeaders.has("x-correlation-id")) {
+    requestHeaders.set("x-correlation-id", crypto.randomUUID());
+  }
+
+  if (isPublicRoute(req)) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
   if (!userId) {
     if (req.nextUrl.pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,17 +46,19 @@ export default clerkMiddleware(async (auth, req) => {
         isAdmin = false;
       }
     }
-    if (isAdmin) return NextResponse.next();
+    if (isAdmin) return NextResponse.next({ request: { headers: requestHeaders } });
     return req.nextUrl.pathname.startsWith("/api")
       ? NextResponse.json({ error: "Forbidden" }, { status: 403 })
       : NextResponse.redirect(new URL("/no-access", req.url));
   }
 
-  if (isAuthenticatedRoute(req)) return NextResponse.next();
+  if (isAuthenticatedRoute(req)) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
   if (req.nextUrl.pathname.startsWith("/api")) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {

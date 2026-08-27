@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 export type AdminAuditAction = "debug.read" | "admin-task.run";
 export type AdminAuditOutcome = "success" | "failure";
 
@@ -9,10 +11,7 @@ interface AdminAuditEvent {
 }
 
 export function recordAdminAuditEvent(event: AdminAuditEvent): void {
-  console.info("[ADMIN_AUDIT]", {
-    timestamp: new Date().toISOString(),
-    ...event,
-  });
+  logger.info("admin audit", { ...event });
 }
 
 export function createAdminAuditRecorder(

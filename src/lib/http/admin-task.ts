@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authorizeAdminRequest } from "@/lib/auth/admin-route";
+import { errorResponse } from "@/lib/errors";
 import { createAdminAuditRecorder } from "@/lib/security/admin-audit";
 
 interface AdminTimerTaskResult {
@@ -48,8 +49,7 @@ export function createAdminTimerTaskHandlers(
       return response;
     } catch (error) {
       audit("failure");
-      console.error(`[${taskName}] Processing failed`, error);
-      return NextResponse.json({ error: "Task processing failed" }, { status: 500 });
+      return errorResponse(error, `admin-task:${taskName}`);
     }
   }
 

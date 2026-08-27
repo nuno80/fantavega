@@ -20,6 +20,27 @@ vi.mock("@/lib/db/services/penalty.service", () => ({ processExpiredComplianceTi
 vi.mock("@/lib/db/services/response-timer.service", () => ({ processExpiredResponseTimers }));
 vi.mock("@/lib/db/services/bid.service", () => ({ processExpiredAuctionsAndAssignPlayers }));
 
+function spyAuditLog() {
+  const lines: string[] = [];
+  vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+    lines.push(String(args[0]));
+  });
+  return {
+    expectAudit: (fields: Record<string, unknown>) => {
+      const parsed = lines
+        .map((line) => {
+          try {
+            return JSON.parse(line) as Record<string, unknown>;
+          } catch {
+            return null;
+          }
+        })
+        .filter((entry): entry is Record<string, unknown> => entry !== null);
+      expect(parsed).toContainEqual(expect.objectContaining(fields));
+    },
+  };
+}
+
 describe("debug and scheduled-task route guards", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -179,7 +200,7 @@ describe("debug and scheduled-task route guards", () => {
           },
         ],
       });
-    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const audit = spyAuditLog();
     const { NextRequest } = await import("next/server");
     const { GET } = await import("@/app/api/debug/all-autobids/route");
 
@@ -215,15 +236,12 @@ describe("debug and scheduled-task route guards", () => {
         ],
       },
     });
-    expect(auditLog).toHaveBeenCalledWith(
-      "[ADMIN_AUDIT]",
-      expect.objectContaining({
-        actorUserId: "admin-1",
-        action: "debug.read",
-        resource: "debug/all-autobids",
-        outcome: "success",
-      }),
-    );
+    audit.expectAudit({
+      actorUserId: "admin-1",
+      action: "debug.read",
+      resource: "debug/all-autobids",
+      outcome: "success",
+    });
   });
 
   it("allowlists autobid-check fields and audits the read", async () => {
@@ -256,7 +274,7 @@ describe("debug and scheduled-task route guards", () => {
         ],
       })
       .mockResolvedValueOnce({ rows: [{ total_auto_bid: 25 }] });
-    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const audit = spyAuditLog();
     const { NextRequest } = await import("next/server");
     const { GET } = await import("@/app/api/debug/autobid-check/route");
 
@@ -283,10 +301,7 @@ describe("debug and scheduled-task route guards", () => {
         auction_league_id: 2,
       },
     ]);
-    expect(auditLog).toHaveBeenCalledWith(
-      "[ADMIN_AUDIT]",
-      expect.objectContaining({ resource: "debug/autobid-check", outcome: "success" }),
-    );
+    audit.expectAudit({ resource: "debug/autobid-check", outcome: "success" });
   });
 
   it("allowlists budget-verification fields and audits the read", async () => {
@@ -297,7 +312,7 @@ describe("debug and scheduled-task route guards", () => {
       .mockResolvedValueOnce({ rows: [{ user_id: "user-1", num_players: 1, max_amount: 99 }] })
       .mockResolvedValueOnce({ rows: [{ user_id: "user-1", active_auctions: 1, email: "x@y.z" }] })
       .mockResolvedValueOnce({ rows: [{ user_id: "user-1", num_penalties: 0, stack: "trace" }] });
-    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const audit = spyAuditLog();
     const { GET } = await import("@/app/api/debug/budget-verification/route");
 
     const response = await GET(
@@ -334,10 +349,7 @@ describe("debug and scheduled-task route guards", () => {
     expect(payload.data.penalties).toEqual([
       { user_id: "user-1", num_penalties: 0, total_penalties: null },
     ]);
-    expect(auditLog).toHaveBeenCalledWith(
-      "[ADMIN_AUDIT]",
-      expect.objectContaining({ resource: "debug/budget-verification", outcome: "success" }),
-    );
+    audit.expectAudit({ resource: "debug/budget-verification", outcome: "success" });
   });
 
   it("rejects GET and requires an admin for the compliance task POST", async () => {
@@ -354,21 +366,18 @@ describe("debug and scheduled-task route guards", () => {
   it("audits a successful timer task mutation", async () => {
     currentUser.mockResolvedValue({ id: "admin-1", publicMetadata: { role: "admin" } });
     processExpiredComplianceTimers.mockResolvedValue({ processedCount: 1, errors: [] });
-    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const audit = spyAuditLog();
     const { POST } = await import(
       "@/app/api/admin/tasks/schedule-compliance-timers/route"
     );
 
     expect((await POST()).status).toBe(200);
-    expect(auditLog).toHaveBeenCalledWith(
-      "[ADMIN_AUDIT]",
-      expect.objectContaining({
-        actorUserId: "admin-1",
-        action: "admin-task.run",
-        resource: "SCHEDULE_COMPLIANCE_TIMERS",
-        outcome: "success",
-      }),
-    );
+    audit.expectAudit({
+      actorUserId: "admin-1",
+      action: "admin-task.run",
+      resource: "SCHEDULE_COMPLIANCE_TIMERS",
+      outcome: "success",
+    });
   });
 
   it("blocks anonymous access to both timer processor aliases", async () => {
@@ -411,19 +420,16 @@ describe("debug and scheduled-task route guards", () => {
       failedCount: 0,
       errors: [],
     });
-    const auditLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const audit = spyAuditLog();
     const { GET, POST } = await import("@/app/api/admin/tasks/process-auctions/route");
 
     expect((await GET()).status).toBe(405);
     expect((await POST()).status).toBe(200);
-    expect(auditLog).toHaveBeenCalledWith(
-      "[ADMIN_AUDIT]",
-      expect.objectContaining({
-        actorUserId: "admin-1",
-        action: "admin-task.run",
-        resource: "process-auctions",
-        outcome: "success",
-      }),
-    );
+    audit.expectAudit({
+      actorUserId: "admin-1",
+      action: "admin-task.run",
+      resource: "process-auctions",
+      outcome: "success",
+    });
   });
 });

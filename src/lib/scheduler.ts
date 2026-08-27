@@ -1,6 +1,8 @@
 import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
 import { processExpiredComplianceTimers } from "./db/services/penalty.service";
 import { processExpiredResponseTimers } from "./db/services/response-timer.service";
+import { logger } from "@/lib/logger";
+
 import {
   acquireSchedulerLease,
   releaseSchedulerLease,
@@ -26,7 +28,7 @@ const runBackgroundTasks = async () => {
     await processExpiredComplianceTimers();
     await reconcileLockedCreditsForActiveLeagues();
   } catch (error) {
-    console.error("[SCHEDULER] Background task failure:", error);
+    logger.error("background task failure", { error });
   } finally {
     if (lease) await releaseSchedulerLease(lease.ownerToken);
     isRunning = false;

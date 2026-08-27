@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 const isRunningOnSocketServer = !!process.env.PORT && !process.env.NEXT_RUNTIME;
 const SOCKET_BASE_URL = isRunningOnSocketServer
   ? `http://localhost:${process.env.PORT}`
@@ -41,12 +43,16 @@ export async function notifySocketServer(params: EmitParams) {
 
   try {
     return await emitOnce(params);
-  } catch (firstError) {
+  } catch {
     await new Promise((resolve) => setTimeout(resolve, 150));
     try {
       return await emitOnce(params);
     } catch (secondError) {
-      console.error("[SOCKET-EMITTER] Delivery failed after retry", { room: params.room, event: params.event, firstError, secondError });
+      logger.error("socket delivery failed after retry", {
+        room: params.room,
+        event: params.event,
+        error: secondError,
+      });
       throw secondError;
     }
   }

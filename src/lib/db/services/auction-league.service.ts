@@ -4,6 +4,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 // --- Tipi di Base ---
 export interface AuctionLeague {
@@ -721,8 +722,11 @@ export async function addParticipantToLeague(
       | { id: string; role: string; username?: string; email?: string }
       | undefined;
 
-    console.log(`[ADD_PARTICIPANT] Checking user ${participantUserId}:`, userInDb ? `Found (role: ${userInDb.role})` : 'Not found in DB');
-
+    logger.debug("checking participant in local DB", {
+      participantUserId,
+      found: !!userInDb,
+      role: userInDb?.role,
+    });
     if (!userInDb) {
       console.log(
         `[SYNC] Utente ${participantUserId} non trovato nel DB locale. Tentativo di fetch da Clerk...`
@@ -738,8 +742,11 @@ export async function addParticipantToLeague(
           )?.emailAddress;
           const clerkRole = (clerkUser.publicMetadata?.role as string) || "manager";
 
-          console.log(`[SYNC] Clerk user found: ${clerkUser.id}, email: ${primaryEmail}, role from metadata: ${clerkRole}`);
-
+          logger.info("clerk user synced", {
+            userId: clerkUser.id,
+            email: primaryEmail,
+            role: clerkRole,
+          });
           // Genera email e username unici se necessario per evitare conflitti UNIQUE
           const safeEmail = primaryEmail || `${clerkUser.id}@clerk.local`;
           const safeUsername = clerkUser.username || `user_${clerkUser.id.slice(-8)}`;
