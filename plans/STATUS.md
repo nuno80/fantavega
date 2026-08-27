@@ -24,7 +24,7 @@ Ultimo aggiornamento: 2026-08-25
 | REL-004 | ✅ Completato | `1c5bea6` | Media | Media | Budget/ledger atomici |
 | REL-005 | ⏸️ Aperto | — | Bassa | Media | Cambio ruolo Clerk |
 | REL-006 | ⏸️ Aperto | — | Alta | Alta | Delivery Socket.IO disaccoppiata |
-| SEC-004 | ⏸️ Aperto | — | Media | Media | Rate limit distribuito |
+| SEC-004 | ✅ Completato | `3b011ad` | Media | Media | Rate limit distribuito |
 | SEC-005 | ⏸️ Aperto | — | Media | Media | Policy lettura leghe (richiede decisione prodotto) |
 | CQ-001 | ✅ Completato | `1a39567` | Bassa | Media | Quality gate lint (restano solo 6 warning `no-img-element`, budget CI rimandato) |
 | CQ-002 | ⏸️ Aperto | — | Media | Bassa | Logging/errori production |
