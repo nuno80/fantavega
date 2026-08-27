@@ -145,7 +145,7 @@ async function processBidRequest(
         rateLimitConfig = RATE_LIMITS.BID_MANUAL;
     }
 
-    const rateCheck = checkRateLimit(
+    const rateCheck = await checkRateLimit(
       user.id,
       `bid_${bidType}`,
       rateLimitConfig.limit,

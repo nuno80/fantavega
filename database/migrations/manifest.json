@@ -11,6 +11,7 @@
     "add_unique_active_session_index.sql",
     "add_unique_active_auction_constraint.sql",
     "add_scheduler_leases.sql",
-    "add_hot_path_indexes.sql"
+    "add_hot_path_indexes.sql",
+    "add_rate_limit_counters.sql"
   ]
 }

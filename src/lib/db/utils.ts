@@ -68,6 +68,7 @@ interface DatabaseStructure {
 const LEGACY_MISSING_TABLES = new Set([
   "scheduler_leases",
   "user_player_preferences",
+  "rate_limit_counters",
 ]);
 const LEGACY_MISSING_COLUMNS = new Map<string, Set<string>>([
   [
