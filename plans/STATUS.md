@@ -1,6 +1,6 @@
 # Stato avanzamento fix
 
-Ultimo aggiornamento: 2026-08-27
+Ultimo aggiornamento: 2026-08-28
 
 ## Legenda
 
@@ -30,7 +30,7 @@ Ultimo aggiornamento: 2026-08-27
 | CQ-002 | ✅ Completato | `5d643f2` | Media | Bassa | Logger strutturato + redaction PII + error contract pubblico |
 | PERF-001  | ✅ Completato | — | Alta | Media | Paginazione activity log (cursor + merge k-way + indici) |
 | PERF-002 | ✅ Completato | — | Media | Media | Waterfall post-bid |
-| PERF-003 | ⏸️ Aperto | — | Bassa | Bassa | Cap players-with-status |
+| PERF-003 | ✅ Completato | `02780ba` | Bassa | Bassa | Cap players-with-status |
 | TIME-001 | ✅ Completato | — | Alta | Alta | Effetti timer post-bid durabili |
 
 | TIME-002 | ✅ Completato | — | Alta | Alta | Lease scheduler rinnovabile |
@@ -117,10 +117,11 @@ Ultimo aggiornamento: 2026-08-27
 - **Complessità Media**: restituire dati noti dal commit + consolidare letture.
 - **Rischio Media**: payload realtime semanticamente identico richiesto; attenzione a letture stale post-commit e join costose.
 
-### PERF-003 — Cap players-with-status
+### PERF-003 — Cap players-with-status ✅
 
 - **Complessità Bassa**: schema input (Zod/helper) con default e cap.
 - **Rischio Bassa**: possibile catalogo incompleto per client che assume risposta unica; migrare il chiamante prima di abbassare il cap.
+- **Implementato**: `parsePagination` con `maxOffset` opzionale (deep OFFSET = full scan su Turso, cap 5000), nuovo helper `parseListParam` in `src/lib/http/pagination.ts` (whitelist, dedup, cap items e lunghezza raw), route `players-with-status` con whitelist ruoli/stati, cap teams, `search` clampato a 100 caratteri e 400 deterministico sui filtri invalidi; `console.error` → `logger.error`. Unico chiamante UI (`PlayerSearchInterface`) già paginato a 20. Cursore keyset rimandato come upgrade futuro. Test: `tests/lib/pagination.test.ts` + `tests/api/players-with-status-caps.test.ts`.
 
 ### TIME-001 — Effetti timer post-bid durabili
 
