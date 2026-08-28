@@ -5,7 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
-import { parsePagination } from "@/lib/http/pagination";
+import { logger } from "@/lib/logger";
+import { parseListParam, parsePagination } from "@/lib/http/pagination";
+
+const ALLOWED_ROLES = ["P", "D", "C", "A"];
+const ALLOWED_AUCTION_STATUSES = ["no_auction", "active_auction", "assigned"];
 
 // Define interfaces for DB results to avoid 'any'
 interface PlayerDBResult {
@@ -63,6 +67,9 @@ export async function GET(
       pagination = parsePagination(searchParams, {
         defaultLimit: 20,
         maxLimit: 100,
+        // ponytail: deep OFFSET pages do a full scan on Turso; UI never pages
+        // beyond ~10 pages, raise together with a keyset cursor if that changes.
+        maxOffset: 5000,
       });
     } catch {
       return NextResponse.json(
@@ -73,10 +80,27 @@ export async function GET(
     const { page, limit, offset } = pagination;
 
     // Filter params
-    const search = searchParams.get("search") || "";
-    const roles = searchParams.get("roles")?.split(",") || [];
-    const teams = searchParams.get("teams")?.split(",") || [];
-    const auctionStatus = searchParams.get("auctionStatus")?.split(",") || [];
+    let search: string;
+    let roles: string[];
+    let teams: string[];
+    let auctionStatus: string[];
+    try {
+      search = (searchParams.get("search") || "").trim().slice(0, 100);
+      roles = parseListParam(searchParams, "roles", {
+        allowed: ALLOWED_ROLES,
+        maxItems: ALLOWED_ROLES.length,
+      });
+      teams = parseListParam(searchParams, "teams", { maxItems: 32 });
+      auctionStatus = parseListParam(searchParams, "auctionStatus", {
+        allowed: ALLOWED_AUCTION_STATUSES,
+        maxItems: ALLOWED_AUCTION_STATUSES.length,
+      });
+    } catch {
+      return NextResponse.json(
+        { error: "Parametri di filtro non validi" },
+        { status: 400 }
+      );
+    }
     const showAssigned = searchParams.get("showAssigned") !== "false";
 
     // Sorting params
@@ -365,7 +389,7 @@ export async function GET(
       }
     });
   } catch (error) {
-    console.error("Error fetching players with status:", error);
+    logger.error("Error fetching players with status", { err: error });
     return NextResponse.json(
       { error: "Errore nel recupero dei giocatori" },
       { status: 500 }
