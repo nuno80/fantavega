@@ -22,7 +22,7 @@ Ultimo aggiornamento: 2026-08-28
 | SEC-003 | ✅ Completato | `781b875` | Media | Media | Parser Excel sicuro + budget upload |
 | REL-002 | ✅ Completato | `d35ee11` | Media | Media | Import replace atomico |
 | REL-004 | ✅ Completato | `1c5bea6` | Media | Media | Budget/ledger atomici |
-| REL-005 | ⏸️ Aperto | — | Bassa | Media | Cambio ruolo Clerk |
+| REL-005 | ✅ Completato | `5c5fe6d` | Bassa | Media | Cambio ruolo Clerk |
 | REL-006 | ✅ Completato | `5d643f2`+ | Alta | Alta | Delivery Socket.IO disaccoppiata |
 | SEC-004 | ✅ Completato | `3b011ad` | Media | Media | Rate limit distribuito |
 | SEC-005 | ⏸️ Aperto | — | Media | Media | Policy lettura leghe (richiede decisione prodotto) |
@@ -76,10 +76,11 @@ Ultimo aggiornamento: 2026-08-28
 - **Complessità Media**: transazione con `UPDATE balance = balance + delta` condizionale + idempotency key.
 - **Rischio Media**: lost update e audit incompleto su soldi; da validare la compatibilità SQL di Turso e il comportamento su contesa remota.
 
-### REL-005 — Cambio ruolo Clerk
+### REL-005 — Cambio ruolo Clerk ✅
 
 - **Complessità Bassa**: correggere l'uso della SDK (`await clerkClient()`) e togliere le suppression.
 - **Rischio Media**: sovrascrittura metadata e ritardo propagazione session claim; va testato refresh sessione e merge campi.
+- **Implementato**: il route usava già `await clerkClient()` senza suppression; completato con merge di `publicMetadata` (lettura pre-update, niente sovrascrittura campi non correlati), errori via `errorResponse` (contratto pubblico, logger strutturato) e test estesi: admin valido, non-admin, anonimo, self-change, ruolo invalido, utente inesistente (Clerk 404 sanitizzato), merge metadata. Nota: il merge è read-then-write non atomico — su endpoint admin-only a bassa concorrenza è accettabile.
 
 ### REL-006 — Delivery Socket.IO disaccoppiata
 
