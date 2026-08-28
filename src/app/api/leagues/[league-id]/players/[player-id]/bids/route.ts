@@ -12,6 +12,7 @@ import {
   placeBidOnExistingAuction,
   placeInitialBidAndCreateAuction,
 } from "@/lib/db/services/bid.service";
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { errorResponse } from "@/lib/errors";
 import { logger, withCorrelationId } from "@/lib/logger";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limiter";
@@ -62,6 +63,15 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json(
         { error: "Unauthorized: You must be logged in to place a bid." },
         { status: 401 }
+      );
+    }
+
+    // Policy SEC-005: solo partecipanti e admin (il service riverifica la membership)
+    const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined;
+    if (!(await hasLeagueAccess(user.id, leagueIdNum, role))) {
+      return NextResponse.json(
+        { error: "Non autorizzato per questa lega" },
+        { status: 403 }
       );
     }
 
@@ -298,6 +308,12 @@ export async function GET(_request: Request, context: RouteContext) {
         { error: "Invalid league ID or player ID format." },
         { status: 400 }
       );
+    }
+
+    // Policy SEC-005: visibile a partecipanti e admin
+    const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined;
+    if (!(await hasLeagueAccess(user.id, leagueIdNum, role))) {
+      return NextResponse.json({ error: "Non autorizzato per questa lega" }, { status: 403 });
     }
 
     const auctionDetails = await getAuctionStatusForPlayer(

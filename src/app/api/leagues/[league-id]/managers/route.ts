@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 
 interface PlayerInRoster {
   id: number;
@@ -62,14 +63,9 @@ export async function GET(
       return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
     }
 
-    // Check if user is participant in this league
-    const participantCheckResult = await db.execute({
-      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
-      args: [leagueId, user.id],
-    });
-    const participantCheck = participantCheckResult.rows.length > 0;
-
-    if (!participantCheck) {
+    // Policy SEC-005: visibile a partecipanti e admin
+    const role = typeof user.publicMetadata?.role === "string" ? user.publicMetadata.role : undefined;
+    if (!(await hasLeagueAccess(user.id, leagueId, role))) {
       return NextResponse.json(
         { error: "Not a participant in this league" },
         { status: 403 }

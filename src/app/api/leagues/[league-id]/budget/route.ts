@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 
 export async function GET(
   request: NextRequest,
@@ -24,6 +25,14 @@ export async function GET(
       return NextResponse.json(
         { error: "ID lega non valido" },
         { status: 400 }
+      );
+    }
+
+    // Policy SEC-005: visibile a partecipanti e admin
+    if (!(await hasLeagueAccess(user.id, leagueId, user.publicMetadata?.role as string | undefined))) {
+      return NextResponse.json(
+        { error: "Non autorizzato per questa lega" },
+        { status: 403 }
       );
     }
 

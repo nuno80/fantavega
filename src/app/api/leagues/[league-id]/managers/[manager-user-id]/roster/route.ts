@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { getManagerRoster } from "@/lib/db/services/auction-league.service";
 
 // 2. Interfaccia per il Contesto della Rotta (MODIFICATA)
@@ -67,10 +68,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       `[API MANAGER_ROSTER GET] User ${authenticatedUserId} requesting roster for manager ${managerUserIdFromParams} in league ${leagueIdNum}.`
     );
 
-    if (
-      authenticatedUserId !== managerUserIdFromParams &&
-      authenticatedUserRole !== "admin"
-    ) {
+    if (!(await hasLeagueAccess(authenticatedUserId, leagueIdNum, authenticatedUserRole))) {
       console.warn(
         `[API MANAGER_ROSTER GET] Forbidden: User ${authenticatedUserId} cannot view roster of ${managerUserIdFromParams}.`
       );

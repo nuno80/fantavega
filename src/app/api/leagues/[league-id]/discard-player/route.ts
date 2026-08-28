@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
 
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { discardPlayerFromRoster } from "@/lib/db/services/player-discard.service";
 
 const discardPlayerSchema = z.object({
@@ -23,6 +24,11 @@ export async function POST(
     const leagueId = parseInt(leagueIdStr);
     if (isNaN(leagueId)) {
       return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
+    }
+
+    // Policy SEC-005: solo partecipanti e admin (l'operazione poi agisce solo sul proprio roster)
+    if (!(await hasLeagueAccess(user.id, leagueId, user.publicMetadata?.role as string | undefined))) {
+      return NextResponse.json({ error: "Non autorizzato per questa lega" }, { status: 403 });
     }
 
     const body = await request.json();

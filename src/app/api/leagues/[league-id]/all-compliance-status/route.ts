@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@clerk/nextjs/server";
 
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { db } from "@/lib/db";
 
 // Helper function to create phase identifier (same as in penalty.service.ts)
@@ -47,14 +48,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return new NextResponse("Invalid League ID", { status: 400 });
     }
 
-    // Verify the user is a participant of the league to authorize the request
-    const participantCheckResult = await db.execute({
-      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
-      args: [leagueId, userId],
-    });
-    const participantCheck = participantCheckResult.rows.length > 0;
-
-    if (!participantCheck) {
+    // Policy SEC-005: visibile a partecipanti e admin
+    if (!(await hasLeagueAccess(userId, leagueId))) {
       return new NextResponse(
         "Forbidden: You are not a member of this league",
         {

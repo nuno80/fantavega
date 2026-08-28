@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { getAuctionStatusForPlayer } from "@/lib/db/services/bid.service";
 
 export async function GET(
@@ -28,14 +29,8 @@ export async function GET(
       );
     }
 
-    // Verify user is participant in this league
-    const participationResult = await db.execute({
-      sql: "SELECT user_id FROM league_participants WHERE league_id = ? AND user_id = ?",
-      args: [leagueId, user.id],
-    });
-    const participation = participationResult.rows[0];
-
-    if (!participation) {
+    // Policy SEC-005: visibile a partecipanti e admin
+    if (!(await hasLeagueAccess(user.id, leagueId, user.publicMetadata?.role as string | undefined))) {
       return NextResponse.json(
         { error: "Non autorizzato per questa lega" },
         { status: 403 }

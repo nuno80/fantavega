@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@clerk/nextjs/server";
 
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { abandonAuction } from "@/lib/db/services/response-timer.service";
 
 export async function POST(
@@ -26,6 +27,14 @@ export async function POST(
       return NextResponse.json(
         { error: "Parametri non validi" },
         { status: 400 }
+      );
+    }
+
+    // Policy SEC-005: solo partecipanti e admin
+    if (!(await hasLeagueAccess(userId, leagueId))) {
+      return NextResponse.json(
+        { error: "Non autorizzato per questa lega" },
+        { status: 403 }
       );
     }
 

@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { processUserComplianceAndPenalties } from "@/lib/db/services/penalty.service";
 
 interface RouteContext {
@@ -39,16 +40,10 @@ export async function POST(
       return NextResponse.json({ error: "Invalid league ID" }, { status: 400 });
     }
 
-    // L'utente autenticato deve essere un partecipante per eseguire qualsiasi check
-    const participantCheckResult = await db.execute({
-      sql: "SELECT 1 FROM league_participants WHERE league_id = ? AND user_id = ?",
-      args: [leagueIdNum, authenticatedUserId],
-    });
-    const isParticipant = participantCheckResult.rows.length > 0;
-
-    if (!isParticipant) {
+    // Policy SEC-005: visibile a partecipanti e admin
+    if (!(await hasLeagueAccess(user.id, leagueIdNum, user.publicMetadata?.role as string | undefined))) {
       console.warn(
-        `[API CHECK_COMPLIANCE POST] Forbidden: User ${authenticatedUserId} is not a participant of league ${leagueIdNum}.`
+        `[API CHECK_COMPLIANCE POST] Forbidden: User ${user.id} is not a participant of league ${leagueIdNum}.`
       );
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
