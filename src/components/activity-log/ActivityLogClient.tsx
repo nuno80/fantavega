@@ -58,6 +58,7 @@ interface ActivityLogResponse {
   page: number;
   totalPages: number;
   leagueUsers: LeagueUser[];
+  hasMore: boolean;
 }
 
 interface ActivityLogClientProps {
@@ -174,6 +175,7 @@ export function ActivityLogClient({ leagueId, initialMyBiddedPlayers = false }: 
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -218,6 +220,7 @@ export function ActivityLogClient({ leagueId, initialMyBiddedPlayers = false }: 
       setEvents(data.events);
       setTotalCount(data.totalCount);
       setTotalPages(data.totalPages);
+      setHasMore(data.hasMore);
       if (data.leagueUsers.length > 0) {
         setLeagueUsers(data.leagueUsers);
       }
@@ -465,6 +468,9 @@ export function ActivityLogClient({ leagueId, initialMyBiddedPlayers = false }: 
           {totalCount} eventi trovati
           {totalPages > 1 && ` — Pagina ${page} di ${totalPages}`}
         </p>
+        {totalCount === -1 && (
+          <p className="text-xs text-muted-foreground">Stima — affina i filtri per il totale esatto.</p>
+        )}
       </div>
 
       {/* Lista Eventi */}
@@ -529,8 +535,7 @@ export function ActivityLogClient({ leagueId, initialMyBiddedPlayers = false }: 
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={(page >= totalPages && !hasMore) || loading}
             >
               Successiva
               <ChevronRight className="h-4 w-4" />

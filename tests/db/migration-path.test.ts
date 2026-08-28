@@ -295,7 +295,7 @@ describe("database deployment migration path", () => {
       GROUP BY source, baseline
     `);
     expect(tracking.rows).toEqual([
-      { baseline: "2026-08-24", count: 13, source: "baseline" },
+      { baseline: "2026-08-24", count: 14, source: "baseline" },
     ]);
   });
 
@@ -401,7 +401,7 @@ describe("database deployment migration path", () => {
     });
 
     expect(result.mode).toBe("upgrade");
-    expect(result.applied).toHaveLength(13);
+    expect(result.applied).toHaveLength(14);
     const player = await client.execute(
       "SELECT name, is_starter, is_favorite, integrity_value, has_fmv FROM players WHERE id = 7"
     );

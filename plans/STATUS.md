@@ -28,10 +28,11 @@ Ultimo aggiornamento: 2026-08-27
 | SEC-005 | ⏸️ Aperto | — | Media | Media | Policy lettura leghe (richiede decisione prodotto) |
 | CQ-001 | ✅ Completato | `1a39567` | Bassa | Media | Quality gate lint (restano solo 6 warning `no-img-element`, budget CI rimandato) |
 | CQ-002 | ✅ Completato | `5d643f2` | Media | Bassa | Logger strutturato + redaction PII + error contract pubblico |
-| PERF-001 | ⏸️ Aperto | — | Alta | Media | Paginazione activity log |
+| PERF-001  | ✅ Completato | — | Alta | Media | Paginazione activity log (cursor + merge k-way + indici) |
 | PERF-002 | ✅ Completato | — | Media | Media | Waterfall post-bid |
 | PERF-003 | ⏸️ Aperto | — | Bassa | Bassa | Cap players-with-status |
 | TIME-001 | ✅ Completato | — | Alta | Alta | Effetti timer post-bid durabili |
+
 | TIME-002 | ✅ Completato | — | Alta | Alta | Lease scheduler rinnovabile |
 
 ## Dettagli in corso
@@ -105,10 +106,11 @@ Ultimo aggiornamento: 2026-08-27
 - **Complessità Media**: logger strutturato con redaction + error mapper pubblico.
 - **Rischio Bassa**: nessun dato persistente toccato; attenzione a non loggare env/stack e a non oscurare troppo (diagnosi).
 
-### PERF-001 — Paginazione activity log
+### PERF-001 — Paginazione activity log ✅
 
-- **Complessità Alta**: cursor stabile `(event_time, type, id)`, UNION paginata o event table, indici.
-- **Rischio Media**: cursor instabile, semantica count, eventi a timestamp uguale; la migration indici va deployata separatamente su Turso.
+- **Complessità Alta**: cursore opaco con offset per sorgente, merge k-way, indici, parità col comportamento esistente.
+- **Rischio Media**: il conteggio globale è una stima e l'ultima pagina può risultare vuota (semantica OFFSET); il migration indici va deployato separatamente su Turso.
+- **Implementato**: `activity-log/route.ts` (finestra per sorgente con `LIMIT`, ordinamento deterministico `timestamp DESC, id DESC`, merge k-way top-N, cursore base64 `{b,a,t,s,r}` + `hasMore`/`nextCursor`; mantenuti `page`/`limit`/`totalCount` per compat client), `ActivityLogClient.tsx` (usa `nextCursor`/`hasMore`), migration additiva `add_activity_log_paging_indexes.sql` (+ registry in `schema.sql` e `LEGACY_MISSING_INDEXES`), test `tests/db/activity-log-paging-indexes.test.ts` e `tests/api/activity-log-paging.test.ts`. Count esatto e cursore keyset stabile restano possibili upgrade futuri.
 
 ### PERF-002 — Ridurre waterfall post-bid
 

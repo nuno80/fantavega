@@ -83,7 +83,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const filterDateTo = searchParams.get("dateTo"); // unix timestamp
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
-    const offset = (page - 1) * limit;
+
+    // PERF-001: cursore opaco con gli offset consumati di ogni sorgente.
+    // Derivarli dal numero di pagina è impossibile (ogni sorgente consuma un
+    // numero diverso di righe per pagina); il client restituisce nextCursor
+    // così il paging è senza duplicati né buchi.
+    let cursor: Record<string, number> = {};
+    const rawCursor = searchParams.get("cursor");
+    if (rawCursor) {
+      try {
+        cursor = JSON.parse(Buffer.from(rawCursor, "base64url").toString("utf8"));
+      } catch {
+        cursor = {}; // cursore invalido: riparti dall'inizio
+      }
+    }
 
     // Filtri per tipo evento (per filtrare dopo il merge)
     const eventTypeFilter = filterEventType
@@ -102,11 +115,27 @@ export async function GET(request: NextRequest, context: RouteContext) {
     `;
 
     // 4.5. Esegui le query in parallelo per ogni fonte dati
-    const events: ActivityEvent[] = [];
+    // PERF-001: ogni sorgente è interrogata nel DB con LIMIT e ordinamento
+    // deterministico (timestamp DESC, id DESC); il merge per pagina avviene in
+    // memoria su al più `page size per sorgente` righe, mai sull'intera storia.
 
     // Costruisci clausole WHERE comuni
     const dateFromTs = filterDateFrom ? parseInt(filterDateFrom, 10) : null;
     const dateToTs = filterDateTo ? parseInt(filterDateTo, 10) : null;
+
+    // ponytail: one global counter for ALL sources → the global "N eventi trovati"
+    // is an estimate; use a per-source/federated counter if exact totals matter.
+    let totalCount = 0;
+    let bidOffset = Number(cursor.b) || 0;
+    let auctionOffset = Number(cursor.a) || 0;
+    let txOffset = Number(cursor.t) || 0;
+    let sessionOffset = Number(cursor.s) || 0;
+    let timerOffset = Number(cursor.r) || 0;
+
+    // PERF-001: ogni sorgente legge dal DB una sola finestra (limit righe,
+    // ordinate per timestamp DESC, id DESC) e la pagina è il merge globale dei
+    // top-`limit`: costo O(sorgenti × page size), mai la storia completa.
+    const sourceLists: { events: ActivityEvent[]; advance: (taken: number) => void }[] = [];
 
     // --- BIDS ---
     if (!eventTypeFilter || eventTypeFilter.includes("bid")) {
@@ -115,12 +144,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
                u.username, u.full_name,
                p.name as player_name, p.role as player_role
         FROM bids b
-        JOIN auctions a ON b.auction_id = a.id
+        JOIN league_bid_auctions f ON b.auction_id = f.id
         JOIN users u ON b.user_id = u.id
-        JOIN players p ON a.player_id = p.id
-        WHERE a.auction_league_id = ?
+        JOIN players p ON f.player_id = p.id
+        WHERE 1=1
       `;
-      const bidArgs: (string | number)[] = [leagueIdNum];
+
+      const bidArgs: (string | number)[] = [];
 
       if (filterUserId) {
         bidSql += " AND b.user_id = ?";
@@ -139,7 +169,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
         bidArgs.push(authenticatedUserId, leagueIdNum);
       }
 
-      const bidResult = await db.execute({ sql: bidSql, args: bidArgs });
+      const bidResult = await db.execute({
+        sql: `WITH league_bid_auctions(aid) AS MATERIALIZED (SELECT id FROM auctions WHERE auction_league_id = ?) ${bidSql} ORDER BY b.bid_time DESC, b.id DESC LIMIT ? OFFSET ?`,
+        args: [leagueIdNum, ...bidArgs, limit, bidOffset],
+      });
+      const bidEvents: ActivityEvent[] = [];
       for (const row of bidResult.rows) {
         const bidTypeLabel =
           row.bid_type === "auto"
@@ -147,7 +181,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             : row.bid_type === "quick"
               ? "offerta rapida"
               : "offerta";
-        events.push({
+        bidEvents.push({
           id: `bid-${row.id}`,
           timestamp: row.bid_time as number,
           event_type: "bid",
@@ -164,6 +198,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           },
         });
       }
+      sourceLists.push({ events: bidEvents, advance: (taken) => { bidOffset += taken; } });
     }
 
     // --- AUCTIONS (created / sold / not_sold) ---
@@ -200,13 +235,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
 
       const auctionResult = await db.execute({
-        sql: auctionSql,
-        args: auctionArgs,
+        sql: `${auctionSql} ORDER BY a.created_at DESC, a.id DESC LIMIT ? OFFSET ?`,
+        args: [...auctionArgs, limit, auctionOffset],
       });
+      const auctionEvents: ActivityEvent[] = [];
       for (const row of auctionResult.rows) {
         // Evento creazione asta
         if (!eventTypeFilter || eventTypeFilter.includes("auction_created")) {
-          events.push({
+          auctionEvents.push({
             id: `auction-created-${row.id}`,
             timestamp: row.start_time as number,
             event_type: "auction_created",
@@ -234,7 +270,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 ? `Asta chiusa: ${row.player_name} venduto a ${winnerName} per ${row.current_highest_bid_amount} crediti`
                 : `Asta chiusa: ${row.player_name} non venduto`;
 
-            events.push({
+            auctionEvents.push({
               id: `auction-${row.status}-${row.id}`,
               timestamp: row.updated_at as number,
               event_type: eventType,
@@ -252,6 +288,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           }
         }
       }
+      sourceLists.push({ events: auctionEvents, advance: (taken) => { auctionOffset += taken; } });
     }
 
     // --- BUDGET TRANSACTIONS ---
@@ -288,7 +325,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         txArgs.push(authenticatedUserId, leagueIdNum);
       }
 
-      const txResult = await db.execute({ sql: txSql, args: txArgs });
+      const txResult = await db.execute({ sql: `${txSql} ORDER BY bt.transaction_time DESC, bt.id DESC LIMIT ? OFFSET ?`, args: [...txArgs, limit, txOffset] });
+      const txEvents: ActivityEvent[] = [];
       for (const row of txResult.rows) {
         // Mappa i tipi di transazione a descrizioni leggibili
         const typeLabels: Record<string, string> = {
@@ -313,7 +351,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           `${typeLabel}: ${row.amount} crediti${playerInfo} (saldo: ${row.balance_after_in_league})`
         );
 
-        events.push({
+        txEvents.push({
           id: `tx-${row.id}`,
           timestamp: row.transaction_time as number,
           event_type: "budget_transaction",
@@ -329,6 +367,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           },
         });
       }
+      sourceLists.push({ events: txEvents, advance: (taken) => { txOffset += taken; } });
     }
 
     // --- USER SESSIONS (login/logout) ---
@@ -363,15 +402,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
 
       const sessionResult = await db.execute({
-        sql: sessionSql,
-        args: sessionArgs,
+        sql: `${sessionSql} ORDER BY us.session_start DESC, us.id DESC LIMIT ? OFFSET ?`,
+        args: [...sessionArgs, limit, sessionOffset],
       });
+      const sessionEvents: ActivityEvent[] = [];
       for (const row of sessionResult.rows) {
         const uname = (row.username || row.full_name || "Utente") as string;
+        const wantsLogin = !eventTypeFilter || eventTypeFilter.includes("login");
+        const wantsLogout =
+          row.session_end &&
+          (!eventTypeFilter || eventTypeFilter.includes("logout"));
+        if (!wantsLogin && !wantsLogout) continue;
 
         // Evento login
-        if (!eventTypeFilter || eventTypeFilter.includes("login")) {
-          events.push({
+        if (wantsLogin) {
+          sessionEvents.push({
             id: `login-${row.id}`,
             timestamp: row.session_start as number,
             event_type: "login",
@@ -387,7 +432,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           row.session_end &&
           (!eventTypeFilter || eventTypeFilter.includes("logout"))
         ) {
-          events.push({
+          sessionEvents.push({
             id: `logout-${row.id}`,
             timestamp: row.session_end as number,
             event_type: "logout",
@@ -398,6 +443,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           });
         }
       }
+      sourceLists.push({ events: sessionEvents, advance: (taken) => { sessionOffset += taken; } });
     }
 
     // --- RESPONSE TIMERS ---
@@ -439,9 +485,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
 
       const timerResult = await db.execute({
-        sql: timerSql,
-        args: timerArgs,
+        sql: `${timerSql} ORDER BY rt.processed_at DESC, rt.id DESC LIMIT ? OFFSET ?`,
+        args: [...timerArgs, limit, timerOffset],
       });
+      const timerEvents: ActivityEvent[] = [];
       for (const row of timerResult.rows) {
         const uname = (row.username || row.full_name || "Utente") as string;
         const statusMap: Record<string, { type: ActivityEvent["event_type"]; label: string }> = {
@@ -455,7 +502,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
         const ts = (row.processed_at || row.activated_at || row.created_at) as number;
 
-        events.push({
+        timerEvents.push({
           id: `timer-${row.id}`,
           timestamp: ts,
           event_type: mapped.type,
@@ -470,14 +517,41 @@ export async function GET(request: NextRequest, context: RouteContext) {
           },
         });
       }
+      sourceLists.push({ events: timerEvents, advance: (taken) => { timerOffset += taken; } });
     }
 
-    // 4.6. Ordina cronologicamente (più recenti prima) e pagina
+    // 4.6. Merge k-way: la pagina sono i top-`limit` globali delle finestre
+    // per sorgente (già ordinate per timestamp DESC, id DESC). Gli eventi
+    // consumati avanzano l'offset della propria sorgente; il cursore restituito
+    // codifica tutti gli offset, così la pagina successiva non ha duplicati né buchi.
+    const events = sourceLists.flatMap((source) => source.events);
     events.sort((a, b) => b.timestamp - a.timestamp);
+    const pageEvents = events.slice(0, limit);
+    const takenBySource = new Set(pageEvents);
+    for (const source of sourceLists) {
+      let taken = 0;
+      for (const event of source.events) {
+        if (takenBySource.has(event)) taken += 1;
+      }
+      source.advance(taken);
+      totalCount += taken;
+    }
 
-    const totalCount = events.length;
+    // Una sorgente è esaurita solo se la sua finestra è tornata corta (< limit);
+    // una finestra piena potrebbe avere altre righe oltre quelle lette.
+    const hasMore = sourceLists.some((source) => source.events.length === limit);
+    const nextCursor = hasMore
+      ? Buffer.from(
+          JSON.stringify({
+            b: bidOffset,
+            a: auctionOffset,
+            t: txOffset,
+            s: sessionOffset,
+            r: timerOffset,
+          })
+        ).toString("base64url")
+      : null;
     const totalPages = Math.ceil(totalCount / limit);
-    const paginatedEvents = events.slice(offset, offset + limit);
 
     // 4.7. Recupera la lista utenti della lega per il filtro UI
     const usersResult = await db.execute({
@@ -497,11 +571,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(
       {
-        events: paginatedEvents,
+        events: pageEvents,
         totalCount,
         page,
         totalPages,
         leagueUsers,
+        hasMore,
+        nextCursor,
       },
       { status: 200 }
     );

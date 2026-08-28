@@ -13,6 +13,7 @@
     "add_scheduler_leases.sql",
     "add_hot_path_indexes.sql",
     "add_rate_limit_counters.sql",
-    "add_event_outbox.sql"
+    "add_event_outbox.sql",
+    "add_activity_log_paging_indexes.sql"
   ]
 }
