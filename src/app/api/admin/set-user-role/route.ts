@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 
 import { authorizeAdminRequest } from "@/lib/auth/admin-route";
+import { errorResponse } from "@/lib/errors";
 
 type AppRole = "admin" | "manager";
 
@@ -56,8 +57,10 @@ export async function POST(request: Request) {
 
   try {
     const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    // Merge: non sovrascrivere metadata non correlati già presenti.
     const updatedUser = await client.users.updateUser(userId, {
-      publicMetadata: { role: roleToSet },
+      publicMetadata: { ...user.publicMetadata, role: roleToSet },
     });
 
     return NextResponse.json({
@@ -65,10 +68,6 @@ export async function POST(request: Request) {
       user: { id: updatedUser.id, role: updatedUser.publicMetadata?.role },
     });
   } catch (error) {
-    console.error("[set-user-role] Clerk role update failed", error);
-    return NextResponse.json(
-      { error: "Errore interno del server durante l'aggiornamento del ruolo." },
-      { status: 500 },
-    );
+    return errorResponse(error, "set-user-role", { userId });
   }
 }
