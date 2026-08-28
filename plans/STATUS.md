@@ -25,7 +25,7 @@ Ultimo aggiornamento: 2026-08-28
 | REL-005 | ✅ Completato | `5c5fe6d` | Bassa | Media | Cambio ruolo Clerk |
 | REL-006 | ✅ Completato | `5d643f2`+ | Alta | Alta | Delivery Socket.IO disaccoppiata |
 | SEC-004 | ✅ Completato | `3b011ad` | Media | Media | Rate limit distribuito |
-| SEC-005 | ⏸️ Aperto | — | Media | Media | Policy lettura leghe (richiede decisione prodotto) |
+| SEC-005 | ✅ Completato | `b372b02` | Media | Media | Policy lettura leghe (admin + partecipanti) |
 | CQ-001 | ✅ Completato | `1a39567` | Bassa | Media | Quality gate lint (restano solo 6 warning `no-img-element`, budget CI rimandato) |
 | CQ-002 | ✅ Completato | `5d643f2` | Media | Bassa | Logger strutturato + redaction PII + error contract pubblico |
 | PERF-001  | ✅ Completato | — | Alta | Media | Paginazione activity log (cursor + merge k-way + indici) |
@@ -92,10 +92,11 @@ Ultimo aggiornamento: 2026-08-28
 - **Complessità Media**: contatore atomico condiviso con TTL, adapter distribuito.
 - **Rischio Media**: latenza e falsi positivi sotto picco; decisione esplicita fail-open vs fail-closed (outage storage) e non bloccare retry idempotenti.
 
-### SEC-005 — Policy lettura leghe
+### SEC-005 — Policy lettura leghe ✅
 
 - **Complessità Media**: matrice di autorizzazione centralizzata + DTO filtrati.
 - **Rischio Media**: cambio UX/link condivisi non più accessibili; **bloccante**: richiede decisione di prodotto prima di introdurre restrizioni.
+- **Implementato**: decisione di prodotto registrata — **le leghe sono visibili agli admin e ai propri partecipanti**. Tutte le route sotto `api/leagues` passano da `hasLeagueAccess` (`src/lib/auth/league-guard.ts`: membro O admin). Fix di sicurezza: `bids` GET era leggibile da qualunque utente autenticato; `roster` era owner-or-admin (incoerente con `auction-state` che espone già le rose ai partecipanti — ora allineato); guard aggiunti a `abandon`, `discard-player`, `bids` POST, `budget`. Matrice automatizzata: `tests/api/league-read-policy.test.ts` (9 route × non-membro 403 + membro passa dal guard). Nessun DTO filtrato: la decisione prodotto non introduce classi di dati strategici nascoste ai partecipanti.
 
 ### CQ-001 — Quality gate lint
 
@@ -155,7 +156,7 @@ Ultimo aggiornamento: 2026-08-28
 | --- | --- | --- |
 | CQ-001 | solo script/config ESLint + CI | farlo **per primo**: alza la soglia così ogni fix successivo parte pulito |
 | REL-005 | solo `set-user-role/route.ts` + SDK Clerk | nessun file condiviso |
-| SEC-005 | route `api/leagues` + helper accesso | **bloccante**: serve decisione prodotto prima di toccare |
+| SEC-005 | route `api/leagues` + helper accesso | decisione prodotto: admin + partecipanti, implementata |
 | PERF-001 | solo `activity-log/route.ts` + indici | migration indici = rollout DB separato su Turso |
 | PERF-003 | solo `players-with-status` + schema input | banale, prima vittoria rapida |
 | REL-004 | `league.actions.ts` + servizio budget | coordina con `processExpiredAuctionsAndAssignPlayers` se quel path tocca saldo/ledger |
@@ -168,7 +169,7 @@ Ultimo aggiornamento: 2026-08-28
 3. **Gruppo A in sequenza**: REL-006 → TIME-001 → PERF-002 → TIME-002.
 4. **Vittorie rapide in parallelo**: PERF-003, REL-005, PERF-001.
 5. **REL-004** e **SEC-004** quando c'è banda (indipendenti, ma non mischiarli col Gruppo A per evitare conflitti su `bid.service`/route bid).
-6. **SEC-005** — appena la decisione prodotto è disponibile.
+6. **SEC-005** ✅ — decisione prodotto ricevuta e implementata.
 
 ### Vincoli trasversali
 
