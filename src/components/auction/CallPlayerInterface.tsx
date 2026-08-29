@@ -550,43 +550,51 @@ export function CallPlayerInterface({
         <button
           onClick={() => setActiveTab("chiama")}
           title="Chiama"
-          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === "chiama"
+          aria-label="Chiama giocatore"
+          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:px-4 lg:py-3 ${activeTab === "chiama"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
-          <Gavel className="h-5 w-5" />
+          <Gavel className="h-5 w-5 lg:h-4 lg:w-4" />
+          <span className="hidden lg:inline">Chiama giocatore</span>
         </button>
         <button
           onClick={() => setActiveTab("stats")}
           title="Stats"
-          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === "stats"
+          aria-label="Statistiche giocatori"
+          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:px-4 lg:py-3 ${activeTab === "stats"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
-          <TrendingUp className="h-5 w-5" />
+          <TrendingUp className="h-5 w-5 lg:h-4 lg:w-4" />
+          <span className="hidden lg:inline">Statistiche</span>
         </button>
         <button
           onClick={() => setActiveTab("filtri")}
           title="Filtri"
-          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === "filtri"
+          aria-label="Filtri giocatori"
+          className={`flex flex-none items-center justify-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:px-4 lg:py-3 ${activeTab === "filtri"
             ? "border-primary bg-muted text-primary"
             : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
-          <Search className="h-5 w-5" />
+          <Search className="h-5 w-5 lg:h-4 lg:w-4" />
+          <span className="hidden lg:inline">Filtri</span>
         </button>
         <Link
           href={`/activity-log?league=${leagueId}&myBiddedPlayers=true`}
           title="Rilanci"
-          className="flex flex-none items-center justify-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-amber-500 transition-colors hover:bg-muted hover:text-amber-400"
+          aria-label="I miei rilanci"
+          className="flex flex-none items-center justify-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-amber-500 transition-colors hover:bg-muted hover:text-amber-400 lg:px-4 lg:py-3"
         >
-          <ListOrdered className="h-5 w-5" />
+          <ListOrdered className="h-5 w-5 lg:h-4 lg:w-4" />
+          <span className="hidden lg:inline">I miei rilanci</span>
         </Link>
 
         {/* Results counter and active filters indicator in tab bar */}
-        <div className="ml-auto flex flex-none items-center gap-3 px-3 py-2 text-xs">
+        <div className="ml-auto flex flex-none items-center gap-3 px-3 py-2 text-xs lg:px-4 lg:py-3">
           {/* Active filters indicator */}
           {(() => {
             const activeFiltersCount =
@@ -637,15 +645,16 @@ export function CallPlayerInterface({
         )}
 
       {/* Tab Content */}
-      <div className="p-2">
+      <div className="p-2 lg:p-3">
         {activeTab === "chiama" && (
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-row items-center justify-between gap-2 max-w-sm mx-auto">
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-4">
+            <div className="mx-auto flex max-w-sm flex-row items-center justify-between gap-2 lg:mx-0 lg:w-full lg:max-w-none lg:justify-start lg:gap-3">
               {/* Search Bar */}
-              <div className="relative w-32 shrink-0">
+              <div className="relative w-32 shrink-0 lg:w-auto lg:min-w-[260px] lg:max-w-xl lg:flex-1">
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
                 <Input
                   placeholder="Cerca..."
+                  aria-label="Cerca giocatore o squadra"
                   value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchTerm.trim() && setIsDropdownOpen(true)}
@@ -748,9 +757,19 @@ export function CallPlayerInterface({
 
             {/* Player Selection */}
             <Select value={selectedPlayer} onValueChange={handlePlayerSelect}>
-              <SelectTrigger className="h-10 flex-1 min-w-[120px] max-w-[180px] border-input bg-background text-foreground [&>span]:truncate">
+              <SelectTrigger
+                aria-label="Seleziona giocatore"
+                className="h-10 min-w-[120px] max-w-[180px] flex-1 border-input bg-background text-foreground lg:w-72 lg:max-w-none lg:flex-none [&>span]:truncate"
+              >
                 <SelectValue placeholder="Seleziona...">
-                  {selectedPlayerDetails ? selectedPlayerDetails.name : "Seleziona..."}
+                  {selectedPlayerDetails ? (
+                    selectedPlayerDetails.name
+                  ) : (
+                    <>
+                      <span className="lg:hidden">Seleziona...</span>
+                      <span className="hidden lg:inline">Seleziona giocatore...</span>
+                    </>
+                  )}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-60 border-border bg-card">
@@ -791,7 +810,7 @@ export function CallPlayerInterface({
             {/* Action Button */}
             <Button
               size="sm"
-              className="h-10 w-10 shrink-0 bg-blue-500 p-0 text-white hover:bg-blue-600"
+              className="h-10 w-10 shrink-0 gap-2 bg-blue-500 p-0 text-white hover:bg-blue-600 lg:w-auto lg:px-5"
               onClick={handleMainAction}
               disabled={
                 !selectedPlayer ||
@@ -805,13 +824,18 @@ export function CallPlayerInterface({
                   : "Avvia Asta"
               }
             >
-              <Gavel className="h-5 w-5" />
+              <Gavel className="h-5 w-5 lg:h-4 lg:w-4" />
+              <span className="hidden lg:inline">
+                {selectedPlayerDetails?.auctionStatus === "active_auction"
+                  ? "Fai un rilancio"
+                  : "Avvia asta"}
+              </span>
             </Button>
           </div>
 
           {/* Player Info Inline */}
           {selectedPlayerDetails && (
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm mt-2 px-1">
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-3 px-1 text-sm lg:mt-0 lg:justify-start lg:border-l lg:border-border lg:pl-4">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-purple-400" />
                   <span className="font-medium text-white">
