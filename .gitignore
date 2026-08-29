@@ -55,3 +55,8 @@ next-env.d.ts
 
 # Windows Zone.Identifier files (metadata for downloaded files)
 *:Zone.Identifier
+
+# python
+__pycache__/
+*.pyc
+

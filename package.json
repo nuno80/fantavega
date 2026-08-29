@@ -24,7 +24,8 @@
     "db:migrate": "pnpm exec tsx src/lib/db/migrate.ts",
     "db:reset": "pnpm exec tsx src/lib/db/reset.ts",
     "db:apply-changes": "pnpm exec tsx src/lib/db/apply-changes.ts",
-    "link:images": "tsx scripts/link-images.ts"
+    "link:images": "tsx scripts/link-images.ts",
+    "photos:download": "python3 scripts/download_player_photos.py"
   },
   "dependencies": {
     "@clerk/nextjs": "6.39.6",
