@@ -107,16 +107,7 @@ export function AuctionPageContent({
     }
   }, [initialLeagueId, selectedLeagueId, switchToLeague]);
 
-  // Set initial user budget if managers are available
-  useEffect(() => {
-    if (initialManagers && userId) {
-      // Il budget utente è derivato da initialManagers; nessuno stato dedicato.
-      const currentUser = initialManagers.find((m) => m.user_id === userId);
-      if (currentUser) {
-        // no-op: il budget è già nei managers; nessuno stato separato da popolare.
-      }
-    }
-  }, [initialManagers, userId]);
+  // Il budget utente è derivato da initialManagers (già in stato) — nessuno stato dedicato.
 
   const fetchManagersData = useCallback(async (leagueId: number) => {
     try {
@@ -132,13 +123,7 @@ export function AuctionPageContent({
           setLeagueStatus(data.leagueStatus);
         }
 
-        // Update user budget
-        const currentUser = data.managers.find(
-          (m: ManagerWithRoster) => m.user_id === userId
-        );
-        if (currentUser) {
-          // no-op: il budget è già in managers; nessuno stato separato da popolare.
-        }
+        // Il budget utente è già in managers — nessuno stato separato.
       }
     } catch (e) {
       console.error("Error fetching managers data:", e);
