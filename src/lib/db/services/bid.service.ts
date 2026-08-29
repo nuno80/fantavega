@@ -486,6 +486,8 @@ export const placeInitialBidAndCreateAuction = async (
   autoBidMaxAmount?: number | null
 ): Promise<AuctionCreationResult> => {
   // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
+  // ponytail: TOCTOU lieve — il cooldown è letto fuori transazione; un rilancio
+  // durante il cooldown è a basso impatto, accettato (STEP-7.1).
   const cooldownInfo = await getUserCooldownInfo(
     bidderUserIdParam,
     playerIdParam,
@@ -772,6 +774,8 @@ export async function placeBidOnExistingAuction({
   logger.debug("placeBidOnExistingAuction called", { userId, playerId, amount: bidAmount });
 
   // Check if user is in cooldown for this player (48h after abandoning) - BEFORE transaction
+  // ponytail: TOCTOU lieve — il cooldown è letto fuori transazione; un rilancio
+  // durante il cooldown è a basso impatto, accettato (STEP-7.1).
   const cooldownInfo = await getUserCooldownInfo(userId, playerId, leagueId);
   if (!cooldownInfo.canBid) {
     logger.warn("user in cooldown", { userId, playerId, message: cooldownInfo.message });
@@ -1488,7 +1492,8 @@ async function processAuctionWinner(
 
       await tx.commit();
 
-      // Trigger compliance check (fire-and-forget inside this flow usually, but we await to ensure order in cron)
+      // Trigger compliance check best-effort (fire-and-forget): coerente con la
+      // gestione best-effort di placeBidOnExistingAuction, non blocca il cron.
       checkAndRecordCompliance(
         auction.current_highest_bidder_id,
         auction.auction_league_id,
