@@ -4,7 +4,7 @@ import type { Client } from "@libsql/client";
 type SqlExecutor = Pick<Client, "execute">;
 const LOCKED_CREDIT_RECONCILE_BATCH_SIZE = 25;
 
-const ACTIVE_EXPOSURE_SQL = `
+export const ACTIVE_EXPOSURE_SQL = `
   COALESCE((
     SELECT SUM(ab.max_amount)
     FROM auto_bids ab
@@ -56,6 +56,47 @@ export interface LockedCreditMismatch {
   userId: string;
   storedLockedCredits: number;
   activeExposure: number;
+}
+
+/**
+ * Ricalcola i locked_credits di un singolo utente dalla somma dell'esposizione
+ * attiva (auto-bid attivi + offerte manuali vincenti senza auto-bid).
+ * Idempotente; accetta tx per l'isolamento transazionale (v3.2).
+ */
+export async function recalcUserLockedCredits(
+  leagueId: number,
+  userId: string,
+  executor: SqlExecutor = db,
+): Promise<number> {
+  assertLeagueId(leagueId);
+  if (typeof userId !== "string" || userId.length === 0) {
+    throw new TypeError("userId must be a non-empty string");
+  }
+  const result = await executor.execute({
+    sql: `
+      SELECT
+        COALESCE(
+          (SELECT SUM(ab.max_amount)
+           FROM auto_bids ab
+           JOIN auctions a ON ab.auction_id = a.id
+           WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
+          0
+        ) +
+        COALESCE(
+          (SELECT SUM(a.current_highest_bid_amount)
+           FROM auctions a
+           LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
+           WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
+             AND ab.id IS NULL
+             AND a.status IN ('active', 'closing')),
+          0
+        ) as total_locked
+    `,
+    args: [leagueId, userId, userId, leagueId, userId],
+  });
+  return (
+    ((result.rows[0] as unknown as { total_locked: number } | undefined)?.total_locked) || 0
+  );
 }
 
 /**

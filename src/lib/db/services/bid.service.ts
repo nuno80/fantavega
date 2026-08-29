@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { setUserAuctionStateInTx } from "./auction-states.service";
 import { publishBestEffortEvent, publishEssentialEvent } from "./event-publisher";
 import { checkAndRecordCompliance } from "./penalty.service";
-import { reconcileLockedCreditsForLeague } from "./locked-credits.service";
+import { reconcileLockedCreditsForLeague, recalcUserLockedCredits } from "./locked-credits.service";
 import {
   cancelResponseTimer,
   createResponseTimer,
@@ -1145,37 +1145,12 @@ export async function placeBidOnExistingAuction({
         args: [now, auction.id, ...userIDsToDeactivate],
       });
 
-      // FIX: Invece di sottrarre incrementalmente (che puÃ² causare valori negativi),
+      // FIX: Invece di sottrarre incrementalmente (che può causare valori negativi),
       // ricalcoliamo i locked_credits dalla somma degli auto-bid attivi
-      // PLUS le offerte manuali vincenti dove l'utente Ã¨ miglior offerente senza auto-bid
+      // PLUS le offerte manuali vincenti dove l'utente è miglior offerente senza auto-bid.
+      // Dedup STEP-1: logica unificata in recalcUserLockedCredits (locked-credits.service).
       for (const bid of outbidAutoBids) {
-        // Ricalcola locked_credits come:
-        // 1. Somma auto-bid attivi per aste attive
-        // 2. PIÃ™ offerte manuali vincenti (senza auto-bid) per aste attive
-        const userLockedCreditsResult = await tx.execute({
-          sql: `
-            SELECT
-              COALESCE(
-                (SELECT SUM(ab.max_amount)
-                 FROM auto_bids ab
-                 JOIN auctions a ON ab.auction_id = a.id
-                 WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-                0
-              ) +
-              COALESCE(
-                (SELECT SUM(a.current_highest_bid_amount)
-                 FROM auctions a
-                 LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-                 WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-                   AND ab.id IS NULL
-                   AND a.status IN ('active', 'closing')),
-                0
-              ) as total_locked
-          `,
-          args: [leagueId, bid.user_id, bid.user_id, leagueId, bid.user_id],
-        });
-        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
-
+        const totalLocked = await recalcUserLockedCredits(leagueId, bid.user_id, tx);
         await tx.execute({
           sql: `UPDATE league_participants
            SET locked_credits = ?
@@ -1187,42 +1162,20 @@ export async function placeBidOnExistingAuction({
     }
 
     // FIX: Ricalcola locked_credits anche per il vincitore finale e il precedente offerente
-    // perchÃ© potrebbero avere offerte manuali senza auto-bid
+    // perché potrebbero avere offerte manuali senza auto-bid.
+    // Dedup STEP-1: logica unificata in recalcUserLockedCredits (locked-credits.service).
     const usersToRecalculate = new Set<string>();
     usersToRecalculate.add(finalBidderId);
     if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
       usersToRecalculate.add(previousHighestBidderId);
     }
-    // Escludi gli utenti giÃ  ricalcolati sopra (auto-bid superati)
+    // Escludi gli utenti già ricalcolati sopra (auto-bid superati)
     for (const bid of outbidAutoBids) {
       usersToRecalculate.delete(bid.user_id);
     }
 
     for (const recalcUserId of usersToRecalculate) {
-      const userLockedCreditsResult = await tx.execute({
-        sql: `
-          SELECT
-            COALESCE(
-              (SELECT SUM(ab.max_amount)
-               FROM auto_bids ab
-               JOIN auctions a ON ab.auction_id = a.id
-               WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-              0
-            ) +
-            COALESCE(
-              (SELECT SUM(a.current_highest_bid_amount)
-               FROM auctions a
-               LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-               WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-                 AND ab.id IS NULL
-                 AND a.status IN ('active', 'closing')),
-              0
-            ) as total_locked
-        `,
-        args: [leagueId, recalcUserId, recalcUserId, leagueId, recalcUserId],
-      });
-      const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
-
+      const totalLocked = await recalcUserLockedCredits(leagueId, recalcUserId, tx);
       await tx.execute({
         sql: `UPDATE league_participants
          SET locked_credits = ?
