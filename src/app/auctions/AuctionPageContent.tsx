@@ -69,8 +69,10 @@ export function AuctionPageContent({
   const { socket, isConnected } = useSocket();
   const { selectedLeagueId, switchToLeague } = useLeague();
 
-  // Redirect to home after 30 seconds of inactivity
-  useInactivityRedirect({ timeoutSeconds: 30 });
+  // Redirect to home after 30 seconds of inactivity.
+  // STEP-5: il timer si resetta anche su eventi realtime della battaglia
+  // (auction-update/created/closed) così guardare senza cliccare non fa uscire.
+  const { resetTimer: resetInactivityTimer } = useInactivityRedirect({ timeoutSeconds: 30 });
 
   // Initialize state with props if available, otherwise default
   const [managers, setManagers] = useState<ManagerWithRoster[]>(initialManagers || []);
@@ -383,6 +385,9 @@ export function AuctionPageContent({
 
       // Refresh user auction states to show response_needed slots
       fetchUserAuctionStates(selectedLeagueId);
+
+      // STEP-5: attività realtime = attività utente per l'inactivity redirect
+      resetInactivityTimer();
     };
 
     const handleAuctionCreated = (_data: { playerName: string }) => {
@@ -391,6 +396,9 @@ export function AuctionPageContent({
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
+
+      // STEP-5: attività realtime = attività utente per l'inactivity redirect
+      resetInactivityTimer();
     };
 
     const handleBidSurpassed = (data: {
@@ -467,6 +475,9 @@ export function AuctionPageContent({
       fetchCurrentAuction(selectedLeagueId);
       fetchManagersData(selectedLeagueId);
       fetchUserAuctionStates(selectedLeagueId);
+
+      // STEP-5: attività realtime = attività utente per l'inactivity redirect
+      resetInactivityTimer();
     };
 
     const handleUserAbandoned = () => {

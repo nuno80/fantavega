@@ -42,6 +42,12 @@ export function useInactivityRedirect(options: UseInactivityRedirectOptions = {}
   const warningShownRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
 
+  // STEP-5 decisione: il timer si resetta SOLO su input utente (mousemove,
+  // keydown, ecc.) e su resetTimer() esposto. Le pagine realtime (auction)
+  // chiamano resetTimer() quando ricevono eventi socket (auction-update,
+  // auction-created, auction-closed) così un utente che guarda la battaglia
+  // senza cliccare non viene buttato fuori dopo 30s di "inattività".
+
   // Cleanup dei timeout
   const clearTimeouts = useCallback(() => {
     if (timeoutRef.current) {
