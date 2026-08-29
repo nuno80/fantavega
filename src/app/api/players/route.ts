@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 
+import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import {
   type GetPlayersOptions,
   type GetPlayersResult,
@@ -17,6 +18,13 @@ export async function GET(request: NextRequest) {
   console.log("[API PLAYERS GET] Request received to list players.");
 
   try {
+    // Defense in depth: middleware already protects /api/players, but the
+    // handler must remain safe when called directly or after routing changes.
+    const user = await currentUser();
+    if (!user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // 2.1. Estrarre i parametri di query dall'URL
     const searchParams = request.nextUrl.searchParams;
 
@@ -24,7 +32,13 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get("role")?.toUpperCase() || undefined;
     const team = searchParams.get("team") || undefined;
     const leagueIdStr = searchParams.get("leagueId");
-    const leagueId = leagueIdStr ? parseInt(leagueIdStr, 10) : undefined;
+    if (leagueIdStr !== null && !/^[1-9]\d*$/.test(leagueIdStr)) {
+      return NextResponse.json(
+        { error: "Invalid 'leagueId' parameter. Must be a positive integer." },
+        { status: 400 }
+      );
+    }
+    const leagueId = leagueIdStr === null ? undefined : Number(leagueIdStr);
 
     const sortBy =
       (searchParams.get("sortBy") as GetPlayersOptions["sortBy"]) || "name";
@@ -86,14 +100,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await currentUser();
-    const userId = user?.id;
+    const userId = user.id;
+    const userRole =
+      typeof user.publicMetadata?.role === "string"
+        ? user.publicMetadata.role
+        : undefined;
 
-    if (!user) {
-      console.warn("[API PLAYERS GET] No user authenticated! returning public/default data.");
-    } else {
-      console.log(`[API PLAYERS GET] User authenticated: ${userId}`);
+    // The catalog itself is shared with authenticated users. Auction state,
+    // deadlines and per-league preferences require membership (or admin).
+    if (
+      leagueId !== undefined &&
+      !(await hasLeagueAccess(userId, leagueId, userRole))
+    ) {
+      return NextResponse.json(
+        { error: "Not authorized for this league" },
+        { status: 403 }
+      );
     }
+
+    console.log(`[API PLAYERS GET] User authenticated: ${userId}`);
 
     const options: GetPlayersOptions = {
       name,
@@ -122,32 +147,28 @@ export async function GET(request: NextRequest) {
 
     // 2.3. Aggiungere informazioni sui cooldown per l'utente corrente
     // user variable is already fetched above
-    if (user?.id) {
-      // One bulk query instead of one cooldown query per player (N+1).
-      const cooldowns = await getUserActiveCooldowns(user.id, leagueId);
-      const playersWithCooldown = result.players.map((player) => {
-        const cooldownInfo = cooldowns.get(player.id);
-        return {
-          ...player,
-          cooldownInfo: cooldownInfo
-            ? {
-              timeRemaining: cooldownInfo.timeRemaining,
-              message: cooldownInfo.message,
-            }
-            : null,
-        };
-      });
+    // One bulk query instead of one cooldown query per player (N+1).
+    const cooldowns = await getUserActiveCooldowns(userId, leagueId);
+    const playersWithCooldown = result.players.map((player) => {
+      const cooldownInfo = cooldowns.get(player.id);
+      return {
+        ...player,
+        cooldownInfo: cooldownInfo
+          ? {
+            timeRemaining: cooldownInfo.timeRemaining,
+            message: cooldownInfo.message,
+          }
+          : null,
+      };
+    });
 
-      return NextResponse.json(
-        {
-          ...result,
-          players: playersWithCooldown,
-        },
-        { status: 200 }
-      );
-    }
-
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(
+      {
+        ...result,
+        players: playersWithCooldown,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     // 2.3. Gestione Errori Generali
     const errorMessage =
