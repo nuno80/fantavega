@@ -304,32 +304,9 @@ export function PlayerSearchInterface({
 
     socket.emit("join-league-room", selectedLeagueId.toString());
 
-    // Auto-process expired auctions every 30 seconds
-    const processExpiredAuctions = async () => {
-      try {
-        const response = await fetch(
-          `/api/leagues/${selectedLeagueId}/process-expired-auctions`,
-          {
-            method: "POST",
-          }
-        );
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.processedCount > 0) {
-            console.log(`Processed ${result.processedCount} expired auctions`);
-            // Refresh players data
-            refreshPlayersData();
-          }
-        }
-      } catch (error) {
-        console.error("Error processing expired auctions:", error);
-      }
-    };
-
-    // Process expired auctions immediately and then every 30 seconds
-    processExpiredAuctions();
-    const expiredAuctionsInterval = setInterval(processExpiredAuctions, 30000);
+    // Expired auctions are processed by the lease-protected server scheduler.
+    // Clients consume its socket events instead of multiplying the same
+    // write-heavy task by every connected browser or open tab.
 
     const handleAuctionUpdate = (data: {
       playerId: number;
@@ -421,9 +398,8 @@ export function PlayerSearchInterface({
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("auction-created", handleAuctionCreated);
       socket.off("auction-update", handleAuctionUpdate);
-      clearInterval(expiredAuctionsInterval);
     };
-  }, [socket, isConnected, selectedLeagueId, refreshPlayersData, userId]);
+  }, [socket, isConnected, selectedLeagueId, userId]);
 
   const handleBidOnPlayer = (player: PlayerWithAuctionStatus) => {
     setSelectedPlayer(player);
