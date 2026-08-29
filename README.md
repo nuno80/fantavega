@@ -248,6 +248,19 @@ Fantavega is a feature-rich fantasy sports auction platform that enables:
 - **Manual schema migrations** with backup system
 - **Database services** for penalty system and compliance checking
 
+> ⚠️ **NOTA IMPORTANTE (migrazioni DB):** Il DB di produzione (Turso) ha delle
+> CHECK constraint storiche (`budget_transactions`, `user_auction_response_timers`)
+> che non combaciano con lo schema atteso, quindi `pnpm run db:migrate` fallisce
+> con `Unsupported legacy schema` PRIMA di applicare qualsiasi migration.
+> Di conseguenza **le nuove migration vanno applicate a mano** sul DB Turso,
+> statement per statement (es. usando `tsx` con `@libsql/client` e le credenziali
+> in `.env.local`). Esempio già eseguito: `database/migrations/add_event_outbox.sql`
+> è stata applicata manualmente il 2026-02 (tabella `event_outbox` creata a mano).
+> Se aggiungi una nuova migration, applicala manualmente e verifica con
+> `SELECT name FROM sqlite_master WHERE type='table'`.
+> Sistemare le CHECK constraint per sbloccare il migratore è un lavoro separato
+> che NON è ancora stato fatto, per non rischiare sui dati esistenti.
+
 ### UI & Styling
 
 - **Tailwind CSS** for styling
