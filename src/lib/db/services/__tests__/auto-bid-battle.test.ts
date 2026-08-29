@@ -24,7 +24,6 @@ describe("simulateAutoBidBattle", () => {
     expect(result.finalAmount).toBe(30);
     expect(result.finalBidderId).toBe("user_a");
     expect(result.initialBidderHadWinningManualBid).toBe(true);
-    expect(result.battleSteps).toHaveLength(1);
   });
 
   it("parità max_amount → vince il più vecchio per createdAt, paga il max", () => {

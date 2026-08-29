@@ -10,18 +10,9 @@ export interface AutoBidBattleParticipant {
   isActive: boolean; // Per tracciare se l'auto-bid ha raggiunto il suo massimo
 }
 
-export interface BattleStep {
-  bidAmount: number;
-  bidderId: string;
-  isAutoBid: boolean;
-  step: number;
-}
-
 export interface BattleResult {
   finalAmount: number;
   finalBidderId: string;
-  battleSteps: BattleStep[];
-  totalSteps: number;
   initialBidderHadWinningManualBid: boolean;
 }
 
@@ -42,16 +33,7 @@ export function simulateAutoBidBattle(
 ): BattleResult {
   const currentBid = initialBid;
   const currentBidderId = initialBidderId;
-  const battleSteps: BattleStep[] = [];
-  let step = 0;
 
-  // Aggiungi il bid manuale iniziale come primo step
-  battleSteps.push({
-    bidAmount: currentBid,
-    bidderId: currentBidderId,
-    isAutoBid: false,
-    step: step++,
-  });
 
   // STEP-4.3: non mutare gli input del chiamante — lavora su una copia.
   // CORREZIONE: Controlla se ci sono auto-bid che possono competere
@@ -67,8 +49,6 @@ export function simulateAutoBidBattle(
     return {
       finalAmount: currentBid,
       finalBidderId: currentBidderId,
-      battleSteps,
-      totalSteps: step,
       initialBidderHadWinningManualBid: true,
     };
   }
@@ -119,19 +99,9 @@ export function simulateAutoBidBattle(
     logger.debug("single auto-bid pays 1+ manual", { finalAmount });
   }
 
-  // Aggiungi il bid finale dell'auto-bid vincente
-  battleSteps.push({
-    bidAmount: finalAmount,
-    bidderId: winningAutoBid.userId,
-    isAutoBid: true,
-    step: step++,
-  });
-
   return {
     finalAmount: finalAmount,
     finalBidderId: winningAutoBid.userId,
-    battleSteps,
-    totalSteps: step,
     initialBidderHadWinningManualBid: false,
   };
 }

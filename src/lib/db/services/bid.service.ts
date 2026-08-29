@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 import { setUserAuctionStateInTx } from "./auction-states.service";
-import { simulateAutoBidBattle } from "./auto-bid-battle";
+import { simulateAutoBidBattle, type AutoBidBattleParticipant } from "./auto-bid-battle";
 import { publishBestEffortEvent, publishEssentialEvent } from "./event-publisher";
 import { checkAndRecordCompliance } from "./penalty.service";
 import { reconcileLockedCreditsForLeague, recalcUserLockedCredits } from "./locked-credits.service";
@@ -997,7 +997,7 @@ export async function placeBidOnExistingAuction({
       args: [auction.id],
     });
     const allActiveAutoBids = allActiveAutoBidsResult.rows as unknown as Omit<
-      import("./auto-bid-battle").AutoBidBattleParticipant,
+      AutoBidBattleParticipant,
       "isActive"
     >[];
 
