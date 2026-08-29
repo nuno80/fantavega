@@ -1,4 +1,4 @@
-﻿// src/lib/db/services/bid.service.ts v.3.0 (Async Turso Migration)
+// src/lib/db/services/bid.service.ts v.3.0 (Async Turso Migration)
 // Servizio completo per la logica delle offerte, con integrazione Socket.IO per notifiche in tempo reale.
 // 1. Importazioni
 import { db } from "@/lib/db";
@@ -21,7 +21,7 @@ export type AppRole = "admin" | "manager";
 interface AutoBidBattleParticipant {
   userId: string;
   maxAmount: number;
-  createdAt: number; // Usato per la prioritÃ 
+  createdAt: number; // Usato per la priorità
   isActive: boolean; // Per tracciare se l'auto-bid ha raggiunto il suo massimo
 }
 
@@ -63,12 +63,12 @@ function simulateAutoBidBattle(
   autoBids.forEach((ab) => (ab.isActive = true));
 
   // CORREZIONE: Controlla se ci sono auto-bid che possono competere
-  // NOTA: Non escludere l'auto-bid dell'offerente - puÃ² competere con altri auto-bid
-  // FIX: Usare >= invece di > per includere paritÃ  - l'auto-bid vince in caso di paritÃ 
+  // NOTA: Non escludere l'auto-bid dell'offerente - può competere con altri auto-bid
+  // FIX: Usare >= invece di > per includere parità - l'auto-bid vince in caso di parità
   const competingAutoBids = autoBids.filter((ab) => ab.maxAmount >= currentBid);
 
   if (competingAutoBids.length === 0) {
-    // Nessun auto-bid puÃ² competere, l'offerta manuale vince
+    // Nessun auto-bid può competere, l'offerta manuale vince
     logger.debug("no competing auto-bid", { currentBid, currentBidderId });
     return {
       finalAmount: currentBid,
@@ -79,13 +79,13 @@ function simulateAutoBidBattle(
     };
   }
 
-  // Trova l'auto-bid vincente (massimo importo, poi prioritÃ  temporale)
+  // Trova l'auto-bid vincente (massimo importo, poi priorità temporale)
   const winningAutoBid = competingAutoBids.sort((a, b) => {
     // Prima ordina per max_amount (decrescente)
     if (b.maxAmount !== a.maxAmount) {
       return b.maxAmount - a.maxAmount;
     }
-    // In caso di paritÃ , ordina per createdAt (crescente = primo vince)
+    // In caso di parità, ordina per createdAt (crescente = primo vince)
     return a.createdAt - b.createdAt;
   })[0];
 
@@ -108,11 +108,11 @@ function simulateAutoBidBattle(
     logger.debug("second-best auto-bid", { userId: secondBestAutoBid.userId, maxAmount: secondBestAutoBid.maxAmount });
 
     if (secondBestAutoBid.maxAmount === winningAutoBid.maxAmount) {
-      // CASO PARITÃ€: il vincitore (primo per timestamp) paga il suo importo massimo
+      // CASO PARITÀ: il vincitore (primo per timestamp) paga il suo importo massimo
       finalAmount = winningAutoBid.maxAmount;
       logger.debug("auto-bid tie, winner pays max", { finalAmount });
     } else {
-      // Il vincitore paga 1 credito piÃ¹ del secondo migliore, ma non piÃ¹ del suo massimo
+      // Il vincitore paga 1 credito più del secondo migliore, ma non più del suo massimo
       finalAmount = Math.min(
         secondBestAutoBid.maxAmount + 1,
         winningAutoBid.maxAmount
@@ -120,7 +120,7 @@ function simulateAutoBidBattle(
       logger.debug("auto-bid pays 1+ second best", { finalAmount });
     }
   } else {
-    // Solo un auto-bid: paga 1 credito piÃ¹ dell'offerta manuale, ma non piÃ¹ del suo massimo
+    // Solo un auto-bid: paga 1 credito più dell'offerta manuale, ma non più del suo massimo
     finalAmount = Math.min(currentBid + 1, winningAutoBid.maxAmount);
     logger.debug("single auto-bid pays 1+ manual", { finalAmount });
   }
@@ -312,14 +312,14 @@ const checkSlotsAndBudgetOrThrow = async (
   // 1. Calcola slot massimi totali dalla configurazione della lega
   const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
 
-  // 2. Calcola giocatori giÃ  acquisiti (dai campi del participant)
+  // 2. Calcola giocatori già acquisiti (dai campi del participant)
   const totalAcquired =
     (participant.players_P_acquired || 0) +
     (participant.players_D_acquired || 0) +
     (participant.players_C_acquired || 0) +
     (participant.players_A_acquired || 0);
 
-  // 3. Calcola offerte vincenti attive (aste dove l'utente Ã¨ miglior offerente) - esclude l'asta corrente se Ã¨ un rilancio
+  // 3. Calcola offerte vincenti attive (aste dove l'utente è miglior offerente) - esclude l'asta corrente se è un rilancio
   let activeWinningBidsSql = `
     SELECT COUNT(*) as count FROM auctions
     WHERE auction_league_id = ? AND current_highest_bidder_id = ?
@@ -328,7 +328,7 @@ const checkSlotsAndBudgetOrThrow = async (
   const activeWinningBidsArgs: (string | number)[] = [league.id, bidderUserIdForCheck];
 
   if (!isNewAuctionAttempt && currentAuctionTargetPlayerId !== undefined) {
-    // Se Ã¨ un rilancio su asta esistente, non contarla due volte
+    // Se è un rilancio su asta esistente, non contarla due volte
     activeWinningBidsSql += ` AND player_id != ?`;
     activeWinningBidsArgs.push(currentAuctionTargetPlayerId);
   }
@@ -340,14 +340,14 @@ const checkSlotsAndBudgetOrThrow = async (
   });
   const activeWinningBids = Number(activeWinningBidsResult.rows[0].count);
 
-  // 4. Slot virtuali occupati (giÃ  acquisiti + offerte vincenti)
+  // 4. Slot virtuali occupati (già acquisiti + offerte vincenti)
   const slotsOccupied = totalAcquired + activeWinningBids;
 
   // 5. Slot rimanenti da riempire DOPO questa offerta
-  // Se Ã¨ una nuova asta, questa offerta riempirÃ  uno slot aggiuntivo
+  // Se è una nuova asta, questa offerta riempirà uno slot aggiuntivo
   const slotsRemainingAfterBid = isNewAuctionAttempt
-    ? totalMaxSlots - slotsOccupied - 1  // -1 perchÃ© questa offerta occuperÃ  uno slot
-    : totalMaxSlots - slotsOccupied;      // Rilancio su asta esistente: slot giÃ  contato
+    ? totalMaxSlots - slotsOccupied - 1  // -1 perché questa offerta occuperà uno slot
+    : totalMaxSlots - slotsOccupied;      // Rilancio su asta esistente: slot già contato
 
   // 6. Crediti da riservare per slot vuoti futuri (1 credito per slot)
   // Ogni slot vuoto deve avere 1 credito riservato per poter essere riempito
@@ -515,7 +515,7 @@ export const placeInitialBidAndCreateAuction = async (
 
     if (bidAmountParam < minimumBid)
       throw new Error(
-        `L'offerta Ã¨ inferiore all'offerta minima di ${minimumBid} crediti.`
+        `L'offerta è inferiore all'offerta minima di ${minimumBid} crediti.`
       );
 
     // Check if player role is in active auction roles
@@ -552,7 +552,7 @@ export const placeInitialBidAndCreateAuction = async (
     });
     if (assignmentResult.rows.length > 0)
       throw new Error(
-        `Giocatore ${playerIdParam} giÃ  assegnato in questa lega.`
+        `Giocatore ${playerIdParam} già assegnato in questa lega.`
       );
 
     const existingAuctionResult = await tx.execute({
@@ -571,11 +571,11 @@ export const placeInitialBidAndCreateAuction = async (
         );
       }
       throw new Error(
-        `Esiste giÃ  un'asta attiva per il giocatore ${playerIdParam}.`
+        `Esiste già un'asta attiva per il giocatore ${playerIdParam}.`
       );
     }
 
-    // Determina l'importo da validare per il budget: se c'Ã¨ un auto-bid, valida il max_amount
+    // Determina l'importo da validare per il budget: se c'è un auto-bid, valida il max_amount
     const amountToValidate =
       autoBidMaxAmount && autoBidMaxAmount > bidAmountParam
         ? autoBidMaxAmount
@@ -593,7 +593,7 @@ export const placeInitialBidAndCreateAuction = async (
       playerIdParam
     );
 
-    // Determina l'importo da bloccare: se c'Ã¨ un auto-bid, blocca il max_amount, altrimenti l'offerta iniziale
+    // Determina l'importo da bloccare: se c'è un auto-bid, blocca il max_amount, altrimenti l'offerta iniziale
     const amountToLock =
       autoBidMaxAmount && autoBidMaxAmount > bidAmountParam
         ? autoBidMaxAmount
@@ -638,7 +638,7 @@ export const placeInitialBidAndCreateAuction = async (
           leagueId: leagueIdParam,
         });
         throw new Error(
-          "Esiste giÃ  un'asta attiva per questo giocatore. Riprova tra qualche secondo."
+          "Esiste già un'asta attiva per questo giocatore. Riprova tra qualche secondo."
         );
       }
       throw error;
@@ -807,7 +807,7 @@ export async function placeBidOnExistingAuction({
 
     if (!combinedData) {
       logger.error("auction/league/player not found", { leagueId, playerId });
-      throw new Error("Asta non trovata o non piÃ¹ attiva.");
+      throw new Error("Asta non trovata o non più attiva.");
     }
 
     // Reconstruct individual objects for backward compatibility
@@ -842,7 +842,7 @@ export async function placeBidOnExistingAuction({
     const now = Math.floor(Date.now() / 1000);
     if (auction.scheduled_end_time <= now) {
       logger.warn("auction expired", { auctionId: auction.id });
-      throw new Error("L'asta Ã¨ scaduta. Non Ã¨ piÃ¹ possibile fare offerte.");
+      throw new Error("L'asta è scaduta. Non è più possibile fare offerte.");
     }
 
     // Ottieni l'ID del miglior offerente attuale prima di qualsiasi controllo
@@ -862,7 +862,7 @@ export async function placeBidOnExistingAuction({
 
     // Check if user is already highest bidder, but allow if they can counter-bid
     if (previousHighestBidderId === userId) {
-      // Con il nuovo sistema di stati, controlliamo se l'utente puÃ² fare rilancio
+      // Con il nuovo sistema di stati, controlliamo se l'utente può fare rilancio
       const canCounterBidResult = await tx.execute({
         sql: `
         SELECT 1 FROM user_auction_response_timers
@@ -885,7 +885,7 @@ export async function placeBidOnExistingAuction({
           timer: !!canCounterBid,
           state: userState,
         });
-        throw new Error("Sei giÃ  il miglior offerente.");
+        throw new Error("Sei già il miglior offerente.");
       }
 
       logger.debug("highest bidder can counter-bid", {

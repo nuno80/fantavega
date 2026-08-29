@@ -14,18 +14,9 @@ Priorità: **P0** = correttezza, **P1** = igiene/codice, **P2** = comfort/refact
 
 ---
 
-## STEP 2 — [P1] Fix encoding (mojibake) nei file di servizio
+## STEP 2 — [P1] Fix encoding (mojibake) nei file di servizio ✅ DONE
 
-**Problema:** `bid.service.ts` è pieno di `Ã¨` / `giÃ `/ `prioritÃ ` nei messaggi d'errore, commenti e log (UTF-8 scritto male). `scheduler.ts` e `AuctionPageContent.tsx` sembrano puliti (verificare con `grep -n 'Ã'` su tutti i file `src/lib/db/services/*.ts`).
-
-**Azione:**
-1. `grep -rn 'Ã' src/ --include='*.ts' --include='*.tsx'` per censire tutti i file colpiti (probabilmente più di `bid.service.ts`).
-2. Correggere i messaggi d'errore user-facing (quelli che finiscono in UI: `throw new Error(...)`) — questi sono visibili agli utenti e non vanno lasciati corrotti.
-3. Correggere anche commenti e `logger.*` quando nel file, ma non fare un commit solo per quelli: raggruppare con altri fix.
-
-**Verifica:** `grep -rn 'Ã' src/` → 0 risultati. I messaggi d'errore italiani sono leggibili.
-
-**Rischio:** solo cosmetica, nessun rischio funzionale. Attenzione a NON toccare stringhe che sembrano corrotte ma sono volute (es. nomi propri o `Ã¨` dentro `team_name` dati in DB — verificare prima di sostituire in massa).
+**Stato:** applicato. Unico file colpito in `src/`: `bid.service.ts` (26 occorrenze). Riparati tutti i mojibake UTF-8 (`Ã¨`→è, `Ã²`→ò, `Ã¹`→ù, `Ã€`→À, `Ã©`→é, `Ã `→à, etc.), rimossi anche commenti e il BOM di testa. `grep 'Ã'` → 0. Suite completa verde (255 test).
 
 ---
 
