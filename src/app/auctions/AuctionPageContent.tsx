@@ -84,7 +84,6 @@ export function AuctionPageContent({
   const [userAuctionStates, setUserAuctionStates] = useState<UserAuctionStateDetail[]>(initialUserAuctionStates || []);
 
   const [isLoading, setIsLoading] = useState(!initialManagers); // Only load if no initial data
-  const [, setCurrentUserBudget] = useState<{ current_budget: number; locked_credits: number; total_budget: number } | null>(null);
   const [leagueStatus, setLeagueStatus] = useState<string | undefined>(initialLeagueStatus);
 
   // Bid Modal State
@@ -109,13 +108,10 @@ export function AuctionPageContent({
   // Set initial user budget if managers are available
   useEffect(() => {
     if (initialManagers && userId) {
+      // Il budget utente è derivato da initialManagers; nessuno stato dedicato.
       const currentUser = initialManagers.find((m) => m.user_id === userId);
       if (currentUser) {
-        setCurrentUserBudget({
-          current_budget: currentUser.current_budget,
-          locked_credits: currentUser.locked_credits,
-          total_budget: currentUser.total_budget,
-        });
+        // no-op: il budget è già nei managers; nessuno stato separato da popolare.
       }
     }
   }, [initialManagers, userId]);
@@ -139,11 +135,7 @@ export function AuctionPageContent({
           (m: ManagerWithRoster) => m.user_id === userId
         );
         if (currentUser) {
-          setCurrentUserBudget({
-            current_budget: currentUser.current_budget,
-            locked_credits: currentUser.locked_credits,
-            total_budget: currentUser.total_budget,
-          });
+          // no-op: il budget è già in managers; nessuno stato separato da popolare.
         }
       }
     } catch (e) {
@@ -313,11 +305,7 @@ export function AuctionPageContent({
         if (data.budgetUpdates) {
           const myBudgetUpdate = data.budgetUpdates.find(u => u.userId === userId);
           if (myBudgetUpdate) {
-            setCurrentUserBudget(prev => prev ? {
-              ...prev,
-              locked_credits: myBudgetUpdate.newLockedCredits,
-            } : prev);
-            // Aggiorna anche nel managers array
+            // Il locked_credits aggiornato vive già nel managers array sotto.
             setManagers(prev => prev.map(m =>
               m.user_id === userId
                 ? { ...m, locked_credits: myBudgetUpdate.newLockedCredits }

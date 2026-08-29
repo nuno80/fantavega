@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 import { setUserAuctionStateInTx } from "./auction-states.service";
+import { simulateAutoBidBattle } from "./auto-bid-battle";
 import { publishBestEffortEvent, publishEssentialEvent } from "./event-publisher";
 import { checkAndRecordCompliance } from "./penalty.service";
 import { reconcileLockedCreditsForLeague, recalcUserLockedCredits } from "./locked-credits.service";
@@ -16,131 +17,6 @@ import {
 
 // 2. Tipi e Interfacce Esportate
 export type AppRole = "admin" | "manager";
-
-// Tipi per la simulazione della battaglia Auto-Bid
-interface AutoBidBattleParticipant {
-  userId: string;
-  maxAmount: number;
-  createdAt: number; // Usato per la priorità
-  isActive: boolean; // Per tracciare se l'auto-bid ha raggiunto il suo massimo
-}
-
-interface BattleStep {
-  bidAmount: number;
-  bidderId: string;
-  isAutoBid: boolean;
-  step: number;
-}
-
-interface BattleResult {
-  finalAmount: number;
-  finalBidderId: string;
-  battleSteps: BattleStep[];
-  totalSteps: number;
-  initialBidderHadWinningManualBid: boolean;
-}
-
-// Funzione di simulazione battaglia Auto-Bid
-function simulateAutoBidBattle(
-  initialBid: number,
-  initialBidderId: string,
-  autoBids: AutoBidBattleParticipant[]
-): BattleResult {
-  const currentBid = initialBid;
-  const currentBidderId = initialBidderId;
-  const battleSteps: BattleStep[] = [];
-  let step = 0;
-
-  // Aggiungi il bid manuale iniziale come primo step
-  battleSteps.push({
-    bidAmount: currentBid,
-    bidderId: currentBidderId,
-    isAutoBid: false,
-    step: step++,
-  });
-
-  // Rendi tutti i partecipanti attivi all'inizio
-  autoBids.forEach((ab) => (ab.isActive = true));
-
-  // CORREZIONE: Controlla se ci sono auto-bid che possono competere
-  // NOTA: Non escludere l'auto-bid dell'offerente - può competere con altri auto-bid
-  // FIX: Usare >= invece di > per includere parità - l'auto-bid vince in caso di parità
-  const competingAutoBids = autoBids.filter((ab) => ab.maxAmount >= currentBid);
-
-  if (competingAutoBids.length === 0) {
-    // Nessun auto-bid può competere, l'offerta manuale vince
-    logger.debug("no competing auto-bid", { currentBid, currentBidderId });
-    return {
-      finalAmount: currentBid,
-      finalBidderId: currentBidderId,
-      battleSteps,
-      totalSteps: step,
-      initialBidderHadWinningManualBid: true,
-    };
-  }
-
-  // Trova l'auto-bid vincente (massimo importo, poi priorità temporale)
-  const winningAutoBid = competingAutoBids.sort((a, b) => {
-    // Prima ordina per max_amount (decrescente)
-    if (b.maxAmount !== a.maxAmount) {
-      return b.maxAmount - a.maxAmount;
-    }
-    // In caso di parità, ordina per createdAt (crescente = primo vince)
-    return a.createdAt - b.createdAt;
-  })[0];
-
-  logger.debug("winning auto-bid", { userId: winningAutoBid.userId, maxAmount: winningAutoBid.maxAmount });
-
-  // CORREZIONE: Calcola il prezzo finale secondo la logica eBay
-  let finalAmount: number;
-
-  // Trova il secondo miglior auto-bid (se esiste)
-  const secondBestAutoBid = competingAutoBids
-    .filter((ab) => ab.userId !== winningAutoBid.userId)
-    .sort((a, b) => {
-      if (b.maxAmount !== a.maxAmount) {
-        return b.maxAmount - a.maxAmount;
-      }
-      return a.createdAt - b.createdAt;
-    })[0];
-
-  if (secondBestAutoBid) {
-    logger.debug("second-best auto-bid", { userId: secondBestAutoBid.userId, maxAmount: secondBestAutoBid.maxAmount });
-
-    if (secondBestAutoBid.maxAmount === winningAutoBid.maxAmount) {
-      // CASO PARITÀ: il vincitore (primo per timestamp) paga il suo importo massimo
-      finalAmount = winningAutoBid.maxAmount;
-      logger.debug("auto-bid tie, winner pays max", { finalAmount });
-    } else {
-      // Il vincitore paga 1 credito più del secondo migliore, ma non più del suo massimo
-      finalAmount = Math.min(
-        secondBestAutoBid.maxAmount + 1,
-        winningAutoBid.maxAmount
-      );
-      logger.debug("auto-bid pays 1+ second best", { finalAmount });
-    }
-  } else {
-    // Solo un auto-bid: paga 1 credito più dell'offerta manuale, ma non più del suo massimo
-    finalAmount = Math.min(currentBid + 1, winningAutoBid.maxAmount);
-    logger.debug("single auto-bid pays 1+ manual", { finalAmount });
-  }
-
-  // Aggiungi il bid finale dell'auto-bid vincente
-  battleSteps.push({
-    bidAmount: finalAmount,
-    bidderId: winningAutoBid.userId,
-    isAutoBid: true,
-    step: step++,
-  });
-
-  return {
-    finalAmount: finalAmount,
-    finalBidderId: winningAutoBid.userId,
-    battleSteps,
-    totalSteps: step,
-    initialBidderHadWinningManualBid: false,
-  };
-}
 
 export interface LeagueForBidding {
   id: number;
@@ -1117,7 +993,7 @@ export async function placeBidOnExistingAuction({
       args: [auction.id],
     });
     const allActiveAutoBids = allActiveAutoBidsResult.rows as unknown as Omit<
-      AutoBidBattleParticipant,
+      import("./auto-bid-battle").AutoBidBattleParticipant,
       "isActive"
     >[];
 
@@ -1432,11 +1308,7 @@ export const getAuctionStatusForPlayer = async (
   const currentTime = Math.floor(Date.now() / 1000);
   logger.debug("searching for auction", { leagueId: leagueIdParam, playerId: playerIdParam, currentTime });
 
-  // ENHANCED: Use database transaction with proper isolation to prevent race conditions
-  // In @libsql/client, we can just use a normal execute if we don't need a strict transaction for reading,
-  // but if we want to ensure consistency we can use a transaction.
-  // For reading, a simple execute is usually fine unless we need REPEATABLE READ.
-  // We'll stick to execute for now as it's simpler and likely sufficient.
+  // Letture con execute semplice: coerente per lo stato dell'asta (no transazione).
 
   const auctionResult = await db.execute({
     sql: `SELECT
