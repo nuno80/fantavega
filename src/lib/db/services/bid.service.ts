@@ -7,7 +7,6 @@ import { logger } from "@/lib/logger";
 import { setUserAuctionStateInTx } from "./auction-states.service";
 import { simulateAutoBidBattle, type AutoBidBattleParticipant } from "./auto-bid-battle";
 import { publishBestEffortEvent, publishEssentialEvent } from "./event-publisher";
-import { dispatchOutboxEvents } from "./event-outbox.service";
 import { checkAndRecordCompliance } from "./penalty.service";
 import { reconcileLockedCreditsForLeague, recalcUserLockedCredits } from "./locked-credits.service";
 import {
@@ -748,14 +747,6 @@ export const placeInitialBidAndCreateAuction = async (
 
     await tx.commit();
 
-    // REL-006: deliver the outbox now instead of waiting for the scheduler's
-    // 15s tick, so the new auction shows up without a manual refresh.
-    // Fire-and-forget: dispatchOutboxEvents is idempotent + fenced (owner
-    // token), the scheduler cycle remains as a safety net.
-    void dispatchOutboxEvents().catch((error) => {
-      logger.warn("immediate outbox dispatch failed; scheduler will retry", { error });
-    });
-
     return {
       auction_id: newAuctionId,
       player_id: playerIdParam,
@@ -1245,13 +1236,6 @@ export async function placeBidOnExistingAuction({
     });
 
     await tx.commit();
-
-    // REL-006: deliver the outbox now instead of waiting for the scheduler's
-    // 15s tick, so the bid shows up without a manual refresh. Fire-and-forget:
-    // idempotent + fenced; the scheduler cycle remains the safety net.
-    void dispatchOutboxEvents().catch((error) => {
-      logger.warn("immediate outbox dispatch failed; scheduler will retry", { error });
-    });
   } catch (error) {
     await tx.rollback();
     throw error;
