@@ -44,6 +44,14 @@ export type OutboxExecutor = Pick<Client, "execute">;
 const MAX_ATTEMPTS_ESSENTIAL = 8;
 const MAX_ATTEMPTS_NON_ESSENTIAL = 3;
 
+// A claim is considered stale when the owning dispatcher has not finished
+// within this window (crash, deploy, timeout). Reclaiming it risks a rare
+// double delivery if the original dispatcher is merely slow; consumers are
+// idempotent (clients refetch on reconnect, the socket server dedups).
+const STALE_CLAIM_SECONDS = 60;
+// Reclaim stale claims one at a time to keep the double-delivery window small.
+const STALE_CLAIM_BATCH_SIZE = 1;
+
 function retryDelayMs(attempts: number): number {
   // 150ms base, exponential backoff, capped at ~60s.
   return Math.min(150 * 2 ** attempts, 60_000);
@@ -91,12 +99,16 @@ export async function dispatchOutboxEvents(limit = 50): Promise<number> {
           SET status = 'pending', claimed_at = ?, owner_token = ?
           WHERE id IN (
             SELECT id FROM event_outbox
-            WHERE status = 'pending' AND next_attempt_at <= ? AND claimed_at IS NULL
-            ORDER BY id ASC
-            LIMIT ?
+            WHERE status = 'pending' AND next_attempt_at <= ?
+              AND (claimed_at IS NULL OR claimed_at < ?)
+            ORDER BY CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END, id ASC
+            LIMIT CASE WHEN EXISTS (
+              SELECT 1 FROM event_outbox
+              WHERE status = 'pending' AND claimed_at IS NOT NULL AND claimed_at < ?
+            ) THEN ? ELSE ? END
           )
           RETURNING id, event_type, room, event_name, payload, essential, attempts`,
-    args: [now, ownerToken, now, limit],
+    args: [now, ownerToken, now, now - STALE_CLAIM_SECONDS, now - STALE_CLAIM_SECONDS, STALE_CLAIM_BATCH_SIZE, limit],
   });
 
   const events = claim.rows as unknown as Array<{
