@@ -17,6 +17,7 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 
 export type OutboxEventType =
   | "auction-update"
+  | "user-auction-private-update"
   | "auction-created"
   | "auction-closed"
   | "bid-surpassed-notification"

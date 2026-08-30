@@ -50,3 +50,60 @@ export function publishBestEffortEvent(event: SocketEvent): void {
 
 // Re-export for callers that still need a raw client type.
 export type { OutboxExecutor };
+
+// --- B1: contratti realtime dell'asta ---
+
+export interface PublicAuctionUpdatePayload {
+  playerId: number;
+  newPrice: number;
+  highestBidderId: string | null;
+  highestBidderName?: string | null;
+  scheduledEndTime: number;
+  action?: string;
+  autoBidCount?: number;
+  newBid?: unknown;
+}
+
+export interface PrivateAuctionUpdatePayload {
+  leagueId: number;
+  playerId: number;
+  currentBudget: number;
+  lockedCredits: number;
+  autoBid?: { maxAmount: number; isActive: boolean };
+}
+
+/**
+ * Evento pubblico `auction-update` sulla stanza `league-${leagueId}`.
+ * SOLO dati d'asta condivisibili: mai budget/locked credits/auto-bid personali.
+ */
+export function publishAuctionUpdate(
+  executor: OutboxExecutor,
+  leagueId: number,
+  payload: PublicAuctionUpdatePayload,
+): Promise<void> {
+  return enqueueOutboxEvent(executor, {
+    eventType: "auction-update",
+    room: `league-${leagueId}`,
+    eventName: "auction-update",
+    payload,
+    essential: true,
+  });
+}
+
+/**
+ * Evento privato `user-auction-private-update` sulla stanza `user-${userId}`.
+ * Dati finanziari personali (budget, locked credits, massimale auto-bid).
+ */
+export function publishPrivateAuctionUpdate(
+  executor: OutboxExecutor,
+  userId: string,
+  payload: PrivateAuctionUpdatePayload,
+): Promise<void> {
+  return enqueueOutboxEvent(executor, {
+    eventType: "user-auction-private-update",
+    room: `user-${userId}`,
+    eventName: "user-auction-private-update",
+    payload,
+    essential: true,
+  });
+}
