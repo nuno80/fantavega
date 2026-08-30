@@ -170,7 +170,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
 
       const bidResult = await db.execute({
-        sql: `WITH league_bid_auctions(aid) AS MATERIALIZED (SELECT id FROM auctions WHERE auction_league_id = ?) ${bidSql} ORDER BY b.bid_time DESC, b.id DESC LIMIT ? OFFSET ?`,
+        sql: `WITH league_bid_auctions AS MATERIALIZED (SELECT id, player_id FROM auctions WHERE auction_league_id = ?) ${bidSql} ORDER BY b.bid_time DESC, b.id DESC LIMIT ? OFFSET ?`,
         args: [leagueIdNum, ...bidArgs, limit, bidOffset],
       });
       const bidEvents: ActivityEvent[] = [];

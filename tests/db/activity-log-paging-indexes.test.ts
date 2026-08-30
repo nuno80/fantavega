@@ -87,8 +87,8 @@ describe("PERF-001 activity log paging indexes", () => {
       INSERT INTO bids (id, auction_id, user_id, amount, bid_time) VALUES (1, 1, 'u1', 5, 100);
     `);
 
-    const base = `WITH league_bid_auctions(aid) AS MATERIALIZED (SELECT id FROM auctions WHERE auction_league_id = ?)
-      SELECT b.id FROM bids b JOIN league_bid_auctions f ON b.auction_id = f.aid`;
+    const base = `WITH league_bid_auctions AS MATERIALIZED (SELECT id, player_id FROM auctions WHERE auction_league_id = ?)
+      SELECT b.id FROM bids b JOIN league_bid_auctions f ON b.auction_id = f.id`;
     const orderBy = `ORDER BY b.bid_time DESC, b.id DESC LIMIT 50 OFFSET 0`;
 
     // Unfiltered: the planner may scan bids via the time index or join from the

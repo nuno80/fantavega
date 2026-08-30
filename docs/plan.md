@@ -1,168 +1,264 @@
-# Piano d'azione
+## Piano d’azione
 
-Stato: riordinato e verificato contro il codice al 30/08/2026. I punti eliminati
-dalla versione precedente (tsconfig exclude docs, verifica Turso) non erano più
-necessari: `docs/` non contiene più file `.ts/.tsx` (la build non si rompe) e la
-verifica Turso è un controllo di runtime, non una modifica da pianificare.
+| ID | Intervento                                   | Relazione                  | Complessità | Priorità |
+| -- | -------------------------------------------- | -------------------------- | ----------- | -------- |
+| A1 | Correggere query Activity Log                | Indipendente               | Bassa       | Alta     |
+| A2 | Test Activity Log con DB reale               | Dipende da A1              | Media       | Alta     |
+| B1 | Separare payload realtime pubblico e privato | Base degli altri punti B   | Media       | Critica  |
+| B2 | Proteggere il flusso rilancio/auto-bid       | Dipende da B1              | Alta        | Critica  |
+| B3 | Proteggere il flusso abbandono               | Dipende da B1              | Media       | Critica  |
+| B4 | Aggiornare automaticamente i crediti UI      | Dipende da B2/B3           | Media       | Alta     |
+| B5 | Aggiornare gli auto-bid personali            | Dipende da B2              | Media       | Alta     |
+| B6 | Test di sicurezza e realtime                 | Dipende da tutti i punti B | Alta        | Critica  |
+| C1 | Smoke test finale                            | Dipende da A e B           | Bassa       | Critica  |
 
-Priorità: l'outbox è il cuore — senza recupero dei claim scaduti un evento può
-restare bloccato per sempre in produzione. Tutto il resto viene dopo.
-
----
-
-## 1. Outbox: recupero claim scaduti (CRITICO)
-
-File: `src/lib/db/services/event-outbox.service.ts`
-
-Il claim attuale reclama solo eventi con `claimed_at IS NULL`. Se il processo
-che ha claimato un evento muore prima del deliver (crash, deploy, timeout),
-l'evento resta con `claimed_at` valorizzato e `owner_token` attivo **per sempre**:
-nessun dispatcher lo reclamerà mai più.
-
-Modifiche:
-- Nel claim (`dispatchOutboxEvents`), aggiungere la condizione
-  `OR claimed_at IS NOT NULL AND claimed_at < now - 60` alla WHERE, così un
-  claim scaduto (>= 60s) può essere reclamato da un altro dispatcher.
-- Limitare il recupero: reclamare al massimo un evento alla volta quando si
-  recupera uno scaduto, per ridurre il rischio di doppia consegna durante
-  un'elaborazione valida ma lenta (una consegna può richiedere > 60s su socket
-  bloccati). La soglia di 60s è un compromesso: sopra c'è il rischio di doppia
-  consegna (rarissima, idempotenza del consumer), sotto il rischio di eventi
-  bloccati più a lungo.
-- Non toccare update/delete: restano condizionati da `owner_token` (già così).
-
-Complessità: **media** — logica SQL semplice, ma richiede test di concorrenza.
-Dipendenze: nessuna. Test in `tests/db/` con SQLite in-memory.
-
-Test da aggiungere:
-- processo interrotto dopo il claim → un nuovo dispatcher recupera l'evento;
-- recupero del claim scaduto (claimed_at < now - 60);
-- due dispatcher concorrenti → nessuna doppia consegna;
-- elaborazione valida → nessun recupero prematuro (< 60s).
-
----
-
-## 2. Outbox: rimuovere il fire-and-forget dal bid.service (MEDIO)
-
-File: `src/lib/db/services/bid.service.ts` (righe ~755 e ~1252)
-
-Le due chiamate `void dispatchOutboxEvents().catch(...)` dopo il commit
-scavalcano il tick del scheduler (15s) per rendere il realtime più reattivo.
-Funzionano, ma sono fire-and-forget in un contesto serverless: l'invocazione
-può essere troncata a metà (morte del worker dopo il commit), e il claim fatto
-da un'istanza effimera può restare orfano — esattamente il caso che il punto 1
-mitiga.
-
-Strategia:
-- Rimuovere le due chiamate `void dispatchOutboxEvents()`.
-- Aggiornare la UI del mittente con i dati già confermati (la server action
-  restituisce già il risultato: `auction_id`, dati offerta).
-- Spostare la distribuzione realtime al processo persistente Northflank
-  (socket-server.ts), dove vive già il scheduler.
-
-Complessità: **bassa-media** — rimozione banale, ma il delivery realtime passa
-da "immediato best-effort" a "tick del scheduler" (vedi punto 3).
-Dipendenze: dal punto 3 (senza un tick outbox dedicato, il realtime torna a 15s).
-
----
-
-## 3. Scheduler: tick outbox separato a 1s (MEDIO)
-
-File: `src/lib/scheduler.ts`
-
-Oggi `runBackgroundTasks()` esegue outbox + settlement + timer + compliance in
-un unico ciclo ogni 15s. Il piano chiede un intervallo separato per l'outbox di
-~1s, senza rieseguire ogni secondo anche le altre attività.
-
-Modifiche:
-- Estrarre `dispatchOutboxEvents()` dal ciclo `runBackgroundTasks()`.
-- Creare un secondo `setInterval` dedicato (outbox-only) a ~1s.
-- Il ciclo dei 15s resta per settlement/timer/compliance.
-- Mantenere il lease: il ciclo outbox separato non deve interferire con il lease
-  del ciclo principale (il lease è per il lavoro pesante; l'outbox è leggero e
-  idempotente, fenced dall'owner_token — un'istanza in più non fa danni).
-
-Complessità: **media** — due timer, gestione avvio/stop, verifica che il lease
-non venga doppiamente gestito.
-Dipendenze: dal punto 2 (senza il fire-and-forget, il realtime dipende da
-questo tick).
-
----
-
-## 4. Test realtime (BASSO-MEDIO)
-
-File: `tests/socket/` + `tests/db/`
-
-Coprire il contratto end-to-end del realtime:
-- aggiornamento locale dopo il successo della server action (UI mittente);
-- ricezione socket da un secondo client;
-- fallback dopo evento socket perso (l'outbox riprova);
-- nessun polling client;
-- nessun evento outbox bloccato.
-
-Nota: esistono già `tests/socket/integration.socket.test.ts` e
-`tests/socket/dedup.unit.test.ts` — il lavoro è estendere, non creare da zero.
-
-Complessità: **media** — richiede un harness socket; i test esistenti danno la
-base.
-Dipendenze: dai punti 1–3 (testano il comportamento finale).
-
----
-
-## 5. Lint e CI (BASSO)
+### A1. Ripristinare Activity Log
 
 File:
-- `src/app/api/leagues/[league-id]/check-compliance/route.ts` — rimuovere
-  l'import inutilizzato di `db` (riga 8).
-- `src/app/auctions/AuctionPageContent.tsx` — `userId` è nelle dipendenze di
-  `fetchManagersData`; valutare se serve. (Il piano originario suggeriva di
-  rimuoverlo; verificare che il comportamento non cambi.)
-- `.github/workflows/quality.yml` riga 27 — `pnpm lint -- --max-warnings 0`
-  ha un `--` di troppo (il doppio `--` fa passare il comando in modo errato a
-  eslint; sostituire con `pnpm lint --max-warnings 0`).
 
-Complessità: **bassa** — modifiche puntuali.
-Dipendenze: nessuna.
+`src/app/api/leagues/[league-id]/activity-log/route.ts`
 
----
+Sostituire la CTE errata con:
 
-## 6. Gate finale (BASSO)
+```sql
+WITH league_bid_auctions AS MATERIALIZED (
+  SELECT id, player_id
+  FROM auctions
+  WHERE auction_league_id = ?
+)
+```
 
-Eseguire nell'ordine:
+La query potrà quindi usare correttamente:
+
+```sql
+f.id
+f.player_id
+```
+
+Questo intervento è completamente indipendente dai problemi realtime.
+
+### A2. Test Activity Log reale
+
+Creare un test con libSQL/SQLite in-memory che inserisca:
+
+* lega;
+* due partecipanti;
+* giocatore;
+* asta;
+* almeno un rilancio.
+
+Il test deve eseguire la vera query e verificare:
+
+* `200` per un partecipante;
+* eventi restituiti;
+* `403` per un utente esterno;
+* paginazione senza duplicati.
+
+Non utilizzare mock per `db.execute`, perché non rilevano errori SQL.
+
+### B1. Definire due contratti realtime
+
+Evento pubblico `auction-update`, destinato a:
+
+```text
+league-${leagueId}
+```
+
+Deve contenere soltanto:
+
+```ts
+{
+  playerId;
+  newPrice;
+  highestBidderId;
+  highestBidderName;
+  scheduledEndTime;
+  action?;
+  autoBidCount?;
+  newBid?;
+}
+```
+
+Non deve contenere:
+
+```ts
+budgetUpdates
+locked_credits
+newLockedCredits
+autoBids
+maxAmount
+```
+
+Creare un evento privato, ad esempio:
+
+```text
+user-auction-private-update
+```
+
+destinato esclusivamente a:
+
+```text
+user-${userId}
+```
+
+Payload:
+
+```ts
+{
+  leagueId;
+  playerId;
+  currentBudget;
+  lockedCredits;
+  autoBid?: {
+    maxAmount;
+    isActive;
+  };
+}
+```
+
+### B2. Proteggere rilancio e auto-bid
+
+File:
+
+`src/lib/db/services/bid.service.ts`
+
+Durante la stessa transazione:
+
+1. Inserire l’evento pubblico senza informazioni private.
+2. Per ogni utente finanziariamente coinvolto, inserire un evento privato nella relativa stanza personale.
+3. Inviare il massimale auto-bid solamente al proprietario.
+4. Effettuare il commit dopo aver scritto entrambi gli eventi nell’outbox.
+
+Aggiornare in:
+
+`src/lib/db/services/event-outbox.service.ts`
+
+il tipo `OutboxEventType` aggiungendo:
+
+```ts
+| "user-auction-private-update"
+```
+
+Non è necessaria una migrazione perché `event_type` è una colonna testuale senza vincolo enum.
+
+### B3. Proteggere l’abbandono
+
+File:
+
+`src/lib/db/services/response-timer.service.ts`
+
+L’attuale evento pubblico di abbandono contiene `budgetUpdates`.
+
+Modificarlo così:
+
+* evento pubblico `auction-update`: solamente stato e prezzo dell’asta;
+* evento privato `user-auction-private-update`: crediti dell’utente che ha abbandonato;
+* preferibilmente entrambi inseriti nell’outbox prima del commit.
+
+Questo punto è collegato a B1, ma indipendente dall’implementazione specifica del rilancio B2.
+
+### B4. Aggiornare automaticamente i crediti
+
+File:
+
+`src/app/auctions/AuctionPageContent.tsx`
+
+Registrare:
+
+```ts
+socket.on("user-auction-private-update", handlePrivateUpdate);
+```
+
+Nel callback:
+
+```ts
+setManagers((previous) =>
+  previous.map((manager) =>
+    manager.user_id === userId
+      ? {
+          ...manager,
+          current_budget: data.currentBudget,
+          locked_credits: data.lockedCredits,
+        }
+      : manager
+  )
+);
+```
+
+Rimuovere la gestione di `budgetUpdates` dall’evento pubblico.
+
+Il normale `auction-update` continuerà ad aggiornare prezzo, vincitore e timer.
+
+### B5. Aggiornare gli auto-bid personali
+
+File:
+
+`src/app/players/PlayerSearchInterface.tsx`
+
+Non utilizzare più `data.autoBids` proveniente dalla stanza di lega.
+
+Aggiornare `userAutoBid` esclusivamente tramite:
+
+```text
+user-auction-private-update
+```
+
+In alternativa, dopo l’evento privato ricaricare:
+
+```text
+/api/leagues/{leagueId}/auto-bids
+```
+
+La prima soluzione è più efficiente.
+
+Inoltre, non eseguire:
+
+```ts
+socket.emit("leave-user-room")
+```
+
+dal cleanup di `AuctionPageContent`: la stanza personale è gestita globalmente da `SocketContext`. Altrimenti, dopo un cambio lega, gli eventi privati potrebbero non arrivare più.
+
+### B6. Test obbligatori
+
+Aggiungere test che garantiscano:
+
+1. Il payload `league-*` non contiene:
+
+```text
+maxAmount
+lockedCredits
+newLockedCredits
+budgetUpdates
+autoBids
+```
+
+1. Ogni payload privato è indirizzato solo a `user-${userId}`.
+2. L’utente A non riceve aggiornamenti finanziari dell’utente B.
+3. Un rilancio aggiorna automaticamente prezzo e crediti.
+4. L’abbandono aggiorna automaticamente i crediti.
+5. Il cambio lega non rimuove la socket dalla stanza personale.
+6. Gli eventi privati persi vengono recuperati tramite outbox.
+7. I test usano il database reale almeno per query e outbox; evitare semplici controlli regex sul sorgente.
+
+### C1. Verifica conclusiva
+
+Eseguire:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm audit --prod --audit-level high
 pnpm lint --max-warnings 0
 pnpm type-check
 pnpm test:run
-python3 scripts/verify-database-schema.py
-python3 scripts/test-settlement-real-db.py
 pnpm build
 ```
 
-Poi verificare: GitHub Actions verde, Vercel verde, Northflank verde, rilancio
-visibile su due browser entro ~1s.
+Smoke test con due account:
 
-Complessità: **bassa** — solo esecuzione.
-Dipendenze: da tutti i punti precedenti.
+1. Account A imposta auto-bid.
+2. Account B rilancia.
+3. A e B vedono prezzo e crediti aggiornati senza refresh.
+4. B non vede il massimale di A nei DevTools.
+5. Activity Log è accessibile a entrambi.
+6. Un utente esterno alla lega riceve `403`.
 
----
-
-## Riepilogo complessità/dipendenze
-
-| Punto | Complessità | Dipende da |
-|---|---|---|
-| 1. Recupero claim scaduti | media | — |
-| 2. Rimuovere fire-and-forget | bassa-media | 3 |
-| 3. Tick outbox a 1s | media | 2 |
-| 4. Test realtime | media | 1,2,3 |
-| 5. Lint e CI | bassa | — |
-| 6. Gate finale | bassa | tutti |
-
-Ordine consigliato: **1 → 3 → 2 → 4 → 5 → 6** (il tick outbox prima della
-rimozione del fire-and-forget, così il realtime non degrada mai).
-
-Commit atomici: `outbox: reclaim stale claims`, `outbox: dedicated scheduler
-tick`, `bid: drop fire-and-forget dispatch`, `test: realtime contract`,
-`lint/CI fixes`, `chore: final gate`.
+Ordine consigliato: **A1 → A2**, poi separatamente **B1 → B2/B3 → B4/B5 → B6**, infine **C1**.
