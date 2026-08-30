@@ -14,8 +14,13 @@ import { reconcileLockedCreditsForActiveLeagues } from "./db/services/locked-cre
 import { reapGhostSessions } from "./db/services/session.service";
 
 const TASK_CHECK_INTERVAL = 15 * 1000;
+// Outbox is delivered on its own fast tick: idempotent + fenced by the claim
+// owner token, so overlapping instances are safe (at most a redundant claim).
+const OUTBOX_INTERVAL = 1 * 1000;
 let schedulerInterval: NodeJS.Timeout | null = null;
+let outboxInterval: NodeJS.Timeout | null = null;
 let isRunning = false;
+let isOutboxRunning = false;
 
 // TIME-002: rinnova il lease prima che scada tra un task sequenziale e l'altro.
 // Se il rinnovo fallisce, l'istanza ha perso la ownership (un'altra l'ha
@@ -56,7 +61,6 @@ const runBackgroundTasks = async () => {
     if (!(await renewLeaseIfNeeded(lease))) return;
 
     await reconcileLockedCreditsForActiveLeagues();
-    await dispatchOutboxEvents();
   } catch (error) {
     logger.error("background task failure", { error });
   } finally {
@@ -65,16 +69,37 @@ const runBackgroundTasks = async () => {
   }
 };
 
+const runOutboxTick = async () => {
+  if (isOutboxRunning) return;
+  isOutboxRunning = true;
+  try {
+    await dispatchOutboxEvents();
+  } catch (error) {
+    logger.error("outbox tick failure", { error });
+  } finally {
+    isOutboxRunning = false;
+  }
+};
+
 export const startScheduler = () => {
   if (schedulerInterval) return;
   void runBackgroundTasks();
   schedulerInterval = setInterval(() => void runBackgroundTasks(), TASK_CHECK_INTERVAL);
+  if (!outboxInterval) {
+    void runOutboxTick();
+    outboxInterval = setInterval(() => void runOutboxTick(), OUTBOX_INTERVAL);
+  }
 };
 
 export const stopScheduler = () => {
-  if (!schedulerInterval) return;
-  clearInterval(schedulerInterval);
-  schedulerInterval = null;
+  if (schedulerInterval) {
+    clearInterval(schedulerInterval);
+    schedulerInterval = null;
+  }
+  if (outboxInterval) {
+    clearInterval(outboxInterval);
+    outboxInterval = null;
+  }
 };
 
 export const runManualProcessing = async () => runBackgroundTasks();
