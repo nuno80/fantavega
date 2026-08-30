@@ -129,7 +129,7 @@ export function AuctionPageContent({
       console.error("Error fetching managers data:", e);
       toast.error("Errore nel caricamento dei manager.");
     }
-  }, [userId]);
+  }, []);
 
   const fetchCurrentAuction = useCallback(async (leagueId: number) => {
     try {
@@ -187,8 +187,6 @@ export function AuctionPageContent({
       console.error("Error refreshing compliance data:", error);
     }
   }, [selectedLeagueId, fetchComplianceData, fetchManagersData]);
-
-  // Effect for initial data load and re-fetching when league changes
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!selectedLeagueId) return;
@@ -525,7 +523,8 @@ export function AuctionPageContent({
     fetchCurrentAuction,
     fetchComplianceData,
     fetchUserAuctionStates,
-    refreshComplianceData
+    refreshComplianceData,
+    resetInactivityTimer
   ]);
 
   const handlePlaceBid = async (

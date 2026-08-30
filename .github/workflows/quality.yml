@@ -24,7 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: ESLint
-        run: pnpm lint -- --max-warnings 0
+        run: pnpm lint --max-warnings 0
       - name: TypeScript
         run: pnpm type-check
       - name: Database deployment migration paths

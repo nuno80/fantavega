@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 
-import { db } from "@/lib/db";
 import { hasLeagueAccess } from "@/lib/auth/league-guard";
 import { processUserComplianceAndPenalties } from "@/lib/db/services/penalty.service";
 
