@@ -181,14 +181,41 @@ describe("placeBidOnExistingAuction - outbox payload auction-update", () => {
     expect(payload.highestBidderId).toBe(TEST_USER_ID);
     expect(payload.highestBidderName).toBe("Squadra Test");
     expect(payload.scheduledEndTime).toBeDefined();
-    // budget updates coerenti col commit: il vincitore ha current_budget 470.
-    expect(payload.budgetUpdates).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ userId: TEST_USER_ID, newBudget: 470 }),
-      ]),
-    );
     // newBid appena scritto con id 999.
     expect((payload.newBid as { id: number }).id).toBe(999);
+    // B2: il payload pubblico NON contiene dati finanziari personali.
+    for (const key of ["budgetUpdates", "lockedCredits", "newLockedCredits", "autoBids", "maxAmount"]) {
+      expect(payload).not.toHaveProperty(key);
+    }
+  });
+
+  it("inserisce un evento privato per l'utente coinvolto, con budget e locked credits", async () => {
+    await placeBidOnExistingAuction({
+      leagueId: TEST_LEAGUE_ID,
+      userId: TEST_USER_ID,
+      playerId: TEST_PLAYER_ID,
+      bidAmount: TEST_AMOUNT,
+    });
+
+    const privateCall = mockTxExecute.mock.calls.find(([args]) => {
+      const sql = (args as { sql?: string })?.sql ?? "";
+      if (!sql.includes("INSERT INTO event_outbox")) return false;
+      const rowArgs = (args as { args: unknown[] }).args;
+      return rowArgs[1] === "user-auction-private-update";
+    });
+    expect(privateCall).toBeDefined();
+
+    const rowArgs = (privateCall![0] as { args: unknown[] }).args;
+    expect(rowArgs[2]).toBe(`user-${TEST_USER_ID}`); // room
+    expect(rowArgs[3]).toBe("user-auction-private-update"); // event name
+
+    const payload = JSON.parse(rowArgs[4] as string) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      leagueId: TEST_LEAGUE_ID,
+      playerId: TEST_PLAYER_ID,
+      currentBudget: 470,
+      lockedCredits: 30,
+    });
   });
 
   it("non chiama notifySocketServer direttamente dal path bid", async () => {

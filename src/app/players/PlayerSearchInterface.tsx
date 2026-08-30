@@ -62,15 +62,9 @@ export interface PlayerWithAuctionStatus extends Player {
     timeRemaining: number;
     message: string;
   };
-  autoBids?: Array<{
-    userId: string;
-    username: string;
-    maxAmount: number;
-    isActive: boolean;
-  }>;
   userAutoBid?: {
     userId: string;
-    username: string;
+    username?: string;
     maxAmount: number;
     isActive: boolean;
   } | null;
@@ -314,12 +308,6 @@ export function PlayerSearchInterface({
       highestBidderId: string;
       highestBidderName?: string;
       scheduledEndTime: number;
-      autoBids?: Array<{
-        userId: string;
-        username: string;
-        maxAmount: number;
-        isActive: boolean;
-      }>;
     }) => {
       setPlayers((prev) =>
         prev.map((player) =>
@@ -334,10 +322,30 @@ export function PlayerSearchInterface({
                 0,
                 data.scheduledEndTime - Math.floor(Date.now() / 1000)
               ),
-              autoBids: data.autoBids || player.autoBids,
-              userAutoBid:
-                data.autoBids?.find((ab) => ab.userId === userId) ||
-                player.userAutoBid,
+              // B5: autoBids/userAutoBid NON arrivano più dalla stanza di lega
+              // (payload pubblico): userAutoBid viene aggiornato solo dall'evento
+              // privato user-auction-private-update, mai dai dati altrui.
+            }
+            : player
+        )
+      );
+    };
+
+    // B5: il massimale della MIA auto-bid arriva solo sulla stanza personale.
+    const handlePrivateUpdate = (data: {
+      leagueId: number;
+      playerId: number;
+      autoBid?: { maxAmount: number; isActive: boolean };
+    }) => {
+      if (data.leagueId !== selectedLeagueId) return;
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === data.playerId
+            ? {
+              ...player,
+              userAutoBid: data.autoBid
+                ? { userId, username: "", maxAmount: data.autoBid.maxAmount, isActive: data.autoBid.isActive }
+                : null,
             }
             : player
         )
@@ -392,12 +400,14 @@ export function PlayerSearchInterface({
     socket.on("auction-closed-notification", handleAuctionClosed);
     socket.on("auction-created", handleAuctionCreated);
     socket.on("auction-update", handleAuctionUpdate);
+    socket.on("user-auction-private-update", handlePrivateUpdate);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("auction-created", handleAuctionCreated);
       socket.off("auction-update", handleAuctionUpdate);
+      socket.off("user-auction-private-update", handlePrivateUpdate);
     };
   }, [socket, isConnected, selectedLeagueId, userId]);
 

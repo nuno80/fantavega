@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
+import { publishEssentialEvent, publishPrivateAuctionUpdate } from "./event-publisher";
 import { getUserLastLogin } from "./session.service";
 
 type Executor = Pick<Client, "execute">;
@@ -541,29 +542,39 @@ export const abandonAuction = async (
       ],
     });
 
-    await transaction.commit();
-
-    // Notifica real-time con dati completi per aggiornare la UI immediatamente
-    // Include budgetUpdates per aggiornare i crediti senza refresh
-    await notifySocketServer({
-      event: "auction-update",
+    // B3: evento pubblico con SOLO stato asta (niente budgetUpdates) e evento
+    // privato con i crediti dell'utente che abbandona, entrambi NELL'outbox
+    // prima del commit: se il commit fallisce, nessun evento parte.
+    await publishEssentialEvent(transaction, {
+      eventType: "auction-update",
       room: `league-${leagueId}`,
-      data: {
-        userId,
+      eventName: "auction-update",
+      payload: {
         playerId,
-        auctionId: auction.id,
-        action: "abandoned",
-        // Include complete data for instant UI update
         newPrice: auction.current_highest_bid_amount,
         highestBidderId: auction.current_highest_bidder_id,
         scheduledEndTime: newScheduledEndTime,
-        // Include budget update for real-time credit refresh
-        budgetUpdates: [{
-          userId,
-          newLockedCredits: totalLocked,
-        }],
+        action: "abandoned",
       },
     });
+
+    const finRes = await transaction.execute({
+      sql: "SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueId, userId],
+    });
+    const fin = finRes.rows[0] as unknown as
+      | { current_budget: number; locked_credits: number }
+      | undefined;
+    if (fin) {
+      await publishPrivateAuctionUpdate(transaction, userId, {
+        leagueId,
+        playerId,
+        currentBudget: fin.current_budget,
+        lockedCredits: fin.locked_credits,
+      });
+    }
+
+    await transaction.commit();
 
     logger.debug("auction abandoned", { userId, playerId });
   } catch (error) {

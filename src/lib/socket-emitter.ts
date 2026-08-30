@@ -33,7 +33,14 @@ export async function notifySocketServer(params: EmitParams) {
   const eventKey = generateEventKey(params);
   const now = Date.now();
   const lastEmitted = recentEvents.get(eventKey);
-  const carriesState = Boolean(params.data && typeof params.data === "object" && "budgetUpdates" in params.data);
+  // Gli eventi che portano stato finanziario/personale non vengono mai throttled:
+  // la dedup per-content scarterebbe update diversi a parità di struttura.
+  const carriesState = Boolean(
+    params.data &&
+      typeof params.data === "object" &&
+      ("budgetUpdates" in params.data ||
+        params.event === "user-auction-private-update")
+  );
   if (!carriesState && lastEmitted && now - lastEmitted < THROTTLE_WINDOW_MS) return { success: true, throttled: true };
   recentEvents.set(eventKey, now);
   if (recentEvents.size > 200) {

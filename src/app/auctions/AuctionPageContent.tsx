@@ -280,25 +280,12 @@ export function AuctionPageContent({
       highestBidderId: string;
       highestBidderName?: string;
       scheduledEndTime: number;
-      action?: string; // Added to handle abandon events
-      budgetUpdates?: Array<{ userId: string; newLockedCredits: number }>; // Real-time budget updates
+      action?: string;
     }) => {
-      // console.log("[DEBUG-AUCTION] Received auction-update:", data);
+      // B1: il payload pubblico non contiene più dati finanziari; i crediti
+      // arrivano solo sull'evento privato user-auction-private-update.
       // Se l'asta è stata abbandonata, aggiorniamo immediatamente con i dati ricevuti
       if (data.action === "abandoned") {
-        // Aggiorna istantaneamente locked_credits se presente nel payload
-        if (data.budgetUpdates) {
-          const myBudgetUpdate = data.budgetUpdates.find(u => u.userId === userId);
-          if (myBudgetUpdate) {
-            // Il locked_credits aggiornato vive già nel managers array sotto.
-            setManagers(prev => prev.map(m =>
-              m.user_id === userId
-                ? { ...m, locked_credits: myBudgetUpdate.newLockedCredits }
-                : m
-            ));
-          }
-        }
-
         // Aggiorna immediatamente lo stato locale con i dati ricevuti
         if (data.newPrice !== undefined && data.highestBidderId && data.scheduledEndTime) {
           setCurrentAuction((prev) => {
@@ -370,6 +357,29 @@ export function AuctionPageContent({
       fetchUserAuctionStates(selectedLeagueId);
 
       // STEP-5: attività realtime = attività utente per l'inactivity redirect
+      resetInactivityTimer();
+    };
+
+    // B4: dati finanziari personali (budget, locked credits, auto-bid) arrivano
+    // SOLO sulla stanza privata user-${userId}: aggiorna i crediti senza refresh.
+    const handlePrivateUpdate = (data: {
+      leagueId: number;
+      playerId: number;
+      currentBudget: number;
+      lockedCredits: number;
+    }) => {
+      if (data.leagueId !== selectedLeagueId) return;
+      setManagers((previous) =>
+        previous.map((manager) =>
+          manager.user_id === userId
+            ? {
+              ...manager,
+              current_budget: data.currentBudget,
+              locked_credits: data.lockedCredits,
+            }
+            : manager
+        )
+      );
       resetInactivityTimer();
     };
 
@@ -488,6 +498,7 @@ export function AuctionPageContent({
     };
 
     socket.on("auction-update", handleAuctionUpdate);
+    socket.on("user-auction-private-update", handlePrivateUpdate);
     socket.on("auction-created", handleAuctionCreated);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-state-changed", handleAuctionStateChanged);
@@ -501,6 +512,7 @@ export function AuctionPageContent({
 
     return () => {
       socket.off("auction-update", handleAuctionUpdate);
+      socket.off("user-auction-private-update", handlePrivateUpdate);
       socket.off("auction-created", handleAuctionCreated);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-state-changed", handleAuctionStateChanged);
@@ -512,7 +524,9 @@ export function AuctionPageContent({
       socket.off("room-joined", handleRoomJoined);
       socket.off("league-status-changed", handleLeagueStatusChanged);
       socket.emit("leave-league-room", selectedLeagueId.toString());
-      socket.emit("leave-user-room");
+      // B5: la stanza personale user-${userId} è gestita globalmente da
+      // SocketContext (join-user-room on connect): NON fare leave qui, altrimenti
+      // dopo un cambio lega gli eventi privati non arrivano più.
     };
   }, [
     socket,

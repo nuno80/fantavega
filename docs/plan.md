@@ -262,3 +262,4 @@ Smoke test con due account:
 6. Un utente esterno alla lega riceve `403`.
 
 Ordine consigliato: **A1 → A2**, poi separatamente **B1 → B2/B3 → B4/B5 → B6**, infine **C1**.
+

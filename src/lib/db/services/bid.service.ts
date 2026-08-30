@@ -6,7 +6,11 @@ import { logger } from "@/lib/logger";
 
 import { setUserAuctionStateInTx } from "./auction-states.service";
 import { simulateAutoBidBattle, type AutoBidBattleParticipant } from "./auto-bid-battle";
-import { publishBestEffortEvent, publishEssentialEvent } from "./event-publisher";
+import {
+  publishBestEffortEvent,
+  publishEssentialEvent,
+  publishPrivateAuctionUpdate,
+} from "./event-publisher";
 import { checkAndRecordCompliance } from "./penalty.service";
 import { reconcileLockedCreditsForLeague, recalcUserLockedCredits } from "./locked-credits.service";
 import {
@@ -745,6 +749,37 @@ export const placeInitialBidAndCreateAuction = async (
       },
     });
 
+    // B2: il chiamante ha bloccato crediti (offerta + eventuale auto-bid):
+    // il suo stato finanziario aggiornato va SOLO nella sua stanza privata.
+    const bidderFinRes = await tx.execute({
+      sql: "SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?",
+      args: [leagueIdParam, bidderUserIdParam],
+    });
+    const bidderFin = bidderFinRes.rows[0] as unknown as
+      | { current_budget: number; locked_credits: number }
+      | undefined;
+    if (bidderFin) {
+      const bidderAbRes = await tx.execute({
+        sql: "SELECT max_amount, is_active FROM auto_bids WHERE auction_id = ? AND user_id = ?",
+        args: [newAuctionId, bidderUserIdParam],
+      });
+      const bidderAb = bidderAbRes.rows[0] as unknown as
+        | { max_amount: number; is_active: number | boolean }
+        | undefined;
+      await publishPrivateAuctionUpdate(tx, bidderUserIdParam, {
+        leagueId: leagueIdParam,
+        playerId: playerIdParam,
+        currentBudget: bidderFin.current_budget,
+        lockedCredits: bidderFin.locked_credits,
+        autoBid: bidderAb
+          ? {
+            maxAmount: bidderAb.max_amount,
+            isActive: Boolean(bidderAb.is_active),
+          }
+          : undefined,
+      });
+    }
+
     await tx.commit();
 
     return {
@@ -1154,32 +1189,18 @@ export async function placeBidOnExistingAuction({
       autoBidUsername = winnerRow?.username;
     }
 
-    // Budget aggiornato del vincitore e del superato, letti nella transazione
-    // (coerenti col commit, non stale).
-    const budgetIds = new Set<string>([finalBidderId]);
+    // B2: utenti finanziariamente coinvolti (vincitore, precedente offerente,
+    // offerente con auto-bid upsertato, auto-bid superati): ognuno riceve un
+    // evento privato con i propri crediti, mai dati altrui.
+    const financiallyInvolved = new Set<string>([finalBidderId]);
     if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
-      budgetIds.add(previousHighestBidderId);
+      financiallyInvolved.add(previousHighestBidderId);
     }
-    const budgetUpdates: Array<{
-      userId: string;
-      newBudget: number;
-      newLockedCredits: number;
-    }> = [];
-    for (const budgetUserId of budgetIds) {
-      const bRes = await tx.execute({
-        sql: `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
-        args: [leagueId, budgetUserId],
-      });
-      const row = bRes.rows[0] as unknown as
-        | { current_budget: number; locked_credits: number }
-        | undefined;
-      if (row) {
-        budgetUpdates.push({
-          userId: budgetUserId,
-          newBudget: row.current_budget,
-          newLockedCredits: row.locked_credits,
-        });
-      }
+    if (userId !== finalBidderId) {
+      financiallyInvolved.add(userId);
+    }
+    for (const bid of outbidAutoBids) {
+      financiallyInvolved.add(bid.user_id);
     }
 
     result = {
@@ -1195,7 +1216,6 @@ export async function placeBidOnExistingAuction({
       finalBidderId: finalBidderId,
       // Dati già noti per il payload realtime (PERF-002): nessun refetch.
       highestBidderName,
-      budgetUpdates,
       newBid: {
         id: newBidId,
         auction_id: auction.id,
@@ -1209,6 +1229,10 @@ export async function placeBidOnExistingAuction({
     // --- REL-006: evento essenziale nell'outbox NELLA stessa transazione ---
     // La delivery è disaccoppiata dal commit: il dispatcher consegna
     // at-least-once dopo il commit; un fallimento socket non fa fallire l'API.
+    // B1/B2: evento pubblico con SOLO stato asta; i dati finanziari personali
+    // (budget, locked credits, massimale auto-bid) viaggiano esclusivamente
+    // sugli eventi privati user-auction-private-update verso user-${userId}.
+    // Entrambi nell'outbox NELLA stessa transazione, prima del commit.
     await publishEssentialEvent(tx, {
       eventType: "auction-update",
       room: `league-${leagueId}`,
@@ -1219,13 +1243,7 @@ export async function placeBidOnExistingAuction({
         highestBidderId: finalBidderId,
         highestBidderName,
         scheduledEndTime: newScheduledEndTime,
-        autoBidActivated,
-        budgetUpdates,
-        autoBids: allActiveAutoBids.map((ab) => ({
-          userId: ab.userId,
-          maxAmount: ab.maxAmount,
-          isActive: true,
-        })),
+        autoBidCount: allActiveAutoBids.length,
         newBid: {
           id: newBidId,
           user_id: finalBidderId,
@@ -1234,6 +1252,33 @@ export async function placeBidOnExistingAuction({
         },
       },
     });
+
+    for (const involvedUserId of financiallyInvolved) {
+      const finRes = await tx.execute({
+        sql: `SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?`,
+        args: [leagueId, involvedUserId],
+      });
+      const fin = finRes.rows[0] as unknown as
+        | { current_budget: number; locked_credits: number }
+        | undefined;
+      if (!fin) continue;
+      const abRes = await tx.execute({
+        sql: "SELECT max_amount, is_active FROM auto_bids WHERE auction_id = ? AND user_id = ?",
+        args: [auction.id, involvedUserId],
+      });
+      const ab = abRes.rows[0] as unknown as
+        | { max_amount: number; is_active: number | boolean }
+        | undefined;
+      await publishPrivateAuctionUpdate(tx, involvedUserId, {
+        leagueId,
+        playerId,
+        currentBudget: fin.current_budget,
+        lockedCredits: fin.locked_credits,
+        autoBid: ab
+          ? { maxAmount: ab.max_amount, isActive: Boolean(ab.is_active) }
+          : undefined,
+      });
+    }
 
     await tx.commit();
   } catch (error) {
