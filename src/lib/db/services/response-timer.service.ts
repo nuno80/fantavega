@@ -86,13 +86,14 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
     // Trova tutti i timer pendenti per l'utente
     const pendingTimersResult = await db.execute({
       sql: `
-      SELECT id, auction_id
-      FROM user_auction_response_timers
-      WHERE user_id = ? AND status = 'pending' AND response_deadline IS NULL
+      SELECT urt.id, urt.auction_id, a.auction_league_id
+      FROM user_auction_response_timers urt
+      JOIN auctions a ON urt.auction_id = a.id
+      WHERE urt.user_id = ? AND urt.status = 'pending' AND urt.response_deadline IS NULL
     `,
       args: [userId],
     });
-    const pendingTimers = pendingTimersResult.rows as unknown as Array<{ id: number; auction_id: number }>;
+    const pendingTimers = pendingTimersResult.rows as unknown as Array<{ id: number; auction_id: number; auction_league_id: number }>;
 
     if (pendingTimers.length === 0) {
       return; // Nessun timer da attivare
@@ -121,8 +122,9 @@ export const activateTimersForUser = async (userId: string, loginTime?: number):
         event: "response-timer-started",
         data: {
           auctionId: timer.auction_id,
+          leagueId: timer.auction_league_id,
           deadline,
-          timeRemaining: deadline - Math.floor(Date.now() / 1000),
+          timeRemaining: Math.max(0, deadline - Math.floor(Date.now() / 1000)),
         },
       });
 

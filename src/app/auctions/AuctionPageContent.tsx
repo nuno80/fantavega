@@ -35,6 +35,7 @@ import {
   ManagerWithRoster,
 } from "@/lib/db/services/auction-league.service";
 import { UserAuctionStateDetail } from "@/lib/db/services/auction-states.service";
+import { ResponseTimerStartedPayload } from "@/lib/db/services/response-timer-view.service";
 import { AuctionStatusDetails } from "@/lib/db/services/bid.service";
 import { ComplianceRecord } from "@/lib/db/services/penalty.service";
 
@@ -172,6 +173,28 @@ export function AuctionPageContent({
       console.error("Error fetching user auction states:", e);
     }
   }, []);
+
+  // Aggiorna immediatamente userAuctionStates quando un timer di risposta
+  // parte (POST /viewed o evento socket `response-timer-started`).
+  // `deadline` è la fonte autorevole; il countdown deriva da deadline - now.
+  const applyResponseTimerStarted = useCallback(
+    (payload: ResponseTimerStartedPayload) => {
+      const now = Math.floor(Date.now() / 1000);
+
+      setUserAuctionStates((previous) =>
+        previous.map((state) =>
+          state.auction_id === payload.auctionId
+            ? {
+                ...state,
+                response_deadline: payload.deadline,
+                time_remaining: Math.max(0, payload.deadline - now),
+              }
+            : state
+        )
+      );
+    },
+    []
+  );
 
   // Helper function to refresh compliance and budget data after penalty
   const refreshComplianceData = useCallback(async () => {
@@ -409,6 +432,13 @@ export function AuctionPageContent({
       fetchUserAuctionStates(selectedLeagueId);
     };
 
+    // Timer di risposta attivato (POST /viewed da un'altra scheda, login,
+    // o attivazione realtime): aggiorna gli stati senza refresh.
+    const handleResponseTimerStarted = (data: ResponseTimerStartedPayload) => {
+      if (data.leagueId !== selectedLeagueId) return;
+      applyResponseTimerStarted(data);
+    };
+
     const handleComplianceStatusChange = (data: {
       userId: string;
       isCompliant: boolean;
@@ -502,6 +532,7 @@ export function AuctionPageContent({
     socket.on("auction-created", handleAuctionCreated);
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-state-changed", handleAuctionStateChanged);
+    socket.on("response-timer-started", handleResponseTimerStarted);
     socket.on("auction-closed-notification", handleAuctionClosed);
     socket.on("user-abandoned-auction", handleUserAbandoned);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
@@ -516,6 +547,7 @@ export function AuctionPageContent({
       socket.off("auction-created", handleAuctionCreated);
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-state-changed", handleAuctionStateChanged);
+      socket.off("response-timer-started", handleResponseTimerStarted);
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("user-abandoned-auction", handleUserAbandoned);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
@@ -538,7 +570,8 @@ export function AuctionPageContent({
     fetchComplianceData,
     fetchUserAuctionStates,
     refreshComplianceData,
-    resetInactivityTimer
+    resetInactivityTimer,
+    applyResponseTimerStarted
   ]);
 
   const handlePlaceBid = async (
@@ -709,6 +742,19 @@ export function AuctionPageContent({
                     onOpenBidModal={isReadOnly ? undefined : handleOpenBidModal}
                     currentUserId={userId}
                     isReadOnly={isReadOnly}
+                    onResponseTimerStarted={(payload) =>
+                      applyResponseTimerStarted({
+                        ...payload,
+                        leagueId: selectedLeagueId ?? 0,
+                        timeRemaining: Math.max(
+                          0,
+                          payload.deadline - Math.floor(Date.now() / 1000)
+                        ),
+                      })
+                    }
+                    onRefreshUserAuctionStates={() =>
+                      selectedLeagueId && fetchUserAuctionStates(selectedLeagueId)
+                    }
                   />
                 </div>
               );

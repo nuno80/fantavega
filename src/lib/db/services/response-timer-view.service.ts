@@ -4,8 +4,21 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 const RESPONSE_TIME_SECONDS = 60 * 60;
 
 export type TimerViewResult =
-  | { status: "activated"; auctionId: number; leagueId: number; deadline: number }
-  | { status: "already_active" | "not_pending" | "not_found"; auctionId: number; leagueId: number };
+  | { status: "activated" | "already_active"; auctionId: number; leagueId: number; deadline: number }
+  | { status: "not_pending" | "not_found"; auctionId: number; leagueId: number };
+
+/**
+ * Payload condiviso tra risposta del POST /response-timer/viewed, evento
+ * Socket.IO `response-timer-started` e aggiornamento locale di userAuctionStates.
+ * `deadline` è la fonte autorevole; `timeRemaining` serve solo per
+ * l'aggiornamento immediato del countdown.
+ */
+export interface ResponseTimerStartedPayload {
+  auctionId: number;
+  leagueId: number;
+  deadline: number;
+  timeRemaining: number;
+}
 
 /**
  * Activates exactly one pending response timer after the client confirms that
@@ -51,9 +64,12 @@ export async function activateResponseTimerForViewedAuction(
       args: [auctionId, userId, leagueId],
     });
     if (current.rows.length === 0) return { status: "not_found", auctionId, leagueId };
-    return current.rows[0].response_deadline == null
+    const rawDeadline = current.rows[0].response_deadline;
+    if (rawDeadline == null) return { status: "not_pending", auctionId, leagueId };
+    const existingDeadline = Number(rawDeadline);
+    return Number.isNaN(existingDeadline)
       ? { status: "not_pending", auctionId, leagueId }
-      : { status: "already_active", auctionId, leagueId };
+      : { status: "already_active", auctionId, leagueId, deadline: existingDeadline };
   }
 
   await notifySocketServer({

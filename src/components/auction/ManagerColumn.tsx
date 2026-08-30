@@ -29,9 +29,14 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 
 
 import { UserAuctionStateDetail } from "@/lib/db/services/auction-states.service";
+import { TimerViewResult } from "@/lib/db/services/response-timer-view.service";
 import { ComplianceTimer } from "./ComplianceTimer";
 import { DiscardPlayerModal } from "./DiscardPlayerModal";
 import { ResponseActionModal } from "./ResponseActionModal";
+import {
+  ResponseTimerIndicator,
+  ResponseTimerItem,
+} from "./ResponseTimerIndicator";
 
 // Type definitions
 interface PlayerInRoster {
@@ -123,6 +128,18 @@ interface ManagerColumnProps {
   onOpenBidModal?: (playerId: number) => void; // Callback to open bid modal
   currentUserId?: string; // Current user ID for bid icon visibility
   isReadOnly?: boolean;
+  /**
+   * Chiamata quando il POST /viewed conferma l'attivazione del timer di
+   * risposta (status activated | already_active). Fa salire deadline e
+   * auctionId fino ad AuctionPageContent per l'aggiornamento immediato di
+   * userAuctionStates, senza attendere un altro evento d'asta.
+   */
+  onResponseTimerStarted?: (payload: { auctionId: number; deadline: number }) => void;
+  /**
+   * Richiesta di refetch di userAuctionStates quando un timer di risposta
+   * scade (il backend conferma expired/asta_abbandonata).
+   */
+  onRefreshUserAuctionStates?: () => void;
 }
 
 // Helper functions
@@ -323,6 +340,7 @@ function ResponseNeededSlot({
   onCounterBid,
   isCurrentUser,
   isReadOnly,
+  onResponseTimerStarted,
 }: {
   state: UserAuctionStateDetail;
   role: string;
@@ -331,6 +349,7 @@ function ResponseNeededSlot({
   onCounterBid: (playerId: number) => void;
   isCurrentUser: boolean;
   isReadOnly?: boolean;
+  onResponseTimerStarted?: (payload: { auctionId: number; deadline: number }) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
   const [currentTimeRemaining, setCurrentTimeRemaining] = useState(
@@ -351,9 +370,30 @@ function ResponseNeededSlot({
       `/api/leagues/${leagueId}/players/${state.player_id}/response-timer/viewed`,
       { method: "POST", signal: controller.signal }
     )
-      .then((response) => {
+      .then(async (response) => {
         if (response.status === 404) return; // asta non più attiva: silenzioso
-        if (!response.ok) throw new Error(`View confirmation failed: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`View confirmation failed: ${response.status}`);
+        }
+
+        // Aggiorna subito il countdown locale e propaga deadline/auctionId
+        // al parent (userAuctionStates), così il timer compare anche
+        // nell'header senza attendere un altro evento d'asta.
+        const result: TimerViewResult = await response.json();
+        if (
+          result.status === "activated" ||
+          result.status === "already_active"
+        ) {
+          const remaining = Math.max(
+            0,
+            result.deadline - Math.floor(Date.now() / 1000)
+          );
+          setCurrentTimeRemaining(remaining);
+          onResponseTimerStarted?.({
+            auctionId: result.auctionId,
+            deadline: result.deadline,
+          });
+        }
       })
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -361,7 +401,7 @@ function ResponseNeededSlot({
         }
       });
     return () => controller.abort();
-  }, [isCurrentUser, leagueId, state.player_id, state.response_deadline]);
+  }, [isCurrentUser, leagueId, state.player_id, state.response_deadline, onResponseTimerStarted]);
 
   // Response timer countdown effect
   useEffect(() => {
@@ -758,6 +798,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   onOpenBidModal,
   currentUserId,
   isReadOnly = false,
+  onResponseTimerStarted,
+  onRefreshUserAuctionStates,
 }) => {
 
 
@@ -931,6 +973,23 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   };
   void missingRoles;
 
+  // Timer di risposta derivati dagli stati utente: solo la propria colonna
+  // (decisione privata dell'utente, mai visibile agli altri manager).
+  const responseTimers: ResponseTimerItem[] = userAuctionStates
+    .filter(
+      (state) =>
+        state.user_state === "rilancio_possibile" &&
+        state.response_deadline !== null
+    )
+    .map((state) => ({
+      auctionId: state.auction_id,
+      playerId: state.player_id,
+      playerName: state.player_name,
+      deadline: state.response_deadline as number,
+    }));
+
+  const visibleResponseTimers = isCurrentUser ? responseTimers : [];
+
   return (
     <div
       className={`flex h-full flex-col rounded-xl border bg-card shadow-sm transition-all duration-300 hover:shadow-md dark:bg-card/50 ${borderColor}`}
@@ -995,6 +1054,18 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                   </span>
                 )}
               </>
+            )}
+
+            {/* Response timer - visibile solo all'utente interessato */}
+            {visibleResponseTimers.length > 0 && (
+              <ResponseTimerIndicator
+                timers={visibleResponseTimers}
+                onExpired={() => {
+                  if (leagueId) {
+                    onRefreshUserAuctionStates?.();
+                  }
+                }}
+              />
             )}
 
             {/* Total Budget (Admin Set) - Moved to far right */}
@@ -1227,6 +1298,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                       onCounterBid={onOpenBidModal || (() => { })}
                       isCurrentUser={isCurrentUser && !isReadOnly}
                       isReadOnly={isReadOnly}
+                      onResponseTimerStarted={onResponseTimerStarted}
                     />
                   );
                 } else if (slot.type === "in_auction") {

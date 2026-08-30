@@ -12,7 +12,7 @@ describe("response timer concurrent activation", () => {
     vi.resetAllMocks();
     let claimed = false;
     execute.mockImplementation(async ({ sql }: { sql: string }) => {
-      if (sql.includes("SELECT id, auction_id")) return { rows: [{ id: 1, auction_id: 9 }] };
+      if (sql.includes("SELECT urt.id, urt.auction_id")) return { rows: [{ id: 1, auction_id: 9, auction_league_id: 7 }] };
       if (sql.includes("SET response_deadline")) {
         if (claimed) return { rows: [], rowsAffected: 0 };
         claimed = true;
