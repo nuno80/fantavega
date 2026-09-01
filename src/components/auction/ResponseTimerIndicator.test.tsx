@@ -3,6 +3,7 @@
 // clock-based, colori, pulse sotto 5 minuti, scadenza una sola volta,
 // cleanup dell'interval all'unmount.
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResponseTimerIndicator, formatTimer } from "./ResponseTimerIndicator";
@@ -48,6 +49,16 @@ describe("ResponseTimerIndicator", () => {
 
     tick();
     expect(screen.getByText("59:59")).toBeDefined();
+  });
+
+  it("usa un placeholder deterministico durante il rendering server", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const html = renderToString(
+      <ResponseTimerIndicator timers={[makeTimer(now + 3600)]} />
+    );
+
+    expect(html).toContain("--:--");
+    expect(html).not.toContain("60:00");
   });
 
   it("usa il timer più urgente e mostra il badge +N", () => {

@@ -276,4 +276,19 @@ describe("B6 client: la stanza personale non viene mai abbandonata al cambio leg
     expect(source).not.toMatch(/leave-user-room/);
     expect(source).toMatch(/user-auction-private-update/);
   });
+
+  it("sincronizza la UI quando lo scheduler conferma la scadenza del timer", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync(
+      require("path").resolve(process.cwd(), "src/app/auctions/AuctionPageContent.tsx"),
+      "utf8",
+    );
+
+    expect(source).toMatch(
+      /socket\.on\("timer-expired-notification", handleResponseTimerExpired\)/,
+    );
+    expect(source).toMatch(
+      /socket\.off\("timer-expired-notification", handleResponseTimerExpired\)/,
+    );
+  });
 });

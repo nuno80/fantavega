@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { Timer } from "lucide-react";
 
+import { useIsMounted } from "@/hooks/useIsMounted";
+
 export interface ResponseTimerItem {
   auctionId: number;
   playerId: number;
@@ -24,8 +26,8 @@ export function formatTimer(seconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-const calculateRemaining = (deadline: number) =>
-  Math.max(0, deadline - Math.floor(Date.now() / 1000));
+const calculateRemaining = (deadline: number, nowSeconds: number) =>
+  Math.max(0, deadline - nowSeconds);
 
 // Il tooltip elenca tutti i timer attivi (playerName + tempo).
 const buildTooltip = (timers: ResponseTimerItem[], nowSeconds: number) =>
@@ -37,7 +39,11 @@ const buildTooltip = (timers: ResponseTimerItem[], nowSeconds: number) =>
     .join("\n");
 
 export function ResponseTimerIndicator({ timers, onExpired }: ResponseTimerIndicatorProps) {
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  // Valore iniziale deterministico: server e primo render client mostrano
+  // entrambi --:--, evitando hydration mismatch quando la pagina viene
+  // ricaricata con un timer già attivo.
+  const [now, setNow] = useState(0);
+  const isMounted = useIsMounted();
   const onExpiredRef = useRef(onExpired);
   onExpiredRef.current = onExpired;
 
@@ -66,7 +72,7 @@ export function ResponseTimerIndicator({ timers, onExpired }: ResponseTimerIndic
   // ri-arma solo se la deadline cambia davvero).
   const notifiedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!primary) return;
+    if (!primary || !isMounted || now <= 0) return;
     if (primary.deadline <= now) {
       const key = `${primary.auctionId}:${primary.deadline}`;
       if (notifiedRef.current !== key) {
@@ -74,26 +80,31 @@ export function ResponseTimerIndicator({ timers, onExpired }: ResponseTimerIndic
         onExpiredRef.current?.();
       }
     }
-  }, [primary, now]);
+  }, [isMounted, primary, now]);
 
   if (!primary) return null;
 
-  const remaining = calculateRemaining(primary.deadline);
-  const isExpired = remaining <= 0;
-  const isLowTime = remaining > 0 && remaining <= 300; // ultimi 5 minuti
+  const hasClientTime = isMounted && now > 0;
+  const remaining = hasClientTime
+    ? calculateRemaining(primary.deadline, now)
+    : null;
+  const isExpired = remaining !== null && remaining <= 0;
+  const isLowTime = remaining !== null && remaining > 0 && remaining <= 300; // ultimi 5 minuti
 
-  const colorClass = isExpired
-    ? "text-red-500"
-    : "text-emerald-400";
+  const colorClass = !hasClientTime
+    ? "text-gray-400"
+    : isExpired
+      ? "text-red-500"
+      : "text-emerald-400";
   const pulseClass = isLowTime && !isExpired ? "animate-pulse" : "";
 
   return (
     <span
       className={`flex flex-shrink-0 items-center gap-1 font-mono text-xs font-bold tabular-nums ${colorClass} ${pulseClass}`}
-      title={buildTooltip(sorted, now)}
+      title={hasClientTime ? buildTooltip(sorted, now) : "Timer di risposta"}
     >
-      <Timer className="h-4 w-4 flex-shrink-0 text-emerald-400" />
-      {formatTimer(remaining)}
+      <Timer className="h-4 w-4 flex-shrink-0" />
+      {remaining === null ? "--:--" : formatTimer(remaining)}
       {sorted.length > 1 && (
         <span className="rounded bg-emerald-500/15 px-1 text-[10px]">
           +{sorted.length - 1}

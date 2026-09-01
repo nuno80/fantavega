@@ -439,6 +439,15 @@ export function AuctionPageContent({
       applyResponseTimerStarted(data);
     };
 
+    // Lo scheduler conferma la scadenza dopo aver aggiornato timer, cooldown
+    // e crediti. Il refetch eseguito localmente a 00:00 può precedere quel
+    // commit (lo scheduler gira ogni 15s), quindi questa notifica privata è
+    // il punto autorevole per rimuovere il timer scaduto dalla UI.
+    const handleResponseTimerExpired = () => {
+      fetchUserAuctionStates(selectedLeagueId);
+      fetchManagersData(selectedLeagueId);
+    };
+
     const handleComplianceStatusChange = (data: {
       userId: string;
       isCompliant: boolean;
@@ -533,6 +542,7 @@ export function AuctionPageContent({
     socket.on("bid-surpassed-notification", handleBidSurpassed);
     socket.on("auction-state-changed", handleAuctionStateChanged);
     socket.on("response-timer-started", handleResponseTimerStarted);
+    socket.on("timer-expired-notification", handleResponseTimerExpired);
     socket.on("auction-closed-notification", handleAuctionClosed);
     socket.on("user-abandoned-auction", handleUserAbandoned);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
@@ -548,6 +558,7 @@ export function AuctionPageContent({
       socket.off("bid-surpassed-notification", handleBidSurpassed);
       socket.off("auction-state-changed", handleAuctionStateChanged);
       socket.off("response-timer-started", handleResponseTimerStarted);
+      socket.off("timer-expired-notification", handleResponseTimerExpired);
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("user-abandoned-auction", handleUserAbandoned);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
