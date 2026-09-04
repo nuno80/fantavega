@@ -179,7 +179,7 @@
       });
     }
     function tableColumns(){
-      return [{type:"meta",index:FIELD.name,label:"Giocatore",fullLabel:"Nome"},{type:"offer",index:"offer",label:data.columns[currentOfferIndex()].shortLabel,fullLabel:data.columns[currentOfferIndex()].label},...[...state.selectedColumns].filter((index)=>index!==FIELD.name).map((index)=>({type:"meta",index,label:data.columns[index].shortLabel,fullLabel:data.columns[index].label}))];
+      return [{type:"meta",index:FIELD.name,label:"Giocatore",fullLabel:"Nome"},{type:"offer",index:"offer",label:"Offerta %",fullLabel:data.columns[currentOfferIndex()].label},...[...state.selectedColumns].filter((index)=>index!==FIELD.name).map((index)=>({type:"meta",index,label:data.columns[index].shortLabel,fullLabel:data.columns[index].label}))];
     }
     function renderMetrics(){
       const offers=state.filtered.map(offerPercent).filter((value)=>value!==null),avail=state.filtered.map((p)=>rawNumber(p.values[FIELD.availability])).filter((v)=>v!==null);
