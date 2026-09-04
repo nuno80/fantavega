@@ -27,6 +27,107 @@ const strategyLabels = new Map([
   ["\u267E\uFE0F\u2B50", "Continuità / Stella"],
 ]);
 
+const shortLabels = {
+  A: "Giocatore",
+  B: "Mantra",
+  C: "Valore 10",
+  D: "Valore Mantra",
+  E: "Bonus doppio ruolo",
+  F: "Prezzo Mantra 10",
+  G: "Offerta 8 · No MOD",
+  H: "Offerta 8 · MOD 3F",
+  I: "Offerta 8 · MOD 6F",
+  J: "Valore 8",
+  K: "Offerta 10 · No MOD",
+  L: "Offerta 10 · MOD 3F",
+  M: "Offerta 10 · MOD 6F",
+  N: "Valore 10",
+  O: "Offerta 12 · No MOD",
+  P: "Offerta 12 · MOD 3F",
+  Q: "Offerta 12 · MOD 6F",
+  R: "Valore 12",
+  S: "Squadra",
+  T: "Squadra 25/26",
+  U: "Ruolo",
+  V: "Profilo",
+  W: "Strategia",
+  X: "Tag",
+  Y: "Note squadra",
+  Z: "Condizione",
+  AA: "Note giocatore",
+  AB: "Commento creator",
+  AC: "Hype",
+  AD: "Offerta min",
+  AE: "Offerta max",
+  AF: "Rischio rendimento",
+  AG: "Rischio titolarità",
+  AH: "Rischio infortuni",
+  AI: "Svalutazione 8",
+  AJ: "Svalutazione 10",
+  AK: "Svalutazione 12",
+  AL: "Bonus/Malus Z · 8",
+  AM: "Bonus/Malus Z · 10",
+  AN: "Bonus/Malus Z · Mantra",
+  AO: "Bonus/Malus Z · 12",
+  AP: "Accentramento 8",
+  AQ: "Accentramento 10",
+  AR: "Accentramento Mantra",
+  AS: "Accentramento 12",
+  AT: "Rischio titolarità FL",
+  AU: "Rischio rendimento FL",
+  AV: "Voto atteso %",
+  AW: "Infortunio %",
+  AX: "Partite in rosa",
+  AY: "Presenze",
+  AZ: "Da titolare",
+  BA: "Minuti",
+  BB: "Partite con voto %",
+  BC: "Titolarità %",
+  BD: "Ammonizioni",
+  BE: "Espulsioni",
+  BF: "FM attesa · min",
+  BG: "FM attesa",
+  BH: "FM attesa · max",
+  BI: "FM Galton",
+  BJ: "FM 25/26",
+  BK: "Gol",
+  BL: "xG",
+  BM: "Assist",
+  BN: "xA",
+  BO: "Bonus %",
+  BP: "Bonus-malus",
+  BQ: "Bonus MOD · 6F",
+  BR: "Bonus MOD · 3F",
+  BS: "D Factor",
+  BT: "MVA 2027",
+  BU: "MV 25/26",
+  BV: "Voti ≥ 6 %",
+  BW: "Tiri in porta/p",
+  BX: "Occasioni create/p",
+  BY: "Passaggi chiave/p",
+  BZ: "Cross riusciti %",
+  CA: "Dribbling riusciti %",
+  CB: "Passaggi riusciti %",
+  CC: "Palle perse/p",
+  CD: "Errori da gol",
+  CE: "Contrasti vinti",
+  CF: "Intercetti",
+  CG: "Recuperi/p",
+  CH: "Spazzate/p",
+  CI: "Duelli vinti/p",
+  CJ: "Duelli aerei/p",
+  CK: "Bonus clean sheet",
+  CL: "Clean sheet attesi",
+  CM: "Parate",
+  CN: "Salvataggi/p",
+  CO: "Gol subiti",
+  CP: "Clean sheet",
+  CQ: "Valore 10 · MOD 6F",
+  CR: "Valore 10 · MOD 3F",
+  CS: "Offerta 10 · MOD 6F",
+  CT: "Offerta 10 · MOD 3F",
+};
+
 const workbook = XLSX.read(fs.readFileSync(source), {
   type: "buffer",
   cellDates: true,
@@ -52,6 +153,7 @@ for (let columnIndex = 0; columnIndex < 98; columnIndex += 1) {
     id: letter,
     index: columnIndex,
     label,
+    shortLabel: shortLabels[letter] ?? label,
     group: currentGroup,
     percentFormat: numberFormat.includes("%"),
     percentLabel: label.includes("%"),
@@ -258,12 +360,12 @@ const html = `<!doctype html>
     const searchable = (player) => [FIELD.name,FIELD.team,FIELD.previousTeam,FIELD.mantra,FIELD.role,FIELD.tag,FIELD.teamComment,FIELD.conditionText,FIELD.playerComment,FIELD.creatorComment].map((index)=>player.values[index]).filter(Boolean).join(" ").toLocaleLowerCase("it");
     const operators = {contains:"contiene",equals:"uguale a",gte:"maggiore o uguale",lte:"minore o uguale","not-empty":"non vuoto"};
     function matchesAdvanced(player){return state.advancedFilters.every((rule)=>{const value=player.values[rule.index],meta=data.columns[rule.index];if(rule.operator==="not-empty")return value!==null&&value!=="";if(rule.operator==="contains")return String(value??"").toLocaleLowerCase("it").includes(rule.value.toLocaleLowerCase("it"));const numeric=rawNumber(value),typed=parseItalianNumber(rule.value),target=meta.percentFormat?typed/100:typed;if(rule.operator==="equals")return numeric!==null&&Number.isFinite(target)?Math.abs(numeric-target)<1e-9:String(value??"").localeCompare(rule.value,"it",{sensitivity:"base"})===0;if(numeric===null||!Number.isFinite(target))return false;return rule.operator==="gte"?numeric>=target:numeric<=target})}
-    function renderAdvancedFilters(){$("#advanced-list").innerHTML=state.advancedFilters.map((rule,index)=>'<div class="advanced-chip"><span><strong>'+escapeHtml(data.columns[rule.index].label)+'</strong> '+escapeHtml(operators[rule.operator])+(rule.operator==="not-empty"?"":" "+escapeHtml(rule.value))+'</span><button type="button" data-remove-filter="'+index+'" aria-label="Rimuovi filtro">Rimuovi</button></div>').join("")}
+    function renderAdvancedFilters(){$("#advanced-list").innerHTML=state.advancedFilters.map((rule,index)=>'<div class="advanced-chip"><span><strong>'+escapeHtml(data.columns[rule.index].shortLabel)+'</strong> '+escapeHtml(operators[rule.operator])+(rule.operator==="not-empty"?"":" "+escapeHtml(rule.value))+'</span><button type="button" data-remove-filter="'+index+'" aria-label="Rimuovi filtro">Rimuovi</button></div>').join("")}
     function addAdvancedFilter(){const index=Number($("#advanced-column").value),operator=$("#advanced-operator").value,value=$("#advanced-value").value.trim();if(operator!=="not-empty"&&!value){$("#advanced-value").setCustomValidity("Inserisci un valore");$("#advanced-value").reportValidity();return}$("#advanced-value").setCustomValidity("");state.advancedFilters.push({index,operator,value});$("#advanced-value").value="";renderAdvancedFilters();filterPlayers()}
     function populateSelects(){
       $("#team").insertAdjacentHTML("beforeend",data.teams.map((team)=>'<option value="'+escapeHtml(team)+'">'+escapeHtml(team)+"</option>").join(""));
       $("#mantra").insertAdjacentHTML("beforeend",data.mantraRoles.map((role)=>'<option value="'+escapeHtml(role)+'">'+escapeHtml(role)+"</option>").join(""));
-      $("#advanced-column").innerHTML=data.columns.map((meta)=>'<option value="'+meta.index+'">'+escapeHtml(meta.group+" — "+meta.label)+"</option>").join("");
+      $("#advanced-column").innerHTML=data.columns.map((meta)=>'<option value="'+meta.index+'">'+escapeHtml(meta.group+" — "+meta.shortLabel)+"</option>").join("");
     }
     function filterPlayers(){
       const query=$("#search").value.trim().toLocaleLowerCase("it"),team=$("#team").value,mantra=$("#mantra").value,condition=$("#condition").value,roles=checkedRoles();
@@ -285,21 +387,21 @@ const html = `<!doctype html>
       });
     }
     function tableColumns(){
-      return [{type:"meta",index:FIELD.name,label:"Calciatore"},{type:"offer",index:"offer",label:data.columns[currentOfferIndex()].label},...[...state.selectedColumns].filter((index)=>index!==0).map((index)=>({type:"meta",index,label:data.columns[index].label}))];
+      return [{type:"meta",index:FIELD.name,label:"Giocatore",fullLabel:"Nome"},{type:"offer",index:"offer",label:data.columns[currentOfferIndex()].shortLabel,fullLabel:data.columns[currentOfferIndex()].label},...[...state.selectedColumns].filter((index)=>index!==FIELD.name).map((index)=>({type:"meta",index,label:data.columns[index].shortLabel,fullLabel:data.columns[index].label}))];
     }
     function renderMetrics(){
       const offers=state.filtered.map(offerPercent).filter((value)=>value!==null),avail=state.filtered.map((p)=>rawNumber(p.values[FIELD.availability])).filter((v)=>v!==null);
       const withFm=state.filtered.map((player)=>({player,fm:rawNumber(player.values[FIELD.expectedFm])})).filter((item)=>item.fm!==null).sort((a,b)=>b.fm-a.fm);
       const avg=(values)=>values.length?values.reduce((sum,value)=>sum+value,0)/values.length:null;
       $("#metric-offer").textContent=offers.length?new Intl.NumberFormat("it-IT",{maximumFractionDigits:1}).format(avg(offers))+"%":"—";
-      $("#metric-offer-detail").textContent=data.columns[currentOfferIndex()].label;
+      $("#metric-offer-detail").textContent=data.columns[currentOfferIndex()].shortLabel;
       $("#metric-availability").textContent=avail.length?new Intl.NumberFormat("it-IT",{maximumFractionDigits:1}).format(avg(avail)*100)+"%":"—";
       $("#metric-fm").textContent=withFm.length?formatNumber(withFm[0].fm,data.columns[FIELD.expectedFm]):"—";
       $("#metric-fm-player").textContent=withFm.length?withFm[0].player.values[FIELD.name]:"nessun dato";
     }
     function renderTable(){
       const columns=tableColumns();
-      $("#table-head").innerHTML=columns.map((column)=>{const active=state.sortIndex===column.index,arrow=active?(state.sortDirection==="asc"?" ↑":" ↓"):"";return '<th scope="col"><button type="button" data-sort="'+column.index+'">'+escapeHtml(column.label)+arrow+"</button></th>"}).join("");
+      $("#table-head").innerHTML=columns.map((column)=>{const active=state.sortIndex===column.index,arrow=active?(state.sortDirection==="asc"?" ↑":" ↓"):"";return '<th scope="col"><button type="button" data-sort="'+column.index+'" aria-label="Ordina per '+escapeHtml(column.fullLabel)+'">'+escapeHtml(column.label)+arrow+"</button></th>"}).join("");
       const rows=sortedPlayers(),totalPages=Math.max(1,Math.ceil(rows.length/state.pageSize));if(state.page>totalPages)state.page=totalPages;
       const start=(state.page-1)*state.pageSize,pageRows=rows.slice(start,start+state.pageSize);
       $("#table-body").innerHTML=pageRows.map((player)=>"<tr>"+columns.map((column)=>{
@@ -320,8 +422,8 @@ const html = `<!doctype html>
     }
     function renderDetails(){
       const player=state.selectedPlayer;if(!player)return;const query=$("#detail-search").value.trim().toLocaleLowerCase("it"),showEmpty=$("#show-empty").checked,groups=new Map();
-      data.columns.forEach((meta,index)=>{const value=player.values[index],empty=value===null||value==="";if(!showEmpty&&empty)return;if(query&&!(meta.label+" "+meta.group+" "+String(value??"")).toLocaleLowerCase("it").includes(query))return;if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({meta,value})});
-      $("#player-details").innerHTML=[...groups].map(([group,items])=>'<section class="detail-group"><h3>'+escapeHtml(group)+'</h3><div class="detail-grid">'+items.map(({meta,value})=>'<div class="detail-item"><span class="detail-label">'+escapeHtml(meta.label)+'</span><span class="detail-value '+(typeof value==="number"?"numeric":"")+'">'+escapeHtml(formatNumber(value,meta))+"</span></div>").join("")+"</div></section>").join("")||'<div class="empty-inner"><h3>Nessun campo trovato</h3><p>Prova con un termine più generale.</p></div>';
+      data.columns.forEach((meta,index)=>{const value=player.values[index],empty=value===null||value==="";if(!showEmpty&&empty)return;if(query&&!(meta.label+" "+meta.shortLabel+" "+meta.group+" "+String(value??"")).toLocaleLowerCase("it").includes(query))return;if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({meta,value})});
+      $("#player-details").innerHTML=[...groups].map(([group,items])=>'<section class="detail-group"><h3>'+escapeHtml(group)+'</h3><div class="detail-grid">'+items.map(({meta,value})=>'<div class="detail-item"><span class="detail-label">'+escapeHtml(meta.shortLabel)+'</span><span class="detail-value '+(typeof value==="number"?"numeric":"")+'">'+escapeHtml(formatNumber(value,meta))+"</span></div>").join("")+"</div></section>").join("")||'<div class="empty-inner"><h3>Nessun campo trovato</h3><p>Prova con un termine più generale.</p></div>';
     }
     function openPlayer(row){
       state.selectedPlayer=data.players.find((player)=>player.row===Number(row));if(!state.selectedPlayer)return;
@@ -330,8 +432,8 @@ const html = `<!doctype html>
     }
     function renderColumnPicker(query=""){
       const term=query.trim().toLocaleLowerCase("it"),groups=new Map();
-      data.columns.forEach((meta,index)=>{if(index===FIELD.name)return;if(term&&!(meta.label+" "+meta.group).toLocaleLowerCase("it").includes(term))return;if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({meta,index})});
-      $("#column-groups").innerHTML=[...groups].map(([group,items])=>'<section class="column-group"><h3>'+escapeHtml(group)+'</h3><div class="column-list">'+items.map(({meta,index})=>'<label class="column-option"><input type="checkbox" data-column="'+index+'" '+(state.selectedColumns.has(index)?"checked":"")+'><span>'+escapeHtml(meta.label)+"</span></label>").join("")+"</div></section>").join("");
+      data.columns.forEach((meta,index)=>{if(index===FIELD.name)return;if(term&&!(meta.label+" "+meta.shortLabel+" "+meta.group).toLocaleLowerCase("it").includes(term))return;if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({meta,index})});
+      $("#column-groups").innerHTML=[...groups].map(([group,items])=>'<section class="column-group"><h3>'+escapeHtml(group)+'</h3><div class="column-list">'+items.map(({meta,index})=>'<label class="column-option"><input type="checkbox" data-column="'+index+'" '+(state.selectedColumns.has(index)?"checked":"")+'><span>'+escapeHtml(meta.shortLabel)+"</span></label>").join("")+"</div></section>").join("");
     }
     function exportCsv(){
       const columns=tableColumns(),lines=[columns.map((column)=>'"'+column.label.replaceAll('"','""')+'"').join(";")];
