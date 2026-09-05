@@ -13,7 +13,7 @@ import {
 export const PLAYER_WORKBOOK_LIMITS = {
   maxArchiveEntries: MAX_EXCEL_ARCHIVE_ENTRIES,
   maxUncompressedArchiveBytes: MAX_EXCEL_UNCOMPRESSED_BYTES,
-  maxSheets: 4,
+  maxSheets: 6, // listone ufficiale: Tutti, Portieri, Difensori, Centrocampisti, Attaccanti, Ceduti
   maxRowsPerSheet: 2_000,
   maxParseDurationMs: 2_000,
   maxColumnsPerSheet: 32,

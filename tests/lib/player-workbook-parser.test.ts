@@ -59,6 +59,29 @@ describe("parsePlayerWorkbook", () => {
     });
   });
 
+  it("accepts the official 6-sheet listone (Tutti + role sheets)", async () => {
+    const buffer = buildWorkbook([
+      {
+        name: "Tutti",
+        rows: [
+          ["Listone Fantacalcio"],
+          ["Id", "R", "Nome", "Squadra", "Qt.A", "Qt.I"],
+          [101, "P", "Portiere Test", "Roma", 12, 10],
+        ],
+      },
+      { name: "Portieri", rows: [[101, "P", "Portiere Test", "Roma", 12, 10]] },
+      { name: "Difensori", rows: [["Empty"]] },
+      { name: "Centrocampisti", rows: [["Empty"]] },
+      { name: "Attaccanti", rows: [["Empty"]] },
+      { name: "Ceduti", rows: [["Empty"]] },
+    ]);
+
+    const parsed = await parsePlayerWorkbook(buffer);
+
+    expect(parsed.sheetName).toBe("Tutti");
+    expect(parsed.metrics.sheetCount).toBe(6);
+  });
+
   it("rejects a workbook that exceeds the sheet budget", async () => {
     const sheets = Array.from(
       { length: PLAYER_WORKBOOK_LIMITS.maxSheets + 1 },
