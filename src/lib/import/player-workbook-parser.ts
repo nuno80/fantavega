@@ -6,9 +6,9 @@ import {
 } from "@/lib/import/excel-archive-policy";
 import { MAX_EXCEL_UPLOAD_BYTES } from "@/lib/import/excel-upload-policy";
 import {
-  XlsxWorkerError,
-  readXlsxRowsInWorker,
-} from "@/lib/import/xlsx-worker-reader";
+  XlsxWorkbookError,
+  parseXlsxWorkbookInProcess,
+} from "@/lib/import/parse-xlsx-workbook";
 
 export const PLAYER_WORKBOOK_LIMITS = {
   maxArchiveEntries: MAX_EXCEL_ARCHIVE_ENTRIES,
@@ -93,14 +93,13 @@ export async function parsePlayerWorkbook(
     );
   }
   try {
-    return await readXlsxRowsInWorker(fileBuffer, {
+    return await parseXlsxWorkbookInProcess(fileBuffer, {
       limits: PLAYER_WORKBOOK_LIMITS,
-      timeoutMs: PLAYER_WORKBOOK_LIMITS.maxParseDurationMs,
       requiredSheetName: "Tutti",
     });
   } catch (error) {
     const code =
-      error instanceof XlsxWorkerError ? error.code : "INVALID_WORKBOOK";
+      error instanceof XlsxWorkbookError ? error.code : "INVALID_WORKBOOK";
     throw new WorkbookPolicyError(
       code,
       POLICY_MESSAGES[code] ?? POLICY_MESSAGES.INVALID_WORKBOOK

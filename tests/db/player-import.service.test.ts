@@ -266,6 +266,28 @@ describe("player-import.service (libSQL :memory:)", () => {
     expect(await countPlayers()).toBe(1);
     expect(await countAssignments()).toBe(1);
   });
+  it("update mode: importa il listone ufficiale reale a 6 fogli (regressione deploy)", async () => {
+    const filePath = path.join(
+      process.cwd(),
+      "docs",
+      "Quotazioni_Fantacalcio_Stagione_2026_27 (2).xlsx"
+    );
+    const buf = fs.readFileSync(filePath);
+
+    const result = await processPlayersExcel(buf, { replaceMode: true });
+
+    expect(result.success).toBe(true);
+    expect(result.successfullyUpsertedRows).toBe(531);
+    const svilar = await client.execute(
+      "SELECT name, team, current_quotation FROM players WHERE id = 5841"
+    );
+    expect(svilar.rows[0]).toEqual({
+      name: "Svilar",
+      team: "Roma",
+      current_quotation: 19,
+    });
+  });
+
   it("does not write when the workbook exceeds parser budgets", async () => {
     await insertPlayer(100, "Catalogo Esistente", "Torino");
     const players = Array.from(
