@@ -410,12 +410,11 @@ export const abandonAuction = async (
 
   const transaction = await db.transaction("write");
   try {
-    // Trova asta attiva e durata timer dalla lega
+    // Trova asta attiva preservando la scadenza corrente
     const auctionResult = await transaction.execute({
       sql: `
-      SELECT a.id, a.current_highest_bid_amount, a.current_highest_bidder_id, al.timer_duration_minutes
+      SELECT a.id, a.current_highest_bid_amount, a.current_highest_bidder_id, a.scheduled_end_time
       FROM auctions a
-      JOIN auction_leagues al ON a.auction_league_id = al.id
       WHERE a.player_id = ? AND a.auction_league_id = ? AND a.status = 'active'
     `,
       args: [playerId, leagueId],
@@ -425,7 +424,7 @@ export const abandonAuction = async (
         id: auctionResult.rows[0].id as number,
         current_highest_bid_amount: auctionResult.rows[0].current_highest_bid_amount as number,
         current_highest_bidder_id: auctionResult.rows[0].current_highest_bidder_id as string,
-        timer_duration_minutes: auctionResult.rows[0].timer_duration_minutes as number
+        scheduled_end_time: auctionResult.rows[0].scheduled_end_time as number
       }
       : undefined;
 
@@ -465,18 +464,6 @@ export const abandonAuction = async (
     if (abandonResult.rowsAffected === 0) {
        throw new Error("Impossibile abbandonare: il timer è già stato processato o non è più pendente");
     }
-
-    // Resetta il timer dell'asta alla durata configurata nella lega
-    const newScheduledEndTime = now + (auction.timer_duration_minutes * 60);
-    await transaction.execute({
-      sql: `
-      UPDATE auctions
-      SET scheduled_end_time = ?, updated_at = ?
-      WHERE id = ?
-    `,
-      args: [newScheduledEndTime, now, auction.id],
-    });
-    logger.debug("reset auction timer", { auctionId: auction.id, minutes: auction.timer_duration_minutes });
 
     // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
     // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
@@ -555,7 +542,7 @@ export const abandonAuction = async (
         playerId,
         newPrice: auction.current_highest_bid_amount,
         highestBidderId: auction.current_highest_bidder_id,
-        scheduledEndTime: newScheduledEndTime,
+        scheduledEndTime: auction.scheduled_end_time,
         action: "abandoned",
       },
     });
