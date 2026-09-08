@@ -819,6 +819,17 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
     return colors[(position - 1) % colors.length];
   };
 
+  const getPendingResponsesForRole = (role: string) => {
+    if (!isCurrentUser) return [];
+    return (userAuctionStates || []).filter((state) => {
+      if (state.user_state !== "rilancio_possibile") return false;
+      const auction = (activeAuctions || []).find(
+        (a) => a.player_id === state.player_id
+      );
+      return auction?.player_role.toUpperCase() === role.toUpperCase();
+    });
+  };
+
   const getRoleCount = (role: string) => {
     const managerPlayers = manager.players || [];
     const assignedCount = managerPlayers.filter(
@@ -829,7 +840,10 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
         a.player_role.toUpperCase() === role.toUpperCase() &&
         a.current_highest_bidder_id === manager.user_id
     ).length;
-    return assignedCount + activeAuctionCount;
+    // Il response timer è privato: per la propria colonna una decisione
+    // pendente continua a occupare lo slot fino a rilancio/abbandono/scadenza.
+    const pendingResponseCount = getPendingResponsesForRole(role).length;
+    return assignedCount + activeAuctionCount + pendingResponseCount;
   };
 
   const createSlotsForRole = (role: string): Slot[] => {
@@ -847,14 +861,7 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
         a.player_role.toUpperCase() === role.toUpperCase() &&
         a.current_highest_bidder_id === manager.user_id
     );
-    const statesForRole = userAuctionStates.filter((s) => {
-      const auction = activeAuctions.find((a) => a.player_id === s.player_id);
-      const matches = auction?.player_role.toUpperCase() === role.toUpperCase() &&
-        s.user_state === "rilancio_possibile";
-
-
-      return matches;
-    });
+    const statesForRole = getPendingResponsesForRole(role);
 
     // Create slot items with a timestamp for sorting
     const allItems: { slot: Slot; timestamp: number }[] = [];

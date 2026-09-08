@@ -176,6 +176,71 @@ interface ExpiredAuctionData {
   player_name?: string;
 }
 
+interface TotalSlotCommitments {
+  totalAcquired: number;
+  activeWinningBids: number;
+  pendingResponseSlots: number;
+}
+
+const calculateSlotReserveAfterBid = (
+  totalMaxSlots: number,
+  slotsOccupiedBeforeCurrentBid: number
+) => {
+  const slotsRemainingAfterBid =
+    totalMaxSlots - slotsOccupiedBeforeCurrentBid - 1;
+  return {
+    slotsRemainingAfterBid,
+    creditsToReserve: Math.max(0, slotsRemainingAfterBid),
+  };
+};
+
+const getTotalSlotCommitments = async (
+  txClient: { execute: typeof db.execute },
+  leagueId: number,
+  userId: string,
+  excludedPlayerId?: number
+): Promise<TotalSlotCommitments> => {
+  const excludedPlayerSql =
+    excludedPlayerId === undefined ? "" : " AND a.player_id != ?";
+  const args: (string | number)[] = [leagueId, userId, leagueId, userId];
+  if (excludedPlayerId !== undefined) args.push(excludedPlayerId);
+  args.push(leagueId, userId);
+  if (excludedPlayerId !== undefined) args.push(excludedPlayerId);
+
+  const result = await txClient.execute({
+    sql: `SELECT
+      (SELECT COUNT(DISTINCT pa.player_id)
+       FROM player_assignments pa
+       WHERE pa.auction_league_id = ? AND pa.user_id = ?) as total_acquired,
+      (SELECT COUNT(DISTINCT a.player_id)
+       FROM auctions a
+       WHERE a.auction_league_id = ?
+         AND a.current_highest_bidder_id = ?
+         AND a.status IN ('active', 'closing')${excludedPlayerSql}) as active_winning_bids,
+      (SELECT COUNT(DISTINCT a.player_id)
+       FROM user_auction_response_timers urt
+       JOIN auctions a ON a.id = urt.auction_id
+       WHERE a.auction_league_id = ?
+         AND urt.user_id = ?
+         AND urt.status = 'pending'
+         AND a.status IN ('active', 'closing')${excludedPlayerSql}) as pending_response_slots`,
+    args,
+  });
+  const row = result.rows[0] as unknown as
+    | {
+        total_acquired: number;
+        active_winning_bids: number;
+        pending_response_slots: number;
+      }
+    | undefined;
+
+  return {
+    totalAcquired: Number(row?.total_acquired ?? 0),
+    activeWinningBids: Number(row?.active_winning_bids ?? 0),
+    pendingResponseSlots: Number(row?.pending_response_slots ?? 0),
+  };
+};
+
 // 3. Funzione Helper Interna per Controllo Slot e Budget (ASYNC)
 // MODIFICA v3.1: Aggiunta validazione che riserva 1 credito per ogni slot vuoto rimanente
 // MODIFICA v3.2: Aggiunto parametro txClient per garantire isolamento transazionale
@@ -192,48 +257,30 @@ const checkSlotsAndBudgetOrThrow = async (
   // 1. Calcola slot massimi totali dalla configurazione della lega
   const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
 
-  // 2. Calcola giocatori già acquisiti (dai campi del participant)
-  const totalAcquired =
-    (participant.players_P_acquired || 0) +
-    (participant.players_D_acquired || 0) +
-    (participant.players_C_acquired || 0) +
-    (participant.players_A_acquired || 0);
+  // 2-4. Conta dalla fonte autorevole giocatori acquisiti, offerte vincenti
+  // e decisioni di rilancio pendenti. Sul rilancio l'asta corrente viene
+  // esclusa perché il nuovo impegno la sostituisce durante la validazione.
+  const currentPlayerToExclude =
+    !isNewAuctionAttempt ? currentAuctionTargetPlayerId : undefined;
+  const { totalAcquired, activeWinningBids, pendingResponseSlots } =
+    await getTotalSlotCommitments(
+      txClient,
+      league.id,
+      bidderUserIdForCheck,
+      currentPlayerToExclude
+    );
 
-  // 3. Calcola offerte vincenti attive (aste dove l'utente è miglior offerente) - esclude l'asta corrente se è un rilancio
-  let activeWinningBidsSql = `
-    SELECT COUNT(*) as count FROM auctions
-    WHERE auction_league_id = ? AND current_highest_bidder_id = ?
-    AND status IN ('active', 'closing')
-  `;
-  const activeWinningBidsArgs: (string | number)[] = [league.id, bidderUserIdForCheck];
+  // 5. Slot virtuali occupati:
+  // acquisiti + offerte vincenti + decisioni di rilancio pendenti.
+  const slotsOccupied =
+    totalAcquired + activeWinningBids + pendingResponseSlots;
 
-  if (!isNewAuctionAttempt && currentAuctionTargetPlayerId !== undefined) {
-    // Se è un rilancio su asta esistente, non contarla due volte
-    activeWinningBidsSql += ` AND player_id != ?`;
-    activeWinningBidsArgs.push(currentAuctionTargetPlayerId);
-  }
+  // 6-7. L'asta corrente è esclusa dagli impegni esistenti e viene aggiunta
+  // una sola volta come effetto di questa offerta.
+  const { slotsRemainingAfterBid, creditsToReserve } =
+    calculateSlotReserveAfterBid(totalMaxSlots, slotsOccupied);
 
-  // Usa txClient invece di db per isolamento transazionale
-  const activeWinningBidsResult = await txClient.execute({
-    sql: activeWinningBidsSql,
-    args: activeWinningBidsArgs,
-  });
-  const activeWinningBids = Number(activeWinningBidsResult.rows[0].count);
-
-  // 4. Slot virtuali occupati (già acquisiti + offerte vincenti)
-  const slotsOccupied = totalAcquired + activeWinningBids;
-
-  // 5. Slot rimanenti da riempire DOPO questa offerta
-  // Se è una nuova asta, questa offerta riempirà uno slot aggiuntivo
-  const slotsRemainingAfterBid = isNewAuctionAttempt
-    ? totalMaxSlots - slotsOccupied - 1  // -1 perché questa offerta occuperà uno slot
-    : totalMaxSlots - slotsOccupied;      // Rilancio su asta esistente: slot già contato
-
-  // 6. Crediti da riservare per slot vuoti futuri (1 credito per slot)
-  // Ogni slot vuoto deve avere 1 credito riservato per poter essere riempito
-  const creditsToReserve = Math.max(0, slotsRemainingAfterBid);
-
-  // 7. Calcola budget disponibile per questa offerta (sottraendo crediti riservati)
+  // 8. Calcola budget disponibile per questa offerta (sottraendo crediti riservati)
   const baseBudget = participant.current_budget - participant.locked_credits;
   const availableBudget = baseBudget - creditsToReserve;
 
@@ -242,6 +289,7 @@ const checkSlotsAndBudgetOrThrow = async (
     budget: participant.current_budget,
     locked: participant.locked_credits,
     slotsOccupied,
+    pendingResponseSlots,
     slotsRemaining: slotsRemainingAfterBid,
     reserve: creditsToReserve,
     available: availableBudget,
@@ -286,8 +334,38 @@ const checkSlotsAndBudgetOrThrow = async (
     activeBidsResult.rows[0].count
   );
 
+  let pendingResponseSlotsForRoleSql = `
+    SELECT COUNT(DISTINCT a.player_id) as count
+    FROM user_auction_response_timers urt
+    JOIN auctions a ON a.id = urt.auction_id
+    JOIN players p ON p.id = a.player_id
+    WHERE a.auction_league_id = ?
+      AND urt.user_id = ?
+      AND urt.status = 'pending'
+      AND a.status IN ('active', 'closing')
+      AND p.role = ?
+  `;
+  const pendingResponseSlotsForRoleArgs: (string | number)[] = [
+    league.id,
+    bidderUserIdForCheck,
+    player.role,
+  ];
+  if (!isNewAuctionAttempt && currentAuctionTargetPlayerId !== undefined) {
+    pendingResponseSlotsForRoleSql += ` AND a.player_id != ?`;
+    pendingResponseSlotsForRoleArgs.push(currentAuctionTargetPlayerId);
+  }
+  const pendingResponseSlotsForRoleResult = await txClient.execute({
+    sql: pendingResponseSlotsForRoleSql,
+    args: pendingResponseSlotsForRoleArgs,
+  });
+  const pendingResponseSlotsForRole = Number(
+    pendingResponseSlotsForRoleResult.rows[0].count
+  );
+
   const slotsVirtuallyOccupiedByOthers =
-    currentlyAssignedForRole + activeWinningBidsForRoleOnOtherPlayers;
+    currentlyAssignedForRole +
+    activeWinningBidsForRoleOnOtherPlayers +
+    pendingResponseSlotsForRole;
 
   let maxSlotsForRole: number;
   switch (player.role) {
@@ -337,6 +415,7 @@ const checkSlotsAndBudgetOrThrow = async (
 async function upsertAutoBidAndLockCredits(
   tx: { execute: typeof db.execute },
   auction: { id: number },
+  playerId: number,
   userId: string,
   autoBidMaxAmount: number,
   leagueId: number,
@@ -369,33 +448,25 @@ async function upsertAutoBidAndLockCredits(
       // Verifica che l'utente abbia abbastanza budget per l'aumento,
       // includendo la riserva per slot vuoti (allineato con checkSlotsAndBudgetOrThrow)
       const currentParticipantResult = await tx.execute({
-        sql: "SELECT current_budget, locked_credits, players_P_acquired, players_D_acquired, players_C_acquired, players_A_acquired FROM league_participants WHERE league_id = ? AND user_id = ?",
+        sql: "SELECT current_budget, locked_credits FROM league_participants WHERE league_id = ? AND user_id = ?",
         args: [leagueId, userId],
       });
       const currentParticipant = currentParticipantResult.rows[0] as unknown as
-        | { current_budget: number; locked_credits: number; players_P_acquired: number; players_D_acquired: number; players_C_acquired: number; players_A_acquired: number }
+        | { current_budget: number; locked_credits: number }
         | undefined;
 
       if (currentParticipant) {
-        // Calcola la riserva per slot vuoti (stesso pattern di checkSlotsAndBudgetOrThrow)
+        // Calcola la riserva dalla stessa fonte autorevole usata dalla
+        // validazione principale, escludendo l'asta corrente dal conteggio.
         const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
-        const totalAcquired =
-          (currentParticipant.players_P_acquired || 0) +
-          (currentParticipant.players_D_acquired || 0) +
-          (currentParticipant.players_C_acquired || 0) +
-          (currentParticipant.players_A_acquired || 0);
-
-        const activeWinningBidsResult = await tx.execute({
-          sql: `SELECT COUNT(*) as count FROM auctions
-                WHERE auction_league_id = ? AND current_highest_bidder_id = ?
-                AND status IN ('active', 'closing')`,
-          args: [leagueId, userId],
-        });
-        const activeWinningBids = Number(activeWinningBidsResult.rows[0].count);
-
-        const slotsOccupied = totalAcquired + activeWinningBids;
-        const slotsRemaining = totalMaxSlots - slotsOccupied;
-        const creditsToReserve = Math.max(0, slotsRemaining);
+        const { totalAcquired, activeWinningBids, pendingResponseSlots } =
+          await getTotalSlotCommitments(tx, leagueId, userId, playerId);
+        const slotsOccupied =
+          totalAcquired + activeWinningBids + pendingResponseSlots;
+        const {
+          slotsRemainingAfterBid: slotsRemaining,
+          creditsToReserve,
+        } = calculateSlotReserveAfterBid(totalMaxSlots, slotsOccupied);
 
         const availableBudget =
           currentParticipant.current_budget -
@@ -1020,7 +1091,16 @@ export async function placeBidOnExistingAuction({
     logger.debug("starting auto-bid simulation");
 
     if (autoBidMaxAmount && autoBidMaxAmount > 0) {
-      await upsertAutoBidAndLockCredits(tx, auction, userId, autoBidMaxAmount, leagueId, league, now);
+      await upsertAutoBidAndLockCredits(
+        tx,
+        auction,
+        playerId,
+        userId,
+        autoBidMaxAmount,
+        leagueId,
+        league,
+        now
+      );
     }
 
     // 1. Raccogli tutti gli auto-bid attivi per l'asta
