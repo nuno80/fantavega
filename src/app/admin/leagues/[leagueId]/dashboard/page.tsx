@@ -259,6 +259,13 @@ export default async function LeagueDashboardPage({
               currentActiveRoles={league.activeAuctionRoles}
             />
 
+            {!canManageParticipants && (
+              <p className="text-xs text-muted-foreground">
+                Promemoria: gli strumenti Importa Rose e Aggiungi Crediti sono
+                disponibili solo nello stato participants_joining.
+              </p>
+            )}
+
             {/* Sezione Import e Crediti - visibile solo in participants_joining */}
             {canManageParticipants && (
               <Card>

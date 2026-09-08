@@ -30,6 +30,12 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["scripts/generate-fantacalcio-dashboard.mjs"],
+    rules: {
+      "prefer-template": "off",
+    },
+  },
   globalIgnores([
     ".next/**",
     "node_modules/**",

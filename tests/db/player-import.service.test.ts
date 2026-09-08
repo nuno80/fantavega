@@ -269,22 +269,23 @@ describe("player-import.service (libSQL :memory:)", () => {
   it("update mode: importa il listone ufficiale reale a 6 fogli (regressione deploy)", async () => {
     const filePath = path.join(
       process.cwd(),
-      "docs",
-      "Quotazioni_Fantacalcio_Stagione_2026_27 (2).xlsx"
+      "public",
+      "seria_A",
+      "Quotazioni_Fantacalcio_Stagione_2026_27.xlsx"
     );
     const buf = fs.readFileSync(filePath);
 
     const result = await processPlayersExcel(buf, { replaceMode: true });
 
     expect(result.success).toBe(true);
-    expect(result.successfullyUpsertedRows).toBe(531);
+    expect(result.successfullyUpsertedRows).toBe(517);
     const svilar = await client.execute(
       "SELECT name, team, current_quotation FROM players WHERE id = 5841"
     );
     expect(svilar.rows[0]).toEqual({
       name: "Svilar",
       team: "Roma",
-      current_quotation: 19,
+      current_quotation: 18,
     });
   });
 
