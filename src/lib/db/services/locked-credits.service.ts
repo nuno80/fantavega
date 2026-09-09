@@ -1,8 +1,123 @@
-import { db } from "@/lib/db";
 import type { Client } from "@libsql/client";
+
+import { db } from "@/lib/db";
 
 type SqlExecutor = Pick<Client, "execute">;
 const LOCKED_CREDIT_RECONCILE_BATCH_SIZE = 25;
+
+function pendingResponseExposureSql(
+  leagueIdExpression: string,
+  userIdExpression: string,
+): string {
+  return `
+  COALESCE((
+    SELECT SUM(
+      MAX(
+        COALESCE((
+          SELECT ab.max_amount
+          FROM auto_bids ab
+          WHERE ab.auction_id = urt.auction_id
+            AND ab.user_id = urt.user_id
+          LIMIT 1
+        ), 0),
+        COALESCE((
+          SELECT b.amount
+          FROM bids b
+          WHERE b.auction_id = urt.auction_id
+            AND b.user_id = urt.user_id
+          ORDER BY b.bid_time DESC, b.id DESC
+          LIMIT 1
+        ), 0)
+      )
+    )
+    FROM user_auction_response_timers urt
+    JOIN auctions a ON a.id = urt.auction_id
+    WHERE a.auction_league_id = ${leagueIdExpression}
+      AND urt.user_id = ${userIdExpression}
+      AND urt.status = 'pending'
+      AND a.status IN ('active', 'closing')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM auto_bids active_ab
+        WHERE active_ab.auction_id = urt.auction_id
+          AND active_ab.user_id = urt.user_id
+          AND active_ab.is_active = TRUE
+      )
+      AND (
+        a.current_highest_bidder_id IS NULL
+        OR a.current_highest_bidder_id <> urt.user_id
+      )
+  ), 0)`;
+}
+
+export async function getUserAuctionLockedExposure(
+  leagueId: number,
+  userId: string,
+  auctionId: number,
+  executor: SqlExecutor = db,
+): Promise<number> {
+  assertLeagueId(leagueId);
+  if (typeof userId !== "string" || userId.length === 0) {
+    throw new TypeError("userId must be a non-empty string");
+  }
+  if (!Number.isSafeInteger(auctionId) || auctionId <= 0) {
+    throw new RangeError("auctionId must be a positive safe integer");
+  }
+  const result = await executor.execute({
+    sql: `
+      SELECT COALESCE(
+        (
+          SELECT ab.max_amount
+          FROM auto_bids ab
+          WHERE ab.auction_id = a.id
+            AND ab.user_id = ?
+            AND ab.is_active = TRUE
+          LIMIT 1
+        ),
+        CASE
+          WHEN a.current_highest_bidder_id = ?
+          THEN a.current_highest_bid_amount
+        END,
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM user_auction_response_timers urt
+            WHERE urt.auction_id = a.id
+              AND urt.user_id = ?
+              AND urt.status = 'pending'
+          )
+          THEN MAX(
+            COALESCE((
+              SELECT ab.max_amount
+              FROM auto_bids ab
+              WHERE ab.auction_id = a.id
+                AND ab.user_id = ?
+              LIMIT 1
+            ), 0),
+            COALESCE((
+              SELECT b.amount
+              FROM bids b
+              WHERE b.auction_id = a.id
+                AND b.user_id = ?
+              ORDER BY b.bid_time DESC, b.id DESC
+              LIMIT 1
+            ), 0)
+          )
+        END,
+        0
+      ) AS locked_exposure
+      FROM auctions a
+      WHERE a.id = ?
+        AND a.auction_league_id = ?
+        AND a.status IN ('active', 'closing')
+    `,
+    args: [userId, userId, userId, userId, userId, auctionId, leagueId],
+  });
+  return (
+    (result.rows[0] as unknown as { locked_exposure: number } | undefined)
+      ?.locked_exposure || 0
+  );
+}
 
 export const ACTIVE_EXPOSURE_SQL = `
   COALESCE((
@@ -26,6 +141,7 @@ export const ACTIVE_EXPOSURE_SQL = `
       AND ab.id IS NULL
       AND a.status IN ('active', 'closing')
   ), 0)
+  + ${pendingResponseExposureSql("lp.league_id", "lp.user_id")}
 `;
 
 function assertLeagueId(leagueId: number): void {
@@ -60,13 +176,14 @@ export interface LockedCreditMismatch {
 
 /**
  * Ricalcola i locked_credits di un singolo utente dalla somma dell'esposizione
- * attiva (auto-bid attivi + offerte manuali vincenti senza auto-bid).
+ * attiva (auto-bid attivi + offerte manuali vincenti senza auto-bid +
+ * impegni delle aste con response timer ancora pending).
  * Idempotente; accetta tx per l'isolamento transazionale (v3.2).
  */
 export async function recalcUserLockedCredits(
   leagueId: number,
   userId: string,
-  executor: SqlExecutor = db,
+  executor: SqlExecutor = db
 ): Promise<number> {
   assertLeagueId(leagueId);
   if (typeof userId !== "string" || userId.length === 0) {
@@ -90,12 +207,14 @@ export async function recalcUserLockedCredits(
              AND ab.id IS NULL
              AND a.status IN ('active', 'closing')),
           0
-        ) as total_locked
+        ) +
+        ${pendingResponseExposureSql("?", "?")} as total_locked
     `,
-    args: [leagueId, userId, userId, leagueId, userId],
+    args: [leagueId, userId, userId, leagueId, userId, leagueId, userId],
   });
   return (
-    ((result.rows[0] as unknown as { total_locked: number } | undefined)?.total_locked) || 0
+    (result.rows[0] as unknown as { total_locked: number } | undefined)
+      ?.total_locked || 0
   );
 }
 
@@ -104,7 +223,7 @@ export async function recalcUserLockedCredits(
  */
 export async function findLockedCreditMismatchesForLeague(
   leagueId: number,
-  executor: SqlExecutor = db,
+  executor: SqlExecutor = db
 ): Promise<LockedCreditMismatch[]> {
   assertLeagueId(leagueId);
   const result = await executor.execute({
@@ -138,7 +257,7 @@ export async function findLockedCreditMismatchesForLeague(
  */
 export async function reconcileLockedCreditsForLeague(
   leagueId: number,
-  executor: SqlExecutor = db,
+  executor: SqlExecutor = db
 ): Promise<number> {
   assertLeagueId(leagueId);
   const result = await executor.execute({
@@ -172,7 +291,10 @@ export async function reconcileLockedCreditsForActiveLeagues(): Promise<number> 
   });
   let updated = 0;
   for (const row of leagues.rows) {
-    const leagueId = requireRowNumber(row.auction_league_id, "auction_league_id");
+    const leagueId = requireRowNumber(
+      row.auction_league_id,
+      "auction_league_id"
+    );
     assertLeagueId(leagueId);
     updated += await reconcileLockedCreditsForLeague(leagueId);
   }

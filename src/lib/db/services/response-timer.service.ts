@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { notifySocketServer } from "@/lib/socket-emitter";
 
 import { publishEssentialEvent, publishPrivateAuctionUpdate } from "./event-publisher";
+import { recalcUserLockedCredits } from "./locked-credits.service";
 import { getUserLastLogin } from "./session.service";
 
 type Executor = Pick<Client, "execute">;
@@ -290,31 +291,11 @@ export const processExpiredResponseTimers = async (): Promise<{
            continue;
         }
 
-        // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
-        // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
-        const userLockedCreditsResult = await transaction.execute({
-          sql: `
-            SELECT
-              COALESCE(
-                (SELECT SUM(ab.max_amount)
-                 FROM auto_bids ab
-                 JOIN auctions a ON ab.auction_id = a.id
-                 WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-                0
-              ) +
-              COALESCE(
-                (SELECT SUM(a.current_highest_bid_amount)
-                 FROM auctions a
-                 LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-                 WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-                   AND ab.id IS NULL
-                   AND a.status IN ('active', 'closing')),
-                0
-              ) as total_locked
-          `,
-          args: [timer.league_id, timer.user_id, timer.user_id, timer.league_id, timer.user_id],
-        });
-        const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+        const totalLocked = await recalcUserLockedCredits(
+          timer.league_id,
+          timer.user_id,
+          transaction,
+        );
 
         await transaction.execute({
           sql: `
@@ -465,31 +446,11 @@ export const abandonAuction = async (
        throw new Error("Impossibile abbandonare: il timer è già stato processato o non è più pendente");
     }
 
-    // FIX: Ricalcola locked_credits invece di sottrarre incrementalmente
-    // Include sia auto-bid attivi che offerte manuali vincenti senza auto-bid
-    const userLockedCreditsResult = await transaction.execute({
-      sql: `
-        SELECT
-          COALESCE(
-            (SELECT SUM(ab.max_amount)
-             FROM auto_bids ab
-             JOIN auctions a ON ab.auction_id = a.id
-             WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE AND a.status IN ('active', 'closing')),
-            0
-          ) +
-          COALESCE(
-            (SELECT SUM(a.current_highest_bid_amount)
-             FROM auctions a
-             LEFT JOIN auto_bids ab ON ab.auction_id = a.id AND ab.user_id = ? AND ab.is_active = TRUE
-             WHERE a.auction_league_id = ? AND a.current_highest_bidder_id = ?
-               AND ab.id IS NULL
-               AND a.status IN ('active', 'closing')),
-            0
-          ) as total_locked
-      `,
-      args: [leagueId, userId, userId, leagueId, userId],
-    });
-    const totalLocked = ((userLockedCreditsResult.rows[0] as unknown as { total_locked: number }).total_locked) || 0;
+    const totalLocked = await recalcUserLockedCredits(
+      leagueId,
+      userId,
+      transaction,
+    );
 
     await transaction.execute({
       sql: `

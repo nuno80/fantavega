@@ -12,7 +12,11 @@ import {
   publishPrivateAuctionUpdate,
 } from "./event-publisher";
 import { checkAndRecordCompliance } from "./penalty.service";
-import { reconcileLockedCreditsForLeague, recalcUserLockedCredits } from "./locked-credits.service";
+import {
+  getUserAuctionLockedExposure,
+  reconcileLockedCreditsForLeague,
+  recalcUserLockedCredits,
+} from "./locked-credits.service";
 import {
   cancelResponseTimer,
   createResponseTimer,
@@ -252,7 +256,8 @@ const checkSlotsAndBudgetOrThrow = async (
   bidderUserIdForCheck: string,
   bidAmountForCheck: number,
   isNewAuctionAttempt: boolean,
-  currentAuctionTargetPlayerId?: number
+  currentAuctionTargetPlayerId?: number,
+  currentAuctionExposure = 0,
 ) => {
   // 1. Calcola slot massimi totali dalla configurazione della lega
   const totalMaxSlots = league.slots_P + league.slots_D + league.slots_C + league.slots_A;
@@ -281,13 +286,18 @@ const checkSlotsAndBudgetOrThrow = async (
     calculateSlotReserveAfterBid(totalMaxSlots, slotsOccupied);
 
   // 8. Calcola budget disponibile per questa offerta (sottraendo crediti riservati)
-  const baseBudget = participant.current_budget - participant.locked_credits;
+  const effectiveLockedCredits = Math.max(
+    0,
+    participant.locked_credits - currentAuctionExposure,
+  );
+  const baseBudget = participant.current_budget - effectiveLockedCredits;
   const availableBudget = baseBudget - creditsToReserve;
 
   logger.debug("budget check", {
     userId: bidderUserIdForCheck,
     budget: participant.current_budget,
     locked: participant.locked_credits,
+    replacedAuctionExposure: currentAuctionExposure,
     slotsOccupied,
     pendingResponseSlots,
     slotsRemaining: slotsRemainingAfterBid,
@@ -299,7 +309,7 @@ const checkSlotsAndBudgetOrThrow = async (
   if (availableBudget < bidAmountForCheck) {
     throw new Error(
       `Budget insufficiente. Disponibile: ${availableBudget} crediti ` +
-      `(${participant.current_budget} totale - ${participant.locked_credits} bloccati ` +
+      `(${participant.current_budget} totale - ${effectiveLockedCredits} bloccati al netto dell'asta corrente ` +
       `- ${creditsToReserve} riservati per ${slotsRemainingAfterBid} slot vuoti). ` +
       `Offerta: ${bidAmountForCheck} crediti.`
     );
@@ -420,25 +430,18 @@ async function upsertAutoBidAndLockCredits(
   autoBidMaxAmount: number,
   leagueId: number,
   league: Pick<LeagueForBidding, "slots_P" | "slots_D" | "slots_C" | "slots_A">,
+  currentAuctionExposure: number,
   now: number,
 ): Promise<void> {
   logger.debug("inserting auto-bid", { auctionId: auction.id, userId, amount: autoBidMaxAmount });
 
   try {
-    // 1. Ottieni il vecchio importo dell'auto-bid per calcolare la differenza nei crediti bloccati
-    const oldAutoBidResult = await tx.execute({
-      sql: "SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE",
-      args: [auction.id, userId],
-    });
-    const oldAutoBid = oldAutoBidResult.rows[0] as unknown as
-      | { max_amount: number }
-      | undefined;
-
-    const oldMaxAmount = oldAutoBid?.max_amount || 0;
-    const creditChange = autoBidMaxAmount - oldMaxAmount;
+    // Il nuovo massimale sostituisce l'esposizione già bloccata per questa
+    // stessa asta (auto-bid attivo, offerta vincente o risposta pending).
+    const creditChange = autoBidMaxAmount - currentAuctionExposure;
 
     logger.debug("auto-bid credit change", {
-      old: oldMaxAmount,
+      old: currentAuctionExposure,
       new: autoBidMaxAmount,
       change: creditChange,
     });
@@ -468,17 +471,21 @@ async function upsertAutoBidAndLockCredits(
           creditsToReserve,
         } = calculateSlotReserveAfterBid(totalMaxSlots, slotsOccupied);
 
+        const effectiveLockedCredits = Math.max(
+          0,
+          currentParticipant.locked_credits - currentAuctionExposure,
+        );
         const availableBudget =
           currentParticipant.current_budget -
-          currentParticipant.locked_credits -
+          effectiveLockedCredits -
           creditsToReserve;
 
-        if (creditChange > availableBudget) {
+        if (autoBidMaxAmount > availableBudget) {
           throw new Error(
             `Budget insufficiente per bloccare i crediti. Disponibile: ${availableBudget} crediti ` +
-            `(${currentParticipant.current_budget} totale - ${currentParticipant.locked_credits} bloccati ` +
+            `(${currentParticipant.current_budget} totale - ${effectiveLockedCredits} bloccati al netto dell'asta corrente ` +
             `- ${creditsToReserve} riservati per ${slotsRemaining} slot vuoti). ` +
-            `Aumento richiesto: ${creditChange}`
+            `Massimale richiesto: ${autoBidMaxAmount}`
           );
         }
 
@@ -486,7 +493,12 @@ async function upsertAutoBidAndLockCredits(
           sql: "UPDATE league_participants SET locked_credits = locked_credits + ? WHERE league_id = ? AND user_id = ?",
           args: [creditChange, leagueId, userId],
         });
-        logger.debug("locked_credits updated", { userId, creditChange, reserve: creditsToReserve });
+        logger.debug("locked_credits updated", {
+          userId,
+          creditChange,
+          replacedAuctionExposure: currentAuctionExposure,
+          reserve: creditsToReserve,
+        });
       }
     }
 
@@ -1074,6 +1086,13 @@ export async function placeBidOnExistingAuction({
       throw new Error("Non sei autorizzato a gestire questa squadra");
     }
 
+    const bidderCurrentAuctionExposure = await getUserAuctionLockedExposure(
+      leagueId,
+      userId,
+      auction.id,
+      tx,
+    );
+
     logger.debug("calling checkSlotsAndBudgetOrThrow");
     await checkSlotsAndBudgetOrThrow(
       tx,
@@ -1083,7 +1102,8 @@ export async function placeBidOnExistingAuction({
       userId,
       bidAmount,
       false,
-      playerId
+      playerId,
+      bidderCurrentAuctionExposure,
     );
     logger.debug("checkSlotsAndBudgetOrThrow passed");
 
@@ -1099,6 +1119,7 @@ export async function placeBidOnExistingAuction({
         autoBidMaxAmount,
         leagueId,
         league,
+        bidderCurrentAuctionExposure,
         now
       );
     }
@@ -1144,6 +1165,20 @@ export async function placeBidOnExistingAuction({
       throw new Error(`Partecipante vincitore ${finalBidderId} non trovato.`);
     }
 
+    const finalWinnerActiveAutoBid = allActiveAutoBids.find(
+      (autoBid) => autoBid.userId === finalBidderId,
+    );
+    const finalWinnerCurrentAuctionExposure = finalWinnerActiveAutoBid
+      ? finalWinnerActiveAutoBid.maxAmount
+      : finalBidderId === userId
+        ? bidderCurrentAuctionExposure
+        : await getUserAuctionLockedExposure(
+            leagueId,
+            finalBidderId,
+            auction.id,
+            tx,
+          );
+
     await checkSlotsAndBudgetOrThrow(
       tx,
       league,
@@ -1152,7 +1187,8 @@ export async function placeBidOnExistingAuction({
       finalBidderId,
       finalAmount,
       false,
-      playerId
+      playerId,
+      finalWinnerCurrentAuctionExposure,
     );
     logger.debug("budget and slots valid for final winner", { finalBidderId });
 
@@ -1187,9 +1223,9 @@ export async function placeBidOnExistingAuction({
       user_id: string;
       max_amount: number;
     }[];
+    const userIDsToDeactivate = outbidAutoBids.map((bid) => bid.user_id);
 
     if (outbidAutoBids.length > 0) {
-      const userIDsToDeactivate = outbidAutoBids.map((b) => b.user_id);
       // Costruisci la query dinamicamente per IN clause
       const placeholders = userIDsToDeactivate.map(() => "?").join(",");
 
@@ -1199,7 +1235,19 @@ export async function placeBidOnExistingAuction({
          WHERE auction_id = ? AND user_id IN (${placeholders})`,
         args: [now, auction.id, ...userIDsToDeactivate],
       });
+    }
 
+    // I timer sono parte dello stato autorevole dell'esposizione: vanno
+    // cancellati/creati prima di qualsiasi ricalcolo dei crediti.
+    await applyResponseTimerEffects(
+      tx,
+      auction.id,
+      userId,
+      previousHighestBidderId,
+      finalBidderId,
+    );
+
+    if (outbidAutoBids.length > 0) {
       // FIX: Invece di sottrarre incrementalmente (che può causare valori negativi),
       // ricalcoliamo i locked_credits dalla somma degli auto-bid attivi
       // PLUS le offerte manuali vincenti dove l'utente è miglior offerente senza auto-bid.
@@ -1208,10 +1256,11 @@ export async function placeBidOnExistingAuction({
       logger.debug("recalculated locked_credits for outbid auto-bids", { count: outbidAutoBids.length });
     }
 
-    // FIX: Ricalcola locked_credits anche per il vincitore finale e il precedente offerente
-    // perché potrebbero avere offerte manuali senza auto-bid.
+    // Ricalcola anche per il rilanciante, il vincitore finale e il precedente
+    // offerente: il timer del rilanciante è stato cancellato anche se ha perso.
     // Dedup STEP-1: logica unificata in recalcUserLockedCredits (locked-credits.service).
     const usersToRecalculate = new Set<string>();
+    usersToRecalculate.add(userId);
     usersToRecalculate.add(finalBidderId);
     if (previousHighestBidderId && previousHighestBidderId !== finalBidderId) {
       usersToRecalculate.add(previousHighestBidderId);
@@ -1236,12 +1285,6 @@ export async function placeBidOnExistingAuction({
     const autoBidActivated =
       finalBidderId !== userId ||
       !battleResult.initialBidderHadWinningManualBid;
-
-    // --- TIME-001: effetti timer/stato duraturi NELLA stessa transazione ---
-    // Cancella il timer pendente del rilanciante (idempotente) e crea il
-    // timer per l'utente superato. Se il commit fallisce, anche questi effetti
-    // scompaiono: nessun timer doppio o perso.
-    await applyResponseTimerEffects(tx, auction.id, userId, previousHighestBidderId, finalBidderId);
 
     // Recupera info aggiuntive per il return
     const playerNameResult = await tx.execute({

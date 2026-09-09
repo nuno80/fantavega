@@ -4,14 +4,14 @@
 // il blocco duplicato che sostituisce in bid.service.ts.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { recalcUserLockedCredits } from "../locked-credits.service";
+
 const { mockExecute } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({
   db: { execute: (...args: unknown[]) => mockExecute(...args) },
 }));
-
-import { recalcUserLockedCredits } from "../locked-credits.service";
 
 beforeEach(() => {
   mockExecute.mockReset();
@@ -27,9 +27,18 @@ describe("recalcUserLockedCredits", () => {
 
     expect(total).toBe(42);
     const [call] = mockExecute.mock.calls;
-    expect(call[0].args).toEqual([1, "user-a", "user-a", 1, "user-a"]);
+    expect(call[0].args).toEqual([
+      1,
+      "user-a",
+      "user-a",
+      1,
+      "user-a",
+      1,
+      "user-a",
+    ]);
     expect(call[0].sql).toContain("SELECT SUM(ab.max_amount)");
     expect(call[0].sql).toContain("ab.id IS NULL");
+    expect(call[0].sql).toContain("urt.status = 'pending'");
   });
 
   it("ritorna 0 quando il risultato è null/undefined (nessuna esposizione)", async () => {
@@ -42,10 +51,10 @@ describe("recalcUserLockedCredits", () => {
 
   it("valida leagueId e userId", async () => {
     await expect(
-      recalcUserLockedCredits(0, "user-a", { execute: mockExecute }),
+      recalcUserLockedCredits(0, "user-a", { execute: mockExecute })
     ).rejects.toThrow("positive safe integer");
     await expect(
-      recalcUserLockedCredits(1, "", { execute: mockExecute }),
+      recalcUserLockedCredits(1, "", { execute: mockExecute })
     ).rejects.toThrow("non-empty string");
     expect(mockExecute).not.toHaveBeenCalled();
   });

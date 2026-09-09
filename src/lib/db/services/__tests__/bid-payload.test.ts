@@ -18,7 +18,13 @@ vi.mock("@/lib/db", () => ({
 }));
 
 // Mock del socket emitter: non deve essere più chiamato direttamente dal bid path.
-const { mockNotifySocketServer } = vi.hoisted(() => ({
+const {
+  mockCancelResponseTimer,
+  mockCreateResponseTimer,
+  mockNotifySocketServer,
+} = vi.hoisted(() => ({
+  mockCancelResponseTimer: vi.fn().mockResolvedValue(undefined),
+  mockCreateResponseTimer: vi.fn().mockResolvedValue(undefined),
   mockNotifySocketServer: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/socket-emitter", () => ({
@@ -28,8 +34,8 @@ vi.mock("@/lib/socket-emitter", () => ({
 // Evita che il modulo importi altri servizi non mockati
 vi.mock("../response-timer.service", () => ({
   getUserCooldownInfo: vi.fn().mockResolvedValue({ canBid: true, message: null }),
-  cancelResponseTimer: vi.fn().mockResolvedValue(undefined),
-  createResponseTimer: vi.fn().mockResolvedValue(undefined),
+  cancelResponseTimer: mockCancelResponseTimer,
+  createResponseTimer: mockCreateResponseTimer,
 }));
 vi.mock("../auction-states.service", async (importOriginal) => {
   const original = await importOriginal<typeof import("../auction-states.service")>();
@@ -46,6 +52,11 @@ describe("placeBidOnExistingAuction - outbox payload auction-update", () => {
   const TEST_LEAGUE_ID = 8;
   const TEST_PLAYER_ID = 42;
   const TEST_AMOUNT = 30;
+  let participantBudget = 500;
+  let participantLockedCredits = 10;
+  let financialBudget = 470;
+  let financialLockedCredits = 30;
+  let currentAuctionExposure = 0;
 
   // Mock della transazione: stesso oggetto per tx.execute
   const mockTxExecute = vi.fn();
@@ -56,6 +67,11 @@ describe("placeBidOnExistingAuction - outbox payload auction-update", () => {
     vi.clearAllMocks();
     mockNotifySocketServer.mockClear();
     mockTxExecute.mockReset();
+    participantBudget = 500;
+    participantLockedCredits = 10;
+    financialBudget = 470;
+    financialLockedCredits = 30;
+    currentAuctionExposure = 0;
 
     // Simula db.transaction restituendo una tx mockata
     mockTransaction.mockResolvedValue({
@@ -93,15 +109,20 @@ describe("placeBidOnExistingAuction - outbox payload auction-update", () => {
       }
       // 2. budget update SELECT (solo current_budget, locked_credits) — prima del participant generico
       if (sql.includes("SELECT current_budget, locked_credits")) {
-        return Promise.resolve({ rows: [{ current_budget: 470, locked_credits: 30 }] });
+        return Promise.resolve({
+          rows: [{
+            current_budget: financialBudget,
+            locked_credits: financialLockedCredits,
+          }],
+        });
       }
       // 2b. participant (SELECT ... FROM league_participants WHERE league_id AND user_id)
       if (sql.includes("FROM league_participants WHERE league_id")) {
         return Promise.resolve({
           rows: [{
             user_id: TEST_USER_ID,
-            current_budget: 500,
-            locked_credits: 10,
+            current_budget: participantBudget,
+            locked_credits: participantLockedCredits,
             players_P_acquired: 0,
             players_D_acquired: 0,
             players_C_acquired: 0,
@@ -112,6 +133,11 @@ describe("placeBidOnExistingAuction - outbox payload auction-update", () => {
       // 3. checkSlotsAndBudgetOrThrow: COUNT queries (both COUNT(*) and COUNT(DISTINCT))
       if (sql.includes("COUNT(")) {
         return Promise.resolve({ rows: [{ count: 0 }] });
+      }
+      if (sql.includes("AS locked_exposure")) {
+        return Promise.resolve({
+          rows: [{ locked_exposure: currentAuctionExposure }],
+        });
       }
       // locked credits recalc SELECT (contains "as total_locked") — before generic auto_bids
       if (sql.includes("as total_locked")) {
@@ -187,6 +213,59 @@ describe("placeBidOnExistingAuction - outbox payload auction-update", () => {
     for (const key of ["budgetUpdates", "lockedCredits", "newLockedCredits", "autoBids", "maxAmount"]) {
       expect(payload).not.toHaveProperty(key);
     }
+  });
+
+  it("crea il response timer prima di ricalcolare i crediti bloccati", async () => {
+    await placeBidOnExistingAuction({
+      leagueId: TEST_LEAGUE_ID,
+      userId: TEST_USER_ID,
+      playerId: TEST_PLAYER_ID,
+      bidAmount: TEST_AMOUNT,
+    });
+
+    const recalcCallIndex = mockTxExecute.mock.calls.findIndex(([args]) =>
+      (args as { sql?: string })?.sql?.includes("as total_locked"),
+    );
+    expect(recalcCallIndex).toBeGreaterThanOrEqual(0);
+    expect(mockCreateResponseTimer).toHaveBeenCalled();
+    expect(mockCreateResponseTimer.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTxExecute.mock.invocationCallOrder[recalcCallIndex],
+    );
+  });
+
+  it("sostituisce l'esposizione pending dell'asta corrente nel controllo budget", async () => {
+    participantBudget = 100;
+    participantLockedCredits = 40;
+    financialBudget = 100;
+    financialLockedCredits = 40;
+    currentAuctionExposure = 40;
+
+    await expect(
+      placeBidOnExistingAuction({
+        leagueId: TEST_LEAGUE_ID,
+        userId: TEST_USER_ID,
+        playerId: TEST_PLAYER_ID,
+        bidAmount: 70,
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("sostituisce l'esposizione pending anche nel controllo del massimale auto-bid", async () => {
+    participantBudget = 100;
+    participantLockedCredits = 40;
+    financialBudget = 100;
+    financialLockedCredits = 40;
+    currentAuctionExposure = 40;
+
+    await expect(
+      placeBidOnExistingAuction({
+        leagueId: TEST_LEAGUE_ID,
+        userId: TEST_USER_ID,
+        playerId: TEST_PLAYER_ID,
+        bidAmount: 30,
+        autoBidMaxAmount: 70,
+      }),
+    ).resolves.toBeDefined();
   });
 
   it("inserisce un evento privato per l'utente coinvolto, con budget e locked credits", async () => {

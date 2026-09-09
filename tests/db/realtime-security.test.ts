@@ -81,16 +81,59 @@ const FORBIDDEN_PUBLIC_KEYS = [
 ];
 
 describe("B2/B6 sicurezza realtime dei flussi bid", () => {
+  it("sostituisce l'esposizione pending con il nuovo massimale auto-bid", async () => {
+    const c = await seededClient();
+    const now = Math.floor(Date.now() / 1000);
+    await c.executeMultiple(`
+      UPDATE league_participants
+        SET current_budget = 100, locked_credits = 40
+        WHERE league_id = 1 AND user_id = 'bruno';
+      INSERT INTO auctions (id, auction_league_id, player_id, start_time, scheduled_end_time, current_highest_bid_amount, current_highest_bidder_id, status)
+        VALUES (1, 1, 1, ${now - 10}, ${now + 60}, 20, 'alice', 'active');
+      INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type)
+        VALUES (1, 'bruno', 15, ${now - 5}, 'manual');
+      INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active)
+        VALUES (1, 'bruno', 40, 0);
+      INSERT INTO user_auction_response_timers (auction_id, user_id, status, response_deadline)
+        VALUES (1, 'bruno', 'pending', ${now + 60});
+    `);
+
+    await placeBidOnExistingAuction({
+      leagueId: 1,
+      userId: "bruno",
+      playerId: 1,
+      bidAmount: 30,
+      autoBidMaxAmount: 70,
+    });
+
+    const participant = await c.execute({
+      sql: "SELECT locked_credits FROM league_participants WHERE league_id = 1 AND user_id = 'bruno'",
+      args: [],
+    });
+    expect(Number(participant.rows[0].locked_credits)).toBe(70);
+
+    const timer = await c.execute({
+      sql: "SELECT status FROM user_auction_response_timers WHERE auction_id = 1 AND user_id = 'bruno'",
+      args: [],
+    });
+    expect(timer.rows[0].status).toBe("cancelled");
+  }, 10_000);
+
   it("l'evento pubblico non espone dati finanziari; i privati vanno solo ai coinvolti", async () => {
     const c = await seededClient();
     const now = Math.floor(Date.now() / 1000);
     // Asta attiva: alice è massimo offerente a 20 (auto-bid già attivato),
     // bruno è stato superato ed ha un timer di risposta pendente.
     await c.executeMultiple(`
+      UPDATE league_participants
+        SET locked_credits = 14
+        WHERE league_id = 1 AND user_id = 'bruno';
       INSERT INTO auctions (id, auction_league_id, player_id, start_time, scheduled_end_time, current_highest_bid_amount, current_highest_bidder_id, status)
         VALUES (1, 1, 1, ${now - 10}, ${now + 60}, 20, 'alice', 'active');
       INSERT INTO auto_bids (auction_id, user_id, max_amount, is_active)
         VALUES (1, 'alice', 50, 1);
+      INSERT INTO bids (auction_id, user_id, amount, bid_time, bid_type)
+        VALUES (1, 'bruno', 14, ${now - 5}, 'manual');
       INSERT INTO user_auction_response_timers (auction_id, user_id, status, response_deadline)
         VALUES (1, 'bruno', 'pending', ${now + 60});
     `);

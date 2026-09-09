@@ -27,6 +27,8 @@ vi.mock("@/lib/db/services/response-timer.service", () => ({
 async function resetReconcilerFixture(db: Client) {
   await db.batch(
     [
+      "DROP TABLE IF EXISTS user_auction_response_timers",
+      "DROP TABLE IF EXISTS bids",
       "DROP TABLE IF EXISTS auto_bids",
       "DROP TABLE IF EXISTS auctions",
       "DROP TABLE IF EXISTS league_participants",
@@ -57,6 +59,20 @@ async function resetReconcilerFixture(db: Client) {
         max_amount INTEGER NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
         updated_at INTEGER
+      )`,
+      `CREATE TABLE bids (
+        id INTEGER PRIMARY KEY,
+        auction_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        bid_time INTEGER NOT NULL
+      )`,
+      `CREATE TABLE user_auction_response_timers (
+        id INTEGER PRIMARY KEY,
+        auction_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        UNIQUE (auction_id, user_id)
       )`,
       `CREATE TABLE players (
         id INTEGER PRIMARY KEY,
@@ -110,6 +126,8 @@ describe("locked credits after settlement", () => {
   beforeEach(async () => {
     await testDb.batch(
       [
+        "DELETE FROM user_auction_response_timers",
+        "DELETE FROM bids",
         "DELETE FROM auto_bids",
         "DELETE FROM auctions",
         "DELETE FROM league_participants",
@@ -191,6 +209,83 @@ describe("locked credits after settlement", () => {
     await reconcileLockedCreditsForLeague(7);
 
     await expect(findLockedCreditMismatchesForLeague(7)).resolves.toEqual([]);
+  });
+
+  it("keeps the last committed amount locked while a response is pending", async () => {
+    await testDb.batch(
+      [
+        {
+          sql: "INSERT INTO league_participants (league_id, user_id, locked_credits) VALUES (?, ?, ?)",
+          args: [7, "outbid-user", 14],
+        },
+        {
+          sql: `INSERT INTO auctions
+            (id, auction_league_id, current_highest_bid_amount, current_highest_bidder_id, status)
+            VALUES (?, ?, ?, ?, ?)`,
+          args: [101, 7, 15, "new-winner", "active"],
+        },
+        {
+          sql: "INSERT INTO bids (id, auction_id, user_id, amount, bid_time) VALUES (?, ?, ?, ?, ?)",
+          args: [1, 101, "outbid-user", 14, 1_000],
+        },
+        {
+          sql: "INSERT INTO user_auction_response_timers (id, auction_id, user_id, status) VALUES (?, ?, ?, ?)",
+          args: [1, 101, "outbid-user", "pending"],
+        },
+      ],
+      "write",
+    );
+
+    const { recalcUserLockedCredits } = await import(
+      "@/lib/db/services/locked-credits.service"
+    );
+
+    await expect(recalcUserLockedCredits(7, "outbid-user")).resolves.toBe(14);
+  });
+
+  it("keeps the greater of the historical auto-bid and the latest bid", async () => {
+    await testDb.batch(
+      [
+        "INSERT INTO league_participants (league_id, user_id) VALUES (7, 'outbid-user')",
+        "INSERT INTO auctions (id, auction_league_id, current_highest_bidder_id, status) VALUES (101, 7, 'winner-a', 'active')",
+        "INSERT INTO auctions (id, auction_league_id, current_highest_bidder_id, status) VALUES (102, 7, 'winner-b', 'active')",
+        "INSERT INTO auto_bids (id, auction_id, user_id, max_amount, is_active) VALUES (1, 101, 'outbid-user', 20, 0)",
+        "INSERT INTO auto_bids (id, auction_id, user_id, max_amount, is_active) VALUES (2, 102, 'outbid-user', 30, 0)",
+        "INSERT INTO bids (id, auction_id, user_id, amount, bid_time) VALUES (1, 101, 'outbid-user', 25, 1000)",
+        "INSERT INTO bids (id, auction_id, user_id, amount, bid_time) VALUES (2, 102, 'outbid-user', 25, 1000)",
+        "INSERT INTO user_auction_response_timers (id, auction_id, user_id, status) VALUES (1, 101, 'outbid-user', 'pending')",
+        "INSERT INTO user_auction_response_timers (id, auction_id, user_id, status) VALUES (2, 102, 'outbid-user', 'pending')",
+      ],
+      "write",
+    );
+
+    const { recalcUserLockedCredits } = await import(
+      "@/lib/db/services/locked-credits.service"
+    );
+
+    await expect(recalcUserLockedCredits(7, "outbid-user")).resolves.toBe(55);
+  });
+
+  it("does not count a pending timer twice when active exposure already covers it", async () => {
+    await testDb.batch(
+      [
+        "INSERT INTO league_participants (league_id, user_id) VALUES (7, 'covered-user')",
+        "INSERT INTO auctions (id, auction_league_id, current_highest_bid_amount, current_highest_bidder_id, status) VALUES (101, 7, 18, 'other-user', 'active')",
+        "INSERT INTO auctions (id, auction_league_id, current_highest_bid_amount, current_highest_bidder_id, status) VALUES (102, 7, 12, 'covered-user', 'active')",
+        "INSERT INTO auto_bids (id, auction_id, user_id, max_amount, is_active) VALUES (1, 101, 'covered-user', 30, 1)",
+        "INSERT INTO bids (id, auction_id, user_id, amount, bid_time) VALUES (1, 101, 'covered-user', 20, 1000)",
+        "INSERT INTO bids (id, auction_id, user_id, amount, bid_time) VALUES (2, 102, 'covered-user', 12, 1000)",
+        "INSERT INTO user_auction_response_timers (id, auction_id, user_id, status) VALUES (1, 101, 'covered-user', 'pending')",
+        "INSERT INTO user_auction_response_timers (id, auction_id, user_id, status) VALUES (2, 102, 'covered-user', 'pending')",
+      ],
+      "write",
+    );
+
+    const { recalcUserLockedCredits } = await import(
+      "@/lib/db/services/locked-credits.service"
+    );
+
+    await expect(recalcUserLockedCredits(7, "covered-user")).resolves.toBe(42);
   });
 
   it("rejects invalid league identifiers before querying the database", async () => {
