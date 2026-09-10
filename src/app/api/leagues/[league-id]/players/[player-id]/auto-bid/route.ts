@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "@/lib/db";
+import { recalcUserLockedCredits } from "@/lib/db/services/locked-credits.service";
 
 export async function POST(
   request: Request,
@@ -83,12 +84,6 @@ export async function POST(
 
     // 3. Se maxAmount > 0, verifica budget disponibile
     if (maxAmount > 0) {
-      // Calcola budget disponibile (escludendo eventuali crediti bloccati per auto-bid su ALTRI giocatori)
-      // Nota: se stiamo aggiornando un auto-bid esistente su QUESTO giocatore, i suoi crediti bloccati non devono contare contro il nuovo limite
-      // Ma per semplicità, controlliamo solo budget totale - crediti bloccati totali + (eventuale auto-bid precedente su questo giocatore)
-      // Per ora usiamo una logica semplificata: maxAmount deve essere <= current_budget
-      // In una implementazione più robusta, dovremmo considerare i locked_credits correttamente.
-
       // Recupera eventuale auto-bid esistente per questo giocatore per sottrarlo dai locked credits nel calcolo disponibilità
       const existingAutoBidResult = await db.execute({
         sql: `SELECT max_amount FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE`,
@@ -153,21 +148,13 @@ export async function POST(
         });
       }
 
-      // Ricalcola i locked_credits per l'utente
-      // Questo è un passaggio costoso ma sicuro. In alternativa potremmo aggiornare incrementalmente.
-      // Per sicurezza ricalcoliamo: somma dei max_amount di tutti gli auto-bid attivi
-      // Nota: dobbiamo considerare TUTTE le aste attive della lega
-      const lockedCreditsResult = await tx.execute({
-        sql: `
-          SELECT SUM(ab.max_amount) as total_locked
-          FROM auto_bids ab
-          JOIN auctions a ON ab.auction_id = a.id
-          WHERE a.auction_league_id = ? AND ab.user_id = ? AND ab.is_active = TRUE
-        `,
-        args: [leagueId, user.id],
-      });
-      const totalLocked =
-        (lockedCreditsResult.rows[0].total_locked as number) || 0;
+      // Usa la stessa fonte autorevole impiegata dal resto del sistema:
+      // auto-bid attivi + offerte manuali vincenti + response timer pending.
+      const totalLocked = await recalcUserLockedCredits(
+        leagueId,
+        user.id,
+        tx
+      );
 
       await tx.execute({
         sql: `UPDATE league_participants SET locked_credits = ? WHERE league_id = ? AND user_id = ?`,
