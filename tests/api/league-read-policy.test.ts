@@ -15,6 +15,7 @@ vi.mock("@/lib/db/services/auction-league.service", () => ({ getManagerRoster: v
 vi.mock("@/lib/db/services/penalty.service", () => ({ processUserComplianceAndPenalties: vi.fn() }));
 vi.mock("@/lib/db/services/response-timer.service", () => ({ abandonAuction: vi.fn() }));
 vi.mock("@/lib/db/services/player-discard.service", () => ({ discardPlayerFromRoster: vi.fn() }));
+vi.mock("@/lib/db/services/locked-credits.service", () => ({ getUserAuctionLockedExposure: vi.fn() }));
 
 function ctx(leagueId: number, extra: Record<string, string> = {}) {
   return { params: Promise.resolve({ "league-id": String(leagueId), ...extra }) } as never;
