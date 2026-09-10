@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { currentUser } from "@clerk/nextjs/server";
 
-import { db } from "@/lib/db";
 import { hasLeagueAccess } from "@/lib/auth/league-guard";
+import { db } from "@/lib/db";
+import { getUserAuctionLockedExposure } from "@/lib/db/services/locked-credits.service";
 
 export async function GET(
   request: NextRequest,
@@ -20,10 +21,23 @@ export async function GET(
 
     const resolvedParams = await params;
     const leagueId = parseInt(resolvedParams["league-id"]);
+    const playerIdParam = new URL(request.url).searchParams.get("playerId");
+    const playerId =
+      playerIdParam === null ? null : Number.parseInt(playerIdParam, 10);
 
     if (isNaN(leagueId)) {
       return NextResponse.json(
         { error: "ID lega non valido" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      playerId !== null &&
+      (!Number.isSafeInteger(playerId) || playerId <= 0)
+    ) {
+      return NextResponse.json(
+        { error: "ID giocatore non valido" },
         { status: 400 }
       );
     }
@@ -57,7 +71,35 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(budgetInfo);
+    // Durante un rilancio i crediti già bloccati sulla stessa asta devono
+    // essere sostituiti dalla nuova offerta, non conteggiati una seconda volta.
+    let currentAuctionExposure = 0;
+    if (playerId !== null) {
+      const auctionResult = await db.execute({
+        sql: `SELECT id
+              FROM auctions
+              WHERE auction_league_id = ?
+                AND player_id = ?
+                AND status = 'active'
+              ORDER BY created_at DESC
+              LIMIT 1`,
+        args: [leagueId, playerId],
+      });
+      const auctionId = Number(auctionResult.rows[0]?.id ?? 0);
+
+      if (auctionId > 0) {
+        currentAuctionExposure = await getUserAuctionLockedExposure(
+          leagueId,
+          user.id,
+          auctionId
+        );
+      }
+    }
+
+    return NextResponse.json({
+      ...budgetInfo,
+      current_auction_exposure: currentAuctionExposure,
+    });
   } catch (error) {
     console.error("Error fetching budget:", error);
     return NextResponse.json(
