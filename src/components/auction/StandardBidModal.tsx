@@ -44,6 +44,7 @@ interface StandardBidModalProps {
 interface UserBudgetInfo {
   current_budget: number;
   locked_credits: number;
+  current_auction_exposure?: number;
   team_name?: string;
 }
 
@@ -91,8 +92,12 @@ export function StandardBidModal({
       try {
         setIsLoadingBudget(true);
 
-        // Fetch budget
-        const budgetResponse = await fetch(`/api/leagues/${leagueId}/budget`);
+        // Fetch budget. On a re-bid, ask the backend for the exposure already
+        // locked on this same auction so it can be replaced, not double-counted.
+        const budgetUrl = isNewAuction
+          ? `/api/leagues/${leagueId}/budget`
+          : `/api/leagues/${leagueId}/budget?playerId=${playerId}`;
+        const budgetResponse = await fetch(budgetUrl);
         if (budgetResponse.ok) {
           const budgetData = await budgetResponse.json();
           setUserBudget(budgetData);
@@ -147,8 +152,15 @@ export function StandardBidModal({
     playerQtA,
   ]);
 
+  const currentAuctionExposure =
+    !isNewAuction && userBudget
+      ? (userBudget.current_auction_exposure ?? 0)
+      : 0;
+  const effectiveLockedCredits = userBudget
+    ? Math.max(0, userBudget.locked_credits - currentAuctionExposure)
+    : 0;
   const availableBudget = userBudget
-    ? userBudget.current_budget - userBudget.locked_credits
+    ? Math.max(0, userBudget.current_budget - effectiveLockedCredits)
     : 0;
   // Use player quotation as minimum bid for new auctions (respects league config)
   const baseMinBid = isNewAuction ? playerQtA : currentBid + 1;
