@@ -21,7 +21,7 @@ export async function GET(
 
     const resolvedParams = await params;
     const leagueId = parseInt(resolvedParams["league-id"]);
-    const playerIdParam = request.nextUrl.searchParams.get("playerId");
+    const playerIdParam = new URL(request.url).searchParams.get("playerId");
     const playerId =
       playerIdParam === null ? null : Number.parseInt(playerIdParam, 10);
 
