@@ -32,6 +32,7 @@ interface QuickBidModalProps {
 interface UserBudgetInfo {
   current_budget: number;
   locked_credits: number;
+  current_auction_exposure?: number;
   team_name?: string;
 }
 
@@ -56,7 +57,10 @@ export function QuickBidModal({
       const fetchBudget = async () => {
         try {
           setIsLoadingBudget(true);
-          const response = await fetch(`/api/leagues/${leagueId}/budget`);
+          const budgetUrl = player.currentBid
+            ? `/api/leagues/${leagueId}/budget?playerId=${player.id}`
+            : `/api/leagues/${leagueId}/budget`;
+          const response = await fetch(budgetUrl);
           if (response.ok) {
             const budget = await response.json();
             setUserBudget(budget);
@@ -69,7 +73,7 @@ export function QuickBidModal({
       };
       fetchBudget();
     }
-  }, [isOpen, leagueId]);
+  }, [isOpen, leagueId, player.id, player.currentBid]);
 
   // Set initial bid amount when player changes or modal opens
   useEffect(() => {
@@ -119,8 +123,14 @@ export function QuickBidModal({
     }
   };
 
+  const currentAuctionExposure = player.currentBid && userBudget
+    ? (userBudget.current_auction_exposure ?? 0)
+    : 0;
+  const effectiveLockedCredits = userBudget
+    ? Math.max(0, userBudget.locked_credits - currentAuctionExposure)
+    : 0;
   const availableBudget = userBudget
-    ? userBudget.current_budget - userBudget.locked_credits
+    ? Math.max(0, userBudget.current_budget - effectiveLockedCredits)
     : 0;
   // Calcola l'offerta minima valida
   const minValidBid = player.currentBid
