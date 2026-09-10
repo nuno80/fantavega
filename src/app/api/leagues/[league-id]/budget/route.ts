@@ -80,7 +80,7 @@ export async function GET(
               FROM auctions
               WHERE auction_league_id = ?
                 AND player_id = ?
-                AND status = 'active'
+                AND status IN ('active', 'closing')
               ORDER BY created_at DESC
               LIMIT 1`,
         args: [leagueId, playerId],
