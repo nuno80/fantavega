@@ -18,7 +18,10 @@ vi.mock("@/lib/socket-emitter", () => ({
 // Mock del tipo AuctionLeague
 vi.mock("./auction-league.service", () => ({}));
 
-import { checkAndRecordCompliance } from "../penalty.service";
+import {
+  checkAndRecordCompliance,
+  getAllComplianceStatus,
+} from "../penalty.service";
 
 describe("checkAndRecordCompliance - startTimerIfNonCompliant", () => {
   const TEST_USER_ID = "user_test_123";
@@ -177,5 +180,47 @@ describe("checkAndRecordCompliance - startTimerIfNonCompliant", () => {
     // Utente compliant, nessun cambio di stato indipendentemente dal parametro
     expect(result.isCompliant).toBe(true);
     expect(result.statusChanged).toBe(false);
+  });
+});
+
+describe("getAllComplianceStatus - fasi equivalenti", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("recupera un timer salvato con A,C,D,P quando la lega usa ALL_ROLES", async () => {
+    mockExecute.mockResolvedValueOnce({
+      rows: [
+        {
+          status: "draft_active",
+          active_auction_roles: "",
+        },
+      ],
+    });
+    mockExecute.mockImplementationOnce(
+      ({ args }: { args: unknown[] }) => ({
+        rows: args.includes("draft_active_A,C,D,P")
+          ? [
+              {
+                user_id: "user_test_123",
+                compliance_timer_start_at: null,
+                updated_at: 1_789_059_250,
+              },
+              {
+                user_id: "user_test_123",
+                compliance_timer_start_at: 1_789_021_769,
+                updated_at: 1_789_021_769,
+              },
+            ]
+          : [],
+      })
+    );
+
+    await expect(getAllComplianceStatus(8)).resolves.toEqual([
+      {
+        user_id: "user_test_123",
+        compliance_timer_start_at: 1_789_021_769,
+      },
+    ]);
   });
 });

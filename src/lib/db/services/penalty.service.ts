@@ -6,6 +6,10 @@ import { notifySocketServer } from "@/lib/socket-emitter";
 
 // <-- NUOVA IMPORTAZIONE
 import type { AuctionLeague } from "./auction-league.service";
+import {
+  getCompliancePhaseIdentifiers,
+  getCurrentPhaseIdentifier,
+} from "./compliance-phase";
 
 // 2. Tipi e Interfacce
 interface UserLeagueComplianceStatus {
@@ -36,25 +40,6 @@ const MAX_TOTAL_PENALTY_CREDITS = 25; // Limite assoluto massimo di penalità pe
 const COMPLIANCE_GRACE_PERIOD_HOURS = 1;
 
 // 4. Funzioni Helper (interne)
-const getCurrentPhaseIdentifier = (
-  leagueStatus: string,
-  activeRolesString: string | null
-): string => {
-  if (
-    !activeRolesString ||
-    activeRolesString.trim() === "" ||
-    activeRolesString.toUpperCase() === "ALL"
-  ) {
-    return `${leagueStatus}_ALL_ROLES`;
-  }
-  const sortedRoles = activeRolesString
-    .split(",")
-    .map((r) => r.trim().toUpperCase())
-    .sort()
-    .join(",");
-  return `${leagueStatus}_${sortedRoles}`;
-};
-
 const calculateRequiredSlotsMinusOne = (
   league: Pick<
     AuctionLeague,
@@ -276,29 +261,42 @@ export const getAllComplianceStatus = async (
       throw new Error("League not found");
     }
 
-    // Construct the phase identifier
-    const phaseIdentifier = getCurrentPhaseIdentifier(
+    const phaseIdentifiers = getCompliancePhaseIdentifiers(
       leagueInfo.status,
       leagueInfo.active_auction_roles
     );
 
-    console.log(`[PENALTY_SERVICE] getAllComplianceStatus - Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
+    console.log(`[PENALTY_SERVICE] getAllComplianceStatus - Using phase identifiers: ${phaseIdentifiers.join(", ")} for league ${leagueId}`);
 
-    // Get compliance data for all users in the league with the specific phase identifier
-    // Use a subquery to get only the most recent record for each user based on updated_at timestamp
+    const placeholders = phaseIdentifiers.map(() => "?").join(", ");
     const complianceDataResult = await db.execute({
-      sql: `SELECT t1.user_id, t1.compliance_timer_start_at
-         FROM user_league_compliance_status t1
-         INNER JOIN (
-           SELECT user_id, MAX(updated_at) as max_updated_at
-           FROM user_league_compliance_status
-           WHERE league_id = ? AND phase_identifier = ?
-           GROUP BY user_id
-         ) t2 ON t1.user_id = t2.user_id AND t1.updated_at = t2.max_updated_at
-         WHERE t1.league_id = ? AND t1.phase_identifier = ?`,
-      args: [leagueId, phaseIdentifier, leagueId, phaseIdentifier],
+      sql: `SELECT user_id, compliance_timer_start_at, updated_at
+         FROM user_league_compliance_status
+         WHERE league_id = ? AND phase_identifier IN (${placeholders})
+         ORDER BY updated_at DESC`,
+      args: [leagueId, ...phaseIdentifiers],
     });
-    const complianceData = complianceDataResult.rows as unknown as ComplianceRecord[];
+    const records = complianceDataResult.rows as unknown as Array<
+      ComplianceRecord & { updated_at: number }
+    >;
+
+    // Prefer an active timer over a newer placeholder row created through an
+    // equivalent historical phase alias.
+    const recordsByUser = new Map<string, ComplianceRecord>();
+    for (const record of records) {
+      const existing = recordsByUser.get(record.user_id);
+      if (
+        !existing ||
+        (existing.compliance_timer_start_at === null &&
+          record.compliance_timer_start_at !== null)
+      ) {
+        recordsByUser.set(record.user_id, {
+          user_id: record.user_id,
+          compliance_timer_start_at: record.compliance_timer_start_at,
+        });
+      }
+    }
+    const complianceData = [...recordsByUser.values()];
 
     console.log(`[PENALTY_SERVICE] Found ${complianceData.length} compliance records for league ${leagueId}`);
 

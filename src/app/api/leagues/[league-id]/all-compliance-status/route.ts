@@ -3,27 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
 import { hasLeagueAccess } from "@/lib/auth/league-guard";
-import { db } from "@/lib/db";
-
-// Helper function to create phase identifier (same as in penalty.service.ts)
-const getCurrentPhaseIdentifier = (
-  leagueStatus: string,
-  activeRolesString: string | null
-): string => {
-  if (
-    !activeRolesString ||
-    activeRolesString.trim() === "" ||
-    activeRolesString.toUpperCase() === "ALL"
-  ) {
-    return `${leagueStatus}_ALL_ROLES`;
-  }
-  const sortedRoles = activeRolesString
-    .split(",")
-    .map((r) => r.trim().toUpperCase())
-    .sort()
-    .join(",");
-  return `${leagueStatus}_${sortedRoles}`;
-};
+import { getAllComplianceStatus } from "@/lib/db/services/penalty.service";
 
 // Define the context interface according to the project's convention
 interface RouteContext {
@@ -58,47 +38,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Get the current phase identifier for the league using the same logic as penalty.service.ts
-    const leagueInfoResult = await db.execute({
-      sql: "SELECT status, active_auction_roles FROM auction_leagues WHERE id = ?",
-      args: [leagueId],
-    });
-    const leagueInfo = leagueInfoResult.rows[0] as unknown as { status: string; active_auction_roles: string | null } | undefined;
-
-    if (!leagueInfo) {
-      return new NextResponse("League not found", { status: 404 });
-    }
-
-    // Construct the phase identifier using the same logic as in penalty.service.ts
-    const phaseIdentifier = getCurrentPhaseIdentifier(
-      leagueInfo.status,
-      leagueInfo.active_auction_roles
-    );
-
-    console.log(`[GET_ALL_COMPLIANCE_STATUS] Using phase_identifier: ${phaseIdentifier} for league ${leagueId}`);
-
-    // Define type for compliance data
-    interface ComplianceRecord {
-      user_id: number;
-      compliance_timer_start_at: string | null;
-    }
-
-    // Get compliance data for all users in the league with the specific phase identifier
-    // Direct query - each user has only one record per (league_id, phase_identifier)
-    const complianceDataResult = await db.execute({
-      sql: `SELECT user_id, compliance_timer_start_at
-         FROM user_league_compliance_status
-         WHERE league_id = ? AND phase_identifier = ?`,
-      args: [leagueId, phaseIdentifier],
-    });
-    const complianceData = complianceDataResult.rows as unknown as ComplianceRecord[];
-
-    console.log(`[GET_ALL_COMPLIANCE_STATUS] Found ${complianceData.length} compliance records for league ${leagueId} and phase ${phaseIdentifier}`);
-
-    // Log the compliance data for debugging
-    complianceData.forEach((record: ComplianceRecord) => {
-      console.log(`[GET_ALL_COMPLIANCE_STATUS] User ${record.user_id}: compliance_timer_start_at = ${record.compliance_timer_start_at}`);
-    });
+    const complianceData = await getAllComplianceStatus(leagueId);
 
     return NextResponse.json(complianceData);
   } catch (error) {

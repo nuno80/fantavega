@@ -6,13 +6,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const currentUser = vi.fn();
 const auth = vi.fn();
 const hasLeagueAccess = vi.fn();
+const getAllComplianceStatus = vi.fn();
 
 vi.mock("@clerk/nextjs/server", () => ({ currentUser, auth }));
 vi.mock("@/lib/auth/league-guard", () => ({ hasLeagueAccess }));
 vi.mock("@/lib/db", () => ({ db: { execute: vi.fn() } }));
 vi.mock("@/lib/db/services/bid.service", () => ({ getAuctionStatusForPlayer: vi.fn() }));
 vi.mock("@/lib/db/services/auction-league.service", () => ({ getManagerRoster: vi.fn() }));
-vi.mock("@/lib/db/services/penalty.service", () => ({ processUserComplianceAndPenalties: vi.fn() }));
+vi.mock("@/lib/db/services/penalty.service", () => ({
+  getAllComplianceStatus,
+  processUserComplianceAndPenalties: vi.fn(),
+}));
 vi.mock("@/lib/db/services/response-timer.service", () => ({ abandonAuction: vi.fn() }));
 vi.mock("@/lib/db/services/player-discard.service", () => ({ discardPlayerFromRoster: vi.fn() }));
 
@@ -32,6 +36,7 @@ describe("SEC-005 league read policy matrix", () => {
     currentUser.mockResolvedValue({ id: "user-1", publicMetadata: { role: "manager" } });
     auth.mockResolvedValue({ userId: "user-1" });
     hasLeagueAccess.mockResolvedValue(false);
+    getAllComplianceStatus.mockResolvedValue([]);
   });
 
   for (const method of ["GET", "POST"]) {
