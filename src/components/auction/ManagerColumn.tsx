@@ -934,9 +934,8 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   // 2. AUTO-BID = Somma max_amount auto-bid attivi (locked_credits)
   const autoBid = lockedCredits;
 
-  // 3. DISPONIBILI = Current Budget - tutti i crediti bloccati
-  // locked_credits include offerte vincenti, auto-bid e timer di rilancio pending.
-  const disponibili = Math.max(0, validCurrentBudget - lockedCredits);
+  // 3. DISPONIBILI = budget potenziale residuo, liberabile abbandonando le esposizioni attive
+  const disponibili = Math.max(0, validCurrentBudget);
 
   // 4. DISP. AUTO-BID = Current Budget - Auto-bid
   const dispAutoBid = Math.max(0, validCurrentBudget - autoBid);
@@ -1099,11 +1098,11 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-3 text-xs" side="bottom">
                   <div className="space-y-2">
-                    <h4 className="font-semibold">💰 Crediti Disponibili</h4>
-                    <p>Crediti realmente disponibili dopo aver sottratto tutte le esposizioni ancora bloccate, inclusi i timer di rilancio pending.</p>
+                    <h4 className="font-semibold">💰 Disponibili potenziali</h4>
+                    <p>Crediti residui potenzialmente disponibili se liberassi tutte le esposizioni ancora bloccate nelle aste in corso.</p>
                     <div className="rounded bg-muted p-2 dark:bg-muted/50">
                       <span className="font-mono text-[10px] font-semibold">Formula:</span>
-                      <p className="font-mono text-[10px]">Budget Corrente - Crediti Bloccati</p>
+                      <p className="font-mono text-[10px]">Budget Corrente</p>
                     </div>
                   </div>
                 </PopoverContent>
