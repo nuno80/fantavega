@@ -303,10 +303,20 @@ export function StandardBidModal({
               </div>
               <p className="text-sm text-muted-foreground">{playerTeam}</p>
               {!isNewAuction && (
-                <p className="text-sm">
-                  Offerta attuale:{" "}
-                  <span className="font-semibold">{currentBid} crediti</span>
-                </p>
+                <div className="mt-1 flex items-center gap-1.5 text-sm font-mono tabular-nums">
+                  {currentAuctionExposure > 0 && (
+                    <>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400" title="Tua ultima offerta ancora bloccata">
+                        {currentAuctionExposure}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                    </>
+                  )}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400" title="Offerta attuale">
+                    {currentBid}
+                  </span>
+                  <span className="text-xs text-muted-foreground">crediti</span>
+                </div>
               )}
             </div>
           </div>
