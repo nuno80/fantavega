@@ -303,7 +303,7 @@ function AssignedSlot({
               className="rounded p-1 transition-colors hover:bg-red-600/20"
               title="Scarta giocatore"
             >
-              <Trash2 className="h-3 w-3 text-red-400/50" />
+              <Trash2 className="h-3 w-3 text-red-400" />
             </button>
           ) : (
             <Lock className="h-3 w-3 text-gray-400/50" />
