@@ -303,7 +303,7 @@ function AssignedSlot({
               className="rounded p-1 transition-colors hover:bg-red-600/20"
               title="Scarta giocatore"
             >
-              <Trash2 className="h-3 w-3 text-red-400" />
+              <Trash2 className="h-3 w-3 text-red-400/50" />
             </button>
           ) : (
             <Lock className="h-3 w-3 text-gray-400/50" />
@@ -934,12 +934,9 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
   // 2. AUTO-BID = Somma max_amount auto-bid attivi (locked_credits)
   const autoBid = lockedCredits;
 
-  // 3. DISPONIBILI = Current Budget - Offerte vincenti correnti
-  // Usa current_budget (modificabile dall'admin) come base
-  const disponibili = Math.max(
-    0,
-    validCurrentBudget - currentWinningBidsAmount
-  );
+  // 3. DISPONIBILI = Current Budget - tutti i crediti bloccati
+  // locked_credits include offerte vincenti, auto-bid e timer di rilancio pending.
+  const disponibili = Math.max(0, validCurrentBudget - lockedCredits);
 
   // 4. DISP. AUTO-BID = Current Budget - Auto-bid
   const dispAutoBid = Math.max(0, validCurrentBudget - autoBid);
@@ -1103,10 +1100,10 @@ export const ManagerColumn: React.FC<ManagerColumnProps> = ({
                 <PopoverContent className="w-64 p-3 text-xs" side="bottom">
                   <div className="space-y-2">
                     <h4 className="font-semibold">💰 Crediti Disponibili</h4>
-                    <p>Crediti che puoi spendere subito se nessuno rilancia sulle tue offerte attuali.</p>
+                    <p>Crediti realmente disponibili dopo aver sottratto tutte le esposizioni ancora bloccate, inclusi i timer di rilancio pending.</p>
                     <div className="rounded bg-muted p-2 dark:bg-muted/50">
                       <span className="font-mono text-[10px] font-semibold">Formula:</span>
-                      <p className="font-mono text-[10px]">Budget Totale - Spesi - Offerte Vincenti Correnti</p>
+                      <p className="font-mono text-[10px]">Budget Corrente - Crediti Bloccati</p>
                     </div>
                   </div>
                 </PopoverContent>
