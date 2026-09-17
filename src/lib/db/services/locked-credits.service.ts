@@ -274,12 +274,23 @@ export async function reconcileLockedCreditsForLeague(
 export async function reconcileLockedCreditsForActiveLeagues(): Promise<number> {
   const leagues = await db.execute({
     sql: `
-      WITH participant_exposure AS (
+      WITH candidate_leagues AS (
+        SELECT DISTINCT auction_league_id AS league_id
+        FROM auctions
+        WHERE status IN ('active', 'closing')
+        UNION
+        SELECT DISTINCT league_id
+        FROM league_participants
+        WHERE locked_credits <> 0
+      ),
+      participant_exposure AS (
         SELECT
           lp.league_id,
           lp.locked_credits,
           ${ACTIVE_EXPOSURE_SQL} AS active_exposure
         FROM league_participants lp
+        JOIN candidate_leagues candidate
+          ON candidate.league_id = lp.league_id
       )
       SELECT DISTINCT league_id AS auction_league_id
       FROM participant_exposure

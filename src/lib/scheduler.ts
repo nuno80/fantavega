@@ -14,13 +14,36 @@ import { reconcileLockedCreditsForActiveLeagues } from "./db/services/locked-cre
 import { reapGhostSessions } from "./db/services/session.service";
 
 const TASK_CHECK_INTERVAL = 15 * 1000;
-// Outbox is delivered on its own fast tick: idempotent + fenced by the claim
-// owner token, so overlapping instances are safe (at most a redundant claim).
-const OUTBOX_INTERVAL = 1 * 1000;
+const GHOST_SESSION_REAP_INTERVAL = 60 * 1000;
+const LOCKED_CREDIT_RECONCILE_INTERVAL = 30 * 60 * 1000;
+// Keep realtime delivery fast while work exists, then back off when the outbox
+// stays empty. This caps idle polling at one query every five seconds without
+// changing the durable at-least-once delivery contract.
+const OUTBOX_INTERVALS = [1_000, 2_000, 5_000] as const;
 let schedulerInterval: NodeJS.Timeout | null = null;
-let outboxInterval: NodeJS.Timeout | null = null;
+let outboxTimeout: NodeJS.Timeout | null = null;
 let isRunning = false;
 let isOutboxRunning = false;
+let shouldRunOutbox = false;
+let consecutiveEmptyOutboxTicks = 0;
+let lastGhostSessionReapAt = 0;
+let lastLockedCreditReconcileAt = 0;
+
+function isDue(lastRunAt: number, interval: number, now: number): boolean {
+  return lastRunAt === 0 || now - lastRunAt >= interval;
+}
+
+export function getNextOutboxDelay(
+  delivered: number,
+  emptyTicks = consecutiveEmptyOutboxTicks,
+): { delay: number; emptyTicks: number } {
+  const nextEmptyTicks = delivered > 0 ? 0 : emptyTicks + 1;
+  const intervalIndex = Math.min(nextEmptyTicks, OUTBOX_INTERVALS.length - 1);
+  return {
+    delay: OUTBOX_INTERVALS[intervalIndex],
+    emptyTicks: nextEmptyTicks,
+  };
+}
 
 // TIME-002: rinnova il lease prima che scada tra un task sequenziale e l'altro.
 // Se il rinnovo fallisce, l'istanza ha perso la ownership (un'altra l'ha
@@ -48,8 +71,14 @@ const runBackgroundTasks = async () => {
     lease = await acquireSchedulerLease();
     if (!lease) return;
 
-    await reapGhostSessions();
-    if (!(await renewLeaseIfNeeded(lease))) return;
+    const now = Date.now();
+    if (isDue(lastGhostSessionReapAt, GHOST_SESSION_REAP_INTERVAL, now)) {
+      // Mark the maintenance window before running so a transient failure does
+      // not turn the 15-second expiry loop into an aggressive retry loop.
+      lastGhostSessionReapAt = now;
+      await reapGhostSessions();
+      if (!(await renewLeaseIfNeeded(lease))) return;
+    }
 
     await processExpiredAuctionsAndAssignPlayers();
     if (!(await renewLeaseIfNeeded(lease))) return;
@@ -60,7 +89,14 @@ const runBackgroundTasks = async () => {
     await processExpiredComplianceTimers();
     if (!(await renewLeaseIfNeeded(lease))) return;
 
-    await reconcileLockedCreditsForActiveLeagues();
+    if (
+      isDue(lastLockedCreditReconcileAt, LOCKED_CREDIT_RECONCILE_INTERVAL, now)
+    ) {
+      // Bid, auto-bid and response-timer mutations already recalculate credits
+      // transactionally. This remains a slow safety net for drift recovery.
+      lastLockedCreditReconcileAt = now;
+      await reconcileLockedCreditsForActiveLeagues();
+    }
   } catch (error) {
     logger.error("background task failure", { error });
   } finally {
@@ -72,22 +108,37 @@ const runBackgroundTasks = async () => {
 const runOutboxTick = async () => {
   if (isOutboxRunning) return;
   isOutboxRunning = true;
+  let delivered = 0;
   try {
-    await dispatchOutboxEvents();
+    delivered = await dispatchOutboxEvents();
   } catch (error) {
     logger.error("outbox tick failure", { error });
   } finally {
     isOutboxRunning = false;
+    if (shouldRunOutbox) {
+      const next = getNextOutboxDelay(delivered);
+      consecutiveEmptyOutboxTicks = next.emptyTicks;
+      scheduleOutboxTick(next.delay);
+    }
   }
 };
+
+function scheduleOutboxTick(delay: number): void {
+  if (!shouldRunOutbox) return;
+  outboxTimeout = setTimeout(() => {
+    outboxTimeout = null;
+    void runOutboxTick();
+  }, delay);
+}
 
 export const startScheduler = () => {
   if (schedulerInterval) return;
   void runBackgroundTasks();
   schedulerInterval = setInterval(() => void runBackgroundTasks(), TASK_CHECK_INTERVAL);
-  if (!outboxInterval) {
-    void runOutboxTick();
-    outboxInterval = setInterval(() => void runOutboxTick(), OUTBOX_INTERVAL);
+  if (!shouldRunOutbox) {
+    shouldRunOutbox = true;
+    consecutiveEmptyOutboxTicks = 0;
+    scheduleOutboxTick(0);
   }
 };
 
@@ -96,9 +147,10 @@ export const stopScheduler = () => {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
   }
-  if (outboxInterval) {
-    clearInterval(outboxInterval);
-    outboxInterval = null;
+  shouldRunOutbox = false;
+  if (outboxTimeout) {
+    clearTimeout(outboxTimeout);
+    outboxTimeout = null;
   }
 };
 

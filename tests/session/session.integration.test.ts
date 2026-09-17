@@ -51,7 +51,8 @@ describe("session integration (libSQL :memory:)", () => {
         ('user-guard', 'g@test.dev', 'g', 'manager', 'active'),
         ('user-migrate', 'm@test.dev', 'm', 'manager', 'active'),
         ('user-unique', 'u@test.dev', 'u', 'manager', 'active'),
-        ('user-skip', 's@test.dev', 's', 'manager', 'active');
+        ('user-skip', 's@test.dev', 's', 'manager', 'active'),
+        ('user-throttle', 't@test.dev', 't', 'manager', 'active');
     `);
   });
 
@@ -87,6 +88,36 @@ describe("session integration (libSQL :memory:)", () => {
     expect(rows.rows).toHaveLength(1);
     expect(rows.rows[0].session_end).toBeNull();
     expect(Number(rows.rows[0].last_heartbeat)).toBeGreaterThanOrEqual(1000);
+  });
+
+  it("throttles repeated heartbeat writes for the same user", async () => {
+    vi.useFakeTimers();
+    try {
+      const userId = "user-throttle";
+      vi.setSystemTime(new Date("2026-09-17T10:00:00Z"));
+      const first = await updateHeartbeat(userId);
+
+      vi.setSystemTime(new Date("2026-09-17T10:00:10Z"));
+      const throttled = await updateHeartbeat(userId);
+      const afterThrottledCall = await client.execute({
+        sql: "SELECT last_heartbeat FROM user_sessions WHERE user_id = ?",
+        args: [userId],
+      });
+
+      expect(throttled).toBe(first);
+      expect(Number(afterThrottledCall.rows[0].last_heartbeat)).toBe(first);
+
+      vi.setSystemTime(new Date("2026-09-17T10:00:31Z"));
+      const refreshed = await updateHeartbeat(userId);
+      expect(refreshed).toBe(first + 31);
+      const afterRefresh = await client.execute({
+        sql: "SELECT last_heartbeat FROM user_sessions WHERE user_id = ?",
+        args: [userId],
+      });
+      expect(Number(afterRefresh.rows[0].last_heartbeat)).toBe(refreshed);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("B2: a non-unique DB error still propagates", async () => {

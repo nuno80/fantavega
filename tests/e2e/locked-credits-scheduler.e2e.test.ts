@@ -53,11 +53,21 @@ describe("locked-credit scheduler safety net", () => {
     mocks.reconcileLockedCreditsForActiveLeagues.mockResolvedValue(0);
   });
 
-  it("reconciles candidate leagues even when this cycle settles no auction", async () => {
+  it("runs reconciliation as a slow safety net, not on every 15-second cycle", async () => {
     const { runManualProcessing } = await import("@/lib/scheduler");
 
     await runManualProcessing();
+    await runManualProcessing();
 
     expect(mocks.reconcileLockedCreditsForActiveLeagues).toHaveBeenCalledOnce();
+  });
+
+  it("backs off empty outbox polling and resets after delivery", async () => {
+    const { getNextOutboxDelay } = await import("@/lib/scheduler");
+
+    expect(getNextOutboxDelay(0, 0)).toEqual({ delay: 2_000, emptyTicks: 1 });
+    expect(getNextOutboxDelay(0, 1)).toEqual({ delay: 5_000, emptyTicks: 2 });
+    expect(getNextOutboxDelay(0, 99)).toEqual({ delay: 5_000, emptyTicks: 100 });
+    expect(getNextOutboxDelay(1, 99)).toEqual({ delay: 1_000, emptyTicks: 0 });
   });
 });

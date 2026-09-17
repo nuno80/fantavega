@@ -13,6 +13,29 @@ export const isUniqueConflictError = (error: unknown): boolean => {
 };
 
 const INSERT_SESSION_SQL = "INSERT INTO user_sessions (user_id, session_start, session_end, last_heartbeat) VALUES (?, ?, NULL, ?)";
+export const HEARTBEAT_WRITE_INTERVAL_SECONDS = 30;
+
+const recentHeartbeats = new Map<string, number>();
+const heartbeatWrites = new Map<string, Promise<number>>();
+
+async function persistHeartbeat(userId: string, now: number): Promise<number> {
+  const result = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
+  if (result.rowsAffected === 0) {
+    try {
+      await db.execute({ sql: INSERT_SESSION_SQL, args: [userId, now, now] });
+    } catch (error) {
+      if (!isUniqueConflictError(error)) throw error;
+      // Un altro concorrente ha già inserito la sessione: riprova l'UPDATE una volta.
+      const retry = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
+      if (retry.rowsAffected === 0) {
+        // Never return a timestamp that was not persisted: callers use it to start timers.
+        throw new Error(`Heartbeat upsert failed after retry for ${userId}`);
+      }
+    }
+  }
+  recentHeartbeats.set(userId, now);
+  return now;
+}
 
 export const recordUserLogin = async (userId: string): Promise<void> => {
   const now = Math.floor(Date.now() / 1000);
@@ -23,6 +46,7 @@ export const recordUserLogin = async (userId: string): Promise<void> => {
     } else {
       await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
     }
+    recentHeartbeats.set(userId, now);
     await processExpiredResponseTimers();
   } catch (error) {
     console.error("[SESSION] Error recording login:", error);
@@ -37,6 +61,7 @@ export const recordUserLogout = async (userId: string, notAfter?: number): Promi
       : "UPDATE user_sessions SET session_end = ? WHERE user_id = ? AND session_end IS NULL AND (last_heartbeat IS NULL OR last_heartbeat <= ?)",
     args: notAfter === undefined ? [now, userId] : [now, userId, notAfter],
   });
+  recentHeartbeats.delete(userId);
   if (result.rowsAffected > 0) console.log(`[SESSION] Closed ${result.rowsAffected} session for ${userId}`);
 };
 
@@ -60,21 +85,19 @@ export const isUserCurrentlyOnline = async (userId: string): Promise<boolean> =>
 
 export const updateHeartbeat = async (userId: string): Promise<number> => {
   const now = Math.floor(Date.now() / 1000);
-  const result = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
-  if (result.rowsAffected === 0) {
-    try {
-      await db.execute({ sql: INSERT_SESSION_SQL, args: [userId, now, now] });
-    } catch (error) {
-      if (!isUniqueConflictError(error)) throw error;
-      // Un altro concorrente ha già inserito la sessione: riprova l'UPDATE una volta.
-      const retry = await db.execute({ sql: "UPDATE user_sessions SET last_heartbeat = ? WHERE user_id = ? AND session_end IS NULL", args: [now, userId] });
-      if (retry.rowsAffected === 0) {
-        // Never return a timestamp that was not persisted: callers use it to start timers.
-        throw new Error(`Heartbeat upsert failed after retry for ${userId}`);
-      }
-    }
+  const recent = recentHeartbeats.get(userId);
+  if (recent !== undefined && now - recent < HEARTBEAT_WRITE_INTERVAL_SECONDS) {
+    return recent;
   }
-  return now;
+
+  const inFlight = heartbeatWrites.get(userId);
+  if (inFlight) return inFlight;
+
+  const write = persistHeartbeat(userId, now).finally(() => {
+    heartbeatWrites.delete(userId);
+  });
+  heartbeatWrites.set(userId, write);
+  return write;
 };
 
 export const reapGhostSessions = async (): Promise<number> => {
