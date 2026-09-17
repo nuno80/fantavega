@@ -1647,12 +1647,12 @@ async function processAuctionWinner(
       await publishEssentialEvent(tx, {
         eventType: "auction-closed",
         room: `league-${auction.auction_league_id}`,
-        eventName: "auction-closed",
+        eventName: "auction-closed-notification",
         payload: {
           auctionId: auction.id,
           playerId: auction.player_id,
           winnerId: auction.current_highest_bidder_id,
-          amount: auction.current_highest_bid_amount,
+          finalPrice: auction.current_highest_bid_amount,
           playerName: auction.player_name,
           playerRole: auction.player_role,
         },

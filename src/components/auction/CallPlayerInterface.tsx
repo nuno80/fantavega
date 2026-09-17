@@ -370,14 +370,34 @@ export function CallPlayerInterface({
       refreshPlayersData();
     };
 
+    const handlePlayerDiscarded = (data: { leagueId: number; playerId: number }) => {
+      if (data.leagueId !== leagueId) return;
+      setPlayers((prevPlayers) =>
+        prevPlayers.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "no_auction" as const,
+                auctionId: undefined,
+                currentBid: undefined,
+                currentHighestBidderName: undefined,
+                timeRemaining: undefined,
+              }
+            : player
+        )
+      );
+    };
+
     // Register events
     socket.on("auction-closed-notification", handleAuctionClosed);
     socket.on("auction-created", handleAuctionCreated);
+    socket.on("player-discarded", handlePlayerDiscarded);
 
     // Cleanup on unmount
     return () => {
       socket.off("auction-closed-notification", handleAuctionClosed);
       socket.off("auction-created", handleAuctionCreated);
+      socket.off("player-discarded", handlePlayerDiscarded);
     };
   }, [socket, isConnected, leagueId, refreshPlayersData]);
 

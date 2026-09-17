@@ -1,4 +1,5 @@
 import { db } from "../index";
+import { publishEssentialEvent } from "./event-publisher";
 
 export interface DiscardPlayerResult {
   success: boolean;
@@ -169,6 +170,21 @@ export const discardPlayerFromRoster = async (
         await transaction.rollback();
         throw new Error("Failed to record budget transaction");
       }
+
+      // Notifica tutti i client della lega nella stessa transazione dello
+      // scarto: la UI può aggiornare rosa, budget e disponibilità giocatore.
+      await publishEssentialEvent(transaction, {
+        eventType: "player-discarded",
+        room: `league-${leagueId}`,
+        eventName: "player-discarded",
+        payload: {
+          leagueId,
+          playerId,
+          playerName: playerAssignment.player_name,
+          userId,
+          refundAmount,
+        },
+      });
 
       // Commit the transaction
       await transaction.commit();

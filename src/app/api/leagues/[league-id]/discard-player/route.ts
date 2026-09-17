@@ -60,17 +60,6 @@ export async function POST(
       refundAmount: result.refundAmount,
     });
 
-    // TODO: Add real-time notification via Socket.IO once socket emitter is available
-    // if (io) {
-    //   io.to(`league-${leagueId}`).emit("player-discarded", {
-    //     playerId,
-    //     playerName: result.playerName,
-    //     userId: user.id,
-    //     refundAmount: result.refundAmount,
-    //     timestamp: new Date().toISOString(),
-    //   });
-    // }
-
     return NextResponse.json({
       success: true,
       message: "Player discarded successfully",

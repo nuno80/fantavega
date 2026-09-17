@@ -397,10 +397,30 @@ export function PlayerSearchInterface({
       );
     };
 
+    const handlePlayerDiscarded = (data: { leagueId: number; playerId: number }) => {
+      if (data.leagueId !== selectedLeagueId) return;
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === data.playerId
+            ? {
+                ...player,
+                auctionStatus: "no_auction",
+                auctionId: undefined,
+                currentBid: undefined,
+                timeRemaining: undefined,
+                assignedToTeam: undefined,
+                isAssignedToUser: false,
+              }
+            : player
+        )
+      );
+    };
+
     socket.on("auction-closed-notification", handleAuctionClosed);
     socket.on("auction-created", handleAuctionCreated);
     socket.on("auction-update", handleAuctionUpdate);
     socket.on("user-auction-private-update", handlePrivateUpdate);
+    socket.on("player-discarded", handlePlayerDiscarded);
 
     return () => {
       socket.emit("leave-league-room", selectedLeagueId.toString());
@@ -408,6 +428,7 @@ export function PlayerSearchInterface({
       socket.off("auction-created", handleAuctionCreated);
       socket.off("auction-update", handleAuctionUpdate);
       socket.off("user-auction-private-update", handlePrivateUpdate);
+      socket.off("player-discarded", handlePlayerDiscarded);
     };
   }, [socket, isConnected, selectedLeagueId, userId]);
 

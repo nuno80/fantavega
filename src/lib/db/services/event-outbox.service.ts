@@ -20,6 +20,7 @@ export type OutboxEventType =
   | "user-auction-private-update"
   | "auction-created"
   | "auction-closed"
+  | "player-discarded"
   | "bid-surpassed-notification"
   | "auto-bid-activated-notification"
   | "compliance-status-changed"

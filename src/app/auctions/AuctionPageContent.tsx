@@ -512,6 +512,12 @@ export function AuctionPageContent({
       resetInactivityTimer();
     };
 
+    const handlePlayerDiscarded = (data: { leagueId: number }) => {
+      if (data.leagueId !== selectedLeagueId) return;
+      fetchManagersData(selectedLeagueId);
+      resetInactivityTimer();
+    };
+
     const handleUserAbandoned = () => {
       // Toast rimosso - il modale si chiude e la UI si aggiorna
       fetchUserAuctionStates(selectedLeagueId);
@@ -544,6 +550,7 @@ export function AuctionPageContent({
     socket.on("response-timer-started", handleResponseTimerStarted);
     socket.on("timer-expired-notification", handleResponseTimerExpired);
     socket.on("auction-closed-notification", handleAuctionClosed);
+    socket.on("player-discarded", handlePlayerDiscarded);
     socket.on("user-abandoned-auction", handleUserAbandoned);
     socket.on("auto-bid-activated-notification", handleAutoBidActivated);
     socket.on("compliance-status-changed", handleComplianceStatusChange);
@@ -560,6 +567,7 @@ export function AuctionPageContent({
       socket.off("response-timer-started", handleResponseTimerStarted);
       socket.off("timer-expired-notification", handleResponseTimerExpired);
       socket.off("auction-closed-notification", handleAuctionClosed);
+      socket.off("player-discarded", handlePlayerDiscarded);
       socket.off("user-abandoned-auction", handleUserAbandoned);
       socket.off("auto-bid-activated-notification", handleAutoBidActivated);
       socket.off("compliance-status-changed", handleComplianceStatusChange);
