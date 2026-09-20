@@ -1,16 +1,17 @@
-import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
-import { dispatchOutboxEvents } from "./db/services/event-outbox.service";
-import { processExpiredComplianceTimers } from "./db/services/penalty.service";
-import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 import { logger } from "@/lib/logger";
 
+import { processExpiredAuctionsAndAssignPlayers } from "./db/services/bid.service";
+import { dispatchOutboxEvents } from "./db/services/event-outbox.service";
+import { reconcileLockedCreditsForActiveLeagues } from "./db/services/locked-credits.service";
+import { processExpiredComplianceTimers } from "./db/services/penalty.service";
+import { processExpiredResponseTimers } from "./db/services/response-timer.service";
 import {
   acquireSchedulerLease,
   releaseSchedulerLease,
   renewSchedulerLease,
   shouldRenewLease,
 } from "./db/services/scheduler-lease.service";
-import { reconcileLockedCreditsForActiveLeagues } from "./db/services/locked-credits.service";
+import { hasDueBackgroundWork } from "./db/services/scheduler-work.service";
 import { reapGhostSessions } from "./db/services/session.service";
 
 const TASK_CHECK_INTERVAL = 15 * 1000;
@@ -35,7 +36,7 @@ function isDue(lastRunAt: number, interval: number, now: number): boolean {
 
 export function getNextOutboxDelay(
   delivered: number,
-  emptyTicks = consecutiveEmptyOutboxTicks,
+  emptyTicks = consecutiveEmptyOutboxTicks
 ): { delay: number; emptyTicks: number } {
   const nextEmptyTicks = delivered > 0 ? 0 : emptyTicks + 1;
   const intervalIndex = Math.min(nextEmptyTicks, OUTBOX_INTERVALS.length - 1);
@@ -48,9 +49,10 @@ export function getNextOutboxDelay(
 // TIME-002: rinnova il lease prima che scada tra un task sequenziale e l'altro.
 // Se il rinnovo fallisce, l'istanza ha perso la ownership (un'altra l'ha
 // claimata) e interrompe il ciclo per non lavorare in overlap.
-async function renewLeaseIfNeeded(
-  lease: { ownerToken: string; expiresAt: number },
-): Promise<boolean> {
+async function renewLeaseIfNeeded(lease: {
+  ownerToken: string;
+  expiresAt: number;
+}): Promise<boolean> {
   if (!shouldRenewLease(lease.expiresAt)) return true;
   const renewal = await renewSchedulerLease(lease.ownerToken);
   if (renewal.renewed) {
@@ -68,30 +70,40 @@ const runBackgroundTasks = async () => {
   isRunning = true;
   let lease: Awaited<ReturnType<typeof acquireSchedulerLease>> = null;
   try {
+    const now = Date.now();
+    if (isDue(lastGhostSessionReapAt, GHOST_SESSION_REAP_INTERVAL, now)) {
+      // This update is idempotent and already guarded by its WHERE clause, so
+      // it does not need the distributed lease and writes only stale sessions.
+      lastGhostSessionReapAt = now;
+      await reapGhostSessions();
+    }
+
+    const shouldReconcileLockedCredits = isDue(
+      lastLockedCreditReconcileAt,
+      LOCKED_CREDIT_RECONCILE_INTERVAL,
+      now
+    );
+    const hasDueWork = await hasDueBackgroundWork(Math.floor(now / 1000));
+
+    // In idle there is no reason to acquire and immediately release the lease:
+    // those two operations were the source of ~11,520 writes/day per replica.
+    if (!hasDueWork && !shouldReconcileLockedCredits) return;
+
     lease = await acquireSchedulerLease();
     if (!lease) return;
 
-    const now = Date.now();
-    if (isDue(lastGhostSessionReapAt, GHOST_SESSION_REAP_INTERVAL, now)) {
-      // Mark the maintenance window before running so a transient failure does
-      // not turn the 15-second expiry loop into an aggressive retry loop.
-      lastGhostSessionReapAt = now;
-      await reapGhostSessions();
+    if (hasDueWork) {
+      await processExpiredAuctionsAndAssignPlayers();
+      if (!(await renewLeaseIfNeeded(lease))) return;
+
+      await processExpiredResponseTimers();
+      if (!(await renewLeaseIfNeeded(lease))) return;
+
+      await processExpiredComplianceTimers();
       if (!(await renewLeaseIfNeeded(lease))) return;
     }
 
-    await processExpiredAuctionsAndAssignPlayers();
-    if (!(await renewLeaseIfNeeded(lease))) return;
-
-    await processExpiredResponseTimers();
-    if (!(await renewLeaseIfNeeded(lease))) return;
-
-    await processExpiredComplianceTimers();
-    if (!(await renewLeaseIfNeeded(lease))) return;
-
-    if (
-      isDue(lastLockedCreditReconcileAt, LOCKED_CREDIT_RECONCILE_INTERVAL, now)
-    ) {
+    if (shouldReconcileLockedCredits) {
       // Bid, auto-bid and response-timer mutations already recalculate credits
       // transactionally. This remains a slow safety net for drift recovery.
       lastLockedCreditReconcileAt = now;
@@ -134,7 +146,10 @@ function scheduleOutboxTick(delay: number): void {
 export const startScheduler = () => {
   if (schedulerInterval) return;
   void runBackgroundTasks();
-  schedulerInterval = setInterval(() => void runBackgroundTasks(), TASK_CHECK_INTERVAL);
+  schedulerInterval = setInterval(
+    () => void runBackgroundTasks(),
+    TASK_CHECK_INTERVAL
+  );
   if (!shouldRunOutbox) {
     shouldRunOutbox = true;
     consecutiveEmptyOutboxTicks = 0;
