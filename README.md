@@ -6,52 +6,40 @@ A comprehensive fantasy sports auction application built with Next.js 15, featur
 
 This application requires **two separate services** to run in production:
 1. **Next.js Application** (Vercel) - Frontend and API routes
-2. **Socket.IO Server** (Railway) - Real-time WebSocket connections
+2. **Socket.IO Server** (Northflank) - Real-time WebSocket connections and background scheduler
 
 ### Prerequisites
 
 - GitHub repository with your code
 - [Vercel](https://vercel.com) account
-- [Railway](https://railway.app) account
+- [Northflank](https://northflank.com) account
 - [Clerk](https://clerk.com) account for authentication
+- [Turso](https://turso.tech) database
 
-### Step 1: Deploy Socket.IO Server to Railway
+### Step 1: Deploy Socket.IO Server to Northflank
 
-#### 1. Connect GitHub Repository
+See [`guida-northflank.md`](guida-northflank.md) for the complete operational setup.
 
-If you're having trouble connecting the repository or Railway connects to an old account:
+The `Dockerfile` in the repository starts only the Socket.IO server:
 
-1. **Revoke Old Access**: Go to GitHub → **Settings** → **Applications** → **Authorized OAuth Apps** and click **Revoke** on Railway.
-
-2. **Repository Permissions**: In GitHub → **Settings** → **Applications** → **Installed GitHub Apps** → **Railway**, ensure the `fantavega` repository is selected and click the green **Save** button.
-
-3. **Sync Repository**: In the Railway Dashboard, click **"New Project"** → **"Deploy from GitHub repo"**. If you don't see the repo, click **"Configure GitHub App"** to force a refresh.
-
-#### 2. Configure Build Settings
-
-The project includes a `railway.json` file that automatically configures the build:
-
-```json
-{
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "pnpm install --prod"
-  },
-  "deploy": {
-    "startCommand": "node --import tsx socket-server.ts",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
+```dockerfile
+CMD ["node", "--import", "tsx", "socket-server.ts"]
 ```
 
-> 💡 **Note**: The `--prod` flag skips devDependencies installation for faster builds.
+In Northflank:
 
-#### 3. Set Environment Variables
+1. Connect the `nuno80/fantavega` GitHub repository.
+2. Create a combined service using the repository `Dockerfile`.
+3. Track the `main` branch and enable automatic deployments.
+4. Expose the HTTP/WebSocket port provided through `PORT` (the application defaults to `3001`).
+5. Generate the public Northflank domain and keep the service running continuously.
+
+#### Environment variables on Northflank
 
 Configure these variables in the **Variables** tab of your service:
 
-```
+```env
+PORT=3001
 ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-app-git-main.vercel.app
 TURSO_DATABASE_URL=your_turso_url
 TURSO_AUTH_TOKEN=your_turso_token
@@ -59,18 +47,6 @@ SOCKET_EMIT_SECRET=generate-a-long-random-secret
 ```
 
 > ⚠️ **Important**: Include ALL Vercel URLs (production and preview) separated by commas without spaces.
-
-#### 4. Get Railway Public URL
-
-- Go to **Settings** → **Networking** → **Generate Domain** (if not already present).
-- Copy the generated URL (e.g., `https://fantavega-production.up.railway.app`).
-- You'll need this to configure the frontend client on Vercel (variable `NEXT_PUBLIC_SOCKET_URL`).
-
-#### 5. Keep Service Active
-
-- Railway's Hobby plan may pause inactive services.
-- Periodically check the dashboard if real-time features appear interrupted.
-- Consider the "Trial" or "Pro" plan to avoid auto-pause.
 
 ### Step 2: Deploy Next.js App to Vercel
 
@@ -88,16 +64,16 @@ SOCKET_EMIT_SECRET=generate-a-long-random-secret
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_YOUR_KEY
    CLERK_SECRET_KEY=sk_live_YOUR_KEY
 
-   # Socket.IO Server (Railway URL from Step 1)
-   NEXT_PUBLIC_SOCKET_URL=https://fantavega-production.up.railway.app
-   SOCKET_EMIT_SECRET=the-same-long-random-secret-used-on-railway
+   # Socket.IO Server (Northflank public URL from Step 1)
+   NEXT_PUBLIC_SOCKET_URL=https://your-northflank-public-domain
+   SOCKET_EMIT_SECRET=the-same-long-random-secret-used-on-northflank
 
    # Database (Turso)
    TURSO_DATABASE_URL=libsql://your-db.turso.io
    TURSO_AUTH_TOKEN=your_token
    ```
 
-   > ⚠️ **Critical**: `NEXT_PUBLIC_SOCKET_URL` must point to your Railway URL
+   > ⚠️ **Critical**: `NEXT_PUBLIC_SOCKET_URL` must point to the Northflank public URL.
 
 3. **Deploy:**
    - Click "Deploy"
@@ -126,18 +102,18 @@ After both services are deployed:
 **Problem**: Browser shows `Access-Control-Allow-Origin` error
 
 **Solution**:
-1. Check Railway environment variable `ALLOWED_ORIGINS`
+1. Check the Northflank environment variable `ALLOWED_ORIGINS`
 2. Ensure it includes ALL Vercel URLs (production + preview)
-3. Restart Railway service after changing env vars
+3. Redeploy the Northflank service after changing environment variables
 
 #### ❌ No Real-Time Updates
 
 **Problem**: UI doesn't update after bids, requires manual refresh
 
 **Solutions**:
-1. **Railway service paused**: Go to Railway dashboard and restart service
-2. **Wrong Socket URL**: Verify `NEXT_PUBLIC_SOCKET_URL` on Vercel matches Railway public URL
-3. **Check Railway logs**: Look for `[HTTP->Socket] Received emit request` messages
+1. **Northflank service unavailable**: Check the service status and restart it if necessary
+2. **Wrong Socket URL**: Verify `NEXT_PUBLIC_SOCKET_URL` on Vercel matches the Northflank public URL
+3. **Check Northflank logs**: Look for `socket server listening` and request errors
 4. **Redeploy Vercel**: Sometimes a fresh deployment is needed after env var changes
 
 #### ❌ 502 Bad Gateway
@@ -145,17 +121,17 @@ After both services are deployed:
 **Problem**: Socket.IO returns 502 error
 
 **Solution**:
-- Railway service is likely down or restarting
-- Check Railway logs for errors
+- The Northflank service is likely down or restarting
+- Check Northflank logs for errors
 - Restart the service manually
 
 ### Environment Variables Reference
 
 | Variable | Service | Description |
 |----------|---------|-------------|
-| `NEXT_PUBLIC_SOCKET_URL` | Vercel | Railway public URL for Socket.IO |
-| `ALLOWED_ORIGINS` | Railway | Comma-separated list of Vercel URLs |
-| `SOCKET_EMIT_SECRET` | Both | Shared secret used to authenticate server-to-server socket events; use the same long random value on Railway and Vercel |
+| `NEXT_PUBLIC_SOCKET_URL` | Vercel | Northflank public URL for Socket.IO |
+| `ALLOWED_ORIGINS` | Northflank | Comma-separated list of Vercel URLs |
+| `SOCKET_EMIT_SECRET` | Both | Shared secret used to authenticate server-to-server socket events; use the same long random value on Northflank and Vercel |
 | `TURSO_DATABASE_URL` | Both | Turso database connection URL |
 | `TURSO_AUTH_TOKEN` | Both | Turso authentication token |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Vercel | Clerk public key |

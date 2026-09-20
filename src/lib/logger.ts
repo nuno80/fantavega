@@ -1,7 +1,7 @@
 // src/lib/logger.ts
 // Structured JSON logger with PII redaction and per-request correlation IDs.
 // ponytail: no external logger dep — JSON lines on stdout/stderr are enough for
-// any aggregator (Railway/Vercel). Swap for pino only if structured sinks or
+// any aggregator (Northflank/Vercel). Swap for pino only if structured sinks or
 // child-logger perf becomes a real need.
 import { AsyncLocalStorage } from "node:async_hooks";
 

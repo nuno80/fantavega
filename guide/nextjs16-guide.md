@@ -1744,7 +1744,7 @@ NEXT_PUBLIC_API_URL="http://localhost:3000/api"
 
 ### Runtime Environment Variables
 
-Alcune variabili potrebbero essere disponibili solo a runtime (es. su Vercel, Railway):
+Alcune variabili potrebbero essere disponibili solo a runtime (es. su Vercel, Northflank):
 
 ```tsx
 // app/api/config/route.ts
@@ -1822,7 +1822,7 @@ try {
 # .env.example
 
 # Database Configuration
-# Get a PostgreSQL database from: https://railway.app/
+# PostgreSQL connection string supplied by your database provider
 DATABASE_URL="postgresql://user:password@host:5432/db"
 
 # Authentication Secret
